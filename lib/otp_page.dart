@@ -1,21 +1,97 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:my_skates/Home_Page.dart';
+import 'package:my_skates/api.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/registeration_page.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OtpPage extends StatefulWidget {
-  const OtpPage({super.key});
+  final String phoneNumber;
+  const OtpPage({super.key, required this.phoneNumber});
 
   @override
   State<OtpPage> createState() => _OtpPageState();
 }
 
 class _OtpPageState extends State<OtpPage> {
-  final List<TextEditingController> otpControllers =
-      List.generate(6, (index) => TextEditingController());
+  final List<TextEditingController> otpControllers = List.generate(
+    6,
+    (index) => TextEditingController(),
+  );
 
-  final List<FocusNode> focusNodes =
-      List.generate(6, (index) => FocusNode());
+  final List<FocusNode> focusNodes = List.generate(6, (index) => FocusNode());
+
+  // ---------------------------
+  // POST OTP FUNCTION
+  // ---------------------------
+  Future<void> postOtp(String enteredOtp) async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+      final response = await http.post(
+        Uri.parse('$api/api/myskates/verify/otp/'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"otp": enteredOtp, "phone": widget.phoneNumber}),
+      );
+
+      print("Response status: ${response.statusCode}");
+      print("Response body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        await prefs.setString('access_token', data['access']);
+        await prefs.setString('refresh_token', data['refresh']);
+        await prefs.setString('id', data['user']['id'].toString());
+
+        bool firstTime = data["first_time"] ?? false;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Color.fromARGB(255, 26, 164, 143),
+            content: Text('OTP verified successfully'),
+          ),
+        );
+
+        // Store token if needed
+        // final accessToken = data["access"];
+        // final userId = data["user"]["id"];
+
+        if (firstTime) {
+          // NEW USER
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  RegisterationPage(phone: widget.phoneNumber),
+            ),
+          );
+        } else {
+          // EXISTING USER
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => HomePage(), // Your home page
+            ),
+            (route) => false,
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('OTP Verification Failed: ${response.body}'),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(backgroundColor: Colors.red, content: Text('Error: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,109 +101,132 @@ class _OtpPageState extends State<OtpPage> {
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Color(0xFF00312D),
-              Color(0xFF000000),
-            ],
+            colors: [Color(0xFF00312D), Color(0xFF000000)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.vertical,
+                minHeight:
+                    MediaQuery.of(context).size.height -
+                    MediaQuery.of(context).padding.vertical,
               ),
               child: IntrinsicHeight(
                 child: Column(
                   children: [
-              const SizedBox(height: 80),
+                    const SizedBox(height: 80),
 
-              Image.asset(
-                "lib/assets/myskates.png", // replace with your image path
-                height: 120,
-              ),
+                    // Logo
+                    Image.asset("lib/assets/myskates.png", height: 120),
 
-              const SizedBox(height: 60),
+                    const SizedBox(height: 60),
 
-              const Text(
-                "Get starts with your\nPhone number",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
-                ),
-              ),
-
-              const SizedBox(height: 40),
-
-              // OTP INPUT FIELDS
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(6, (index) {
-                  return Container(
-                    width: 45,
-                    height: 55,
-                    margin: const EdgeInsets.symmetric(horizontal: 6),
-                    alignment: Alignment.center,
-                    child: TextField(
-                      controller: otpControllers[index],
-                      focusNode: focusNodes[index],
-                      keyboardType: TextInputType.number,
+                    const Text(
+                      "Get starts with your\nPhone number",
                       textAlign: TextAlign.center,
-                      maxLength: 1,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.2,
                       ),
-                      decoration: const InputDecoration(
-                        counterText: "",
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white38, width: 2),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white, width: 2),
-                        ),
-                      ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
-
-                      onChanged: (value) {
-                        if (value.isNotEmpty) {
-                          if (index < 5) {
-                            FocusScope.of(context)
-                                .requestFocus(focusNodes[index + 1]);
-                          } else {
-                            FocusScope.of(context).unfocus();
-                          }
-                        } else if (value.isEmpty && index > 0) {
-                          FocusScope.of(context)
-                              .requestFocus(focusNodes[index - 1]);
-                        }
-                      },
                     ),
-                  );
-                }),
-              ),
+
+                    const SizedBox(height: 40),
+
+                    // ---------------------------
+                    // OTP INPUT ROW
+                    // ---------------------------
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(6, (index) {
+                        return Container(
+                          width: 45,
+                          height: 55,
+                          margin: const EdgeInsets.symmetric(horizontal: 6),
+                          child: TextField(
+                            controller: otpControllers[index],
+                            focusNode: focusNodes[index],
+                            keyboardType: TextInputType.number,
+                            textAlign: TextAlign.center,
+                            maxLength: 1,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            decoration: const InputDecoration(
+                              counterText: "",
+                              enabledBorder: UnderlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: Colors.white38,
+                                  width: 2,
+                                ),
+                              ),
+                              focusedBorder: UnderlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+
+                            onChanged: (value) {
+                              if (value.isNotEmpty) {
+                                if (index < 5) {
+                                  FocusScope.of(
+                                    context,
+                                  ).requestFocus(focusNodes[index + 1]);
+                                } else {
+                                  FocusScope.of(context).unfocus();
+                                }
+                              } else if (value.isEmpty && index > 0) {
+                                FocusScope.of(
+                                  context,
+                                ).requestFocus(focusNodes[index - 1]);
+                              }
+                            },
+                          ),
+                        );
+                      }),
+                    ),
 
                     const SizedBox(height: 50),
 
+                    // ---------------------------
+                    // VERIFY BUTTON
+                    // ---------------------------
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 25),
                       child: SizedBox(
                         width: double.infinity,
                         height: 55,
                         child: ElevatedButton(
-                          onPressed: () {
-                            String otp = otpControllers.map((e) => e.text).join();
-                            print("OTP Entered: $otp");
-                            Navigator.push(context, MaterialPageRoute(builder: (context)=>RegisterationPage()));
+                          onPressed: () async {
+                            String otp = otpControllers
+                                .map((e) => e.text)
+                                .join();
+
+                            if (otp.length != 6) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  backgroundColor: Colors.red,
+                                  content: Text("Please enter 6 digit OTP"),
+                                ),
+                              );
+                              return;
+                            }
+
+                            await postOtp(otp);
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF00D8CC),
@@ -148,12 +247,15 @@ class _OtpPageState extends State<OtpPage> {
                       ),
                     ),
 
-              const SizedBox(height: 25),
+                    const SizedBox(height: 25),
 
+                    // ---------------------------
+                    // FOOTER BUTTONS
+                    // ---------------------------
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 25),
                       child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           TextButton(
                             onPressed: () {
@@ -164,12 +266,6 @@ class _OtpPageState extends State<OtpPage> {
                                 ),
                               );
                             },
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: const Size(0, 0),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              backgroundColor: Colors.transparent,
-                            ),
                             child: const Text(
                               "Edit phone number?",
                               style: TextStyle(
@@ -180,14 +276,8 @@ class _OtpPageState extends State<OtpPage> {
                           ),
                           TextButton(
                             onPressed: () {
-                              // TODO: implement resend OTP action
+                              // TODO: Resend OTP functionality
                             },
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: const Size(0, 0),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              backgroundColor: Colors.transparent,
-                            ),
                             child: const Text(
                               "Sent again",
                               style: TextStyle(
