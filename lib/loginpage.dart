@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/otp_page.dart';
 
 class Loginpage extends StatefulWidget {
   const Loginpage({super.key});
@@ -18,108 +19,124 @@ class _LoginpageState extends State<Loginpage> {
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Color(0xFF00312D),
-              Color(0xFF000000),
-            ],
+            colors: [Color(0xFF00312D), Color(0xFF000000)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 80),
-
-              // LOGO
-              Image.asset(
-                "assets/my_skates_logo.png",  // replace with your image path
-                height: 120,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.vertical,
               ),
+              child: IntrinsicHeight(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 80),
 
-              const SizedBox(height: 60),
+                    // LOGO
+                    Image.asset(
+                      "lib/assets/myskates.png",
+                      height: 120,
+                    ),
 
-              const Text(
-                "Get starts with your\nPhone number",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+                    const SizedBox(height: 60),
 
-              const SizedBox(height: 40),
+                    const Text(
+                      "Get started with your\nPhone number",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
 
-              // Phone Input Box
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 25),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  height: 60,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: Colors.white, width: 1.2),
-                  ),
-                  child: Row(
-                    children: [
-                      const Text(
-                        "+91",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
+                    const SizedBox(height: 40),
+
+                    // Phone Input Box
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 25),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        height: 55,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(color: Colors.white, width: 1.2),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text(
+                              "+91",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+
+                            const SizedBox(width: 15),
+                            Expanded(
+                              child: TextField(
+                                controller: phoneController,
+                                keyboardType: TextInputType.phone,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  letterSpacing: 1.2,
+                                ),
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: "Phone number",
+                                  hintStyle: TextStyle(color: Colors.white54),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 15),
-                      Expanded(
-                        child: TextField(
-                          controller: phoneController,
-                          keyboardType: TextInputType.phone,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            hintText: "Phone number",
-                            hintStyle: TextStyle(color: Colors.white54),
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    // GET OTP BUTTON
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 25),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 55,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => OtpPage()));
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00D8CC),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          child: const Text(
+                            "Get OTP",
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.2,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+
+                    const Spacer(),
+                  ],
                 ),
               ),
-
-              const SizedBox(height: 30),
-
-              // GET OTP BUTTON
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 25),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // TODO: Navigate OTP screen
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00D8CC),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: const Text(
-                      "Get OTP",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              const Spacer(),
-            ],
+            ),
           ),
         ),
       ),
