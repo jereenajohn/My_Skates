@@ -42,7 +42,7 @@ class _RegisterationPageState extends State<RegisterationPage> {
               // TITLE
               const Center(
                 child: Text(
-                  "Register",
+                  "Registerrr",
                   style: TextStyle(
                     color: Color(0xFF00D8CC),
                     fontSize: 36,
