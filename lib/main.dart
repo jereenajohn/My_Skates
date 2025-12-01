@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/Home_Page.dart';
 import 'package:my_skates/loginpage.dart';
 
 void main() {
@@ -15,6 +16,6 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(debugShowCheckedModeBanner: false, home: Loginpage());
+    return MaterialApp(debugShowCheckedModeBanner: false, home: HomePage());
   }
 }
