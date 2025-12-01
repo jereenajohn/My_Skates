@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:my_skates/api.dart';
+import 'package:my_skates/profile_page.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -8,6 +13,70 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  String studentName = "";
+  String studentRole = "";
+  String? studentImage;
+  bool isLoading = true;
+
+  @override
+  initState() {
+    super.initState();
+    fetchStudentDetails();
+  }
+
+  Future<String?> getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+
+  Future<int?> getUserId() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    var idValue = prefs.get('id');
+    if (idValue is int) return idValue;
+    if (idValue is String) return int.tryParse(idValue);
+    return null;
+  }
+
+  // Future<int?> getid() async {
+  //   SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   return prefs.getInt('id');
+  // }
+
+  Future<void> fetchStudentDetails() async {
+    try {
+      String? token = await getToken();
+      int? userId = await getUserId();
+
+      print("Fetched UserID: $userId");
+      print("Fetched Token: $token");
+
+      if (token == null || userId == null) {
+        print("Token or UserID missing");
+        return;
+      }
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/profile/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        setState(() {
+          studentName = data["first_name"] ?? "User";
+          studentRole = data["user_type"] ?? "Student";
+          studentImage = data["profile"];
+          isLoading = false;
+        });
+      } else {
+        print("Failed to load details: ${response.body}");
+      }
+    } catch (e) {
+      print("Error fetching student: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -21,23 +90,41 @@ class _HomePageState extends State<HomePage> {
               // PROFILE ROW
               Row(
                 children: [
-                  const CircleAvatar(
-                    radius: 28,
-                    backgroundImage: AssetImage("lib/assets/img.jpg"),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ProfilePage(),
+                        ),
+                      );
+                    },
+                    child: CircleAvatar(
+                      radius: 28,
+                      backgroundImage:
+                          studentImage != null && studentImage!.isNotEmpty
+                          ? NetworkImage("$api$studentImage")
+                          : const AssetImage("lib/assets/img.jpg")
+                                as ImageProvider,
+                    ),
                   ),
+
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
-                        "Emma Watson",
-                        style: TextStyle(
+                        studentName,
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
                       ),
-                      Text("Student", style: TextStyle(color: Colors.white70)),
+                      Text(
+                        studentRole,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
                     ],
                   ),
                   const Spacer(),
@@ -170,7 +257,7 @@ class _HomePageState extends State<HomePage> {
                 height: 230,
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                   reverse: true, 
+                  reverse: true,
                   child: Row(
                     children: [
                       buildCoachCard(
@@ -185,7 +272,7 @@ class _HomePageState extends State<HomePage> {
                         city: "Kakkanad",
                         image: "lib/assets/img22.jpg",
                       ),
-                       buildCoachCard(
+                      buildCoachCard(
                         name: "Sundar",
                         subtitle: "Eva skating academy",
                         city: "Kakkanad",
@@ -533,9 +620,9 @@ Widget buildCoachCard({
   required String image,
 }) {
   return Container(
-    width: 165,                     // REDUCED WIDTH (was 200)
+    width: 165, // REDUCED WIDTH (was 200)
     margin: const EdgeInsets.only(
-      right: 6,                    // SMALLER GAP BETWEEN CARDS
+      right: 6, // SMALLER GAP BETWEEN CARDS
     ),
     child: Stack(
       clipBehavior: Clip.none,
@@ -545,7 +632,11 @@ Widget buildCoachCard({
         Container(
           height: 185,
           padding: const EdgeInsets.only(
-              top: 60, left: 12, right: 12, bottom: 12),
+            top: 60,
+            left: 12,
+            right: 12,
+            bottom: 12,
+          ),
           decoration: BoxDecoration(
             color: const Color(0xFF1A1A1A),
             borderRadius: BorderRadius.circular(28),
@@ -566,26 +657,22 @@ Widget buildCoachCard({
               Text(
                 subtitle,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
 
               Text(
                 city,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 11,
-                ),
+                style: const TextStyle(color: Colors.white54, fontSize: 11),
               ),
 
               const SizedBox(height: 12),
 
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 22, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF00AFA5),
                   borderRadius: BorderRadius.circular(20),
@@ -602,10 +689,7 @@ Widget buildCoachCard({
         // FLOATING AVATAR
         Positioned(
           top: -18,
-          child: CircleAvatar(
-            radius: 36,
-            backgroundImage: AssetImage(image),
-          ),
+          child: CircleAvatar(radius: 36, backgroundImage: AssetImage(image)),
         ),
       ],
     ),

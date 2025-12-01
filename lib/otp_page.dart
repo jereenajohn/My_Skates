@@ -17,24 +17,27 @@ class OtpPage extends StatefulWidget {
 }
 
 class _OtpPageState extends State<OtpPage> {
-  final List<TextEditingController> otpControllers = List.generate(
-    6,
-    (index) => TextEditingController(),
-  );
+  final List<TextEditingController> otpControllers =
+      List.generate(6, (index) => TextEditingController());
 
-  final List<FocusNode> focusNodes = List.generate(6, (index) => FocusNode());
+  final List<FocusNode> focusNodes =
+      List.generate(6, (index) => FocusNode());
 
-  // ---------------------------
-  // POST OTP FUNCTION
-  // ---------------------------
+  // ------------------------------------------------------
+  // FIXED: POST OTP FUNCTION
+  // ------------------------------------------------------
   Future<void> postOtp(String enteredOtp) async {
     try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final SharedPreferences prefs =
+          await SharedPreferences.getInstance();
 
       final response = await http.post(
         Uri.parse('$api/api/myskates/verify/otp/'),
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"otp": enteredOtp, "phone": widget.phoneNumber}),
+        body: jsonEncode({
+          "otp": enteredOtp,
+          "phone": widget.phoneNumber,
+        }),
       );
 
       print("Response status: ${response.statusCode}");
@@ -42,9 +45,16 @@ class _OtpPageState extends State<OtpPage> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        await prefs.setString('access_token', data['access']);
-        await prefs.setString('refresh_token', data['refresh']);
-        await prefs.setString('id', data['user']['id'].toString());
+
+        // ------------------------------------------------
+        // FIX: SAVE DATA USING CORRECT KEYS
+        // ------------------------------------------------
+        await prefs.setString("token", data["access"]);         // access
+        await prefs.setString("refresh", data["refresh"]);      // refresh
+        await prefs.setInt("id", data["user"]["id"]);           // user id (INT)
+
+        print("SAVED TOKEN: ${data["access"]}");
+        print("SAVED USER ID: ${data["user"]["id"]}");
 
         bool firstTime = data["first_time"] ?? false;
 
@@ -55,13 +65,10 @@ class _OtpPageState extends State<OtpPage> {
           ),
         );
 
-        // Store token if needed
-        // final accessToken = data["access"];
-        // final userId = data["user"]["id"];
+        // SUCCESS — Navigate Properly
 
         if (firstTime) {
-          // NEW USER
-          Navigator.push(
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (context) =>
@@ -69,12 +76,9 @@ class _OtpPageState extends State<OtpPage> {
             ),
           );
         } else {
-          // EXISTING USER
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(
-              builder: (context) => HomePage(), // Your home page
-            ),
+            MaterialPageRoute(builder: (context) => const HomePage()),
             (route) => false,
           );
         }
@@ -82,17 +86,23 @@ class _OtpPageState extends State<OtpPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: Colors.red,
-            content: Text('OTP Verification Failed: ${response.body}'),
+            content: Text("OTP Verification Failed: ${response.body}"),
           ),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(backgroundColor: Colors.red, content: Text('Error: $e')),
+        SnackBar(
+          backgroundColor: Colors.red,
+          content: Text("Error: $e"),
+        ),
       );
     }
   }
 
+  // ------------------------------------------------------
+  // OVERRIDE BUILD
+  // ------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -113,8 +123,7 @@ class _OtpPageState extends State<OtpPage> {
             ),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minHeight:
-                    MediaQuery.of(context).size.height -
+                minHeight: MediaQuery.of(context).size.height -
                     MediaQuery.of(context).padding.vertical,
               ),
               child: IntrinsicHeight(
@@ -122,7 +131,6 @@ class _OtpPageState extends State<OtpPage> {
                   children: [
                     const SizedBox(height: 80),
 
-                    // Logo
                     Image.asset("lib/assets/myskates.png", height: 120),
 
                     const SizedBox(height: 60),
@@ -140,9 +148,9 @@ class _OtpPageState extends State<OtpPage> {
 
                     const SizedBox(height: 40),
 
-                    // ---------------------------
-                    // OTP INPUT ROW
-                    // ---------------------------
+                    // ------------------------------------------------------
+                    // OTP FIELDS
+                    // ------------------------------------------------------
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(6, (index) {
@@ -179,20 +187,13 @@ class _OtpPageState extends State<OtpPage> {
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
                             ],
-
                             onChanged: (value) {
-                              if (value.isNotEmpty) {
-                                if (index < 5) {
-                                  FocusScope.of(
-                                    context,
-                                  ).requestFocus(focusNodes[index + 1]);
-                                } else {
-                                  FocusScope.of(context).unfocus();
-                                }
+                              if (value.isNotEmpty && index < 5) {
+                                FocusScope.of(context)
+                                    .requestFocus(focusNodes[index + 1]);
                               } else if (value.isEmpty && index > 0) {
-                                FocusScope.of(
-                                  context,
-                                ).requestFocus(focusNodes[index - 1]);
+                                FocusScope.of(context)
+                                    .requestFocus(focusNodes[index - 1]);
                               }
                             },
                           ),
@@ -202,9 +203,9 @@ class _OtpPageState extends State<OtpPage> {
 
                     const SizedBox(height: 50),
 
-                    // ---------------------------
+                    // ------------------------------------------------------
                     // VERIFY BUTTON
-                    // ---------------------------
+                    // ------------------------------------------------------
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 25),
                       child: SizedBox(
@@ -249,9 +250,6 @@ class _OtpPageState extends State<OtpPage> {
 
                     const SizedBox(height: 25),
 
-                    // ---------------------------
-                    // FOOTER BUTTONS
-                    // ---------------------------
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 25),
                       child: Row(
@@ -275,11 +273,9 @@ class _OtpPageState extends State<OtpPage> {
                             ),
                           ),
                           TextButton(
-                            onPressed: () {
-                              // TODO: Resend OTP functionality
-                            },
+                            onPressed: () {},
                             child: const Text(
-                              "Sent again",
+                              "Send again",
                               style: TextStyle(
                                 color: Color(0xFF00D8CC),
                                 fontSize: 15,

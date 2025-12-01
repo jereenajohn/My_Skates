@@ -2,11 +2,23 @@
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+<uses-permission android:name="android.permission.CAMERA"/>
+
 
     <application
         android:label="my_skates"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
+         <meta-data
+        android:name="androidx.activity.result.contract.action.PICK_IMAGES"
+        android:value="disabled" />
+
+    <!-- Force legacy picker -->
+    <meta-data
+        android:name="flutter.image_picker.force_legacy"
+        android:value="true" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
