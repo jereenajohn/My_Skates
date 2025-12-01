@@ -205,7 +205,7 @@ String formatDob(String dob) {
               // TITLE
               const Center(
                 child: Text(
-                  "Register",
+                  "Registerr",
                   style: TextStyle(
                     color: Color(0xFF00D8CC),
                     fontSize: 36,
