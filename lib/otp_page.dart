@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:my_skates/Home_Page.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/loginpage.dart';
@@ -51,7 +52,8 @@ class _OtpPageState extends State<OtpPage> {
         // ------------------------------------------------
         await prefs.setString("token", data["access"]);         // access
         await prefs.setString("refresh", data["refresh"]);      // refresh
-        await prefs.setInt("id", data["user"]["id"]);           // user id (INT)
+        await prefs.setInt("id", data["user"]["id"]);   
+        await prefs.setString("user_type", data["user"]["user_type"]);     // user type (STRING)
 
         print("SAVED TOKEN: ${data["access"]}");
         print("SAVED USER ID: ${data["user"]["id"]}");
@@ -66,22 +68,40 @@ class _OtpPageState extends State<OtpPage> {
         );
 
         // SUCCESS — Navigate Properly
+String userType = data["user"]["user_type"] ?? "";
 
-        if (firstTime) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  RegisterationPage(phone: widget.phoneNumber),
-            ),
-          );
-        } else {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const HomePage()),
-            (route) => false,
-          );
-        }
+if (firstTime) {
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (context) =>
+          RegisterationPage(phone: widget.phoneNumber),
+    ),
+  );
+} else {
+  // CHECK USER TYPE & NAVIGATE
+  if (userType == "admin") {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => DashboardPage()),
+      (route) => false,
+    );
+  } else if (userType == "user") {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const HomePage()),
+      (route) => false,
+    );
+  }
+  else {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const HomePage()),
+      (route) => false,
+    );
+  }
+}
+
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
