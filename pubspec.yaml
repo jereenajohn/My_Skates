@@ -48,6 +48,7 @@ dev_dependencies:
   http:
   shared_preferences: ^2.0.15
   geolocator: ^10.0.0
+  image_picker: ^1.1.1
 
 
 
@@ -73,6 +74,7 @@ flutter:
      - lib/assets/skating.png
      - lib/assets/skating1.jpg
      - lib/assets/skating2.jpg
+     -  lib/assets/img.jpg
 
 
 
