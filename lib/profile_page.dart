@@ -109,7 +109,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> fetchCountries() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("token");
+      final token = prefs.getString("access");
 
       final res = await http.get(
         Uri.parse("$api/api/myskates/country/"),
@@ -128,7 +128,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> fetchStates() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("token");
+      final token = prefs.getString("access");
 
       final res = await http.get(
         Uri.parse("$api/api/myskates/state/"),
@@ -147,7 +147,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> fetchDistricts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("token");
+      final token = prefs.getString("access");
 
       final res = await http.get(
         Uri.parse("$api/api/myskates/district/"),
@@ -168,7 +168,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> fetchProfileData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("token");
+      final token = prefs.getString("access");
       final userId = prefs.getInt("id");
 
       final res = await http.get(
@@ -211,7 +211,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> submitProfile() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("token");
+      final token = prefs.getString("access");
       final userId = prefs.getInt("id");
 
       var request = http.MultipartRequest(
