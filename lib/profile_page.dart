@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:my_skates/api.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -14,6 +15,9 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  // Form key
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
   // Dropdown selected IDs
   String? gender;
   String? selectedCountry;
@@ -94,9 +98,7 @@ class _ProfilePageState extends State<ProfilePage> {
         (s) => s["id"].toString() == selectedState,
       )["name"];
 
-      districtList = allDistricts
-          .where((d) => d["state"] == stateName)
-          .toList();
+      districtList = allDistricts.where((d) => d["state"] == stateName).toList();
     }
 
     setState(() {});
@@ -116,9 +118,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (res.statusCode == 200) {
         List data = jsonDecode(res.body);
-        countryList = data
-            .map((e) => {"id": e["id"], "name": e["name"]})
-            .toList();
+        countryList = data.map((e) => {"id": e["id"], "name": e["name"]}).toList();
       }
     } catch (e) {
       print("Country error: $e");
@@ -137,9 +137,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (res.statusCode == 200) {
         List data = jsonDecode(res.body);
-        stateList = data
-            .map((e) => {"id": e["id"], "name": e["name"]})
-            .toList();
+        stateList = data.map((e) => {"id": e["id"], "name": e["name"]}).toList();
       }
     } catch (e) {
       print("State error: $e");
@@ -223,19 +221,18 @@ class _ProfilePageState extends State<ProfilePage> {
 
       request.headers["Authorization"] = "Bearer $token";
 
-      request.fields["first_name"] = firstCtrl.text;
-      request.fields["last_name"] = lastCtrl.text;
-      request.fields["phone"] = phoneCtrl.text;
-      request.fields["email"] = emailCtrl.text;
-      request.fields["alt_phone"] = altPhoneCtrl.text;
+      request.fields["first_name"] = firstCtrl.text.trim();
+      request.fields["last_name"] = lastCtrl.text.trim();
+      request.fields["phone"] = phoneCtrl.text.trim();
+      request.fields["email"] = emailCtrl.text.trim();
+      request.fields["alt_phone"] = altPhoneCtrl.text.trim();
       request.fields["gender"] = gender ?? "";
-      request.fields["age"] = ageCtrl.text;
-      request.fields["zip_code"] = zipCtrl.text;
-      request.fields["instagram"] = instaCtrl.text;
+      request.fields["age"] = ageCtrl.text.trim();
+      request.fields["zip_code"] = zipCtrl.text.trim();
+      request.fields["instagram"] = instaCtrl.text.trim();
 
-      request.fields["dob"] = dob != null
-          ? dob!.toIso8601String().substring(0, 10)
-          : "";
+      request.fields["dob"] =
+          dob != null ? dob!.toIso8601String().substring(0, 10) : "";
 
       request.fields["country"] = selectedCountry ?? "";
       request.fields["state"] = selectedState ?? "";
@@ -254,12 +251,24 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Profile updated successfully")),
-        );
+  const SnackBar(
+    backgroundColor: Colors.teal,
+    content: Text(
+      "Profile updated successfully",
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    duration: Duration(seconds: 2),
+  ),
+);
+
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(result)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result)),
+        );
       }
     } catch (e) {
       print("Submit error: $e");
@@ -282,179 +291,231 @@ class _ProfilePageState extends State<ProfilePage> {
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
 
-                // Profile Image
-                GestureDetector(
-                  onTap: () async {
-                    final pick = await _picker.pickImage(
-                      source: ImageSource.gallery,
-                    );
-                    if (pick != null) {
-                      setState(() {
-                        profileImage = File(pick.path);
-                      });
-                    }
-                  },
-                  child: CircleAvatar(
-                    radius: 70,
-                    backgroundColor: Colors.white24,
-                    backgroundImage: profileImage != null
-                        ? FileImage(profileImage!)
-                        : (profileNetworkImage != null
+                  // Profile Image
+                  GestureDetector(
+                    onTap: () async {
+                      final pick = await _picker.pickImage(
+                        source: ImageSource.gallery,
+                      );
+                      if (pick != null) {
+                        setState(() {
+                          profileImage = File(pick.path);
+                        });
+                      }
+                    },
+                    child: CircleAvatar(
+                      radius: 70,
+                      backgroundColor: Colors.white24,
+                      backgroundImage: profileImage != null
+                          ? FileImage(profileImage!)
+                          : (profileNetworkImage != null
                               ? NetworkImage(profileNetworkImage!)
-                              : null),
-                    child: profileImage == null && profileNetworkImage == null
-                        ? const Text(
-                            "Upload",
-                            style: TextStyle(color: Colors.white),
-                          )
-                        : null,
-                  ),
-                ),
-
-                const SizedBox(height: 30),
-
-                // ------------------ FIRST NAME + LAST NAME ROW ------------------
-                Row(
-                  children: [
-                    Expanded(child: _inputField("First Name", firstCtrl)),
-                    const SizedBox(width: 15),
-                    Expanded(child: _inputField("Last Name", lastCtrl)),
-                  ],
-                ),
-
-                _inputField("Phone", phoneCtrl, readOnly: true),
-
-                // EMAIL + ALT PHONE (as-is)
-                _inputField("Email", emailCtrl),
-                _inputField("Alt Phone", altPhoneCtrl),
-
-                // ------------------ GENDER + DOB ROW ------------------
-                Row(
-                  children: [
-                    Expanded(
-                      child: _dropdownField(
-                        label: "Gender",
-                        value: gender,
-                        items: ["Male", "Female", "Other"],
-                        onChange: (v) => setState(() => gender = v),
-                      ),
-                    ),
-                    const SizedBox(width: 15),
-                    Expanded(child: _dobPicker()), // DOB picker fits perfectly
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                // ------------------ ZIP + COUNTRY ROW ------------------
-                Row(
-                  children: [
-                    Expanded(child: _inputField("Zip Code", zipCtrl)),
-                    const SizedBox(width: 15),
-                    Expanded(
-                      child: _dropdownField(
-                        label: "Country",
-                        value: selectedCountry == null
-                            ? null
-                            : countryList.firstWhere(
-                                (e) => e["id"].toString() == selectedCountry,
-                                orElse: () => {"name": null},
-                              )["name"],
-                        items: countryList
-                            .map((e) => e["name"] as String)
-                            .toList(),
-                        onChange: (v) {
-                          final selected = countryList.firstWhere(
-                            (e) => e["name"] == v,
-                          );
-                          selectedCountry = selected["id"].toString();
-                          setState(() {});
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                // ------------------ STATE + DISTRICT ROW ------------------
-                Row(
-                  children: [
-                    Expanded(
-                      child: _dropdownField(
-                        label: "State",
-                        value: selectedState == null
-                            ? null
-                            : stateList.firstWhere(
-                                (e) => e["id"].toString() == selectedState,
-                                orElse: () => {"name": null},
-                              )["name"],
-                        items: stateList
-                            .map((e) => e["name"] as String)
-                            .toList(),
-                        onChange: (v) {
-                          final selected = stateList.firstWhere(
-                            (e) => e["name"] == v,
-                          );
-                          selectedState = selected["id"].toString();
-
-                          districtList = allDistricts
-                              .where((d) => d["state"] == v)
-                              .toList();
-                          selectedDistrict = null;
-                          setState(() {});
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 15),
-                    Expanded(
-                      child: _dropdownField(
-                        label: "District",
-                        value: selectedDistrict == null
-                            ? null
-                            : districtList.firstWhere(
-                                (e) => e["id"].toString() == selectedDistrict,
-                                orElse: () => {"name": null},
-                              )["name"],
-                        items: districtList
-                            .map((e) => e["name"] as String)
-                            .toList(),
-                        onChange: (v) {
-                          final selected = districtList.firstWhere(
-                            (e) => e["name"] == v,
-                          );
-                          selectedDistrict = selected["id"].toString();
-                          setState(() {});
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-
-                _inputField("Instagram", instaCtrl),
-
-                const SizedBox(height: 30),
-
-                SizedBox(
-                  width: double.infinity, // full width
-                  child: ElevatedButton(
-                    onPressed: submitProfile,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text(
-                      "Update Profile",
-                      style: TextStyle(color: Colors.white, fontSize: 16),
+                              : null) as ImageProvider<Object>?,
+                      child: profileImage == null && profileNetworkImage == null
+                          ? const Text(
+                              "Upload",
+                              style: TextStyle(color: Colors.white),
+                            )
+                          : null,
                     ),
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 30),
+
+                  // ------------------ FIRST NAME + LAST NAME ROW ------------------
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _inputField("First Name", firstCtrl),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: _inputField("Last Name", lastCtrl),
+                      ),
+                    ],
+                  ),
+
+                  _inputField("Phone", phoneCtrl, readOnly: true),
+
+                  // EMAIL + ALT PHONE (as-is, but validated)
+                  _inputField("Email", emailCtrl),
+                  _inputField(
+                    "Alt Phone",
+                    altPhoneCtrl,
+                    isNumber: true,
+                    maxLength: 10, // STRICT 10 DIGITS
+                  ),
+
+                  // ------------------ GENDER + DOB ROW ------------------
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _dropdownField(
+                          label: "Gender",
+                          value: gender,
+                          items: const ["Male", "Female", "Other"],
+                          onChange: (v) => setState(() => gender = v),
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(child: _dobPicker()), // DOB picker fits perfectly
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // ------------------ ZIP + COUNTRY ROW ------------------
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _inputField(
+                          "Zip Code",
+                          zipCtrl,
+                          isNumber: true,
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: _dropdownField(
+                          label: "Country",
+                          value: selectedCountry == null
+                              ? null
+                              : countryList.firstWhere(
+                                  (e) =>
+                                      e["id"].toString() == selectedCountry,
+                                  orElse: () => {"name": null},
+                                )["name"],
+                          items: countryList
+                              .map((e) => e["name"] as String)
+                              .toList(),
+                          onChange: (v) {
+                            final selected = countryList.firstWhere(
+                              (e) => e["name"] == v,
+                            );
+                            selectedCountry = selected["id"].toString();
+                            setState(() {});
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // ------------------ STATE + DISTRICT ROW ------------------
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _dropdownField(
+                          label: "State",
+                          value: selectedState == null
+                              ? null
+                              : stateList.firstWhere(
+                                  (e) =>
+                                      e["id"].toString() == selectedState,
+                                  orElse: () => {"name": null},
+                                )["name"],
+                          items: stateList
+                              .map((e) => e["name"] as String)
+                              .toList(),
+                          onChange: (v) {
+                            final selected = stateList.firstWhere(
+                              (e) => e["name"] == v,
+                            );
+                            selectedState = selected["id"].toString();
+
+                            districtList = allDistricts
+                                .where((d) => d["state"] == v)
+                                .toList();
+                            selectedDistrict = null;
+                            setState(() {});
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: _dropdownField(
+                          label: "District",
+                          value: selectedDistrict == null
+                              ? null
+                              : districtList.firstWhere(
+                                  (e) =>
+                                      e["id"].toString() ==
+                                      selectedDistrict,
+                                  orElse: () => {"name": null},
+                                )["name"],
+                          items: districtList
+                              .map((e) => e["name"] as String)
+                              .toList(),
+                          onChange: (v) {
+                            final selected = districtList.firstWhere(
+                              (e) => e["name"] == v,
+                            );
+                            selectedDistrict = selected["id"].toString();
+                            setState(() {});
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  _inputField("Instagram", instaCtrl),
+
+                  const SizedBox(height: 30),
+
+                  SizedBox(
+                    width: double.infinity, // full width
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (!_formKey.currentState!.validate()) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+    backgroundColor: Colors.black87,
+    content: const Text(
+      "Please fix the errors in the form.",
+      style: TextStyle(
+        color: Colors.redAccent,
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+    duration: Duration(seconds: 2),
+  ),
+);
+
+                          return;
+                        }
+
+                        if (dob == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Date of Birth is required"),
+                            ),
+                          );
+                          return;
+                        }
+
+                        submitProfile();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        "Update Profile",
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -468,40 +529,97 @@ class _ProfilePageState extends State<ProfilePage> {
     String label,
     TextEditingController controller, {
     bool readOnly = false,
+    bool isNumber = false,
+    bool isRequired = true,
+    int? maxLength,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: TextFormField(
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+
         controller: controller,
         readOnly: readOnly,
+        keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+        inputFormatters: [
+          if (isNumber) FilteringTextInputFormatter.digitsOnly,
+          if (maxLength != null) LengthLimitingTextInputFormatter(maxLength),
+        ],
         style: TextStyle(color: readOnly ? Colors.white70 : Colors.white),
         decoration: _dec(label).copyWith(
           fillColor: readOnly ? Colors.black26 : const Color(0xFF1E1E1E),
         ),
+        validator: (value) {
+          final v = value?.trim() ?? "";
+
+          if (isRequired && v.isEmpty) {
+            return "$label is required";
+          }
+
+          if (label == "Email" && v.isNotEmpty) {
+            final validEmail =
+                RegExp(r"^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$");
+            if (!validEmail.hasMatch(v)) {
+              return "Enter valid email";
+            }
+          }
+
+          if (label == "Zip Code" && v.isNotEmpty) {
+            if (int.tryParse(v) == null) {
+              return "Zip must be numeric";
+            }
+          }
+
+          if (label == "Alt Phone") {
+            if (v.isEmpty) {
+              return "Alt Phone is required";
+            }
+            if (v.length != 10) {
+              return "Alt Phone must be 10 digits";
+            }
+          }
+
+          return null;
+        },
       ),
     );
   }
 
-  InputDecoration _dec(String label) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: Colors.white60),
-      floatingLabelStyle: const TextStyle(color: Colors.white60),
-      filled: true,
-      fillColor: const Color(0xFF1E1E1E),
+ InputDecoration _dec(String label) {
+  return InputDecoration(
+    labelText: label,
+    labelStyle: const TextStyle(color: Colors.white60),
+    floatingLabelStyle: const TextStyle(color: Colors.white60),
+    filled: true,
+    fillColor: const Color(0xFF1E1E1E),
 
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: Colors.white24),
-      ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(20),
+      borderSide: const BorderSide(color: Colors.white24),
+    ),
 
-      // SAME AS enabledBorder → No highlight
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: Colors.white24),
-      ),
-    );
-  }
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(20),
+      borderSide: const BorderSide(color: Colors.white24),
+    ),
+
+    // IMPORTANT: prevent Flutter from changing border on error
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(20),
+      borderSide: const BorderSide(color: Colors.white24),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(20),
+      borderSide: const BorderSide(color: Colors.white24),
+    ),
+
+    errorStyle: const TextStyle(
+      color: Colors.redAccent,
+      fontSize: 12,
+    ),
+  );
+}
+
 
   Widget _dropdownField({
     required String label,
@@ -517,9 +635,20 @@ class _ProfilePageState extends State<ProfilePage> {
         dropdownColor: Colors.black,
         style: const TextStyle(color: Colors.white),
         items: items
-            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+            .map(
+              (e) => DropdownMenuItem(
+                value: e,
+                child: Text(e),
+              ),
+            )
             .toList(),
         onChanged: onChange,
+        validator: (v) {
+          if (v == null || v.trim().isEmpty) {
+            return "$label is required";
+          }
+          return null;
+        },
       ),
     );
   }
@@ -539,13 +668,32 @@ class _ProfilePageState extends State<ProfilePage> {
 
           if (picked != null) setState(() => dob = picked);
         },
-        child: InputDecorator(
-          decoration: _dec("Date of Birth"),
-          child: Text(
-            dob == null
-                ? "Select Date"
-                : "${dob!.day}/${dob!.month}/${dob!.year}",
-            style: const TextStyle(color: Colors.white),
+        child: FormField(
+          validator: (_) => dob == null ? "Date of Birth is required" : null,
+          builder: (state) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InputDecorator(
+                decoration: _dec("Date of Birth"),
+                child: Text(
+                  dob == null
+                      ? "Select Date"
+                      : "${dob!.day}/${dob!.month}/${dob!.year}",
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+              if (state.hasError)
+                Padding(
+                  padding: const EdgeInsets.only(top: 5, left: 12),
+                  child: Text(
+                    state.errorText!,
+                    style: const TextStyle(
+                      color: Colors.redAccent,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
