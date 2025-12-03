@@ -50,10 +50,12 @@ class _OtpPageState extends State<OtpPage> {
         // ------------------------------------------------
         // FIX: SAVE DATA USING CORRECT KEYS
         // ------------------------------------------------
-        await prefs.setString("token", data["access"]);         // access
-        await prefs.setString("refresh", data["refresh"]);      // refresh
-        await prefs.setInt("id", data["user"]["id"]);   
-        await prefs.setString("user_type", data["user"]["user_type"]);     // user type (STRING)
+      await prefs.setString("access", data["access"]);        // FIXED
+await prefs.setString("refresh", data["refresh"]);
+await prefs.setInt("id", data["user"]["id"]);
+await prefs.setString("user_type", data["user"]["user_type"]);
+await prefs.setString("phone", widget.phoneNumber);     // IMPORTANT
+
 
         print("SAVED TOKEN: ${data["access"]}");
         print("SAVED USER ID: ${data["user"]["id"]}");
@@ -86,7 +88,7 @@ if (firstTime) {
       MaterialPageRoute(builder: (context) => DashboardPage()),
       (route) => false,
     );
-  } else if (userType == "user") {
+  } else if (userType == "coach"|| userType == "student") {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const HomePage()),

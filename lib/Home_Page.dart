@@ -27,7 +27,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
+    return prefs.getString('access');
   }
 
   Future<int?> getUserId() async {

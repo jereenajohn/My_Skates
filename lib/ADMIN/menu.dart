@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/loginpage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class MenuPage extends StatefulWidget {
   const MenuPage({super.key});
@@ -8,6 +11,18 @@ class MenuPage extends StatefulWidget {
 }
 
 class _MenuPageState extends State<MenuPage> {
+
+
+  @override
+
+void initState() {
+    // TODO: implement initState
+    super.initState();
+  }
+
+
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -95,6 +110,7 @@ class _MenuPageState extends State<MenuPage> {
               _menuTile(icon: Icons.notifications_outlined, text: "Notifications"),
               _divider(),
               _menuTile(icon: Icons.access_time, text: "Time management"),
+              
 
               const SizedBox(height: 25),
 
@@ -130,6 +146,7 @@ class _MenuPageState extends State<MenuPage> {
     required String text,
     String? subtitle,
     String? trailingText,
+    VoidCallback? onTap,
   }) {
     return Column(
       children: [
@@ -148,6 +165,7 @@ class _MenuPageState extends State<MenuPage> {
                 )
               : null,
 
+          onTap: onTap,
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
