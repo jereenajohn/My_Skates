@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/ADMIN/add_country.dart';
+import 'package:my_skates/ADMIN/add_district.dart';
+import 'package:my_skates/ADMIN/add_state.dart';
+import 'package:my_skates/COACH/add_club.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,7 +25,43 @@ void initState() {
   }
 
 
+Future<void> logoutUser() async {
+  final prefs = await SharedPreferences.getInstance();
 
+  // Debug check before logout
+  print("Token BEFORE logout: ${prefs.getString('token')}");
+  print("ID BEFORE logout: ${prefs.getInt('id')}");
+
+  // Remove saved login data
+  await prefs.remove('token');
+  await prefs.remove('id');
+
+  // Debug check after logout
+  print("Token AFTER logout: ${prefs.getString('token')}");
+  print("ID AFTER logout: ${prefs.getInt('id')}");
+
+  // Snackbar message
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text(
+        "Logout successfully",
+        style: TextStyle(color: Colors.white, fontSize: 16),
+      ),
+      backgroundColor: Colors.teal,
+      duration: Duration(seconds: 2),
+    ),
+  );
+
+  // Delay slightly so snackbar is visible before redirect
+  await Future.delayed(const Duration(milliseconds: 600));
+
+  // Navigate to Login Page & clear all previous screens
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(builder: (_) => const Loginpage()),  // <-- your login page
+    (route) => false,
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -69,47 +109,56 @@ void initState() {
                 ),
               ),
 
-              const SizedBox(height: 25),
+              
 
-              // SECTION: YOUR ACCOUNT
-              const Text(
-                "Your account",
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
+              
               const SizedBox(height: 12),
-              _menuTile(
-                icon: Icons.person_outline,
-                text: "Accounts Center",
-                subtitle: "Password, security, personal details, ad preferences",
-              ),
-
-              const SizedBox(height: 25),
-
-              // SECTION: HOW YOU USE INSTAGRAM
-              const Text(
-                "How you use Instagram",
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 12),
-              _menuTile(icon: Icons.bookmark_outline, text: "Saved"),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AddCountry()),
+                  );
+                },
+                child: _menuTile(icon: Icons.bookmark_outline, text: "Country")),
               _divider(),
-              _menuTile(icon: Icons.history, text: "Archive"),
+              
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const state()),
+                  );
+                },
+                child: _menuTile(icon: Icons.bookmark_outline, text: "State")),
               _divider(),
-              _menuTile(icon: Icons.show_chart_outlined, text: "Your activity"),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const district()),
+                  );
+                },
+                child: _menuTile(icon: Icons.history, text: "District")),
+              _divider(),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AddClub()),
+                  );
+                },
+                child: _menuTile(icon: Icons.show_chart_outlined, text: "Your activity")),
               _divider(),
               _menuTile(icon: Icons.notifications_outlined, text: "Notifications"),
               _divider(),
               _menuTile(icon: Icons.access_time, text: "Time management"),
+              _divider(),
+              _menuTile(
+                icon: Icons.lock_outline,
+                text: "Logout",
+                onTap: logoutUser,
+              ),
               
 
               const SizedBox(height: 25),
