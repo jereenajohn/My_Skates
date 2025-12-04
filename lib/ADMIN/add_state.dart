@@ -35,7 +35,7 @@ Future<void> updateStateInSameForm(
   BuildContext context,
 ) async {
   final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("token");
+  final token = prefs.getString("access");
 
   try {
     var response = await http.put(
@@ -82,7 +82,7 @@ Future<void> updateStateInSameForm(
   Future<void> getcountry() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("token");
+      final token = prefs.getString("access");
 
       var response = await http.get(
         Uri.parse('$api/api/myskates/country/'),
@@ -122,7 +122,7 @@ Future<void> updateStateInSameForm(
     Future<void> getstate() async {
     try {
        final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("token");
+      final token = prefs.getString("access");
 
       var response = await http.get(
         Uri.parse('$api/api/myskates/state/'),
@@ -170,7 +170,7 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
   print("countryId: $countryId");
 
   final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("token");
+  final token = prefs.getString("access");
 
   try {
     var response = await http.post(
