@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_skates/COACH/add_club.dart';
 import 'package:my_skates/COACH/coach_profile.dart';
+import 'package:my_skates/COACH/view_clubs.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/profile_page.dart'; // <-- Navigation Target Example
 import 'package:shared_preferences/shared_preferences.dart';
@@ -159,9 +160,22 @@ class _CoachSettingsState extends State<CoachSettings> {
                 },
               ),
               _divider(),
+               _menuTile(
+                icon: Icons.home,
+                text: "View Club",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ViewClubs()),
+                  );
+                },
+              ),
+              _divider(),
+
 
               _menuTile(icon: Icons.show_chart_outlined, text: "Your activity"),
               _divider(),
+              
               _menuTile(
                 icon: Icons.notifications_outlined,
                 text: "Notifications",

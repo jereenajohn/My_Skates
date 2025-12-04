@@ -31,40 +31,56 @@ class _CoachHomepageState extends State<CoachHomepage> {
     return prefs.getString('access');
   }
 
-  Future<int?> getUserId() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    var idValue = prefs.get('id');
-    if (idValue is int) return idValue;
-    if (idValue is String) return int.tryParse(idValue);
-    return null;
-  }
+ Future<int?> getUserId() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  return prefs.getInt("id");
+}
 
-  Future<void> fetchStudentDetails() async {
-    try {
-      String? token = await getToken();
-      int? userId = await getUserId();
+Future<void> fetchStudentDetails() async {
+  try {
+    String? token = await getToken();
+    int? userId = await getUserId();
 
-      if (token == null || userId == null) return;
+    if (token == null || userId == null) return;
 
-      final response = await http.get(
-        Uri.parse("$api/api/myskates/profile/"),
-        headers: {"Authorization": "Bearer $token"},
+    final response = await http.get(
+      Uri.parse("$api/api/myskates/profile/"),
+      headers: {"Authorization": "Bearer $token"},
+    );
+
+    print("PROFILE API STATUS = ${response.statusCode}");
+    print("PROFILE API BODY = ${response.body}");
+
+    final data = jsonDecode(response.body);
+
+    if (data is List) {
+      // Find the logged-in user
+      final user = data.firstWhere(
+        (item) => item["id"] == userId,
+        orElse: () => null,
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        setState(() {
-          studentName = data["first_name"] ?? "User";
-          studentRole = data["user_type"] ?? "Student";
-          studentImage = data["profile"];
-          isLoading = false;
-        });
+      if (user == null) {
+        print("Logged-in user not found in profile list");
+        return;
       }
-    } catch (e) {
-      print("Error fetching student: $e");
+
+    
+      setState(() {
+        studentName = user["first_name"] ?? user["name"] ?? "User";
+        studentRole = user["user_type"] ?? "Student";
+        studentImage = user["profile"];
+        isLoading = false;
+      });
+
+      print("Loaded PROFILE for user ID $userId");
+    } else {
+      print("PROFILE API did not return a list.");
     }
+  } catch (e) {
+    print("Error fetching student: $e");
   }
+}
 
   @override
   Widget build(BuildContext context) {
