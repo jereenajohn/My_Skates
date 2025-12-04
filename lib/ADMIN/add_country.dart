@@ -39,7 +39,7 @@ bool showForm = false;
     try {
 
  final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("token");
+    final token = prefs.getString("access");
       var response = await http.get(
         Uri.parse('$api/api/myskates/country/'),
         headers: {
@@ -83,7 +83,7 @@ bool showForm = false;
   
 Future<void> updateCountry(int id, String name, String code) async {
   final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("token");
+  final token = prefs.getString("access");
 
   try {
     var response = await http.put(
@@ -127,7 +127,7 @@ Future<void> updateCountry(int id, String name, String code) async {
 
     void addcountry(String country, String code, BuildContext context) async {
   final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("token");
+  final token = prefs.getString("access");
 
   try {
     var response = await http.post(

@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
   // ----------------------------------------------------------
   Future<Widget> checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("token");
+    final token = prefs.getString("access");
     final userType = prefs.getString("user_type");
 
     if (token != null && token.isNotEmpty) {

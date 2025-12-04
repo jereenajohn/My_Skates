@@ -1,0 +1,254 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:my_skates/COACH/location.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:my_skates/api.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+
+
+class AddBanner extends StatefulWidget {
+  const AddBanner({super.key});
+
+  @override
+  State<AddBanner> createState() => _AddBannerState();
+}
+
+class _AddBannerState extends State<AddBanner> {
+  // Controllers
+  final TextEditingController bannerNameCtrl = TextEditingController();
+ 
+XFile? pickedImage;
+final ImagePicker picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+  
+  }
+Future<void> pickImageFromGallery() async {
+  final XFile? img = await picker.pickImage(source: ImageSource.gallery);
+
+  if (img != null) {
+    setState(() {
+      pickedImage = img;
+    });
+  }
+}
+
+
+
+Future<void> submitClub() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+    final id = prefs.getInt("id");
+
+
+    if (token == null) {
+      print("No TOKEN found");
+      return;
+    }
+
+    var url = Uri.parse("$api/api/myskates/banner/"); // Replace with actual endpoint
+
+    var request = http.MultipartRequest("POST", url);
+    request.headers["Authorization"] = "Bearer $token";
+
+    // Add all text fields
+    request.fields.addAll({
+      "title": bannerNameCtrl.text.trim(),
+    });
+
+    // Upload image if selected
+    if (pickedImage != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          "image",           // backend field name
+          pickedImage!.path,
+        ),
+      );
+    }
+
+    print("Sending request...");
+    var response = await request.send();
+
+    var responseBody = await response.stream.bytesToString();
+    print("STATUS CODE: ${response.statusCode}");
+    print("RESPONSE: $responseBody");
+
+   if (response.statusCode == 200 || response.statusCode == 201) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: const Text("Banner Created Successfully!"),
+      backgroundColor: Colors.green,     // SUCCESS GREEN
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+  );
+  Navigator.push(context, MaterialPageRoute(builder: (context) => const AddBanner()));
+} else {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text("Failed: $responseBody"),
+      backgroundColor: Colors.red,       // ERROR RED
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+  );
+}
+
+  } catch (e) {
+    print("UPLOAD ERROR: $e");
+  }
+}
+
+  // UI STARTS HERE
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.center,
+            colors: [
+              Color(0xFF0A332E),
+              Colors.black,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // BACK BUTTON
+                Row(
+                  children: [
+                    InkWell(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white38),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.keyboard_arrow_left, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                // UPLOAD PHOTO
+             Center(
+  child: Column(
+    children: [
+      GestureDetector(
+        onTap: pickImageFromGallery,
+        child: Container(
+          height: 110,
+          width: 110,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color.fromARGB(157, 37, 37, 37),
+            image: pickedImage != null
+                ? DecorationImage(
+                    image: FileImage(File(pickedImage!.path)),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
+          child: pickedImage == null
+              ? const Icon(Icons.camera_alt_outlined,
+                  color: Colors.white54, size: 40)
+              : null,
+        ),
+      ),
+      const SizedBox(height: 8),
+      const Text(
+        "Upload Photo",
+        style: TextStyle(color: Colors.white70, fontSize: 15),
+      ),
+    ],
+  ),
+),
+
+                const SizedBox(height: 15),
+
+                buildLabel("Banner Name"),
+                buildTextField(bannerNameCtrl),
+
+                const SizedBox(height: 22),
+
+                // CREATE CLUB BUTTON
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      submitClub();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00C9B8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text(
+                      "Create Club",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 35),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // LABEL WIDGET
+  Widget buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 15, bottom: 8),
+      child: Text(
+        text,
+        style: const TextStyle(color: Colors.white70, fontSize: 14),
+      ),
+    );
+  }
+
+  // TEXTFIELD UI
+  Widget buildTextField(TextEditingController controller, {int maxLines = 1}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(157, 37, 37, 37),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        style: const TextStyle(color: Colors.white),
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+      ),
+    );
+  }
+}
