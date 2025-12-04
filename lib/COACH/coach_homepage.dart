@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/profile_page.dart';
-import 'package:my_skates/user_connect_coaches.dart';
 import 'package:my_skates/user_settings.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class CoachHomepage extends StatefulWidget {
+  const CoachHomepage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<CoachHomepage> createState() => _CoachHomepageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _CoachHomepageState extends State<CoachHomepage> {
   String studentName = "";
   String studentRole = "";
   String? studentImage;
@@ -38,21 +38,33 @@ class _HomePageState extends State<HomePage> {
     if (idValue is String) return int.tryParse(idValue);
     return null;
   }
-Future<void> fetchStudentDetails() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
 
-    setState(() {
-      studentName = prefs.getString("name") ?? "User";
-      studentRole = prefs.getString("user_type") ?? "Student";
-      studentImage = prefs.getString("profile"); 
-      isLoading = false;
-    });
+  Future<void> fetchStudentDetails() async {
+    try {
+      String? token = await getToken();
+      int? userId = await getUserId();
 
-  } catch (e) {
-    print("Error loading user from prefs: $e");
+      if (token == null || userId == null) return;
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/profile/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        setState(() {
+          studentName = data["first_name"] ?? "User";
+          studentRole = data["user_type"] ?? "Student";
+          studentImage = data["profile"];
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print("Error fetching student: $e");
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -78,18 +90,14 @@ Future<void> fetchStudentDetails() async {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const UserSettings(),
-                          ),
+                          MaterialPageRoute(builder: (_) => const CoachSettings()),
                         );
                       },
                       child: CircleAvatar(
                         radius: 28,
-                        backgroundImage:
-                            studentImage != null && studentImage!.isNotEmpty
+                        backgroundImage: studentImage != null && studentImage!.isNotEmpty
                             ? NetworkImage("$api$studentImage")
-                            : const AssetImage("lib/assets/img.jpg")
-                                  as ImageProvider,
+                            : const AssetImage("lib/assets/img.jpg") as ImageProvider,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -153,49 +161,11 @@ Future<void> fetchStudentDetails() async {
 
                     const SizedBox(height: 25),
 
-                    buildButton(
-                      "Connect Coaches",
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const UserConnectCoaches(),
-                          ),
-                        );
-                      },
-                    ),
-                    buildButton("Connect Students", onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const UserConnectCoaches(),
-                          ),
-                        );
-                      },),
-                    buildButton("Find Clubs", onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const UserConnectCoaches(),
-                          ),
-                        );
-                      },),
-                    buildButton("Find Events", onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const UserConnectCoaches(),
-                          ),
-                        );
-                      },),
-                    buildButton("Buy and Sell products", onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const UserConnectCoaches(),
-                          ),
-                        );
-                      },),
+                    buildButton("Connect Coaches"),
+                    buildButton("Connect Students"),
+                    buildButton("Find Clubs"),
+                    buildButton("Find Events"),
+                    buildButton("Buy and Sell products"),
 
                     const SizedBox(height: 25),
 
@@ -216,20 +186,11 @@ Future<void> fetchStudentDetails() async {
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: [
-                            buildClubCard(
-                              "Spark roller skating",
-                              "lib/assets/images.png",
-                            ),
+                            buildClubCard("Spark roller skating", "lib/assets/images.png"),
                             const SizedBox(width: 12),
-                            buildClubCard(
-                              "Kimberley skating",
-                              "lib/assets/imagess.png",
-                            ),
+                            buildClubCard("Kimberley skating", "lib/assets/imagess.png"),
                             const SizedBox(width: 12),
-                            buildClubCard(
-                              "City Skate Club",
-                              "lib/assets/images.png",
-                            ),
+                            buildClubCard("City Skate Club", "lib/assets/images.png"),
                           ],
                         ),
                       ),
@@ -365,14 +326,8 @@ Future<void> fetchStudentDetails() async {
             currentIndex: 0,
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.shopping_bag),
-                label: '',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.chat_bubble_rounded),
-                label: '',
-              ),
+              BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ''),
+              BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_rounded), label: ''),
               BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
               BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
             ],
@@ -383,7 +338,7 @@ Future<void> fetchStudentDetails() async {
   }
 
   // BUTTON WIDGET
-  Widget buildButton(String title, {VoidCallback? onTap}) {
+  Widget buildButton(String title) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       width: double.infinity,
@@ -395,7 +350,7 @@ Future<void> fetchStudentDetails() async {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        onPressed: onTap,
+        onPressed: () {},
         child: Text(
           title,
           style: const TextStyle(fontSize: 16, color: Colors.white),
@@ -504,10 +459,7 @@ Widget buildEventCard({
 
         const SizedBox(height: 6),
 
-        Text(
-          location,
-          style: const TextStyle(color: Colors.white54, fontSize: 12),
-        ),
+        Text(location, style: const TextStyle(color: Colors.white54, fontSize: 12)),
 
         const SizedBox(height: 10),
 
@@ -554,18 +506,12 @@ Widget buildEventCardWithImages({
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  clubName,
-                  style: const TextStyle(color: Colors.white, fontSize: 15),
-                ),
-                Text(
-                  date,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-                Text(
-                  location,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
-                ),
+                Text(clubName,
+                    style: const TextStyle(color: Colors.white, fontSize: 15)),
+                Text(date,
+                    style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                Text(location,
+                    style: const TextStyle(color: Colors.white54, fontSize: 12)),
               ],
             ),
           ],
@@ -648,12 +594,7 @@ Widget buildCoachCard({
       children: [
         Container(
           height: 185,
-          padding: const EdgeInsets.only(
-            top: 60,
-            left: 12,
-            right: 12,
-            bottom: 12,
-          ),
+          padding: const EdgeInsets.only(top: 60, left: 12, right: 12, bottom: 12),
           decoration: BoxDecoration(
             color: const Color(0xFF1A1A1A),
             borderRadius: BorderRadius.circular(28),
@@ -686,10 +627,7 @@ Widget buildCoachCard({
               const SizedBox(height: 12),
 
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 22,
-                  vertical: 7,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 7),
                 decoration: BoxDecoration(
                   color: const Color(0xFF00AFA5),
                   borderRadius: BorderRadius.circular(20),
