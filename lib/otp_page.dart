@@ -52,6 +52,7 @@ class _OtpPageState extends State<OtpPage> {
         await prefs.setString("refresh", data["refresh"]);
         await prefs.setInt("id", data["user"]["id"]);
         await prefs.setString("user_type", data["user"]["user_type"]);
+        prefs.setString("name", data["user"]["name"]);
         await prefs.setString("phone", widget.phoneNumber); // IMPORTANT
 
         print("SAVED TOKEN: ${data["access"]}");
