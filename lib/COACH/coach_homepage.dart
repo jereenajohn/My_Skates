@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/profile_page.dart';
+import 'package:my_skates/user_connect_coaches.dart';
 import 'package:my_skates/user_settings.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,56 +32,55 @@ class _CoachHomepageState extends State<CoachHomepage> {
     return prefs.getString('access');
   }
 
- Future<int?> getUserId() async {
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  return prefs.getInt("id");
-}
+  Future<int?> getUserId() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getInt("id");
+  }
 
-Future<void> fetchStudentDetails() async {
-  try {
-    String? token = await getToken();
-    int? userId = await getUserId();
+  Future<void> fetchStudentDetails() async {
+    try {
+      String? token = await getToken();
+      int? userId = await getUserId();
 
-    if (token == null || userId == null) return;
+      if (token == null || userId == null) return;
 
-    final response = await http.get(
-      Uri.parse("$api/api/myskates/profile/"),
-      headers: {"Authorization": "Bearer $token"},
-    );
-
-    print("PROFILE API STATUS = ${response.statusCode}");
-    print("PROFILE API BODY = ${response.body}");
-
-    final data = jsonDecode(response.body);
-
-    if (data is List) {
-      // Find the logged-in user
-      final user = data.firstWhere(
-        (item) => item["id"] == userId,
-        orElse: () => null,
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/profile/"),
+        headers: {"Authorization": "Bearer $token"},
       );
 
-      if (user == null) {
-        print("Logged-in user not found in profile list");
-        return;
+      print("PROFILE API STATUS = ${response.statusCode}");
+      print("PROFILE API BODY = ${response.body}");
+
+      final data = jsonDecode(response.body);
+
+      if (data is List) {
+        // Find the logged-in user
+        final user = data.firstWhere(
+          (item) => item["id"] == userId,
+          orElse: () => null,
+        );
+
+        if (user == null) {
+          print("Logged-in user not found in profile list");
+          return;
+        }
+
+        setState(() {
+          studentName = user["first_name"] ?? user["name"] ?? "User";
+          studentRole = user["user_type"] ?? "Student";
+          studentImage = user["profile"];
+          isLoading = false;
+        });
+
+        print("Loaded PROFILE for user ID $userId");
+      } else {
+        print("PROFILE API did not return a list.");
       }
-
-    
-      setState(() {
-        studentName = user["first_name"] ?? user["name"] ?? "User";
-        studentRole = user["user_type"] ?? "Student";
-        studentImage = user["profile"];
-        isLoading = false;
-      });
-
-      print("Loaded PROFILE for user ID $userId");
-    } else {
-      print("PROFILE API did not return a list.");
+    } catch (e) {
+      print("Error fetching student: $e");
     }
-  } catch (e) {
-    print("Error fetching student: $e");
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -106,14 +106,18 @@ Future<void> fetchStudentDetails() async {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const CoachSettings()),
+                          MaterialPageRoute(
+                            builder: (_) => const CoachSettings(),
+                          ),
                         );
                       },
                       child: CircleAvatar(
                         radius: 28,
-                        backgroundImage: studentImage != null && studentImage!.isNotEmpty
+                        backgroundImage:
+                            studentImage != null && studentImage!.isNotEmpty
                             ? NetworkImage("$api$studentImage")
-                            : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+                            : const AssetImage("lib/assets/img.jpg")
+                                  as ImageProvider,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -202,11 +206,20 @@ Future<void> fetchStudentDetails() async {
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: [
-                            buildClubCard("Spark roller skating", "lib/assets/images.png"),
+                            buildClubCard(
+                              "Spark roller skating",
+                              "lib/assets/images.png",
+                            ),
                             const SizedBox(width: 12),
-                            buildClubCard("Kimberley skating", "lib/assets/imagess.png"),
+                            buildClubCard(
+                              "Kimberley skating",
+                              "lib/assets/imagess.png",
+                            ),
                             const SizedBox(width: 12),
-                            buildClubCard("City Skate Club", "lib/assets/images.png"),
+                            buildClubCard(
+                              "City Skate Club",
+                              "lib/assets/images.png",
+                            ),
                           ],
                         ),
                       ),
@@ -342,8 +355,14 @@ Future<void> fetchStudentDetails() async {
             currentIndex: 0,
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
-              BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ''),
-              BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_rounded), label: ''),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.shopping_bag),
+                label: '',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.chat_bubble_rounded),
+                label: '',
+              ),
               BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
               BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
             ],
@@ -366,7 +385,24 @@ Future<void> fetchStudentDetails() async {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        onPressed: () {},
+        onPressed: () {
+          if (title == "Connect Coaches") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const UserConnectCoaches(),
+              ),
+            );
+          } else if (title == "Connect Students") {
+            // Navigate to Connect Students page
+          } else if (title == "Find Clubs") {
+            // Navigate to Find Clubs page
+          } else if (title == "Find Events") {
+            // Navigate to Find Events page
+          } else if (title == "Buy and Sell products") {
+            // Navigate to Buy and Sell products page
+          }
+        },
         child: Text(
           title,
           style: const TextStyle(fontSize: 16, color: Colors.white),
@@ -475,7 +511,10 @@ Widget buildEventCard({
 
         const SizedBox(height: 6),
 
-        Text(location, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        Text(
+          location,
+          style: const TextStyle(color: Colors.white54, fontSize: 12),
+        ),
 
         const SizedBox(height: 10),
 
@@ -522,12 +561,18 @@ Widget buildEventCardWithImages({
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(clubName,
-                    style: const TextStyle(color: Colors.white, fontSize: 15)),
-                Text(date,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                Text(location,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                Text(
+                  clubName,
+                  style: const TextStyle(color: Colors.white, fontSize: 15),
+                ),
+                Text(
+                  date,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+                Text(
+                  location,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
               ],
             ),
           ],
@@ -610,7 +655,12 @@ Widget buildCoachCard({
       children: [
         Container(
           height: 185,
-          padding: const EdgeInsets.only(top: 60, left: 12, right: 12, bottom: 12),
+          padding: const EdgeInsets.only(
+            top: 60,
+            left: 12,
+            right: 12,
+            bottom: 12,
+          ),
           decoration: BoxDecoration(
             color: const Color(0xFF1A1A1A),
             borderRadius: BorderRadius.circular(28),
@@ -643,7 +693,10 @@ Widget buildCoachCard({
               const SizedBox(height: 12),
 
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF00AFA5),
                   borderRadius: BorderRadius.circular(20),

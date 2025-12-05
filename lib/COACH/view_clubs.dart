@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/COACH/edit_club.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 
@@ -69,18 +70,18 @@ class _ViewClubsState extends State<ViewClubs> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-  backgroundColor: Colors.black,
-  elevation: 0,
-  leading: IconButton(
-    icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-    onPressed: () {
-      Navigator.pop(context);
-    },
-  ),
- 
-),
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
 
       backgroundColor: Colors.black,
+
       body: SafeArea(
         child: isLoading
             ? const Center(child: CircularProgressIndicator(color: Colors.teal))
@@ -90,76 +91,59 @@ class _ViewClubsState extends State<ViewClubs> {
       ),
 
       bottomNavigationBar: Container(
-  decoration: const BoxDecoration(
-    color: Colors.black,
-    borderRadius: BorderRadius.only(
-      topLeft: Radius.circular(30),
-      topRight: Radius.circular(30),
-    ),
-  ),
-  child: ClipRRect(
-    borderRadius: const BorderRadius.only(
-      topLeft: Radius.circular(30),
-      topRight: Radius.circular(30),
-    ),
-    child: BottomNavigationBar(
-      backgroundColor: Colors.black,
-      selectedItemColor: const Color(0xFF00AFA5),
-      unselectedItemColor: Colors.white70,
-      showSelectedLabels: false,
-      showUnselectedLabels: false,
-      type: BottomNavigationBarType.fixed,
-
-      // CHANGE THIS LATER if dynamic index is needed
-      currentIndex: 3, // Clubs tab
-
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home_filled),
-          label: '',
+        decoration: const BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(30),
+            topRight: Radius.circular(30),
+          ),
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_bag),
-          label: '',
+        child: ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(30),
+            topRight: Radius.circular(30),
+          ),
+          child: BottomNavigationBar(
+            backgroundColor: Colors.black,
+            selectedItemColor: const Color(0xFF00AFA5),
+            unselectedItemColor: Colors.white70,
+            showSelectedLabels: false,
+            showUnselectedLabels: false,
+            type: BottomNavigationBarType.fixed,
+            currentIndex: 3,
+            items: const [
+              BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.shopping_bag),
+                label: '',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.chat_bubble_rounded),
+                label: '',
+              ),
+              BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
+              BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
+            ],
+          ),
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.chat_bubble_rounded),
-          label: '',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.group),
-          label: '',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.event),
-          label: '',
-        ),
-      ],
-    ),
-  ),
-),
-
+      ),
     );
   }
 
   // ---------------------------------------------------
-  // TOP BANNER + CLUB LIST (MATCHES YOUR DESIGN)
+  // TOP UI + CLUB GRID
   // ---------------------------------------------------
   Widget buildClubPage() {
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
-
-            // Handshake + Title
             Center(
               child: Column(
                 children: const [
-                  Text("🤝", style: TextStyle(fontSize: 35)),
-                  SizedBox(height: 10),
+                  Text("🤝", style: TextStyle(fontSize: 38)),
                   Text(
                     "Create Your own",
                     style: TextStyle(
@@ -172,7 +156,7 @@ class _ViewClubsState extends State<ViewClubs> {
                     "Myskate Club",
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 26,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -180,14 +164,14 @@ class _ViewClubsState extends State<ViewClubs> {
               ),
             ),
 
-            const SizedBox(height: 15),
+            const SizedBox(height: 10),
 
-            // Create Club Button
+            // Create Button
             Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
+                  horizontal: 25,
+                  vertical: 6,
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(30),
@@ -195,26 +179,18 @@ class _ViewClubsState extends State<ViewClubs> {
                 ),
                 child: const Text(
                   "Create a Club",
-                  style: TextStyle(color: Colors.tealAccent, fontSize: 16),
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 15),
 
-            // Section Title
-            const Text(
-              "Skating Clubs You May Like",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 19,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-
-            const SizedBox(height: 18),
-
-            // Grid View
+            // GRID VIEW
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -229,6 +205,7 @@ class _ViewClubsState extends State<ViewClubs> {
                 final club = clubs[index];
 
                 return ClubCard(
+                  clubId: club["id"],
                   name: club["club_name"],
                   location:
                       "${club["place"] ?? ""}, ${club["district_name"] ?? ""}",
@@ -236,8 +213,6 @@ class _ViewClubsState extends State<ViewClubs> {
                 );
               },
             ),
-
-            
 
             const SizedBox(height: 20),
           ],
@@ -266,7 +241,7 @@ class _ViewClubsState extends State<ViewClubs> {
 
 //
 // ----------------------------------------------------------
-//       UPDATED CLUB CARD — EXACT UI LIKE YOUR DESIGN
+//                     CLUB CARD WIDGET
 // ----------------------------------------------------------
 //
 
@@ -274,12 +249,14 @@ class ClubCard extends StatelessWidget {
   final String name;
   final String location;
   final String? image;
+  final int clubId;
 
   const ClubCard({
     super.key,
     required this.name,
     required this.location,
     required this.image,
+    required this.clubId,
   });
 
   @override
@@ -293,11 +270,10 @@ class ClubCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ---------------- IMAGE + NAME + PLACE -----------------
+          // TOP ROW: IMAGE + DETAILS
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // IMAGE
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: image != null && image!.isNotEmpty
@@ -316,12 +292,10 @@ class ClubCard extends StatelessWidget {
 
               const SizedBox(width: 10),
 
-              // TEXT CONTENT
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // CLUB NAME
                     Text(
                       name,
                       maxLines: 2,
@@ -335,7 +309,6 @@ class ClubCard extends StatelessWidget {
 
                     const SizedBox(height: 4),
 
-                    // LOCATION
                     Text(
                       location,
                       style: const TextStyle(
@@ -343,34 +316,36 @@ class ClubCard extends StatelessWidget {
                         fontSize: 12,
                       ),
                     ),
-
-                    const SizedBox(height: 3),
-
-                    // STUDENTS TEXT
-                    const Text(
-                      "500+ students",
-                      style: TextStyle(color: Colors.white54, fontSize: 11),
-                    ),
                   ],
                 ),
               ),
             ],
           ),
 
-          const Spacer(),
-
-          // ---------------- FOLLOW BUTTON -----------------
-          Container(
-            width: double.infinity,
-            height: 42,
-            decoration: BoxDecoration(
-              color: const Color(0xFF00D8CC),
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: const Center(
-              child: Text(
-                "Follow",
-                style: TextStyle(color: Colors.white, fontSize: 15),
+          Spacer(),
+          // EDIT BUTTON
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditClub(clubId: clubId),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              width: double.infinity,
+              height: 30,
+              decoration: BoxDecoration(
+                color: Colors.teal,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Center(
+                child: Text(
+                  "Edit Club",
+                  style: TextStyle(color: Colors.white, fontSize: 15),
+                ),
               ),
             ),
           ),
