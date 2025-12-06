@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:my_skates/COACH/location.dart';
+import 'package:my_skates/COACH/view_clubs.dart';
 import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -238,7 +239,7 @@ class _EditClubState extends State<EditClub> {
           content: Text("Club Updated Successfully"),
         ),
       );
-      Navigator.pop(context);
+      Navigator.push(context, MaterialPageRoute(builder: (context)=>ViewClubs()));
     } else {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

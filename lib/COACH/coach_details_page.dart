@@ -65,7 +65,9 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
       return path;
     }
 
-    String cleanBase = api.endsWith("/") ? api.substring(0, api.length - 1) : api;
+    String cleanBase = api.endsWith("/")
+        ? api.substring(0, api.length - 1)
+        : api;
     String cleanPath = path.startsWith("/") ? path.substring(1) : path;
 
     return "$cleanBase/$cleanPath";
@@ -145,7 +147,6 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                
                 // INSTAGRAM
                 GestureDetector(
                   onTap: () {
@@ -236,7 +237,6 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-
                 const SizedBox(height: 20),
 
                 Align(
@@ -328,29 +328,69 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
                 // ),
 
                 // const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // CONNECT BUTTON
 
-                SizedBox(
-                  height: 50,
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => _showConnectPopup(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(22),
+                    // FOLLOW BUTTON
+                    // FOLLOW BUTTON (TRANSPARENT)
+                    Expanded(
+                      child: SizedBox(
+                        height: 50,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            print("Follow pressed");
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(
+                              color: Colors.white,
+                              width: 1.4,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(22),
+                            ),
+                            foregroundColor: Colors.white,
+                            backgroundColor: Colors.transparent,
+                          ),
+                          child: const Text(
+                            "Follow",
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    child: const Text(
-                      "Connect",
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: SizedBox(
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: () => _showConnectPopup(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(22),
+                            ),
+                          ),
+                          child: const Text(
+                            "Connect",
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+
+                    const SizedBox(width: 15),
+                  ],
                 ),
 
                 const SizedBox(height: 25),
@@ -394,7 +434,9 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
                   subTitle: "Morning training session",
                   time: "1h 12m",
                   distance: "Panamballi Nagar - Kaicor",
-                  iconUrl: fullImageUrl("/media/profile_images/1000004721_K1a26PJ.jpg"),
+                  iconUrl: fullImageUrl(
+                    "/media/profile_images/1000004721_K1a26PJ.jpg",
+                  ),
                 ),
 
                 const SizedBox(height: 20),
@@ -441,7 +483,10 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14)),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 16)),
+          Text(
+            value,
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
         ],
       ),
     );
@@ -499,18 +544,23 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
                             ),
                           ),
                         ),
-                        const Icon(Icons.emoji_events,
-                            color: Colors.yellow, size: 22),
+                        const Icon(
+                          Icons.emoji_events,
+                          color: Colors.yellow,
+                          size: 22,
+                        ),
                       ],
                     ),
 
                     const SizedBox(height: 4),
-                    Text(date,
-                        style:
-                            const TextStyle(color: Colors.grey, fontSize: 13)),
-                    Text(location,
-                        style:
-                            const TextStyle(color: Colors.grey, fontSize: 13)),
+                    Text(
+                      date,
+                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                    Text(
+                      location,
+                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
                   ],
                 ),
               ),
@@ -534,14 +584,16 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
             Row(
               children: [
                 if (time != null)
-                  Text(time,
-                      style:
-                          const TextStyle(color: Colors.grey, fontSize: 13)),
+                  Text(
+                    time,
+                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                  ),
                 if (distance != null) ...[
                   const SizedBox(width: 12),
-                  Text(distance,
-                      style:
-                          const TextStyle(color: Colors.grey, fontSize: 13)),
+                  Text(
+                    distance,
+                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                  ),
                 ],
               ],
             ),
