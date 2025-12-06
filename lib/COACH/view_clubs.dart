@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/COACH/add_club.dart';
+import 'package:my_skates/COACH/club_detailed_view.dart';
 import 'package:my_skates/COACH/edit_club.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
@@ -21,7 +23,7 @@ class _ViewClubsState extends State<ViewClubs> {
   void initState() {
     super.initState();
     fetchClubs();
-  }
+  } 
 
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -43,6 +45,10 @@ class _ViewClubsState extends State<ViewClubs> {
       Uri.parse("$api/api/myskates/club/coach/$coachId/"),
       headers: {"Authorization": "Bearer $token"},
     );
+
+    print("Fetching clubs for coach ID: $coachId");
+    print("Response status: ${response.statusCode}");
+    print("Response body: ${response.body}");
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -68,6 +74,7 @@ class _ViewClubsState extends State<ViewClubs> {
 
   @override
   Widget build(BuildContext context) {
+    
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.black,
@@ -167,22 +174,31 @@ class _ViewClubsState extends State<ViewClubs> {
             const SizedBox(height: 10),
 
             // Create Button
-            Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 25,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.tealAccent, width: 2),
-                ),
-                child: const Text(
-                  "Create a Club",
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AddClub()),
+                );
+                print("Create a Club tapped");
+              },
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 25,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: Colors.tealAccent, width: 2),
+                  ),
+                  child: const Text(
+                    "Create a Club",
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
@@ -191,7 +207,7 @@ class _ViewClubsState extends State<ViewClubs> {
             const SizedBox(height: 15),
 
             // GRID VIEW
-            GridView.builder(
+         GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: clubs.length,
@@ -204,12 +220,21 @@ class _ViewClubsState extends State<ViewClubs> {
               itemBuilder: (context, index) {
                 final club = clubs[index];
 
-                return ClubCard(
-                  clubId: club["id"],
-                  name: club["club_name"],
-                  location:
-                      "${club["place"] ?? ""}, ${club["district_name"] ?? ""}",
-                  image: club["image"],
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ClubView(clubid: club["id"]),
+                      ),
+                    );
+                  },
+                  child: ClubCard(
+                    clubId: club["id"],
+                    name: club["club_name"],
+                    location: "${club["place"] ?? ""}, ${club["district_name"] ?? ""}",
+                    image: club["image"],
+                  ),
                 );
               },
             ),
@@ -244,7 +269,6 @@ class _ViewClubsState extends State<ViewClubs> {
 //                     CLUB CARD WIDGET
 // ----------------------------------------------------------
 //
-
 class ClubCard extends StatelessWidget {
   final String name;
   final String location;
@@ -270,59 +294,53 @@ class ClubCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // TOP ROW: IMAGE + DETAILS
+          // IMAGE + NAME IN SAME ROW
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
                 child: image != null && image!.isNotEmpty
                     ? Image.network(
                         "$api$image",
-                        width: 50,
-                        height: 50,
+                        width: 40,
+                        height: 40,
                         fit: BoxFit.cover,
                       )
                     : Image.asset(
                         "lib/assets/placeholder.png",
-                        width: 50,
-                        height: 50,
+                        width: 40,
+                        height: 40,
                       ),
               ),
 
               const SizedBox(width: 10),
 
+              // NAME STRAIGHT NEXT TO IMAGE
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    Text(
-                      location,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
           ),
 
-          Spacer(),
+          const SizedBox(height: 10),
+
+          // LOCATION BELOW
+          Text(
+            location,
+            style: const TextStyle(color: Colors.white70, fontSize: 11),
+          ),
+
+          const Spacer(),
+
           // EDIT BUTTON
           InkWell(
             onTap: () {
@@ -344,7 +362,7 @@ class ClubCard extends StatelessWidget {
               child: const Center(
                 child: Text(
                   "Edit Club",
-                  style: TextStyle(color: Colors.white, fontSize: 15),
+                  style: TextStyle(color: Colors.white, fontSize: 14),
                 ),
               ),
             ),
