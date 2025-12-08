@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:my_skates/Home_Page.dart';
@@ -20,9 +21,14 @@ class MyApp extends StatelessWidget {
     final token = prefs.getString("access");
     final userType = prefs.getString("user_type");
 
+    print("User Type: $userType");
+    print(token);
+
     if (token != null && token.isNotEmpty) {
       if (userType == "admin") {
         return DashboardPage();
+      } else if (userType == "coach") {
+        return CoachHomepage();
       } else {
         return HomePage();
       }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:my_skates/ADMIN/dashboard.dart';
+import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/Home_Page.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/loginpage.dart';
@@ -18,27 +19,24 @@ class OtpPage extends StatefulWidget {
 }
 
 class _OtpPageState extends State<OtpPage> {
-  final List<TextEditingController> otpControllers =
-      List.generate(6, (index) => TextEditingController());
+  final List<TextEditingController> otpControllers = List.generate(
+    6,
+    (index) => TextEditingController(),
+  );
 
-  final List<FocusNode> focusNodes =
-      List.generate(6, (index) => FocusNode());
+  final List<FocusNode> focusNodes = List.generate(6, (index) => FocusNode());
 
   // ------------------------------------------------------
   // FIXED: POST OTP FUNCTION
   // ------------------------------------------------------
   Future<void> postOtp(String enteredOtp) async {
     try {
-      final SharedPreferences prefs =
-          await SharedPreferences.getInstance();
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
 
       final response = await http.post(
         Uri.parse('$api/api/myskates/verify/otp/'),
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "otp": enteredOtp,
-          "phone": widget.phoneNumber,
-        }),
+        body: jsonEncode({"otp": enteredOtp, "phone": widget.phoneNumber}),
       );
 
       print("Response status: ${response.statusCode}");
@@ -50,12 +48,12 @@ class _OtpPageState extends State<OtpPage> {
         // ------------------------------------------------
         // FIX: SAVE DATA USING CORRECT KEYS
         // ------------------------------------------------
-      await prefs.setString("access", data["access"]);        // FIXED
-await prefs.setString("refresh", data["refresh"]);
-await prefs.setInt("id", data["user"]["id"]);
-await prefs.setString("user_type", data["user"]["user_type"]);
-await prefs.setString("phone", widget.phoneNumber);     // IMPORTANT
-
+        await prefs.setString("access", data["access"]); // FIXED
+        await prefs.setString("refresh", data["refresh"]);
+        await prefs.setInt("id", data["user"]["id"]);
+        await prefs.setString("user_type", data["user"]["user_type"]);
+        prefs.setString("name", data["user"]["name"]);
+        await prefs.setString("phone", widget.phoneNumber); // IMPORTANT
 
         print("SAVED TOKEN: ${data["access"]}");
         print("SAVED USER ID: ${data["user"]["id"]}");
@@ -70,40 +68,46 @@ await prefs.setString("phone", widget.phoneNumber);     // IMPORTANT
         );
 
         // SUCCESS — Navigate Properly
-String userType = data["user"]["user_type"] ?? "";
+        String userType = data["user"]["user_type"] ?? "";
 
-if (firstTime) {
-  Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(
-      builder: (context) =>
-          RegisterationPage(phone: widget.phoneNumber),
-    ),
-  );
-} else {
-  // CHECK USER TYPE & NAVIGATE
-  if (userType == "admin") {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => DashboardPage()),
-      (route) => false,
-    );
-  } else if (userType == "coach"|| userType == "student") {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const HomePage()),
-      (route) => false,
-    );
-  }
-  else {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const HomePage()),
-      (route) => false,
-    );
-  }
-}
-
+        if (firstTime) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  RegisterationPage(phone: widget.phoneNumber),
+            ),
+          );
+        } else {
+          // CHECK USER TYPE & NAVIGATE
+          if (userType == "admin") {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => DashboardPage()),
+              (route) => false,
+            );
+          } else if (userType == "student") {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const HomePage()),
+              (route) => false,
+            );
+          } 
+           else if (userType == "coach") {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const CoachHomepage()),
+              (route) => false,
+            );
+          }
+          else {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const HomePage()),
+              (route) => false,
+            );
+          }
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -114,10 +118,7 @@ if (firstTime) {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.red,
-          content: Text("Error: $e"),
-        ),
+        SnackBar(backgroundColor: Colors.red, content: Text("Error: $e")),
       );
     }
   }
@@ -145,7 +146,8 @@ if (firstTime) {
             ),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minHeight: MediaQuery.of(context).size.height -
+                minHeight:
+                    MediaQuery.of(context).size.height -
                     MediaQuery.of(context).padding.vertical,
               ),
               child: IntrinsicHeight(
@@ -211,11 +213,13 @@ if (firstTime) {
                             ],
                             onChanged: (value) {
                               if (value.isNotEmpty && index < 5) {
-                                FocusScope.of(context)
-                                    .requestFocus(focusNodes[index + 1]);
+                                FocusScope.of(
+                                  context,
+                                ).requestFocus(focusNodes[index + 1]);
                               } else if (value.isEmpty && index > 0) {
-                                FocusScope.of(context)
-                                    .requestFocus(focusNodes[index - 1]);
+                                FocusScope.of(
+                                  context,
+                                ).requestFocus(focusNodes[index - 1]);
                               }
                             },
                           ),

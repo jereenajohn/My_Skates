@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/profile_page.dart';
 import 'package:my_skates/user_connect_coaches.dart';
@@ -7,26 +8,23 @@ import 'package:my_skates/user_settings.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class CoachHomepage extends StatefulWidget {
+  const CoachHomepage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<CoachHomepage> createState() => _CoachHomepageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _CoachHomepageState extends State<CoachHomepage> {
   String studentName = "";
   String studentRole = "";
   String? studentImage;
   bool isLoading = true;
-   List clubs = [];
-  bool noData = false;
 
   @override
   initState() {
     super.initState();
     fetchStudentDetails();
-    fetchClubs();  
   }
 
   Future<String?> getToken() async {
@@ -36,60 +34,53 @@ class _HomePageState extends State<HomePage> {
 
   Future<int?> getUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    var idValue = prefs.get('id');
-    if (idValue is int) return idValue;
-    if (idValue is String) return int.tryParse(idValue);
-    return null;
+    return prefs.getInt("id");
   }
-Future<void> fetchStudentDetails() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
 
-    setState(() {
-      studentName = prefs.getString("name") ?? "User";
-      studentRole = prefs.getString("user_type") ?? "Student";
-      studentImage = prefs.getString("profile"); 
-      isLoading = false;
-    });
+  Future<void> fetchStudentDetails() async {
+    try {
+      String? token = await getToken();
+      int? userId = await getUserId();
 
-  } catch (e) {
-    print("Error loading user from prefs: $e");
-  }
-}
+      if (token == null || userId == null) return;
 
-Future<void> fetchClubs() async {
-  String? token = await getToken();
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/profile/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
 
-  try {
-    final response = await http.get(
-      Uri.parse("$api/api/myskates/club/"),
-      headers: {"Authorization": "Bearer $token"},
-    );
+      print("PROFILE API STATUS = ${response.statusCode}");
+      print("PROFILE API BODY = ${response.body}");
 
-    print("Clubs status: ${response.statusCode}");
-    print("Clubs body: ${response.body}");
+      final data = jsonDecode(response.body);
 
-    if (response.statusCode == 200) {
-      final decoded = jsonDecode(response.body);
+      if (data is List) {
+        // Find the logged-in user
+        final user = data.firstWhere(
+          (item) => item["id"] == userId,
+          orElse: () => null,
+        );
 
-      if (decoded is List) {
+        if (user == null) {
+          print("Logged-in user not found in profile list");
+          return;
+        }
+
         setState(() {
-          clubs = decoded;
-          noData = decoded.isEmpty;
+          studentName = user["first_name"] ?? user["name"] ?? "User";
+          studentRole = user["user_type"] ?? "Student";
+          studentImage = user["profile"];
+          isLoading = false;
         });
+
+        print("Loaded PROFILE for user ID $userId");
+      } else {
+        print("PROFILE API did not return a list.");
       }
-    } else {
-      setState(() {
-        noData = true;
-      });
+    } catch (e) {
+      print("Error fetching student: $e");
     }
-  } catch (e) {
-    print("Error fetching clubs: $e");
-    setState(() {
-      noData = true;
-    });
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +107,7 @@ Future<void> fetchClubs() async {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const UserSettings(),
+                            builder: (_) => const CoachSettings(),
                           ),
                         );
                       },
@@ -190,49 +181,11 @@ Future<void> fetchClubs() async {
 
                     const SizedBox(height: 25),
 
-                    buildButton(
-                      "Connect Coaches",
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const UserConnectCoaches(),
-                          ),
-                        );
-                      },
-                    ),
-                    buildButton("Connect Students", onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const UserConnectCoaches(),
-                          ),
-                        );
-                      },),
-                    buildButton("Find Clubs", onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const UserConnectCoaches(),
-                          ),
-                        );
-                      },),
-                    buildButton("Find Events", onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const UserConnectCoaches(),
-                          ),
-                        );
-                      },),
-                    buildButton("Buy and Sell products", onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const UserConnectCoaches(),
-                          ),
-                        );
-                      },),
+                    buildButton("Connect Coaches"),
+                    buildButton("Connect Students"),
+                    buildButton("Find Clubs"),
+                    buildButton("Find Events"),
+                    buildButton("Buy and Sell products"),
 
                     const SizedBox(height: 25),
 
@@ -246,27 +199,31 @@ Future<void> fetchClubs() async {
                     ),
 
                     const SizedBox(height: 10),
-SizedBox(
-  height: 160,
-  child: isLoading
-      ? const Center(child: CircularProgressIndicator(color: Colors.white))
-      : noData
-          ? const Center(
-              child: Text("No clubs found", style: TextStyle(color: Colors.white70)),
-            )
-          : ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: clubs.length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: buildClubCardFromApi(clubs[index]),
-                );
-              },
-            ),
-)
 
-,
+                    SizedBox(
+                      height: 160,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            buildClubCard(
+                              "Spark roller skating",
+                              "lib/assets/images.png",
+                            ),
+                            const SizedBox(width: 12),
+                            buildClubCard(
+                              "Kimberley skating",
+                              "lib/assets/imagess.png",
+                            ),
+                            const SizedBox(width: 12),
+                            buildClubCard(
+                              "City Skate Club",
+                              "lib/assets/images.png",
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
                     const SizedBox(height: 25),
 
@@ -416,7 +373,7 @@ SizedBox(
   }
 
   // BUTTON WIDGET
-  Widget buildButton(String title, {VoidCallback? onTap}) {
+  Widget buildButton(String title) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       width: double.infinity,
@@ -428,7 +385,24 @@ SizedBox(
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        onPressed: onTap,
+        onPressed: () {
+          if (title == "Connect Coaches") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const UserConnectCoaches(),
+              ),
+            );
+          } else if (title == "Connect Students") {
+            // Navigate to Connect Students page
+          } else if (title == "Find Clubs") {
+            // Navigate to Find Clubs page
+          } else if (title == "Find Events") {
+            // Navigate to Find Events page
+          } else if (title == "Buy and Sell products") {
+            // Navigate to Buy and Sell products page
+          }
+        },
         child: Text(
           title,
           style: const TextStyle(fontSize: 16, color: Colors.white),
@@ -439,14 +413,7 @@ SizedBox(
 }
 
 // --------------------------- CLUB CARD ----------------------------
-Widget buildClubCardFromApi(Map club) {
-  String title = club["club_name"] ?? "Club";
-  String? img = club["image"];
-
-  String imageUrl = (img != null && img.isNotEmpty)
-      ? "$api$img"
-      : "";
-
+Widget buildClubCard(String title, String image) {
   return Container(
     width: 160,
     padding: const EdgeInsets.all(12),
@@ -455,55 +422,27 @@ Widget buildClubCardFromApi(Map club) {
       borderRadius: BorderRadius.circular(16),
     ),
     child: Column(
-      mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        
-        // -------------------------
-        // CIRCLE LOGO
-        // -------------------------
-        CircleAvatar(
-          radius: 30,
-          backgroundColor: Colors.white24,
-          backgroundImage: img != null && img.isNotEmpty
-              ? NetworkImage(imageUrl)
-              : const AssetImage("lib/assets/images.png") as ImageProvider,
-        ),
-
-        const SizedBox(height: 10),
-
-        // -------------------------
-        // CLUB NAME
-        // -------------------------
+        Image.asset(image, height: 60),
+        const SizedBox(height: 8),
         Text(
           title,
           textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
+          style: const TextStyle(color: Colors.white),
         ),
-
-        const SizedBox(height: 10),
-
-        // -------------------------
-        // FOLLOW BUTTON
-        // -------------------------
+        const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           decoration: BoxDecoration(
             color: Colors.teal,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Text(
-            "Follow",
-            style: TextStyle(color: Colors.white),
-          ),
+          child: const Text("Follow", style: TextStyle(color: Colors.white)),
         ),
       ],
     ),
   );
 }
-
-
 
 // --------------------------- EVENT CARD 1 ---------------------------
 Widget buildEventCard({
