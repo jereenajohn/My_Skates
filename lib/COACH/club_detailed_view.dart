@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:my_skates/COACH/coach_add_events.dart';
 import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,17 +20,103 @@ class ClubView extends StatefulWidget {
 class _ClubViewState extends State<ClubView> {
   Map<String, dynamic>? club;
   bool loading = true;
+  List<dynamic> feedPosts = [];
+  bool isFeedLoading = true;
 
   @override
   void initState() {
     super.initState();
     fetchClubDetails();
     fetchClubEvents();
+    // fetchFeed();
   }
 
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString("access");
+  }
+
+  // Future<void> fetchFeed() async {
+  //   try {
+  //     final prefs = await SharedPreferences.getInstance();
+  //     final token = prefs.getString("access");
+  //     final userId = prefs.getInt("id");
+
+  //     if (token == null || userId == null) return;
+
+  //     final url = Uri.parse("$api/api/myskates/feed/view/${widget.clubid}/");
+
+  //     final response = await http.get(
+  //       url,
+  //       headers: {"Authorization": "Bearer $token"},
+  //     );
+
+  //     if (response.statusCode == 200) {
+  //       setState(() {
+  //         feedPosts = jsonDecode(response.body);
+  //         isFeedLoading = false;
+  //       });
+  //     } else {
+  //       setState(() {
+  //         isFeedLoading = false;
+  //       });
+  //     }
+  //   } catch (e) {
+  //     setState(() {
+  //       isFeedLoading = false;
+  //     });
+  //   }
+  // }
+
+  Future<void> submitFeedPost(String text, XFile? imageFile) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      final userId = prefs.getInt("id");
+
+      if (token == null || userId == null) return;
+
+      final url = Uri.parse("$api/api/myskates/feed/add/");
+
+      final request = http.MultipartRequest("POST", url);
+      request.headers["Authorization"] = "Bearer $token";
+
+      request.fields.addAll({
+        "club": widget.clubid.toString(),
+        "user": userId.toString(),
+        "text": text,
+      });
+
+      if (imageFile != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath("image", imageFile.path),
+        );
+      }
+
+      final response = await request.send();
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.teal,
+            content: Text(
+              "Posted successfully",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+
+        // fetchFeed(); // Refresh feed
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Failed to post")));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
   }
 
   Future<void> fetchClubDetails() async {
@@ -226,134 +314,148 @@ class _ClubViewState extends State<ClubView> {
       return date;
     }
   }
+
   Future<void> _uploadMedia(XFile file) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-    final userId = prefs.getInt("id");
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      final userId = prefs.getInt("id");
 
-    if (token == null || userId == null) return;
+      if (token == null || userId == null) return;
 
-    final url = Uri.parse("$api/api/myskates/club-media/add/");
+      final url = Uri.parse("$api/api/myskates/club-media/add/");
 
-    final request = http.MultipartRequest("POST", url);
-    request.headers["Authorization"] = "Bearer $token";
+      final request = http.MultipartRequest("POST", url);
+      request.headers["Authorization"] = "Bearer $token";
 
-    request.fields.addAll({
-      "club": widget.clubid.toString(),
-      "user": userId.toString(),
-    });
+      request.fields.addAll({
+        "club": widget.clubid.toString(),
+        "user": userId.toString(),
+      });
 
-    request.files.add(await http.MultipartFile.fromPath("image", file.path));
+      request.files.add(await http.MultipartFile.fromPath("image", file.path));
 
-    final response = await request.send();
-    final respStr = await response.stream.bytesToString();
+      final response = await request.send();
+      final respStr = await response.stream.bytesToString();
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Colors.teal,
-          content: Text("Media added successfully",
-              style: TextStyle(color: Colors.white)),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Upload failed: $respStr")),
-      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.teal,
+            content: Text(
+              "Media added successfully",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Upload failed: $respStr")));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Error: $e")),
+  }
+
+  void _openAddMediaSheet() {
+    showModalBottomSheet(
+      backgroundColor: Colors.black,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      context: context,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF00332D), Colors.black],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 45,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                "Add Media",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Gallery Button
+              ListTile(
+                leading: const Icon(
+                  Icons.photo_library,
+                  color: Color(0xFF00AFA5),
+                  size: 28,
+                ),
+                title: const Text(
+                  "Choose from Gallery",
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () async {
+                  final picker = ImagePicker();
+                  final XFile? image = await picker.pickImage(
+                    source: ImageSource.gallery,
+                  );
+
+                  Navigator.pop(context);
+
+                  if (image != null) {
+                    _uploadMedia(image);
+                  }
+                },
+              ),
+
+              // Camera Button
+              ListTile(
+                leading: const Icon(
+                  Icons.camera_alt,
+                  color: Color(0xFF00AFA5),
+                  size: 28,
+                ),
+                title: const Text(
+                  "Take a Photo",
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () async {
+                  final picker = ImagePicker();
+                  final XFile? image = await picker.pickImage(
+                    source: ImageSource.camera,
+                  );
+
+                  Navigator.pop(context);
+
+                  if (image != null) {
+                    _uploadMedia(image);
+                  }
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
     );
   }
-}
-
-
-void _openAddMediaSheet() {
-  showModalBottomSheet(
-    backgroundColor: Colors.black,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-    ),
-    context: context,
-    builder: (context) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF00332D), Colors.black],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 45,
-              height: 5,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              "Add Media",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Gallery Button
-            ListTile(
-              leading: const Icon(Icons.photo_library,
-                  color: Color(0xFF00AFA5), size: 28),
-              title: const Text("Choose from Gallery",
-                  style: TextStyle(color: Colors.white)),
-              onTap: () async {
-                final picker = ImagePicker();
-                final XFile? image =
-                    await picker.pickImage(source: ImageSource.gallery);
-
-                Navigator.pop(context);
-
-                if (image != null) {
-                  _uploadMedia(image);
-                }
-              },
-            ),
-
-            // Camera Button
-            ListTile(
-              leading:
-                  const Icon(Icons.camera_alt, color: Color(0xFF00AFA5), size: 28),
-              title: const Text("Take a Photo",
-                  style: TextStyle(color: Colors.white)),
-              onTap: () async {
-                final picker = ImagePicker();
-                final XFile? image =
-                    await picker.pickImage(source: ImageSource.camera);
-
-                Navigator.pop(context);
-
-                if (image != null) {
-                  _uploadMedia(image);
-                }
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      );
-    },
-  );
-}
 
   String formatTime(String time24) {
     try {
@@ -543,27 +645,64 @@ void _openAddMediaSheet() {
         ),
       ),
 
-      // ======== ACTIONS ON SWIPE ========
+      // ======== CONFIRM DISMISS (SWIPE ACTION) ========
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
           // RIGHT SWIPE = UPDATE
           print("Update clicked");
-          // open update popup if needed
-          return false; // don’t auto remove card
+          return false; // do not remove card
         } else {
-          // LEFT SWIPE = DELETE
-          _deleteEvent(event["id"]);
-          return true; // remove from UI
+          // LEFT SWIPE = DELETE → ASK CONFIRMATION
+          bool? confirm = await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                backgroundColor: const Color(0xFF06201A),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                title: const Text(
+                  "Delete Event?",
+                  style: TextStyle(color: Colors.white),
+                ),
+                content: const Text(
+                  "Are you sure you want to delete this event?",
+                  style: TextStyle(color: Colors.white70),
+                ),
+                actions: [
+                  TextButton(
+                    child: const Text(
+                      "Cancel",
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    onPressed: () => Navigator.of(context).pop(false),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                    ),
+                    child: const Text("Delete", style: TextStyle(color: Colors.white)),
+                    onPressed: () => Navigator.of(context).pop(true),
+                  ),
+                ],
+              );
+            },
+          );
+
+          if (confirm == true) {
+            _deleteEvent(event["id"]);
+            return true; // allow dismiss
+          } else {
+            return false; // do not remove tile
+          }
         }
       },
 
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutBack,
-        child: Transform.scale(
-          scale: 1.00,
-          child: _eventTile(event), // your existing design
-        ),
+        child: Transform.scale(scale: 1.00, child: _eventTile(event)),
       ),
     );
   }
@@ -604,6 +743,42 @@ void _openAddMediaSheet() {
         ),
         const SizedBox(height: 12),
       ],
+    );
+  }
+
+  void _openProfileImageViewer(String imageUrl) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.9),
+      builder: (context) {
+        return GestureDetector(
+          onTap: () => Navigator.pop(context), // close on tap
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // PINCH-TO-ZOOM VIEWER
+              InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: CircleAvatar(
+                  radius: 100, // BIG SIZE like Instagram
+                  backgroundImage: NetworkImage(imageUrl),
+                ),
+              ),
+
+              // CLOSE ICON (Top-right)
+              Positioned(
+                top: 40,
+                right: 20,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const Icon(Icons.close, color: Colors.white, size: 32),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -662,12 +837,20 @@ void _openAddMediaSheet() {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // CLUB IMAGE
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundImage: (imagePath != null && imagePath.isNotEmpty)
-                        ? NetworkImage("$api$imagePath")
-                        : const AssetImage("lib/assets/placeholder.png")
-                              as ImageProvider,
+                  GestureDetector(
+                    onTap: () {
+                      if (imagePath != null && imagePath!.isNotEmpty) {
+                        _openProfileImageViewer("$api$imagePath");
+                      }
+                    },
+                    child: CircleAvatar(
+                      radius: 40,
+                      backgroundImage:
+                          (imagePath != null && imagePath!.isNotEmpty)
+                          ? NetworkImage("$api$imagePath")
+                          : const AssetImage("lib/assets/placeholder.png")
+                                as ImageProvider,
+                    ),
                   ),
 
                   const SizedBox(width: 15),
@@ -888,6 +1071,31 @@ void _openAddMediaSheet() {
 
               const SizedBox(height: 35),
 
+              // ---------------- FEED SECTION ----------------
+              const Text(
+                "Feed",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 15),
+
+              _feedInputBox(),
+              const SizedBox(height: 20),
+
+              // if (isFeedLoading)
+              //   const Center(child: CircularProgressIndicator(color: Colors.teal))
+              // else if (feedPosts.isEmpty)
+              //   const Text("No posts yet.", style: TextStyle(color: Colors.white70))
+              // else
+              //   Column(
+              //     children: feedPosts.map((post) => _feedTile(post)).toList(),
+              //   ),
+
+              // const SizedBox(height: 35),
+
               // ---------------- MEDIA ----------------
               const Text(
                 "Media",
@@ -986,30 +1194,40 @@ void _openAddMediaSheet() {
         ),
       ),
 
-// ---------------- ADD MEDIA BUTTON ----------------
-floatingActionButton: Column(
-  mainAxisSize: MainAxisSize.min,
-  children: [
-    // Add Media Button
-    FloatingActionButton(
-      heroTag: "media_btn",
-      backgroundColor:const Color(0xFF00AFA5),
-      elevation: 5,
-      child: const Icon(Icons.add_photo_alternate_rounded,
-          color: Color.fromARGB(255, 252, 252, 252), size: 30),
-      onPressed: _openAddMediaSheet,
-    ),
-    const SizedBox(height: 12),
+      // ---------------- ADD MEDIA BUTTON ----------------
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Add Media Button
+          FloatingActionButton(
+            heroTag: "media_btn",
+            backgroundColor: const Color(0xFF00AFA5),
+            elevation: 5,
+            child: const Icon(
+              Icons.add_photo_alternate_rounded,
+              color: Color.fromARGB(255, 252, 252, 252),
+              size: 30,
+            ),
+            onPressed: _openAddMediaSheet,
+          ),
+          const SizedBox(height: 12),
 
-    // Existing Add Event Button
-    FloatingActionButton(
-      heroTag: "event_btn",
-      backgroundColor: const Color(0xFF00AFA5),
-      child: const Icon(Icons.event, color: Colors.white, size: 28),
-      onPressed: _openAddEventDialog,
-    ),
-  ],
-),
+          // Existing Add Event Button
+          FloatingActionButton(
+            heroTag: "event_btn",
+            backgroundColor: const Color(0xFF00AFA5),
+            child: const Icon(Icons.event, color: Colors.white, size: 28),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CoachAddEvents(clubid: widget.clubid),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
 
       // ---------------- BOTTOM NAV ----------------
       bottomNavigationBar: BottomNavigationBar(
@@ -1124,159 +1342,168 @@ floatingActionButton: Column(
 
   // ================== ADD EVENT DIALOG ==================
 
+  // void _openAddEventDialog() {
+  //   final TextEditingController titleCtrl = TextEditingController();
+  //   final TextEditingController noteCtrl = TextEditingController();
+  //   final TextEditingController descCtrl = TextEditingController();
+  //   final TextEditingController fromDateCtrl = TextEditingController();
+  //   final TextEditingController toDateCtrl = TextEditingController();
+  //   final TextEditingController fromTimeCtrl = TextEditingController();
+  //   final TextEditingController toTimeCtrl = TextEditingController();
+
+  //   XFile? pickedImage;
+
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) {
+  //       return StatefulBuilder(
+  //         builder: (context, setStateDialog) {
+  //           return Dialog(
+  //             shape: RoundedRectangleBorder(
+  //               borderRadius: BorderRadius.circular(20),
+  //             ),
+  //             child: Container(
+  //               decoration: const BoxDecoration(
+  //                 gradient: LinearGradient(
+  //                   begin: Alignment.topLeft,
+  //                   end: Alignment.bottomRight,
+  //                   colors: [Color(0xFF00332D), Colors.black],
+  //                 ),
+  //                 borderRadius: BorderRadius.all(Radius.circular(20)),
+  //               ),
+  //               padding: const EdgeInsets.all(20),
+  //               child: SingleChildScrollView(
+  //                 child: Column(
+  //                   crossAxisAlignment: CrossAxisAlignment.start,
+  //                   mainAxisSize: MainAxisSize.min,
+  //                   children: [
+  //                     const Text(
+  //                       "Add Event",
+  //                       style: TextStyle(
+  //                         color: Colors.white,
+  //                         fontSize: 20,
+  //                         fontWeight: FontWeight.bold,
+  //                       ),
+  //                     ),
+
+  //                     const SizedBox(height: 20),
+
+  //                     _inputField("Title", titleCtrl),
+  //                     _inputField("Note", noteCtrl),
+  //                     _inputField("Description", descCtrl, maxLines: 3),
+
+  //                     // FROM DATE (with calendar)
+  //                     _dateField(
+  //                       "From Date",
+  //                       fromDateCtrl,
+  //                       () => _pickDate(context, fromDateCtrl),
+  //                     ),
+
+  //                     // TO DATE (with calendar)
+  //                     _dateField(
+  //                       "To Date",
+  //                       toDateCtrl,
+  //                       () => _pickDate(context, toDateCtrl),
+  //                     ),
+
+  //                     GestureDetector(
+  //                       onTap: () => _pickTime(context, fromTimeCtrl),
+  //                       child: AbsorbPointer(
+  //                         child: _timeField("From Time", fromTimeCtrl),
+  //                       ),
+  //                     ),
+  //                     GestureDetector(
+  //                       onTap: () => _pickTime(context, toTimeCtrl),
+  //                       child: AbsorbPointer(
+  //                         child: _timeField("To Time", toTimeCtrl),
+  //                       ),
+  //                     ),
+
+  //                     const SizedBox(height: 10),
+
+  //                     GestureDetector(
+  //                       onTap: () async {
+  //                         final ImagePicker picker = ImagePicker();
+  //                         pickedImage = await picker.pickImage(
+  //                           source: ImageSource.gallery,
+  //                         );
+  //                         setStateDialog(() {});
+  //                       },
+  //                       child: Container(
+  //                         padding: const EdgeInsets.all(12),
+  //                         decoration: BoxDecoration(
+  //                           color: Colors.white12,
+  //                           borderRadius: BorderRadius.circular(10),
+  //                         ),
+  //                         child: Row(
+  //                           children: [
+  //                             const Icon(Icons.image, color: Colors.white70),
+  //                             const SizedBox(width: 10),
+  //                             Text(
+  //                               pickedImage == null
+  //                                   ? "Upload Image"
+  //                                   : "Image Selected",
+  //                               style: const TextStyle(color: Colors.white),
+  //                             ),
+  //                           ],
+  //                         ),
+  //                       ),
+  //                     ),
+
+  //                     const SizedBox(height: 20),
+
+  //                     Row(
+  //                       mainAxisAlignment: MainAxisAlignment.end,
+  //                       children: [
+  //                         TextButton(
+  //                           child: const Text(
+  //                             "Cancel",
+  //                             style: TextStyle(color: Colors.white70),
+  //                           ),
+  //                           onPressed: () => Navigator.pop(context),
+  //                         ),
+  //                         const SizedBox(width: 10),
+  //                         ElevatedButton(
+  //                           style: ElevatedButton.styleFrom(
+  //                             backgroundColor: const Color(0xFF00AFA5),
+  //                           ),
+  //                           child: const Text(
+  //                             "Submit",
+  //                             style: TextStyle(color: Colors.white),
+  //                           ),
+  //                           onPressed: () async {
+  //                             await submitEvent(
+  //                               titleCtrl.text.trim(),
+  //                               noteCtrl.text.trim(),
+  //                               descCtrl.text.trim(),
+  //                               fromDateCtrl.text.trim(),
+  //                               toDateCtrl.text.trim(),
+  //                               fromTimeCtrl.text.trim(),
+  //                               toTimeCtrl.text.trim(),
+  //                               pickedImage,
+  //                             );
+  //                             Navigator.pop(context);
+  //                           },
+  //                         ),
+  //                       ],
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ),
+  //             ),
+  //           );
+  //         },
+  //       );
+  //     },
+  //   );
+  // }
+
   void _openAddEventDialog() {
-    final TextEditingController titleCtrl = TextEditingController();
-    final TextEditingController noteCtrl = TextEditingController();
-    final TextEditingController descCtrl = TextEditingController();
-    final TextEditingController fromDateCtrl = TextEditingController();
-    final TextEditingController toDateCtrl = TextEditingController();
-    final TextEditingController fromTimeCtrl = TextEditingController();
-    final TextEditingController toTimeCtrl = TextEditingController();
-
-    XFile? pickedImage;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF00332D), Colors.black],
-                  ),
-                  borderRadius: BorderRadius.all(Radius.circular(20)),
-                ),
-                padding: const EdgeInsets.all(20),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        "Add Event",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      _inputField("Title", titleCtrl),
-                      _inputField("Note", noteCtrl),
-                      _inputField("Description", descCtrl, maxLines: 3),
-
-                      // FROM DATE (with calendar)
-                      _dateField(
-                        "From Date",
-                        fromDateCtrl,
-                        () => _pickDate(context, fromDateCtrl),
-                      ),
-
-                      // TO DATE (with calendar)
-                      _dateField(
-                        "To Date",
-                        toDateCtrl,
-                        () => _pickDate(context, toDateCtrl),
-                      ),
-
-                      GestureDetector(
-                        onTap: () => _pickTime(context, fromTimeCtrl),
-                        child: AbsorbPointer(
-                          child: _timeField("From Time", fromTimeCtrl),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => _pickTime(context, toTimeCtrl),
-                        child: AbsorbPointer(
-                          child: _timeField("To Time", toTimeCtrl),
-                        ),
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      GestureDetector(
-                        onTap: () async {
-                          final ImagePicker picker = ImagePicker();
-                          pickedImage = await picker.pickImage(
-                            source: ImageSource.gallery,
-                          );
-                          setStateDialog(() {});
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white12,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.image, color: Colors.white70),
-                              const SizedBox(width: 10),
-                              Text(
-                                pickedImage == null
-                                    ? "Upload Image"
-                                    : "Image Selected",
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            child: const Text(
-                              "Cancel",
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                          const SizedBox(width: 10),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF00AFA5),
-                            ),
-                            child: const Text(
-                              "Submit",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            onPressed: () async {
-                              await submitEvent(
-                                titleCtrl.text.trim(),
-                                noteCtrl.text.trim(),
-                                descCtrl.text.trim(),
-                                fromDateCtrl.text.trim(),
-                                toDateCtrl.text.trim(),
-                                fromTimeCtrl.text.trim(),
-                                toTimeCtrl.text.trim(),
-                                pickedImage,
-                              );
-                              Navigator.pop(context);
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CoachAddEvents(clubid: widget.clubid),
+      ),
     );
   }
 
@@ -1312,13 +1539,44 @@ floatingActionButton: Column(
   }
 
   Widget _mediaItem(String url) {
-    return Container(
-      width: 90,
-      margin: const EdgeInsets.only(right: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
+    return GestureDetector(
+      onTap: () => _openSquareMediaViewer(url),
+      child: Container(
+        width: 90,
+        margin: const EdgeInsets.only(right: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
+        ),
       ),
+    );
+  }
+
+  void _openSquareMediaViewer(String imageUrl) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.6),
+      builder: (context) {
+        return GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Center(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                width: 280, // Medium popup width
+                height: 280, // Square shape
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  image: DecorationImage(
+                    image: NetworkImage(imageUrl),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1345,4 +1603,152 @@ floatingActionButton: Column(
       ),
     );
   }
+}
+
+Widget _feedInputBox() {
+  final TextEditingController postCtrl = TextEditingController();
+  XFile? pickedImage;
+
+  return StatefulBuilder(
+    builder: (context, setStateSB) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white12,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // const Text(
+            //   "What’s on your mind?",
+            //   style: TextStyle(color: Colors.white70, fontSize: 14),
+            // ),
+            const SizedBox(height: 8),
+
+            // Slightly bigger TextField
+            TextField(
+              controller: postCtrl,
+              minLines: 2,
+              maxLines: 3,
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+              cursorColor: Colors.white,
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ), // Larger typing space
+                hintText: "What’s on your mind?",
+                hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
+                filled: true,
+                fillColor: Colors.white10,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            SizedBox(height: 10),
+            if (pickedImage != null) ...[
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.file(
+                  File(pickedImage!.path),
+                  height: 140,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 10),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Image Picker Icon
+                GestureDetector(
+                  onTap: () async {
+                    final picker = ImagePicker();
+                    pickedImage = await picker.pickImage(
+                      source: ImageSource.gallery,
+                    );
+                    setStateSB(() {});
+                  },
+                  child: const Icon(
+                    Icons.image,
+                    color: Color(0xFF00AFA5),
+                    size: 26,
+                  ),
+                ),
+
+                // Post Button
+                SizedBox(
+                  height: 34,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00AFA5),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                    ),
+                    onPressed: () {
+                      // submitFeedPost(postCtrl.text.trim(), pickedImage);
+                    },
+                    child: const Text(
+                      "Post",
+                      style: TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+Widget _feedTile(Map post) {
+  final String? image = post["image"];
+  final String text = post["text"] ?? "";
+  final String time = post["created_at"] ?? "";
+
+  return Container(
+    padding: const EdgeInsets.all(12),
+    margin: const EdgeInsets.only(bottom: 12),
+    decoration: BoxDecoration(
+      color: Colors.white12,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Text
+        Text(text, style: const TextStyle(color: Colors.white, fontSize: 15)),
+
+        const SizedBox(height: 10),
+
+        // Image if exists
+        if (image != null && image.isNotEmpty)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.network(
+              "$api$image",
+              width: double.infinity,
+              height: 180,
+              fit: BoxFit.cover,
+            ),
+          ),
+
+        const SizedBox(height: 10),
+
+        Text(time, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+      ],
+    ),
+  );
 }

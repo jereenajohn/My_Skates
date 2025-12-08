@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/profile_page.dart'; // <-- Navigation Target Example
+import 'package:my_skates/user_view_events.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UserSettings extends StatefulWidget {
@@ -143,6 +144,17 @@ class _UserSettingsState extends State<UserSettings> {
 
               const SizedBox(height: 12),
               _menuTile(icon: Icons.phone, text: "Change Phone Number"),
+              _divider(),
+                _menuTile(
+                icon: Icons.home,
+                text: "View Events",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const UserViewEvents()),
+                  );
+                },
+              ),
               _divider(),
 
               _menuTile(icon: Icons.show_chart_outlined, text: "Your activity"),
