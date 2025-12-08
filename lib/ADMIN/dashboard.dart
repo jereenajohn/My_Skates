@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/ADMIN/CoachApprovalTabs.dart';
 import 'package:my_skates/ADMIN/add_banner.dart';
 import 'package:my_skates/ADMIN/approve_coach.dart';
 import 'package:my_skates/ADMIN/menu.dart';
@@ -548,7 +549,7 @@ print("Profile Response Status: ${response.statusCode}");
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const ApproveCoach(),
+                builder: (context) => const CoachApprovalTabs(),
               ),
             );
           }

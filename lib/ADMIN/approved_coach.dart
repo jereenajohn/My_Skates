@@ -5,16 +5,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 import 'package:geocoding/geocoding.dart';
 
-class ApproveCoach extends StatefulWidget {
-  const ApproveCoach({super.key});
+class ApprovedCoach extends StatefulWidget {
+  const ApprovedCoach({super.key});
 
   @override
-  State<ApproveCoach> createState() => _ApproveCoachState();
+  State<ApprovedCoach> createState() => _ApprovedCoachState();
 }
 
-class _ApproveCoachState extends State<ApproveCoach> {
+class _ApprovedCoachState extends State<ApprovedCoach> {
   List<Map<String, dynamic>> coach = [];
-
   @override
   void initState() {
     super.initState();
@@ -43,53 +42,14 @@ Future<String> getAddressFromLatLng(String? lat, String? lng) async {
 
   return "";
 }
-Future<void> updatecoach(
-  int id,
-  String status
-) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-print("$api/api/myskates/coach/approval/$id/");
-  try {
-    var response = await http.put(
-      Uri.parse("$api/api/myskates/coach/approval/$id/"),
-      headers: {
-        "Authorization": "Bearer $token",
-      },
-      body: {
-        "approval_status": status,
-      },
-    );
-
-    print("UPDATE status: ${response.statusCode}");
-    print("UPDATE body: ${response.body}");
-
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("State updated successfully"),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      // Reset form
-      setState(() {
-        
-      });
-getcoach();
-    }
-  } catch (e) {
-    print(e);
-  }
-}
 
 
- Future<void> getcoach() async {
+Future<void> getcoach() async {
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString("access");
 
   var response = await http.get(
-    Uri.parse('$api/api/myskates/coaches/pending/'),
+    Uri.parse('$api/api/myskates/coaches/approved/'),
     headers: {
       'Authorization': 'Bearer $token',
       'Content-Type': 'application/json',
@@ -234,55 +194,44 @@ getcoach();
         
       ),
 SizedBox(height: 10),
-         Row(
-  children: [
-    // IGNORE BUTTON
-    SizedBox(width: 25),
-    GestureDetector(
-      onTap: () {
-        updatecoach(c['id'], "disapproved");
-        
-      },
-      child: Container(
-        height: 30,
-        width: MediaQuery.of(context).size.width * 0.5 - 50,
-        decoration: BoxDecoration(
-          color: Colors.grey[800],
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: const Center(
-          child: Text(
-            "Ignore",
-            style: TextStyle(color: Colors.white, fontSize: 15),
-          ),
-        ),
-      ),
-    ),
+//          Row(
+//   children: [
+//     // IGNORE BUTTON
+//     SizedBox(width: 25),
+//     Container(
+//       height: 30,
+//       width: MediaQuery.of(context).size.width * 0.5 - 50,
+//       decoration: BoxDecoration(
+//         color: Colors.grey[800],
+//         borderRadius: BorderRadius.circular(15),
+//       ),
+//       child: const Center(
+//         child: Text(
+//           "Ignore",
+//           style: TextStyle(color: Colors.white, fontSize: 15),
+//         ),
+//       ),
+//     ),
 
-    const SizedBox(width: 8),
+//     const SizedBox(width: 8),
 
-    // ACCEPT BUTTON
-    GestureDetector(
-      onTap: () {
-        updatecoach(c['id'], "approved");
-      },
-      child: Container(
-        height: 30,
-        width: MediaQuery.of(context).size.width * 0.5 - 50,
-        decoration: BoxDecoration(
-          color: Color(0xFF00CFC5),
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: const Center(
-          child: Text(
-            "Accept",
-            style: TextStyle(color: Colors.white, fontSize: 15),
-          ),
-        ),
-      ),
-    ),
-  ],
-)
+//     // ACCEPT BUTTON
+//     Container(
+//       height: 30,
+//       width: MediaQuery.of(context).size.width * 0.5 - 50,
+//       decoration: BoxDecoration(
+//         color: Color(0xFF00CFC5),
+//         borderRadius: BorderRadius.circular(15),
+//       ),
+//       child: const Center(
+//         child: Text(
+//           "Accept",
+//           style: TextStyle(color: Colors.white, fontSize: 15),
+//         ),
+//       ),
+//     ),
+//   ],
+// )
 
     ],
   ),
