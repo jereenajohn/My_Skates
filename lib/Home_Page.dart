@@ -19,11 +19,14 @@ class _HomePageState extends State<HomePage> {
   String studentRole = "";
   String? studentImage;
   bool isLoading = true;
+   List clubs = [];
+  bool noData = false;
 
   @override
   initState() {
     super.initState();
     fetchStudentDetails();
+    fetchClubs();  
   }
 
   Future<String?> getToken() async {
@@ -51,6 +54,40 @@ Future<void> fetchStudentDetails() async {
 
   } catch (e) {
     print("Error loading user from prefs: $e");
+  }
+}
+
+Future<void> fetchClubs() async {
+  String? token = await getToken();
+
+  try {
+    final response = await http.get(
+      Uri.parse("$api/api/myskates/club/"),
+      headers: {"Authorization": "Bearer $token"},
+    );
+
+    print("Clubs status: ${response.statusCode}");
+    print("Clubs body: ${response.body}");
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+
+      if (decoded is List) {
+        setState(() {
+          clubs = decoded;
+          noData = decoded.isEmpty;
+        });
+      }
+    } else {
+      setState(() {
+        noData = true;
+      });
+    }
+  } catch (e) {
+    print("Error fetching clubs: $e");
+    setState(() {
+      noData = true;
+    });
   }
 }
 
@@ -209,31 +246,27 @@ Future<void> fetchStudentDetails() async {
                     ),
 
                     const SizedBox(height: 10),
+SizedBox(
+  height: 160,
+  child: isLoading
+      ? const Center(child: CircularProgressIndicator(color: Colors.white))
+      : noData
+          ? const Center(
+              child: Text("No clubs found", style: TextStyle(color: Colors.white70)),
+            )
+          : ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: clubs.length,
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: buildClubCardFromApi(clubs[index]),
+                );
+              },
+            ),
+)
 
-                    SizedBox(
-                      height: 160,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            buildClubCard(
-                              "Spark roller skating",
-                              "lib/assets/images.png",
-                            ),
-                            const SizedBox(width: 12),
-                            buildClubCard(
-                              "Kimberley skating",
-                              "lib/assets/imagess.png",
-                            ),
-                            const SizedBox(width: 12),
-                            buildClubCard(
-                              "City Skate Club",
-                              "lib/assets/images.png",
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+,
 
                     const SizedBox(height: 25),
 
@@ -406,7 +439,14 @@ Future<void> fetchStudentDetails() async {
 }
 
 // --------------------------- CLUB CARD ----------------------------
-Widget buildClubCard(String title, String image) {
+Widget buildClubCardFromApi(Map club) {
+  String title = club["club_name"] ?? "Club";
+  String? img = club["image"];
+
+  String imageUrl = (img != null && img.isNotEmpty)
+      ? "$api$img"
+      : "";
+
   return Container(
     width: 160,
     padding: const EdgeInsets.all(12),
@@ -415,27 +455,55 @@ Widget buildClubCard(String title, String image) {
       borderRadius: BorderRadius.circular(16),
     ),
     child: Column(
+      mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        Image.asset(image, height: 60),
-        const SizedBox(height: 8),
+        
+        // -------------------------
+        // CIRCLE LOGO
+        // -------------------------
+        CircleAvatar(
+          radius: 30,
+          backgroundColor: Colors.white24,
+          backgroundImage: img != null && img.isNotEmpty
+              ? NetworkImage(imageUrl)
+              : const AssetImage("lib/assets/images.png") as ImageProvider,
+        ),
+
+        const SizedBox(height: 10),
+
+        // -------------------------
+        // CLUB NAME
+        // -------------------------
         Text(
           title,
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
         ),
-        const SizedBox(height: 8),
+
+        const SizedBox(height: 10),
+
+        // -------------------------
+        // FOLLOW BUTTON
+        // -------------------------
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           decoration: BoxDecoration(
             color: Colors.teal,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Text("Follow", style: TextStyle(color: Colors.white)),
+          child: const Text(
+            "Follow",
+            style: TextStyle(color: Colors.white),
+          ),
         ),
       ],
     ),
   );
 }
+
+
 
 // --------------------------- EVENT CARD 1 ---------------------------
 Widget buildEventCard({
