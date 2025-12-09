@@ -231,6 +231,12 @@ class _RegisterationPageState extends State<RegisterationPage> {
       print("UPLOAD RESPONSE: $result");
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        final prefs = await SharedPreferences.getInstance();
+
+        prefs.setString("name", "${firstNameCtrl.text} ${lastNameCtrl.text}");
+        prefs.setString("user_type", selectedRole ?? "");
+        prefs.setString("profile", "");
+
         success("Profile updated");
         Navigator.pushReplacement(
           context,
@@ -456,14 +462,11 @@ class _RegisterationPageState extends State<RegisterationPage> {
           ),
           const SizedBox(height: 15),
 
-         
           input("Email", emailCtrl),
 
-          
           const SizedBox(height: 15),
-           dobGenderRow(),
+          dobGenderRow(),
           const SizedBox(height: 15),
-
 
           input("Experience", experience),
           const SizedBox(height: 15),
@@ -471,8 +474,8 @@ class _RegisterationPageState extends State<RegisterationPage> {
           input("Alternate Phone", altPhoneCtrl),
           const SizedBox(height: 15),
 
-          genderDropdownCompact(),
-          const SizedBox(height: 15),
+          // genderDropdownCompact(),
+          // const SizedBox(height: 15),
 
           input("Zip Code", zipCodeCtrl),
           const SizedBox(height: 15),
@@ -583,6 +586,7 @@ class _RegisterationPageState extends State<RegisterationPage> {
       ],
     );
   }
+
   Widget dobPicker() {
     return GestureDetector(
       onTap: pickDOB,
@@ -605,73 +609,73 @@ class _RegisterationPageState extends State<RegisterationPage> {
       ),
     );
   }
-Widget dobGenderRow() {
-  return Row(
-    children: [
-      Expanded(child: dobPickerCompact()),
-      const SizedBox(width: 12),
-      Expanded(child: genderDropdownCompact()),
-    ],
-  );
-}
 
+  Widget dobGenderRow() {
+    return Row(
+      children: [
+        Expanded(child: dobPickerCompact()),
+        const SizedBox(width: 12),
+        Expanded(child: genderDropdownCompact()),
+      ],
+    );
+  }
 
- Widget dobPickerCompact() {
-  return GestureDetector(
-    onTap: pickDOB,
-    child: Container(
+  Widget dobPickerCompact() {
+    return GestureDetector(
+      onTap: pickDOB,
+      child: Container(
+        height: 55,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          border: Border.all(color: Color(0xFF00D8CC)),
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                dobCtrl.text.isEmpty ? "Select DOB" : dobCtrl.text,
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Icon(Icons.calendar_today, color: Colors.white70, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget genderDropdownCompact() {
+    return Container(
       height: 55,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         border: Border.all(color: Color(0xFF00D8CC)),
         borderRadius: BorderRadius.circular(25),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              dobCtrl.text.isEmpty ? "Select DOB" : dobCtrl.text,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const Icon(Icons.calendar_today, color: Colors.white70, size: 20),
-        ],
-      ),
-    ),
-  );
-}
-
-
- Widget genderDropdownCompact() {
-  return Container(
-    height: 55,
-    padding: const EdgeInsets.symmetric(horizontal: 14),
-    decoration: BoxDecoration(
-      border: Border.all(color: Color(0xFF00D8CC)),
-      borderRadius: BorderRadius.circular(25),
-    ),
-    child: DropdownButtonHideUnderline(
-      child: DropdownButton<String>(
-        dropdownColor: Colors.black87,
-        value: selectedGender,
-        hint: const Text(
-          "Select Gender",
-          style: TextStyle(color: Colors.white70),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true, // ← FIX OVERFLOW
+          dropdownColor: Colors.black87,
+          value: selectedGender,
+          hint: const Text("Gender", style: TextStyle(color: Colors.white70)),
+          items: ["Male", "Female", "Other"].map((e) {
+            return DropdownMenuItem<String>(
+              value: e,
+              child: Text(
+                e,
+                overflow: TextOverflow.ellipsis, // safety
+                style: const TextStyle(color: Colors.white),
+              ),
+            );
+          }).toList(),
+          onChanged: (v) => setState(() => selectedGender = v),
         ),
-        items: ["Male", "Female", "Other"].map((e) {
-          return DropdownMenuItem<String>(
-            value: e,
-            child: Text(e, style: const TextStyle(color: Colors.white)),
-          );
-        }).toList(),
-        onChanged: (v) => setState(() => selectedGender = v),
       ),
-    ),
-  );
-}
-
+    );
+  }
 
   Widget bigButton(String label, VoidCallback onTap) {
     return SizedBox(
