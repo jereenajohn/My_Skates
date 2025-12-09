@@ -476,7 +476,6 @@ class _RegisterationPageState extends State<RegisterationPage> {
 
           // genderDropdownCompact(),
           // const SizedBox(height: 15),
-
           input("Zip Code", zipCodeCtrl),
           const SizedBox(height: 15),
 
