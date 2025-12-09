@@ -119,6 +119,7 @@ class _ClubViewState extends State<ClubView> {
     }
   }
 
+
   Future<void> fetchClubDetails() async {
     String? token = await getToken();
     if (token == null) {
@@ -474,131 +475,218 @@ class _ClubViewState extends State<ClubView> {
     }
   }
 
-  Widget _eventTile(Map event) {
-    final String? imagePath = event["image"];
+Widget _eventTile(Map event) {
+  // -----------------------------------------------------
+  // BUILD IMAGE LIST (main image + gallery images)
+  // -----------------------------------------------------
+  List<String> images = [];
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white12,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // EVENT IMAGE
-          if (imagePath != null && imagePath.isNotEmpty)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                "$api$imagePath",
-                height: 150,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 150,
-                    color: Colors.white12,
-                    child: const Center(
-                      child: Icon(Icons.broken_image, color: Colors.white70),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-          const SizedBox(height: 10),
-
-          // TITLE
-          Text(
-            event["title"] ?? "",
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(height: 4),
-
-          // DESCRIPTION
-          Text(
-            event["description"] ?? "",
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-
-          const SizedBox(height: 10),
-
-          // DATE RANGE
-          Row(
-            children: [
-              const Icon(
-                Icons.calendar_today,
-                size: 16,
-                color: Color(0xFF00AFA5),
-              ),
-              const SizedBox(width: 5),
-              Text(
-                "${formatDate(event["from_date"])} → ${formatDate(event["to_date"])}",
-                style: const TextStyle(color: Colors.white70),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 5),
-
-          // TIME RANGE + 3 DOTS MENU
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.access_time,
-                    size: 16,
-                    color: Color(0xFF00AFA5),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    "${formatTime(event["from_time"])} → ${formatTime(event["to_time"])}",
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                ],
-              ),
-
-              // 3 DOTS MENU HERE
-              PopupMenuButton<String>(
-                color: const Color.fromARGB(225, 4, 19, 13),
-                icon: const Icon(Icons.more_vert, color: Colors.white70),
-                onSelected: (value) {
-                  if (value == "update") {
-                    print("Update event clicked");
-                  }
-                  if (value == "delete") {
-                    _deleteEvent(event["id"]);
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: "update",
-                    child: Text(
-                      "Update",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: "delete",
-                    child: Text("Delete", style: TextStyle(color: Colors.red)),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+  // Add main image if exists
+  if (event["image"] != null && event["image"].toString().isNotEmpty) {
+    images.add(event["image"]);
   }
+
+  // Add gallery images
+  if (event["images"] != null) {
+    for (var g in event["images"]) {
+      if (g["image"] != null && g["image"].toString().isNotEmpty) {
+        images.add(g["image"]);
+      }
+    }
+  }
+
+  // Convert to full URLs
+  images = images.map((path) {
+    return path.startsWith("http")
+        ? path
+        : "$api${path.startsWith("/") ? path : "/$path"}";
+  }).toList();
+
+  // -----------------------------------------------------
+
+  return Container(
+    padding: const EdgeInsets.all(12),
+    margin: const EdgeInsets.only(bottom: 12),
+    decoration: BoxDecoration(
+      color: Colors.white12,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // -----------------------------------------------------
+        // IMAGE SECTION (auto adjust)
+        // -----------------------------------------------------
+        if (images.isNotEmpty)
+          Container(
+            height: images.length == 1 ? 170 : 140,
+            child: images.length == 1
+                ? 
+                // ---------- ONE IMAGE (full width) ----------
+                GestureDetector(
+                    onTap: () => _openSquareMediaViewer(images[0]),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        images[0],
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                      ),
+                    ),
+                  )
+
+                :
+
+                // ---------- TWO OR MORE IMAGES ----------
+                Row(
+                  children: [
+                    // LEFT IMAGE
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => _openSquareMediaViewer(images[0]),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            images[0],
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 8),
+
+                    // RIGHT IMAGE with +N overlay if needed
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => _openSquareMediaViewer(images[1]),
+                        child: Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                images[1],
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              ),
+                            ),
+
+                            // More images overlay
+                            if (images.length > 2)
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    "+${images.length - 2}",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+          ),
+
+        const SizedBox(height: 12),
+
+        // -----------------------------------------------------
+        // TITLE
+        // -----------------------------------------------------
+        Text(
+          event["title"] ?? "",
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        const SizedBox(height: 6),
+
+        // -----------------------------------------------------
+        // DESCRIPTION
+        // -----------------------------------------------------
+        Text(
+          event["description"] ?? "",
+          style: const TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+
+        const SizedBox(height: 10),
+
+        // -----------------------------------------------------
+        // DATE RANGE
+        // -----------------------------------------------------
+        Row(
+          children: [
+            const Icon(Icons.calendar_today, size: 16, color: Color(0xFF00AFA5)),
+            const SizedBox(width: 5),
+            Text(
+              "${formatDate(event["from_date"])} → ${formatDate(event["to_date"])}",
+              style: const TextStyle(color: Colors.white70),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 5),
+
+        // -----------------------------------------------------
+        // TIME RANGE + MENU
+        // -----------------------------------------------------
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.access_time, size: 16, color: Color(0xFF00AFA5)),
+                const SizedBox(width: 5),
+                Text(
+                  "${formatTime(event["from_time"])} → ${formatTime(event["to_time"])}",
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ],
+            ),
+
+            // OPTIONS (UPDATE / DELETE)
+            PopupMenuButton<String>(
+              color: const Color.fromARGB(225, 4, 19, 13),
+              icon: const Icon(Icons.more_vert, color: Colors.white70),
+              onSelected: (value) {
+                if (value == "update") {
+                  print("Update event clicked");
+                }
+                if (value == "delete") {
+                  _deleteEvent(event["id"]);
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: "update",
+                  child: Text("Update", style: TextStyle(color: Colors.white)),
+                ),
+                const PopupMenuItem(
+                  value: "delete",
+                  child: Text("Delete", style: TextStyle(color: Colors.red)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
 
   Widget _fancySwipeEventTile(Map event) {
     return Dismissible(
@@ -682,7 +770,10 @@ class _ClubViewState extends State<ClubView> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.teal,
                     ),
-                    child: const Text("Delete", style: TextStyle(color: Colors.white)),
+                    child: const Text(
+                      "Delete",
+                      style: TextStyle(color: Colors.white),
+                    ),
                     onPressed: () => Navigator.of(context).pop(true),
                   ),
                 ],
@@ -1552,33 +1643,51 @@ class _ClubViewState extends State<ClubView> {
     );
   }
 
-  void _openSquareMediaViewer(String imageUrl) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.6),
-      builder: (context) {
-        return GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Center(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                width: 280, // Medium popup width
-                height: 280, // Square shape
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  image: DecorationImage(
-                    image: NetworkImage(imageUrl),
-                    fit: BoxFit.cover,
+ void _openSquareMediaViewer(String imageUrl) {
+  showDialog(
+    context: context,
+    barrierColor: Colors.black.withOpacity(0.9),
+    builder: (context) {
+      return GestureDetector(
+        onTap: () => Navigator.pop(context), // close on tap outside
+        child: Stack(
+          children: [
+            // FULL SCREEN ZOOM VIEW
+            Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(0),
+                  child: Image.network(
+                    imageUrl,
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.contain,
                   ),
                 ),
               ),
             ),
-          ),
-        );
-      },
-    );
-  }
+
+            // CLOSE BUTTON
+            Positioned(
+              top: 40,
+              right: 20,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: const Icon(
+                  Icons.close,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
 
   Widget _coachTile(String name, String img) {
     return Container(

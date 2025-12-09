@@ -22,7 +22,6 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
   bool loadingClub = true;
   bool loadingEvents = true;
 
-  // Build full image URL
   String buildImageUrl(String? path) {
     if (path == null || path.isEmpty) return "";
     return "$api$path";
@@ -45,9 +44,9 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
     return prefs.getInt("id");
   }
 
-  // ======================================================================
+  // ---------------------------------------------------------------------------
   // SUBMIT EVENT (MULTIPLE IMAGES, MAX 2)
-  // ======================================================================
+  // ---------------------------------------------------------------------------
   Future<void> submitEvent(
     String title,
     String note,
@@ -86,7 +85,6 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
         "to_time": toTime,
       });
 
-      // Enforce max 2 images
       final List<XFile> limitedImages =
           imageFiles.length > 2 ? imageFiles.sublist(0, 2) : imageFiles;
 
@@ -122,9 +120,9 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
     }
   }
 
-  // ======================================================================
+  // ---------------------------------------------------------------------------
   // DELETE EVENT
-  // ======================================================================
+  // ---------------------------------------------------------------------------
   Future<void> _deleteEvent(int id) async {
     try {
       final token = await getToken();
@@ -135,7 +133,6 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
         headers: {"Authorization": "Bearer $token"},
       );
 
-      print("Delete response: ${response.statusCode} - ${response.body}");
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -159,102 +156,127 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
     }
   }
 
-  // ======================================================================
-  // UPDATE EVENT (MULTIPLE IMAGES, MAX 2 NEW IMAGES)
-  // ======================================================================
- Future<void> updateEvent(
-  int eventId,
-  String title,
-  String note,
-  String description,
-  String fromDate,
-  String toDate,
-  String fromTime,
-  String toTime,
-  List<XFile> newImages,
-  List<int> imagesToDelete,   // <--- NEW PARAMETER
-) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
+  // ---------------------------------------------------------------------------
+  // DELETE A SINGLE EVENT IMAGE (CALLED ONLY ON UPDATE PRESS)
+  // ---------------------------------------------------------------------------
+  Future<void> _deleteEventImage(int eventId, int imageId) async {
+    try {
+      final token = await getToken();
+      if (token == null) return;
 
-    if (token == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("User not logged in")),
+      final url = Uri.parse(
+        "$api/api/myskates/events/$eventId/images/$imageId/delete/",
       );
-      return;
-    }
 
-    final url = Uri.parse("$api/api/myskates/events/updates/$eventId/");
-    final request = http.MultipartRequest("PUT", url);
-    request.headers["Authorization"] = "Bearer $token";
-
-    // -----------------------------
-    // FORM FIELDS
-    // -----------------------------
-    request.fields.addAll({
-      "title": title,
-      "note": note,
-      "description": description,
-      "from_date": fromDate,
-      "to_date": toDate,
-      "from_time": fromTime,
-      "to_time": toTime,
-    });
-
-    // -----------------------------
-    // SEND DELETED IMAGE IDs
-    // Backend expects: delete_images = "3,6,7"
-    // -----------------------------
-    if (imagesToDelete.isNotEmpty) {
-      request.fields["delete_images"] = imagesToDelete.join(",");
-    }
-
-    // -----------------------------
-    // UPLOAD NEW IMAGES (MAX 2)
-    // -----------------------------
-    final limitedImages =
-        newImages.length > 2 ? newImages.sublist(0, 2) : newImages;
-
-    for (var img in limitedImages) {
-      request.files
-          .add(await http.MultipartFile.fromPath("images", img.path));
-    }
-
-    // -----------------------------
-    // SEND REQUEST
-    // -----------------------------
-    final response = await request.send();
-    final respStr = await response.stream.bytesToString();
-
-    print("Update Event Response: ${response.statusCode} - $respStr");
-
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Colors.teal,
-          content: Text(
-            "Event updated successfully",
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
+      final response = await http.delete(
+        url,
+        headers: {"Authorization": "Bearer $token"},
       );
-      fetchClubEvents();
-    } else {
+
+      // You can log the result; avoid spamming snackbars on success
+      debugPrint(
+        "Delete image $imageId of event $eventId => "
+        "${response.statusCode} - ${response.body}",
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to delete image: ${response.body}")),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed: $respStr")),
+        SnackBar(content: Text("Error deleting image: $e")),
       );
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Error: $e")),
-    );
   }
-}
 
-  // ======================================================================
+  // ---------------------------------------------------------------------------
+  // UPDATE EVENT (DELETE MARKED IMAGES + ADD NEW IMAGES)
+  // ---------------------------------------------------------------------------
+  Future<void> updateEvent(
+    int eventId,
+    String title,
+    String note,
+    String description,
+    String fromDate,
+    String toDate,
+    String fromTime,
+    String toTime,
+    List<XFile> newImages,
+    List<int> imagesToDelete,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("User not logged in")),
+        );
+        return;
+      }
+
+      // Step 1: Delete all marked images one by one (backend endpoint you shared)
+      for (final imgId in imagesToDelete) {
+        await _deleteEventImage(eventId, imgId);
+      }
+
+      // Step 2: Send PUT update for event details + NEW images
+      final url = Uri.parse("$api/api/myskates/events/updates/$eventId/");
+      final request = http.MultipartRequest("PUT", url);
+      request.headers["Authorization"] = "Bearer $token";
+
+      request.fields.addAll({
+        "title": title,
+        "note": note,
+        "description": description,
+        "from_date": fromDate,
+        "to_date": toDate,
+        "from_time": fromTime,
+        "to_time": toTime,
+      });
+
+      final limitedImages =
+          newImages.length > 2 ? newImages.sublist(0, 2) : newImages;
+
+      for (var img in limitedImages) {
+        request.files.add(
+          await http.MultipartFile.fromPath("images", img.path),
+        );
+      }
+
+      final response = await request.send();
+      final respStr = await response.stream.bytesToString();
+
+      debugPrint("Update Event Response: ${response.statusCode} - $respStr");
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.teal,
+            content: Text(
+              "Event updated successfully",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+        fetchClubEvents();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed: $respStr")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // FETCH CLUB DETAILS
-  // ======================================================================
+  // ---------------------------------------------------------------------------
   Future<void> fetchClubDetails() async {
     try {
       final token = await getToken();
@@ -271,15 +293,15 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
         });
       }
     } catch (e) {
-      print("Club details error: $e");
+      debugPrint("Club details error: $e");
     }
 
     setState(() => loadingClub = false);
   }
 
-  // ======================================================================
+  // ---------------------------------------------------------------------------
   // FETCH CLUB EVENTS
-  // ======================================================================
+  // ---------------------------------------------------------------------------
   Future<void> fetchClubEvents() async {
     try {
       final token = await getToken();
@@ -302,15 +324,15 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
         });
       }
     } catch (e) {
-      print("Event fetch error: $e");
+      debugPrint("Event fetch error: $e");
     }
 
     setState(() => loadingEvents = false);
   }
 
-  // ======================================================================
-  // UPDATE EVENT DIALOG (MULTIPLE IMAGES, MAX 2 TOTAL)
-  // ======================================================================
+  // ---------------------------------------------------------------------------
+  // UPDATE EVENT DIALOG
+  // ---------------------------------------------------------------------------
   void _openUpdateEventDialog(Map<String, dynamic> event) {
     final TextEditingController titleCtrl =
         TextEditingController(text: event["title"] ?? "");
@@ -330,12 +352,11 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
     // Existing images from API
     final List<dynamic> existingImages =
         List<dynamic>.from(event["images"] ?? []);
-List<int> imagesToDelete = [];  // <--- NEW LIST
+    List<int> imagesToDelete = [];
 
     // New images picked in this dialog
     List<XFile> pickedImages = [];
 
-    // Existing banner image (single)
     String existingBanner = buildImageUrl(event["image"]);
 
     showDialog(
@@ -343,8 +364,11 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            int currentImageCount =
-                existingImages.length + pickedImages.length;
+            // Count only non-deleted existing images
+            int activeExisting = existingImages
+                .where((img) => img["_deleted"] != true)
+                .length;
+            int currentImageCount = activeExisting + pickedImages.length;
             int remainingSlots = 2 - currentImageCount;
 
             return Dialog(
@@ -399,7 +423,6 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
                           child: _timeField("From Time", fromTimeCtrl),
                         ),
                       ),
-
                       GestureDetector(
                         onTap: () => _pickTime(context, toTimeCtrl),
                         child: AbsorbPointer(
@@ -437,12 +460,12 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
 
                                 if (images == null || images.isEmpty) return;
 
-                                // Limit by remaining slots
                                 if (images.length > remainingSlots) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                          "You can add only $remainingSlots more image(s)"),
+                                        "You can add only $remainingSlots more image(s)",
+                                      ),
                                       backgroundColor: Colors.red,
                                     ),
                                   );
@@ -463,64 +486,66 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
                       const SizedBox(height: 10),
 
                       // Existing gallery images from API
-                     if (existingImages.isNotEmpty)
-  GridView.builder(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    itemCount: existingImages.length,
-    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 2,
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
-    ),
-    itemBuilder: (context, index) {
-      final img = existingImages[index];
+                      if (existingImages.isNotEmpty)
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: existingImages.length,
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                          ),
+                          itemBuilder: (context, index) {
+                            final img = existingImages[index];
 
-      return Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.network(
-              buildImageUrl(img["image"]),
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-            ),
-          ),
+                            if (img["_deleted"] == true) {
+                              return const SizedBox();
+                            }
 
-          // Close Button (REMOVE EXISTING IMAGE)
-          Positioned(
-            right: 0,
-            top: 0,
-            child: GestureDetector(
-              onTap: () {
-                imagesToDelete.add(img["id"]); // mark for deletion
-                existingImages.removeAt(index); // remove from UI
-                setStateDialog(() {});
-              },
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: Colors.red,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.close,
-                  color: Colors.white,
-                  size: 16,
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-    },
-  ),
-
+                            return Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.network(
+                                    buildImageUrl(img["image"]),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      imagesToDelete.add(img["id"]);
+                                      existingImages[index]["_deleted"] = true;
+                                      setStateDialog(() {});
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
 
                       if (existingImages.isNotEmpty) const SizedBox(height: 10),
 
-                      // Existing banner image (if any) – legacy support
+                      // Existing legacy banner image if any and no gallery images
                       if (event["image"] != null && existingImages.isEmpty)
                         ClipRRect(
                           borderRadius: BorderRadius.circular(10),
@@ -535,7 +560,7 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
                       if (event["image"] != null && existingImages.isEmpty)
                         const SizedBox(height: 10),
 
-                      // Newly picked images in this dialog
+                      // Newly picked images
                       if (pickedImages.isNotEmpty)
                         GridView.builder(
                           shrinkWrap: true,
@@ -618,7 +643,7 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
                                 fromTimeCtrl.text.trim(),
                                 toTimeCtrl.text.trim(),
                                 pickedImages,
-                                 imagesToDelete,  
+                                imagesToDelete,
                               );
                               Navigator.pop(context);
                             },
@@ -636,9 +661,9 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
     );
   }
 
-  // ======================================================================
-  // ADD EVENT DIALOG (MULTIPLE IMAGES, MAX 2)
-  // ======================================================================
+  // ---------------------------------------------------------------------------
+  // ADD EVENT DIALOG (MAX 2 IMAGES)
+  // ---------------------------------------------------------------------------
   void _openAddEventDialog() {
     final TextEditingController titleCtrl = TextEditingController();
     final TextEditingController noteCtrl = TextEditingController();
@@ -709,7 +734,6 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
                           child: _timeField("From Time", fromTimeCtrl),
                         ),
                       ),
-
                       GestureDetector(
                         onTap: () => _pickTime(context, toTimeCtrl),
                         child: AbsorbPointer(
@@ -751,7 +775,8 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                          "You can add only $availableSlots more image(s)"),
+                                        "You can add only $availableSlots more image(s)",
+                                      ),
                                       backgroundColor: Colors.red,
                                     ),
                                   );
@@ -869,9 +894,9 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
     );
   }
 
-  // ======================================================================
+  // ---------------------------------------------------------------------------
   // FIELD WIDGETS
-  // ======================================================================
+  // ---------------------------------------------------------------------------
   Widget _inputField(
     String label,
     TextEditingController controller, {
@@ -953,9 +978,9 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
     );
   }
 
-  // ======================================================================
+  // ---------------------------------------------------------------------------
   // PICKERS
-  // ======================================================================
+  // ---------------------------------------------------------------------------
   Future<void> _pickDate(
     BuildContext context,
     TextEditingController ctrl,
@@ -984,9 +1009,9 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
     }
   }
 
-  // ======================================================================
+  // ---------------------------------------------------------------------------
   // UI BUILD
-  // ======================================================================
+  // ---------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -999,9 +1024,7 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
         ),
       ),
       body: (loadingClub || loadingEvents)
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.teal),
-            )
+          ? const Center(child: CircularProgressIndicator(color: Colors.teal))
           : Column(
               children: [
                 Padding(
@@ -1049,8 +1072,8 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.white24),
                     ),
-                    child: Row(
-                      children: const [
+                    child: const Row(
+                      children: [
                         Icon(Icons.swipe, color: Colors.teal, size: 20),
                         SizedBox(width: 10),
                         Expanded(
@@ -1146,10 +1169,7 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
           children: [
             Icon(Icons.edit, color: Colors.white, size: 28),
             SizedBox(width: 10),
-            Text(
-              "Update",
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
+            Text("Update", style: TextStyle(color: Colors.white, fontSize: 16)),
           ],
         ),
       ),
@@ -1168,10 +1188,7 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
           children: [
             Icon(Icons.delete, color: Colors.white, size: 28),
             SizedBox(width: 10),
-            Text(
-              "Delete",
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
+            Text("Delete", style: TextStyle(color: Colors.white, fontSize: 16)),
           ],
         ),
       ),
@@ -1243,9 +1260,6 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
     );
   }
 
-  // ======================================================================
-  // EVENT CARD (SHOW FIRST 2 IMAGES LIKE SCREENSHOT)
-  // ======================================================================
   Widget buildEventCard(
     Map<String, dynamic> event,
     String clubLogo,
@@ -1255,11 +1269,8 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
     final List<dynamic> gallery = event["images"] ?? [];
     final List<dynamic> firstTwoImages = gallery.take(2).toList();
 
-    // Extract + Format Dates
     final fromDate = formatDate(event["from_date"] ?? "");
     final toDate = formatDate(event["to_date"] ?? "");
-
-    // Extract + Format Times
     final fromTime = formatTime(event["from_time"] ?? "");
     final toTime = formatTime(event["to_time"] ?? "");
 
@@ -1271,14 +1282,12 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Club + Name
           Row(
             children: [
               CircleAvatar(
                 radius: 22,
-                backgroundImage: clubLogo.isNotEmpty
-                    ? NetworkImage(clubLogo)
-                    : null,
+                backgroundImage:
+                    clubLogo.isNotEmpty ? NetworkImage(clubLogo) : null,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -1293,10 +1302,7 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
               ),
             ],
           ),
-
           const SizedBox(height: 10),
-
-          // DATE + TIME ROW
           Row(
             children: [
               const Icon(Icons.calendar_month,
@@ -1308,40 +1314,36 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
               ),
             ],
           ),
-
           const SizedBox(height: 10),
 
-          // MULTIPLE IMAGES (UP TO 2) – LIKE SCREENSHOT
           if (firstTwoImages.isNotEmpty)
-          Container(
-  margin: const EdgeInsets.only(bottom: 10),
-  child: Row(
-    children: firstTwoImages.map<Widget>((img) {
-      return Expanded(
-        child: Container(
-          margin: const EdgeInsets.only(right: 8),
-          child: AspectRatio(
-  aspectRatio: 1,
-  child: GestureDetector(
-    onTap: () {
-      _showFullImage(buildImageUrl(img["image"]));
-    },
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: Image.network(
-        buildImageUrl(img["image"]),
-        fit: BoxFit.cover,
-      ),
-    ),
-  ),
-),
-
-        ),
-      );
-    }).toList(),
-  ),
-)
-
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: firstTwoImages.map<Widget>((img) {
+                  return Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: GestureDetector(
+                          onTap: () {
+                            _showFullImage(buildImageUrl(img["image"]));
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              buildImageUrl(img["image"]),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            )
           else if (bannerImagePath.isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
@@ -1352,8 +1354,6 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
             ),
 
           const SizedBox(height: 10),
-
-          // TITLE
           Text(
             event["title"] ?? "",
             style: const TextStyle(
@@ -1362,10 +1362,7 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
               fontWeight: FontWeight.bold,
             ),
           ),
-
           const SizedBox(height: 5),
-
-          // DESCRIPTION
           Text(
             event["description"] ?? "",
             style: const TextStyle(color: Colors.white70, fontSize: 14),
@@ -1387,10 +1384,7 @@ List<int> imagesToDelete = [];  // <--- NEW LIST
             child: Container(
               color: Colors.black,
               child: InteractiveViewer(
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.contain,
-                ),
+                child: Image.network(imageUrl, fit: BoxFit.contain),
               ),
             ),
           ),

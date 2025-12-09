@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/ADMIN/add_category.dart';
 import 'package:my_skates/ADMIN/add_country.dart';
 import 'package:my_skates/ADMIN/add_district.dart';
 import 'package:my_skates/ADMIN/add_state.dart';
@@ -140,6 +141,16 @@ Future<void> logoutUser() async {
                   );
                 },
                 child: _menuTile(icon: Icons.history, text: "District")),
+              _divider(),
+
+               GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AddCategory()),
+                  );
+                },
+                child: _menuTile(icon: Icons.history, text: "Category")),
               _divider(),
               GestureDetector(
                 onTap: () {

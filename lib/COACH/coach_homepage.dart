@@ -7,6 +7,8 @@ import 'package:my_skates/user_connect_coaches.dart';
 import 'package:my_skates/user_settings.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
+
 
 class CoachHomepage extends StatefulWidget {
   const CoachHomepage({super.key});
@@ -25,6 +27,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
   initState() {
     super.initState();
     fetchStudentDetails();
+    getbanner();
   }
 
   Future<String?> getToken() async {
@@ -81,6 +84,46 @@ class _CoachHomepageState extends State<CoachHomepage> {
       print("Error fetching student: $e");
     }
   }
+
+  
+  List<Map<String, dynamic>> banner = [];
+
+  Future<void> getbanner() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      var response = await http.get(
+        Uri.parse('$api/api/myskates/banner/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      List<Map<String, dynamic>> statelist = [];
+      print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
+      print(response.statusCode);
+      if (response.statusCode == 200) {
+        final parsed = jsonDecode(response.body);
+        var productsData = parsed;
+
+        for (var productData in productsData) {
+          String imageUrl = "$api${productData['image']}";
+          statelist.add({
+            'id': productData['id'],
+            'title': productData['title'],
+            'image': imageUrl,
+          });
+        }
+        setState(() {
+          banner = statelist;
+          print("statelistttttttttttttttttttt:$banner");
+        });
+      }
+    } catch (error) {}
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -163,12 +206,103 @@ class _CoachHomepageState extends State<CoachHomepage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      width: MediaQuery.of(context).size.width,
-                      child: Image.asset(
-                        "lib/assets/banner1.png",
-                        height: 88,
-                        fit: BoxFit.cover,
+                   Container(
+                      height: 160,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.25),
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: FlutterCarousel(
+                          options: CarouselOptions(
+                            height: 160,
+                            autoPlay: true,
+                            autoPlayInterval: Duration(seconds: 3),
+                            viewportFraction: 1,
+                            showIndicator: true,
+                            slideIndicator: CircularSlideIndicator(),
+                          ),
+                          items: banner.map((item) {
+                            return Stack(
+                              children: [
+                                // Background Image
+                                Positioned.fill(
+                                  child: Image.network(
+                                    item["image"] ?? "",
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, progress) {
+                                      if (progress == null) return child;
+                                      return Container(
+                                        color: Colors.grey.shade900,
+                                        alignment: Alignment.center,
+                                        child:
+                                            const CircularProgressIndicator(),
+                                      );
+                                    },
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
+                                              color: Colors.black,
+                                              alignment: Alignment.center,
+                                              child: Icon(
+                                                Icons.broken_image,
+                                                color: Colors.white54,
+                                                size: 40,
+                                              ),
+                                            ),
+                                  ),
+                                ),
+
+                                // Gradient Overlay (bottom fade)
+                                Positioned.fill(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.transparent,
+                                          Colors.black.withOpacity(0.6),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                // Banner Title (Optional)
+                                // Positioned(
+                                //   bottom: 12,
+                                //   left: 12,
+                                //   right: 12,
+                                //   child: Text(
+                                //     item["title"] ?? "",
+                                //     style: const TextStyle(
+                                //       color: Colors.white,
+                                //       fontSize: 18,
+                                //       fontWeight: FontWeight.bold,
+                                //       shadows: [
+                                //         Shadow(
+                                //           offset: Offset(0, 1),
+                                //           blurRadius: 4,
+                                //           color: Colors.black54,
+                                //         )
+                                //       ],
+                                //     ),
+                                //     maxLines: 1,
+                                //     overflow: TextOverflow.ellipsis,
+                                //   ),
+                                // ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
                       ),
                     ),
 
