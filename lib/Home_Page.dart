@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/COACH/coach_details_page.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/profile_page.dart';
 import 'package:my_skates/user_connect_coaches.dart';
 import 'package:my_skates/user_settings.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -40,6 +42,7 @@ class _HomePageState extends State<HomePage> {
     fetchCoaches();
     fetchEvents();
     refreshUserProfile().then((_) => fetchStudentDetails());
+    getbanner();
   }
 
   Future<String?> getToken() async {
@@ -66,6 +69,44 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  List<Map<String, dynamic>> banner = [];
+
+  Future<void> getbanner() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      var response = await http.get(
+        Uri.parse('$api/api/myskates/banner/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      List<Map<String, dynamic>> statelist = [];
+      print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
+      print(response.statusCode);
+      if (response.statusCode == 200) {
+        final parsed = jsonDecode(response.body);
+        var productsData = parsed;
+
+        for (var productData in productsData) {
+          String imageUrl = "$api${productData['image']}";
+          statelist.add({
+            'id': productData['id'],
+            'title': productData['title'],
+            'image': imageUrl,
+          });
+        }
+        setState(() {
+          banner = statelist;
+          print("statelistttttttttttttttttttt:$banner");
+        });
+      }
+    } catch (error) {}
+  }
+
   // FETCH COACHES
   Future<void> fetchCoaches() async {
     String? token = await getToken();
@@ -75,6 +116,9 @@ class _HomePageState extends State<HomePage> {
         Uri.parse("$api/api/myskates/coaches/approved/"),
         headers: {"Authorization": "Bearer $token"},
       );
+
+      print("COACHES STATUS: ${response.statusCode}");
+      print("COACHES BODY: ${response.body}");
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -274,13 +318,105 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Image.asset(
-                      "lib/assets/banner1.png",
-                      height: 88,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+                    Container(
+                      height: 160,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.25),
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: FlutterCarousel(
+                          options: CarouselOptions(
+                            height: 160,
+                            autoPlay: true,
+                            autoPlayInterval: Duration(seconds: 3),
+                            viewportFraction: 1,
+                            showIndicator: true,
+                            slideIndicator: CircularSlideIndicator(),
+                          ),
+                          items: banner.map((item) {
+                            return Stack(
+                              children: [
+                                // Background Image
+                                Positioned.fill(
+                                  child: Image.network(
+                                    item["image"] ?? "",
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, progress) {
+                                      if (progress == null) return child;
+                                      return Container(
+                                        color: Colors.grey.shade900,
+                                        alignment: Alignment.center,
+                                        child:
+                                            const CircularProgressIndicator(),
+                                      );
+                                    },
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
+                                              color: Colors.black,
+                                              alignment: Alignment.center,
+                                              child: Icon(
+                                                Icons.broken_image,
+                                                color: Colors.white54,
+                                                size: 40,
+                                              ),
+                                            ),
+                                  ),
+                                ),
 
+                                // Gradient Overlay (bottom fade)
+                                Positioned.fill(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.transparent,
+                                          Colors.black.withOpacity(0.6),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                // Banner Title (Optional)
+                                // Positioned(
+                                //   bottom: 12,
+                                //   left: 12,
+                                //   right: 12,
+                                //   child: Text(
+                                //     item["title"] ?? "",
+                                //     style: const TextStyle(
+                                //       color: Colors.white,
+                                //       fontSize: 18,
+                                //       fontWeight: FontWeight.bold,
+                                //       shadows: [
+                                //         Shadow(
+                                //           offset: Offset(0, 1),
+                                //           blurRadius: 4,
+                                //           color: Colors.black54,
+                                //         )
+                                //       ],
+                                //     ),
+                                //     maxLines: 1,
+                                //     overflow: TextOverflow.ellipsis,
+                                //   ),
+                                // ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 22),
 
                     const Text(
@@ -481,7 +617,7 @@ class _HomePageState extends State<HomePage> {
                               scrollDirection: Axis.horizontal,
                               itemCount: coaches.length,
                               itemBuilder: (_, i) =>
-                                  simpleCoachCard(coaches[i]),
+                                  simpleCoachCard(context, coaches[i]),
                             ),
                     ),
                   ],
@@ -525,47 +661,46 @@ Widget buildClubCardFromApi(Map club) {
 
   return Container(
     width: 160,
-    padding: const EdgeInsets.all(12),
+    height: 100, // Perfect balanced height
+    padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
       color: Colors.white10,
       borderRadius: BorderRadius.circular(16),
     ),
-
-    // FIXED HEIGHT to keep follow button aligned
-    height: 200,
-
     child: Column(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        Column(
-          children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundImage: imageUrl.isNotEmpty
-                  ? NetworkImage(imageUrl)
-                  : const AssetImage("lib/assets/images.png"),
-            ),
-            const SizedBox(height: 10),
-
-            // TEXT ALWAYS CENTERED & SINGLE-LINE
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-            ),
-          ],
+        // Avatar
+        CircleAvatar(
+          radius: 30,
+          backgroundImage: imageUrl.isNotEmpty
+              ? NetworkImage(imageUrl)
+              : const AssetImage("lib/assets/images.png"),
         ),
 
-        // FOLLOW BUTTON FIXED POSITION (BOTTOM)
+        const SizedBox(height: 10),
+
+        // Club Name
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+        ),
+
+        const Spacer(), // push Follow button slightly down
+        // Follow Button
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.teal,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Text("Follow", style: TextStyle(color: Colors.white)),
+          child: const Text(
+            "Follow",
+            style: TextStyle(color: Colors.white, fontSize: 13),
+          ),
         ),
       ],
     ),
@@ -793,66 +928,88 @@ Widget buildEventCardWithDynamicImages({
 }
 
 // COACH CARD (WITH CONNECT BUTTON)
-Widget simpleCoachCard(Map coach) {
+Widget simpleCoachCard(BuildContext context, Map coach) {
   String name = "${coach['first_name']} ${coach['last_name']}";
   String exp = coach["experience"] != null
       ? "Exp: ${coach["experience"]} yrs"
       : "Experience N/A";
   String city = coach["district_name"] ?? "";
+  int coachId = coach["id"]; // << coach ID
   String? img = coach["profile"];
   String imageUrl = img != null && img.isNotEmpty ? "$api$img" : "";
 
-  return Container(
-    width: 160,
-    margin: const EdgeInsets.only(right: 10),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: const Color(0xFF1A1A1A),
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Column(
-      children: [
-        CircleAvatar(
-          radius: 28,
-          backgroundImage: imageUrl.isNotEmpty
-              ? NetworkImage(imageUrl)
-              : const AssetImage("lib/assets/img.jpg"),
-        ),
+  return GestureDetector(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => CoachDetailsPage(coachId: coachId)),
+      );
+    },
+    child: Container(
+      width: 160,
+      margin: const EdgeInsets.only(right: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundImage: imageUrl.isNotEmpty
+                ? NetworkImage(imageUrl)
+                : const AssetImage("lib/assets/img.jpg"),
+          ),
 
-        const SizedBox(height: 10),
+          const SizedBox(height: 10),
 
-        Text(
-          name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: Colors.white, fontSize: 15),
-        ),
+          Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white, fontSize: 15),
+          ),
 
-        const SizedBox(height: 4),
+          const SizedBox(height: 4),
 
-        Text(exp, style: const TextStyle(color: Colors.white60, fontSize: 12)),
-        Text(city, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+          Text(
+            exp,
+            style: const TextStyle(color: Colors.white60, fontSize: 12),
+          ),
+          Text(
+            city,
+            style: const TextStyle(color: Colors.white38, fontSize: 11),
+          ),
 
-        const SizedBox(height: 12),
+          const SizedBox(height: 12),
 
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00AFA5),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CoachDetailsPage(coachId: coachId),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00AFA5),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                "Connect",
+                style: TextStyle(color: Colors.white, fontSize: 13),
               ),
             ),
-            child: const Text(
-              "Connect",
-              style: TextStyle(color: Colors.white, fontSize: 13),
-            ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }

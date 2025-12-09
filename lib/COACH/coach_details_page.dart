@@ -434,9 +434,9 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
                   subTitle: "Morning training session",
                   time: "1h 12m",
                   distance: "Panamballi Nagar - Kaicor",
-                  iconUrl: fullImageUrl(
-                    "/media/profile_images/1000004721_K1a26PJ.jpg",
-                  ),
+                  // iconUrl: fullImageUrl(
+                  //   "/media/profile_images/1000004721_K1a26PJ.jpg",
+                  // ),
                 ),
 
                 const SizedBox(height: 20),
