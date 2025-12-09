@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 
 class CoachAddEvents extends StatefulWidget {
@@ -45,7 +46,7 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
   }
 
   // ======================================================================
-  // SUBMIT EVENT
+  // SUBMIT EVENT (MULTIPLE IMAGES, MAX 2)
   // ======================================================================
   Future<void> submitEvent(
     String title,
@@ -55,7 +56,7 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
     String toDate,
     String fromTime,
     String toTime,
-    XFile? imageFile,
+    List<XFile> imageFiles,
   ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -63,14 +64,13 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
       final userId = prefs.getInt("id");
 
       if (token == null || userId == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("User not logged in")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("User not logged in")),
+        );
         return;
       }
 
       final url = Uri.parse("$api/api/myskates/events/add/");
-
       final request = http.MultipartRequest("POST", url);
       request.headers["Authorization"] = "Bearer $token";
 
@@ -86,9 +86,13 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
         "to_time": toTime,
       });
 
-      if (imageFile != null) {
+      // Enforce max 2 images
+      final List<XFile> limitedImages =
+          imageFiles.length > 2 ? imageFiles.sublist(0, 2) : imageFiles;
+
+      for (var img in limitedImages) {
         request.files.add(
-          await http.MultipartFile.fromPath("image", imageFile.path),
+          await http.MultipartFile.fromPath("images", img.path),
         );
       }
 
@@ -108,16 +112,19 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
         fetchClubEvents();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to add event: $respStr")),
+          SnackBar(content: Text("Failed: $respStr")),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
     }
   }
 
+  // ======================================================================
+  // DELETE EVENT
+  // ======================================================================
   Future<void> _deleteEvent(int id) async {
     try {
       final token = await getToken();
@@ -139,21 +146,23 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
             ),
           ),
         );
-
-        fetchClubEvents(); // Refresh list
+        fetchClubEvents();
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Failed: ${response.body}")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed: ${response.body}")),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
     }
   }
 
-Future<void> updateEvent(
+  // ======================================================================
+  // UPDATE EVENT (MULTIPLE IMAGES, MAX 2 NEW IMAGES)
+  // ======================================================================
+ Future<void> updateEvent(
   int eventId,
   String title,
   String note,
@@ -162,7 +171,8 @@ Future<void> updateEvent(
   String toDate,
   String fromTime,
   String toTime,
-  XFile? imageFile,
+  List<XFile> newImages,
+  List<int> imagesToDelete,   // <--- NEW PARAMETER
 ) async {
   try {
     final prefs = await SharedPreferences.getInstance();
@@ -176,10 +186,12 @@ Future<void> updateEvent(
     }
 
     final url = Uri.parse("$api/api/myskates/events/updates/$eventId/");
-
     final request = http.MultipartRequest("PUT", url);
     request.headers["Authorization"] = "Bearer $token";
 
+    // -----------------------------
+    // FORM FIELDS
+    // -----------------------------
     request.fields.addAll({
       "title": title,
       "note": note,
@@ -190,16 +202,32 @@ Future<void> updateEvent(
       "to_time": toTime,
     });
 
-    if (imageFile != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath("image", imageFile.path),
-      );
+    // -----------------------------
+    // SEND DELETED IMAGE IDs
+    // Backend expects: delete_images = "3,6,7"
+    // -----------------------------
+    if (imagesToDelete.isNotEmpty) {
+      request.fields["delete_images"] = imagesToDelete.join(",");
     }
 
+    // -----------------------------
+    // UPLOAD NEW IMAGES (MAX 2)
+    // -----------------------------
+    final limitedImages =
+        newImages.length > 2 ? newImages.sublist(0, 2) : newImages;
+
+    for (var img in limitedImages) {
+      request.files
+          .add(await http.MultipartFile.fromPath("images", img.path));
+    }
+
+    // -----------------------------
+    // SEND REQUEST
+    // -----------------------------
     final response = await request.send();
     final respStr = await response.stream.bytesToString();
 
-    print("Update response: ${response.statusCode} - $respStr");
+    print("Update Event Response: ${response.statusCode} - $respStr");
 
     if (response.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -280,218 +308,336 @@ Future<void> updateEvent(
     setState(() => loadingEvents = false);
   }
 
-
+  // ======================================================================
+  // UPDATE EVENT DIALOG (MULTIPLE IMAGES, MAX 2 TOTAL)
+  // ======================================================================
   void _openUpdateEventDialog(Map<String, dynamic> event) {
-  final TextEditingController titleCtrl =
-      TextEditingController(text: event["title"] ?? "");
-  final TextEditingController noteCtrl =
-      TextEditingController(text: event["note"] ?? "");
-  final TextEditingController descCtrl =
-      TextEditingController(text: event["description"] ?? "");
-  final TextEditingController fromDateCtrl =
-      TextEditingController(text: event["from_date"] ?? "");
-  final TextEditingController toDateCtrl =
-      TextEditingController(text: event["to_date"] ?? "");
-  final TextEditingController fromTimeCtrl =
-      TextEditingController(text: event["from_time"] ?? "");
-  final TextEditingController toTimeCtrl =
-      TextEditingController(text: event["to_time"] ?? "");
+    final TextEditingController titleCtrl =
+        TextEditingController(text: event["title"] ?? "");
+    final TextEditingController noteCtrl =
+        TextEditingController(text: event["note"] ?? "");
+    final TextEditingController descCtrl =
+        TextEditingController(text: event["description"] ?? "");
+    final TextEditingController fromDateCtrl =
+        TextEditingController(text: event["from_date"] ?? "");
+    final TextEditingController toDateCtrl =
+        TextEditingController(text: event["to_date"] ?? "");
+    final TextEditingController fromTimeCtrl =
+        TextEditingController(text: event["from_time"] ?? "");
+    final TextEditingController toTimeCtrl =
+        TextEditingController(text: event["to_time"] ?? "");
 
-  XFile? pickedImage;
-  String existingImage = buildImageUrl(event["image"]);
+    // Existing images from API
+    final List<dynamic> existingImages =
+        List<dynamic>.from(event["images"] ?? []);
+List<int> imagesToDelete = [];  // <--- NEW LIST
 
-  showDialog(
-    context: context,
-    builder: (context) {
-      return StatefulBuilder(
-        builder: (context, setStateDialog) {
-          return Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF00332D), Colors.black],
-                ),
-                borderRadius: BorderRadius.all(Radius.circular(20)),
+    // New images picked in this dialog
+    List<XFile> pickedImages = [];
+
+    // Existing banner image (single)
+    String existingBanner = buildImageUrl(event["image"]);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            int currentImageCount =
+                existingImages.length + pickedImages.length;
+            int remainingSlots = 2 - currentImageCount;
+
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
-              padding: const EdgeInsets.all(20),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Update Event",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF00332D), Colors.black],
+                  ),
+                  borderRadius: BorderRadius.all(Radius.circular(20)),
+                ),
+                padding: const EdgeInsets.all(20),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Update Event",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    _inputField("Title", titleCtrl),
-                    _inputField("Note", noteCtrl),
-                    _inputField("Description", descCtrl, maxLines: 3),
+                      _inputField("Title", titleCtrl),
+                      _inputField("Note", noteCtrl),
+                      _inputField("Description", descCtrl, maxLines: 3),
 
-                    _dateField(
-                      "From Date",
-                      fromDateCtrl,
-                      () => _pickDate(context, fromDateCtrl),
-                    ),
-                    const SizedBox(height: 10),
-
-                    _dateField(
-                      "To Date",
-                      toDateCtrl,
-                      () => _pickDate(context, toDateCtrl),
-                    ),
-                    const SizedBox(height: 10),
-
-                    GestureDetector(
-                      onTap: () => _pickTime(context, fromTimeCtrl),
-                      child: AbsorbPointer(
-                        child: _timeField("From Time", fromTimeCtrl),
+                      _dateField(
+                        "From Date",
+                        fromDateCtrl,
+                        () => _pickDate(context, fromDateCtrl),
                       ),
-                    ),
+                      const SizedBox(height: 10),
 
-                    GestureDetector(
-                      onTap: () => _pickTime(context, toTimeCtrl),
-                      child: AbsorbPointer(
-                        child: _timeField("To Time", toTimeCtrl),
+                      _dateField(
+                        "To Date",
+                        toDateCtrl,
+                        () => _pickDate(context, toDateCtrl),
                       ),
-                    ),
-                    const SizedBox(height: 15),
+                      const SizedBox(height: 10),
 
-                    const Text("Event Image",
-                        style: TextStyle(color: Colors.white70)),
-                    const SizedBox(height: 8),
-
-                    // ------ IMAGE PREVIEW OR PICK ------
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.white12,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.white24),
+                      GestureDetector(
+                        onTap: () => _pickTime(context, fromTimeCtrl),
+                        child: AbsorbPointer(
+                          child: _timeField("From Time", fromTimeCtrl),
+                        ),
                       ),
-                      padding: const EdgeInsets.all(12),
-                      child: pickedImage == null
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (event["image"] != null)
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.network(existingImage,
-                                        height: 150,
-                                        width: double.infinity,
-                                        fit: BoxFit.cover),
-                                  ),
-                                const SizedBox(height: 10),
-                                GestureDetector(
-                                  onTap: () async {
-                                    final ImagePicker picker = ImagePicker();
-                                    pickedImage = await picker.pickImage(
-                                      source: ImageSource.gallery,
-                                    );
-                                    setStateDialog(() {});
-                                  },
-                                  child: Row(
-                                    children: const [
-                                      Icon(Icons.image,
-                                          color: Colors.white70),
-                                      SizedBox(width: 10),
-                                      Text("Change Image",
-                                          style:
-                                              TextStyle(color: Colors.white)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+
+                      GestureDetector(
+                        onTap: () => _pickTime(context, toTimeCtrl),
+                        child: AbsorbPointer(
+                          child: _timeField("To Time", toTimeCtrl),
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+
+                      const Text(
+                        "Event Images (max 2)",
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                      const SizedBox(height: 8),
+
+                      if (currentImageCount >= 2)
+                        const Text(
+                          "Maximum 2 images allowed",
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 12,
+                          ),
+                        ),
+
+                      const SizedBox(height: 6),
+
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal,
+                        ),
+                        onPressed: remainingSlots <= 0
+                            ? null
+                            : () async {
+                                final ImagePicker picker = ImagePicker();
+                                final images = await picker.pickMultiImage();
+
+                                if (images == null || images.isEmpty) return;
+
+                                // Limit by remaining slots
+                                if (images.length > remainingSlots) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          "You can add only $remainingSlots more image(s)"),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+
+                                pickedImages.addAll(
+                                  images.take(remainingSlots),
+                                );
+                                setStateDialog(() {});
+                              },
+                        icon: const Icon(Icons.image),
+                        label: const Text(
+                          "Pick Images",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Existing gallery images from API
+                     if (existingImages.isNotEmpty)
+  GridView.builder(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    itemCount: existingImages.length,
+    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 2,
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
+    ),
+    itemBuilder: (context, index) {
+      final img = existingImages[index];
+
+      return Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.network(
+              buildImageUrl(img["image"]),
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            ),
+          ),
+
+          // Close Button (REMOVE EXISTING IMAGE)
+          Positioned(
+            right: 0,
+            top: 0,
+            child: GestureDetector(
+              onTap: () {
+                imagesToDelete.add(img["id"]); // mark for deletion
+                existingImages.removeAt(index); // remove from UI
+                setStateDialog(() {});
+              },
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.close,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  ),
+
+
+                      if (existingImages.isNotEmpty) const SizedBox(height: 10),
+
+                      // Existing banner image (if any) – legacy support
+                      if (event["image"] != null && existingImages.isEmpty)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.network(
+                            existingBanner,
+                            height: 150,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+
+                      if (event["image"] != null && existingImages.isEmpty)
+                        const SizedBox(height: 10),
+
+                      // Newly picked images in this dialog
+                      if (pickedImages.isNotEmpty)
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: pickedImages.length,
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                          ),
+                          itemBuilder: (context, index) {
+                            return Stack(
                               children: [
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(10),
                                   child: Image.file(
-                                    File(pickedImage!.path),
-                                    height: 150,
-                                    width: double.infinity,
+                                    File(pickedImages[index].path),
                                     fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton.icon(
-                                    onPressed: () {
-                                      pickedImage = null;
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      pickedImages.removeAt(index);
                                       setStateDialog(() {});
                                     },
-                                    icon: const Icon(Icons.delete,
-                                        color: Colors.redAccent),
-                                    label: const Text("Remove",
-                                        style: TextStyle(
-                                            color: Colors.redAccent)),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
                                   ),
-                                )
+                                ),
                               ],
-                            ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          child: const Text("Cancel",
-                              style: TextStyle(color: Colors.white70)),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                        const SizedBox(width: 10),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00AFA5),
-                          ),
-                          child: const Text("Update",
-                              style: TextStyle(color: Colors.white)),
-                          onPressed: () async {
-                            await updateEvent(
-                              event["id"],
-                              titleCtrl.text.trim(),
-                              noteCtrl.text.trim(),
-                              descCtrl.text.trim(),
-                              fromDateCtrl.text.trim(),
-                              toDateCtrl.text.trim(),
-                              fromTimeCtrl.text.trim(),
-                              toTimeCtrl.text.trim(),
-                              pickedImage,
                             );
-                            Navigator.pop(context);
                           },
                         ),
-                      ],
-                    ),
-                  ],
+
+                      const SizedBox(height: 20),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            child: const Text(
+                              "Cancel",
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                          const SizedBox(width: 10),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF00AFA5),
+                            ),
+                            child: const Text(
+                              "Update",
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            onPressed: () async {
+                              await updateEvent(
+                                event["id"],
+                                titleCtrl.text.trim(),
+                                noteCtrl.text.trim(),
+                                descCtrl.text.trim(),
+                                fromDateCtrl.text.trim(),
+                                toDateCtrl.text.trim(),
+                                fromTimeCtrl.text.trim(),
+                                toTimeCtrl.text.trim(),
+                                pickedImages,
+                                 imagesToDelete,  
+                              );
+                              Navigator.pop(context);
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        },
-      );
-    },
-  );
-}
-
+            );
+          },
+        );
+      },
+    );
+  }
 
   // ======================================================================
-  // OPEN ADD EVENT DIALOG (YOUR EXACT DESIGN)
+  // ADD EVENT DIALOG (MULTIPLE IMAGES, MAX 2)
   // ======================================================================
   void _openAddEventDialog() {
     final TextEditingController titleCtrl = TextEditingController();
@@ -502,13 +648,15 @@ Future<void> updateEvent(
     final TextEditingController fromTimeCtrl = TextEditingController();
     final TextEditingController toTimeCtrl = TextEditingController();
 
-    XFile? pickedImage;
+    List<XFile> pickedImages = [];
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
+            int remainingSlots = 2 - pickedImages.length;
+
             return Dialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
@@ -571,74 +719,107 @@ Future<void> updateEvent(
                       const SizedBox(height: 15),
 
                       const Text(
-                        "Event Image",
+                        "Event Images (max 2)",
                         style: TextStyle(color: Colors.white70),
                       ),
                       const SizedBox(height: 8),
 
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.white12,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.white24),
+                      if (pickedImages.length >= 2)
+                        const Text(
+                          "Maximum 2 images selected",
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 12,
+                          ),
                         ),
-                        padding: const EdgeInsets.all(12),
-                        child: pickedImage == null
-                            ? GestureDetector(
-                                onTap: () async {
-                                  final ImagePicker picker = ImagePicker();
-                                  pickedImage = await picker.pickImage(
-                                    source: ImageSource.gallery,
+
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal,
+                        ),
+                        onPressed: pickedImages.length >= 2
+                            ? null
+                            : () async {
+                                final ImagePicker picker = ImagePicker();
+                                final images = await picker.pickMultiImage();
+
+                                if (images == null || images.isEmpty) return;
+
+                                int availableSlots = 2 - pickedImages.length;
+
+                                if (images.length > availableSlots) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          "You can add only $availableSlots more image(s)"),
+                                      backgroundColor: Colors.red,
+                                    ),
                                   );
-                                  setStateDialog(() {});
-                                },
-                                child: Row(
-                                  children: const [
-                                    Icon(Icons.image, color: Colors.white70),
-                                    SizedBox(width: 10),
-                                    Text(
-                                      "Upload Image",
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.file(
-                                      File(pickedImage!.path),
-                                      height: 150,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton.icon(
-                                      onPressed: () {
-                                        pickedImage = null;
-                                        setStateDialog(() {});
-                                      },
-                                      icon: const Icon(
-                                        Icons.delete,
-                                        color: Colors.redAccent,
-                                      ),
-                                      label: const Text(
-                                        "Remove",
-                                        style: TextStyle(
-                                          color: Colors.redAccent,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                }
+
+                                pickedImages.addAll(
+                                  images.take(availableSlots),
+                                );
+                                setStateDialog(() {});
+                              },
+                        icon: const Icon(Icons.image),
+                        label: const Text(
+                          "Pick Images",
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
+
+                      const SizedBox(height: 10),
+
+                      if (pickedImages.isNotEmpty)
+                        GridView.builder(
+                          shrinkWrap: true,
+                          itemCount: pickedImages.length,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                          ),
+                          itemBuilder: (context, index) {
+                            return Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.file(
+                                    File(pickedImages[index].path),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      pickedImages.removeAt(index);
+                                      setStateDialog(() {});
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
 
                       const SizedBox(height: 20),
 
@@ -670,7 +851,7 @@ Future<void> updateEvent(
                                 toDateCtrl.text.trim(),
                                 fromTimeCtrl.text.trim(),
                                 toTimeCtrl.text.trim(),
-                                pickedImage,
+                                pickedImages,
                               );
                               Navigator.pop(context);
                             },
@@ -706,11 +887,11 @@ Future<void> updateEvent(
             labelText: label,
             labelStyle: const TextStyle(color: Colors.white54),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10), // curved border
+              borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: Colors.white24),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10), // curved border
+              borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: Colors.teal),
             ),
           ),
@@ -736,11 +917,11 @@ Future<void> updateEvent(
             suffixIcon: const Icon(Icons.calendar_today, color: Colors.white70),
             labelStyle: const TextStyle(color: Colors.white54),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10), // curved border
+              borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: Colors.white24),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10), // curved border
+              borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: Colors.teal),
             ),
           ),
@@ -760,11 +941,11 @@ Future<void> updateEvent(
           suffixIcon: const Icon(Icons.access_time, color: Colors.white70),
           labelStyle: const TextStyle(color: Colors.white54),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10), // curved border
+            borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: Colors.white24),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10), // curved border
+            borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: Colors.teal),
           ),
         ),
@@ -775,7 +956,6 @@ Future<void> updateEvent(
   // ======================================================================
   // PICKERS
   // ======================================================================
-
   Future<void> _pickDate(
     BuildContext context,
     TextEditingController ctrl,
@@ -807,7 +987,6 @@ Future<void> updateEvent(
   // ======================================================================
   // UI BUILD
   // ======================================================================
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -820,7 +999,9 @@ Future<void> updateEvent(
         ),
       ),
       body: (loadingClub || loadingEvents)
-          ? const Center(child: CircularProgressIndicator(color: Colors.teal))
+          ? const Center(
+              child: CircularProgressIndicator(color: Colors.teal),
+            )
           : Column(
               children: [
                 Padding(
@@ -865,7 +1046,6 @@ Future<void> updateEvent(
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      // color: Colors.white12,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.white24),
                     ),
@@ -886,7 +1066,6 @@ Future<void> updateEvent(
                     ),
                   ),
                 ),
-
                 Expanded(
                   child: clubEvents.isEmpty
                       ? const Center(
@@ -907,8 +1086,6 @@ Future<void> updateEvent(
                 ),
               ],
             ),
-
-      // ---------------- BOTTOM NAV ----------------
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.black,
         selectedItemColor: const Color(0xFF00AFA5),
@@ -941,7 +1118,7 @@ Future<void> updateEvent(
 
   String formatTime(String time) {
     try {
-      final parsed = DateTime.parse("2020-01-01 $time"); // dummy date
+      final parsed = DateTime.parse("2020-01-01 $time");
       final hour = parsed.hour % 12 == 0 ? 12 : parsed.hour % 12;
       final minute = parsed.minute.toString().padLeft(2, '0');
       final period = parsed.hour >= 12 ? "PM" : "AM";
@@ -954,8 +1131,7 @@ Future<void> updateEvent(
   Widget _fancySwipeEventTile(Map<String, dynamic> event) {
     return Dismissible(
       key: Key(event["id"].toString()),
-      direction: DismissDirection.horizontal, // right & left
-      // ======== BACKGROUND: SWIPE RIGHT (UPDATE) ========
+      direction: DismissDirection.horizontal,
       background: Container(
         padding: const EdgeInsets.only(left: 20),
         decoration: const BoxDecoration(
@@ -970,12 +1146,13 @@ Future<void> updateEvent(
           children: [
             Icon(Icons.edit, color: Colors.white, size: 28),
             SizedBox(width: 10),
-            Text("Update", style: TextStyle(color: Colors.white, fontSize: 16)),
+            Text(
+              "Update",
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
           ],
         ),
       ),
-
-      // ======== SECONDARY BACKGROUND: SWIPE LEFT (DELETE) ========
       secondaryBackground: Container(
         padding: const EdgeInsets.only(right: 20),
         decoration: const BoxDecoration(
@@ -991,19 +1168,18 @@ Future<void> updateEvent(
           children: [
             Icon(Icons.delete, color: Colors.white, size: 28),
             SizedBox(width: 10),
-            Text("Delete", style: TextStyle(color: Colors.white, fontSize: 16)),
+            Text(
+              "Delete",
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
           ],
         ),
       ),
-
-      // ======== CONFIRM DISMISS (SWIPE ACTION) ========
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
-         _openUpdateEventDialog(event);
-          print("Update clicked");
-          return false; // Prevent auto-removal
+          _openUpdateEventDialog(event);
+          return false;
         } else {
-          // LEFT SWIPE = DELETE
           bool? confirm = await showDialog(
             context: context,
             barrierDismissible: false,
@@ -1046,13 +1222,12 @@ Future<void> updateEvent(
 
           if (confirm == true) {
             await _deleteEvent(event["id"]);
-            return false; // DO NOT auto-remove — we refresh manually
+            return false;
           } else {
-            return false; // Cancel
+            return false;
           }
         }
       },
-
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutBack,
@@ -1069,14 +1244,16 @@ Future<void> updateEvent(
   }
 
   // ======================================================================
-  // EVENT CARD
+  // EVENT CARD (SHOW FIRST 2 IMAGES LIKE SCREENSHOT)
   // ======================================================================
   Widget buildEventCard(
     Map<String, dynamic> event,
     String clubLogo,
     String clubName,
   ) {
-    final eventImage = buildImageUrl(event["image"]);
+    final String bannerImagePath = event["image"] ?? "";
+    final List<dynamic> gallery = event["images"] ?? [];
+    final List<dynamic> firstTwoImages = gallery.take(2).toList();
 
     // Extract + Format Dates
     final fromDate = formatDate(event["from_date"] ?? "");
@@ -1087,9 +1264,9 @@ Future<void> updateEvent(
     final toTime = formatTime(event["to_time"] ?? "");
 
     return Container(
+      color: const Color.fromARGB(255, 20, 19, 19),
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 10),
-      // color: const Color(0xFF1A1A1A),
       padding: const EdgeInsets.all(15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1099,11 +1276,11 @@ Future<void> updateEvent(
             children: [
               CircleAvatar(
                 radius: 22,
-                backgroundColor: Colors.white24,
-                backgroundImage: NetworkImage(clubLogo),
+                backgroundImage: clubLogo.isNotEmpty
+                    ? NetworkImage(clubLogo)
+                    : null,
               ),
               const SizedBox(width: 10),
-
               Expanded(
                 child: Text(
                   clubName,
@@ -1119,12 +1296,11 @@ Future<void> updateEvent(
 
           const SizedBox(height: 10),
 
-          // ==========================
           // DATE + TIME ROW
-          // ==========================
           Row(
             children: [
-              const Icon(Icons.calendar_month, color: Colors.white70, size: 18),
+              const Icon(Icons.calendar_month,
+                  color: Colors.white70, size: 18),
               const SizedBox(width: 6),
               Text(
                 "$fromDate • $fromTime  →  $toDate • $toTime",
@@ -1135,11 +1311,44 @@ Future<void> updateEvent(
 
           const SizedBox(height: 10),
 
-          // EVENT IMAGE
-          if (event["image"] != null)
+          // MULTIPLE IMAGES (UP TO 2) – LIKE SCREENSHOT
+          if (firstTwoImages.isNotEmpty)
+          Container(
+  margin: const EdgeInsets.only(bottom: 10),
+  child: Row(
+    children: firstTwoImages.map<Widget>((img) {
+      return Expanded(
+        child: Container(
+          margin: const EdgeInsets.only(right: 8),
+          child: AspectRatio(
+  aspectRatio: 1,
+  child: GestureDetector(
+    onTap: () {
+      _showFullImage(buildImageUrl(img["image"]));
+    },
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.network(
+        buildImageUrl(img["image"]),
+        fit: BoxFit.cover,
+      ),
+    ),
+  ),
+),
+
+        ),
+      );
+    }).toList(),
+  ),
+)
+
+          else if (bannerImagePath.isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: Image.network(eventImage, fit: BoxFit.cover),
+              child: Image.network(
+                buildImageUrl(bannerImagePath),
+                fit: BoxFit.cover,
+              ),
             ),
 
           const SizedBox(height: 10),
@@ -1163,6 +1372,30 @@ Future<void> updateEvent(
           ),
         ],
       ),
+    );
+  }
+
+  void _showFullImage(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.zero,
+          child: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              color: Colors.black,
+              child: InteractiveViewer(
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
