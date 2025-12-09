@@ -353,33 +353,21 @@ class _HomePageState extends State<HomePage> {
 
                     const SizedBox(height: 10),
 
-                    SizedBox(
-                      height: 160,
-                      child: isLoading
-                          ? const Center(
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                              ),
-                            )
-                          : noData
-                          ? const Center(
-                              child: Text(
-                                "No clubs found",
-                                style: TextStyle(color: Colors.white70),
-                              ),
-                            )
-                          : ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: clubs.length,
-                              itemBuilder: (_, i) => Padding(
-                                padding: const EdgeInsets.only(right: 12),
-                                child: buildClubCardFromApi(clubs[i]),
-                              ),
-                            ),
+                    Container(
+                      height: MediaQuery.of(context).size.height * 0.28,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: clubs.length,
+                        itemBuilder: (_, i) => Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: buildClubCardFromApi(clubs[i]),
+                        ),
+                      ),
                     ),
 
                     const SizedBox(height: 25),
 
+                    // EVENTS
                     // EVENTS
                     const Text(
                       "Upcoming Events",
@@ -413,18 +401,8 @@ class _HomePageState extends State<HomePage> {
 
                               String mainImage = e["image"] ?? "";
 
-                              List<String> imageList = [];
-
-                              if (mainImage.isNotEmpty)
-                                imageList.add("$api$mainImage");
-
-                              for (var g in gallery) {
-                                if (g.toString().isNotEmpty) {
-                                  imageList.add("$api$g");
-                                }
-                              }
-
                               String clubName = e["club_name"] ?? "Club";
+
                               String fromDate = e["from_date"] ?? "";
                               String toDate = e["to_date"] ?? "";
                               String fromTime = e["from_time"] ?? "";
@@ -432,7 +410,23 @@ class _HomePageState extends State<HomePage> {
                               String title = e["title"] ?? "";
 
                               String dateLabel = "$fromDate → $toDate";
+
                               String timeLeft = getTimeLeft(fromDate, fromTime);
+
+                              // BUILD IMAGE LIST
+                              List<String> imageList = [];
+
+                              if (mainImage != null && mainImage.isNotEmpty) {
+                                imageList.add("$api$mainImage");
+                              }
+
+                              for (var g in gallery) {
+                                if (g != null &&
+                                    g["image"] != null &&
+                                    g["image"].toString().isNotEmpty) {
+                                  imageList.add("$api${g["image"]}");
+                                }
+                              }
 
                               if (imageList.isEmpty) {
                                 return buildEventCard(
@@ -452,6 +446,7 @@ class _HomePageState extends State<HomePage> {
                                 title: title,
                                 images: imageList,
                                 description: description,
+                                context: context,
                               );
                             },
                           ),
@@ -535,21 +530,35 @@ Widget buildClubCardFromApi(Map club) {
       color: Colors.white10,
       borderRadius: BorderRadius.circular(16),
     ),
+
+    // FIXED HEIGHT to keep follow button aligned
+    height: 200,
+
     child: Column(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        CircleAvatar(
-          radius: 30,
-          backgroundImage: imageUrl.isNotEmpty
-              ? NetworkImage(imageUrl)
-              : const AssetImage("lib/assets/images.png"),
+        Column(
+          children: [
+            CircleAvatar(
+              radius: 30,
+              backgroundImage: imageUrl.isNotEmpty
+                  ? NetworkImage(imageUrl)
+                  : const AssetImage("lib/assets/images.png"),
+            ),
+            const SizedBox(height: 10),
+
+            // TEXT ALWAYS CENTERED & SINGLE-LINE
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+            ),
+          ],
         ),
-        const SizedBox(height: 10),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
-        ),
-        const SizedBox(height: 10),
+
+        // FOLLOW BUTTON FIXED POSITION (BOTTOM)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           decoration: BoxDecoration(
@@ -646,16 +655,34 @@ Widget buildEventCard({
   );
 }
 
-// EVENT CARD 2 (IMAGE CARD)
-Widget buildEventCardWithImages({
+// POPUP FUNCTION
+void showImagePopup(BuildContext context, String imageUrl) {
+  showDialog(
+    context: context,
+    builder: (_) => Dialog(
+      backgroundColor: Colors.black87,
+      insetPadding: const EdgeInsets.all(12),
+
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).pop(),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(imageUrl, fit: BoxFit.contain),
+        ),
+      ),
+    ),
+  );
+}
+
+// EVENT CARD WITH DYNAMIC IMAGES + POPUP
+Widget buildEventCardWithDynamicImages({
   required String clubName,
   required String date,
   required String location,
   required String title,
-  required String image1,
-  required String image2,
+  required List<String> images,
   required String description,
-  required IconData icon,
+  required BuildContext context,
 }) {
   return Container(
     padding: const EdgeInsets.all(14),
@@ -707,22 +734,32 @@ Widget buildEventCardWithImages({
 
         const SizedBox(height: 10),
 
-        Row(
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(image1, height: 110, fit: BoxFit.cover),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(image2, height: 110, fit: BoxFit.cover),
-              ),
-            ),
-          ],
+        SizedBox(
+          height: 110,
+          child: Row(
+            children: List.generate(images.length, (index) {
+              return Expanded(
+                child: Container(
+                  margin: EdgeInsets.only(
+                    right: index == images.length - 1 ? 0 : 8,
+                  ),
+                  child: GestureDetector(
+                    onTap: () {
+                      showImagePopup(context, images[index]);
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        images[index],
+                        fit: BoxFit.cover,
+                        height: 110,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
         ),
 
         const SizedBox(height: 10),
@@ -814,118 +851,6 @@ Widget simpleCoachCard(Map coach) {
               style: TextStyle(color: Colors.white, fontSize: 13),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
-
-// EVENT CARD WITH DYNAMIC IMAGES
-Widget buildEventCardWithDynamicImages({
-  required String clubName,
-  required String date,
-  required String location,
-  required String title,
-  required List<String> images,
-  required String description,
-}) {
-  return Container(
-    padding: const EdgeInsets.all(14),
-    margin: const EdgeInsets.only(bottom: 12),
-    decoration: BoxDecoration(
-      color: Colors.white10,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const CircleAvatar(
-              radius: 22,
-              backgroundImage: AssetImage("lib/assets/imagess.png"),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  clubName,
-                  style: const TextStyle(color: Colors.white, fontSize: 15),
-                ),
-                Text(
-                  date,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-                Text(
-                  location,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-              ],
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 10),
-
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-
-        const SizedBox(height: 10),
-
-        SizedBox(
-          height: 110,
-          child: Row(
-            children: List.generate(images.length, (index) {
-              return Expanded(
-                child: Container(
-                  margin: EdgeInsets.only(
-                    right: index == images.length - 1 ? 0 : 8,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      images[index],
-                      fit: BoxFit.cover,
-                      height: 110,
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-
-        const SizedBox(height: 10),
-
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.info, color: Colors.amberAccent, size: 18),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                description,
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 10),
-
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: const [
-            Icon(Icons.thumb_up_alt_outlined, color: Colors.white70, size: 22),
-            SizedBox(width: 14),
-          ],
         ),
       ],
     ),
