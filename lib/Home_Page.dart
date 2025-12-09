@@ -39,11 +39,31 @@ class _HomePageState extends State<HomePage> {
     fetchClubs();
     fetchCoaches();
     fetchEvents();
+    refreshUserProfile().then((_) => fetchStudentDetails());
   }
 
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('access');
+  }
+
+  Future<void> refreshUserProfile() async {
+    String? token = await getToken();
+    final res = await http.get(
+      Uri.parse("$api/api/myskates/profile/"),
+      headers: {"Authorization": "Bearer $token"},
+    );
+
+    print("PROFILE STATUS: ${res.statusCode}");
+    print("PROFILE BODY: ${res.body}");
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+
+      final prefs = await SharedPreferences.getInstance();
+      prefs.setString("name", data["name"] ?? "");
+      prefs.setString("user_type", data["user_type"] ?? "");
+      prefs.setString("profile", data["profile"] ?? "");
+    }
   }
 
   // FETCH COACHES
@@ -136,44 +156,44 @@ class _HomePageState extends State<HomePage> {
   }
 
   // FETCH EVENTS
- Future<void> fetchEvents() async {
-  String? token = await getToken();
+  Future<void> fetchEvents() async {
+    String? token = await getToken();
 
-  try {
-    final response = await http.get(
-      Uri.parse("$api/api/myskates/events/add/"), 
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
-    );
+    try {
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/events/add/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
 
-    print("EVENT STATUS: ${response.statusCode}");
-    print("EVENT BODY: ${response.body}");
+      print("EVENT STATUS: ${response.statusCode}");
+      print("EVENT BODY: ${response.body}");
 
-    if (response.statusCode == 200) {
-      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
 
-      if (decoded is List) {
+        if (decoded is List) {
+          setState(() {
+            events = decoded;
+            eventsLoading = false;
+            eventsNoData = decoded.isEmpty;
+          });
+        }
+      } else {
         setState(() {
-          events = decoded;
           eventsLoading = false;
-          eventsNoData = decoded.isEmpty;
+          eventsNoData = true;
         });
       }
-    } else {
+    } catch (e) {
       setState(() {
         eventsLoading = false;
         eventsNoData = true;
       });
     }
-  } catch (e) {
-    setState(() {
-      eventsLoading = false;
-      eventsNoData = true;
-    });
   }
-}
 
   // UI BUILD
   @override
@@ -361,7 +381,7 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 25),
 
                     // EVENTS
-                   const Text(
+                    const Text(
                       "Upcoming Events",
                       style: TextStyle(
                         color: Colors.white,
@@ -378,71 +398,63 @@ class _HomePageState extends State<HomePage> {
                             ),
                           )
                         : eventsNoData
-                            ? const Text(
-                                "No events found",
-                                style: TextStyle(color: Colors.white70),
-                              )
-                            : ListView.builder(
-                                shrinkWrap: true,
-                                physics:
-                                    const NeverScrollableScrollPhysics(),
-                                itemCount: events.length,
-                                itemBuilder: (_, i) {
-                                  final e = events[i];
+                        ? const Text(
+                            "No events found",
+                            style: TextStyle(color: Colors.white70),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: events.length,
+                            itemBuilder: (_, i) {
+                              final e = events[i];
 
-                                  List<dynamic> gallery =
-                                      e["images"] ?? [];
+                              List<dynamic> gallery = e["images"] ?? [];
 
-                                  String mainImage = e["image"] ?? "";
+                              String mainImage = e["image"] ?? "";
 
-                                  List<String> imageList = [];
+                              List<String> imageList = [];
 
-                                  if (mainImage.isNotEmpty)
-                                    imageList.add("$api$mainImage");
+                              if (mainImage.isNotEmpty)
+                                imageList.add("$api$mainImage");
 
-                                  for (var g in gallery) {
-                                    if (g.toString().isNotEmpty) {
-                                      imageList.add("$api$g");
-                                    }
-                                  }
+                              for (var g in gallery) {
+                                if (g.toString().isNotEmpty) {
+                                  imageList.add("$api$g");
+                                }
+                              }
 
-                                  String clubName =
-                                      e["club_name"] ?? "Club";
-                                  String fromDate =
-                                      e["from_date"] ?? "";
-                                  String toDate = e["to_date"] ?? "";
-                                  String fromTime =
-                                      e["from_time"] ?? "";
-                                  String description =
-                                      e["description"] ?? "";
-                                  String title = e["title"] ?? "";
+                              String clubName = e["club_name"] ?? "Club";
+                              String fromDate = e["from_date"] ?? "";
+                              String toDate = e["to_date"] ?? "";
+                              String fromTime = e["from_time"] ?? "";
+                              String description = e["description"] ?? "";
+                              String title = e["title"] ?? "";
 
-                                  String dateLabel =
-                                      "$fromDate → $toDate";
-                                  String timeLeft =
-                                      getTimeLeft(fromDate, fromTime);
+                              String dateLabel = "$fromDate → $toDate";
+                              String timeLeft = getTimeLeft(fromDate, fromTime);
 
-                                  if (imageList.isEmpty) {
-                                    return buildEventCard(
-                                      clubName: clubName,
-                                      date: dateLabel,
-                                      location: "",
-                                      title: title,
-                                      timeLeft: timeLeft,
-                                      icon: Icons.favorite_border,
-                                    );
-                                  }
+                              if (imageList.isEmpty) {
+                                return buildEventCard(
+                                  clubName: clubName,
+                                  date: dateLabel,
+                                  location: "",
+                                  title: title,
+                                  timeLeft: timeLeft,
+                                  icon: Icons.favorite_border,
+                                );
+                              }
 
-                                  return buildEventCardWithDynamicImages(
-                                    clubName: clubName,
-                                    date: dateLabel,
-                                    location: "",
-                                    title: title,
-                                    images: imageList,
-                                    description: description,
-                                  );
-                                },
-                              ),
+                              return buildEventCardWithDynamicImages(
+                                clubName: clubName,
+                                date: dateLabel,
+                                location: "",
+                                title: title,
+                                images: imageList,
+                                description: description,
+                              );
+                            },
+                          ),
                     const SizedBox(height: 25),
 
                     const Text(
@@ -837,15 +849,18 @@ Widget buildEventCardWithDynamicImages({
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(clubName,
-                    style:
-                        const TextStyle(color: Colors.white, fontSize: 15)),
-                Text(date,
-                    style: const TextStyle(
-                        color: Colors.white54, fontSize: 12)),
-                Text(location,
-                    style: const TextStyle(
-                        color: Colors.white54, fontSize: 12)),
+                Text(
+                  clubName,
+                  style: const TextStyle(color: Colors.white, fontSize: 15),
+                ),
+                Text(
+                  date,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+                Text(
+                  location,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
               ],
             ),
           ],
@@ -856,9 +871,10 @@ Widget buildEventCardWithDynamicImages({
         Text(
           title,
           style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold),
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
 
         const SizedBox(height: 10),
@@ -869,8 +885,9 @@ Widget buildEventCardWithDynamicImages({
             children: List.generate(images.length, (index) {
               return Expanded(
                 child: Container(
-                  margin:
-                      EdgeInsets.only(right: index == images.length - 1 ? 0 : 8),
+                  margin: EdgeInsets.only(
+                    right: index == images.length - 1 ? 0 : 8,
+                  ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Image.network(
@@ -890,13 +907,13 @@ Widget buildEventCardWithDynamicImages({
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.info,
-                color: Colors.amberAccent, size: 18),
+            const Icon(Icons.info, color: Colors.amberAccent, size: 18),
             const SizedBox(width: 6),
             Expanded(
-              child: Text(description,
-                  style: const TextStyle(
-                      color: Colors.white70, fontSize: 13)),
+              child: Text(
+                description,
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
+              ),
             ),
           ],
         ),
@@ -906,8 +923,7 @@ Widget buildEventCardWithDynamicImages({
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: const [
-            Icon(Icons.thumb_up_alt_outlined,
-                color: Colors.white70, size: 22),
+            Icon(Icons.thumb_up_alt_outlined, color: Colors.white70, size: 22),
             SizedBox(width: 14),
           ],
         ),
