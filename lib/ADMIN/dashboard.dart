@@ -92,41 +92,20 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
       
     }
   }
-  Future<void> fetchStudentDetails() async {
-    try {
-      String? token = await getToken();
-      int? userId = await getUserId();
+ Future<void> fetchStudentDetails() async {
+  final prefs = await SharedPreferences.getInstance();
 
-      print("Fetched UserID: $userId");
-      print("Fetched Token: $token");
+  setState(() {
+    studentName = prefs.getString("name") ?? "User";
+    studentRole = prefs.getString("user_type") ?? "";
+    studentImage = prefs.getString("profile"); // if you save profile later
+    isLoading = false;
+  });
 
-      if (token == null || userId == null) {
-        print("Token or UserID missing");
-        return;
-      }
-
-      final response = await http.get(
-        Uri.parse("$api/api/myskates/profile/"),
-        headers: {"Authorization": "Bearer $token"},
-      );
-print("Profile Response Status: ${response.statusCode}");
-      print("Profile Responseeeeeeeeeeeeeeeeee Body: ${response.body}");
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        setState(() {
-          studentName = data["first_name"] ?? "User";
-          studentRole = data["user_type"] ?? "Student";
-          studentImage = data["profile"];
-          isLoading = false;
-        });
-      } else {
-        print("Failed to load details: ${response.body}");
-      }
-    } catch (e) {
-      print("Error fetching student: $e");
-    }
-  }
+  print("USER FROM PREFS:");
+  print("Name: $studentName");
+  print("Role: $studentRole");
+}
 
   @override
   Widget build(BuildContext context) {
