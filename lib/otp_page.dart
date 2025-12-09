@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
+import 'package:my_skates/COACH/waiting_page.dart';
 import 'package:my_skates/Home_Page.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/loginpage.dart';
@@ -48,12 +49,13 @@ class _OtpPageState extends State<OtpPage> {
         // ------------------------------------------------
         // FIX: SAVE DATA USING CORRECT KEYS
         // ------------------------------------------------
-        await prefs.setString("access", data["access"]); // FIXED
-        await prefs.setString("refresh", data["refresh"]);
-        await prefs.setInt("id", data["user"]["id"]);
-        await prefs.setString("user_type", data["user"]["user_type"]);
-        prefs.setString("name", data["user"]["name"]);
-        await prefs.setString("phone", widget.phoneNumber); // IMPORTANT
+        await prefs.setString("access", data["access"] ?? "");
+        await prefs.setString("refresh", data["refresh"] ?? "");
+        await prefs.setInt("id", data["user"]["id"] ?? 0);
+        await prefs.setString("user_type", data["user"]["user_type"] ?? "");
+        await prefs.setString("name", data["user"]["name"] ?? "");
+        await prefs.setString("phone", widget.phoneNumber);
+
 
         print("SAVED TOKEN: ${data["access"]}");
         print("SAVED USER ID: ${data["user"]["id"]}");
@@ -78,6 +80,10 @@ class _OtpPageState extends State<OtpPage> {
                   RegisterationPage(phone: widget.phoneNumber),
             ),
           );
+
+          // Navigator.push(context, MaterialPageRoute(builder: (context)=>WaitingPage()));
+
+          
         } else {
           // CHECK USER TYPE & NAVIGATE
           if (userType == "admin") {

@@ -456,11 +456,14 @@ class _RegisterationPageState extends State<RegisterationPage> {
           ),
           const SizedBox(height: 15),
 
-          dobPicker(),
+         
+          input("Email", emailCtrl),
+
+          
+          const SizedBox(height: 15),
+           dobGenderRow(),
           const SizedBox(height: 15),
 
-          input("Email", emailCtrl),
-          const SizedBox(height: 15),
 
           input("Experience", experience),
           const SizedBox(height: 15),
@@ -468,7 +471,7 @@ class _RegisterationPageState extends State<RegisterationPage> {
           input("Alternate Phone", altPhoneCtrl),
           const SizedBox(height: 15),
 
-          genderDropdown(),
+          genderDropdownCompact(),
           const SizedBox(height: 15),
 
           input("Zip Code", zipCodeCtrl),
@@ -580,7 +583,6 @@ class _RegisterationPageState extends State<RegisterationPage> {
       ],
     );
   }
-
   Widget dobPicker() {
     return GestureDetector(
       onTap: pickDOB,
@@ -603,43 +605,73 @@ class _RegisterationPageState extends State<RegisterationPage> {
       ),
     );
   }
+Widget dobGenderRow() {
+  return Row(
+    children: [
+      Expanded(child: dobPickerCompact()),
+      const SizedBox(width: 12),
+      Expanded(child: genderDropdownCompact()),
+    ],
+  );
+}
 
-  Widget genderDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Gender",
-          style: TextStyle(color: Colors.white, fontSize: 16),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 15),
-          decoration: BoxDecoration(
-            border: Border.all(color: Color(0xFF00D8CC)),
-            borderRadius: BorderRadius.circular(25),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              dropdownColor: Colors.black87,
-              value: selectedGender,
-              hint: const Text(
-                "Select Gender",
-                style: TextStyle(color: Colors.white70),
-              ),
-              items: ["Male", "Female", "Other"].map((e) {
-                return DropdownMenuItem<String>(
-                  value: e,
-                  child: Text(e, style: const TextStyle(color: Colors.white)),
-                );
-              }).toList(),
-              onChanged: (v) => setState(() => selectedGender = v),
+
+ Widget dobPickerCompact() {
+  return GestureDetector(
+    onTap: pickDOB,
+    child: Container(
+      height: 55,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        border: Border.all(color: Color(0xFF00D8CC)),
+        borderRadius: BorderRadius.circular(25),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Text(
+              dobCtrl.text.isEmpty ? "Select DOB" : dobCtrl.text,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const Icon(Icons.calendar_today, color: Colors.white70, size: 20),
+        ],
+      ),
+    ),
+  );
+}
+
+
+ Widget genderDropdownCompact() {
+  return Container(
+    height: 55,
+    padding: const EdgeInsets.symmetric(horizontal: 14),
+    decoration: BoxDecoration(
+      border: Border.all(color: Color(0xFF00D8CC)),
+      borderRadius: BorderRadius.circular(25),
+    ),
+    child: DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        dropdownColor: Colors.black87,
+        value: selectedGender,
+        hint: const Text(
+          "Select Gender",
+          style: TextStyle(color: Colors.white70),
         ),
-      ],
-    );
-  }
+        items: ["Male", "Female", "Other"].map((e) {
+          return DropdownMenuItem<String>(
+            value: e,
+            child: Text(e, style: const TextStyle(color: Colors.white)),
+          );
+        }).toList(),
+        onChanged: (v) => setState(() => selectedGender = v),
+      ),
+    ),
+  );
+}
+
 
   Widget bigButton(String label, VoidCallback onTap) {
     return SizedBox(
