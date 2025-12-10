@@ -35,15 +35,20 @@ class _HomePageState extends State<HomePage> {
   bool eventsNoData = false;
   bool isFollowing = false;
 
+  // NEW: follow status caches
+  List<int> myFollowing = [];
+  List<int> myRequests = [];
+
   @override
   initState() {
     super.initState();
     fetchStudentDetails();
     fetchClubs();
-    fetchCoaches();
     fetchEvents();
     refreshUserProfile().then((_) => fetchStudentDetails());
     getbanner();
+    fetchFollowStatus();
+    fetchCoaches();
   }
 
   Future<String?> getToken() async {
@@ -106,6 +111,44 @@ class _HomePageState extends State<HomePage> {
         });
       }
     } catch (error) {}
+  }
+
+  // NEW: FETCH FOLLOWING + PENDING REQUESTS
+  Future<void> fetchFollowStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      // APPROVED FOLLOWING USERS
+      var r1 = await http.get(
+        Uri.parse("$api/api/myskates/following/users/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+      print("FOLLOWING USERS STATUS: ${r1.statusCode} BODY: ${r1.body}");
+      if (r1.statusCode == 200) {
+        final data = jsonDecode(r1.body);
+        myFollowing = List<int>.from(
+          (data["data"] as List).map((e) => e["following__id"] as int),
+        );
+      }
+
+      // PENDING FOLLOW REQUESTS
+      var r2 = await http.get(
+        Uri.parse("$api/api/myskates/user/follow/requests/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+      print("PENDING REQUEST STATUS: ${r2.statusCode} BODY: ${r2.body}");
+      if (r2.statusCode == 200) {
+        final data = jsonDecode(r2.body);
+        myRequests = List<int>.from(
+          (data as List).map((e) => e["following"] as int),
+        );
+      }
+
+      setState(() {});
+    } catch (e) {
+      print("ERROR FETCH FOLLOW STATUS: $e");
+    }
   }
 
   // FETCH COACHES
@@ -245,7 +288,6 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -271,14 +313,12 @@ class _HomePageState extends State<HomePage> {
                         radius: 28,
                         backgroundImage:
                             studentImage != null && studentImage!.isNotEmpty
-                            ? NetworkImage("$api$studentImage")
-                            : const AssetImage("lib/assets/img.jpg")
-                                  as ImageProvider,
+                                ? NetworkImage("$api$studentImage")
+                                : const AssetImage("lib/assets/img.jpg")
+                                    as ImageProvider,
                       ),
                     ),
-
                     const SizedBox(width: 12),
-
                     Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -297,9 +337,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ],
                     ),
-
                     const Spacer(),
-
                     IconButton(
                       onPressed: () {},
                       icon: const Icon(
@@ -319,6 +357,7 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // BANNER
                     Container(
                       height: 160,
                       decoration: BoxDecoration(
@@ -327,7 +366,7 @@ class _HomePageState extends State<HomePage> {
                           BoxShadow(
                             color: Colors.black.withOpacity(0.25),
                             blurRadius: 8,
-                            offset: Offset(0, 4),
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
@@ -337,7 +376,7 @@ class _HomePageState extends State<HomePage> {
                           options: CarouselOptions(
                             height: 160,
                             autoPlay: true,
-                            autoPlayInterval: Duration(seconds: 3),
+                            autoPlayInterval: const Duration(seconds: 3),
                             viewportFraction: 1,
                             showIndicator: true,
                             slideIndicator: CircularSlideIndicator(),
@@ -345,12 +384,12 @@ class _HomePageState extends State<HomePage> {
                           items: banner.map((item) {
                             return Stack(
                               children: [
-                                // Background Image
                                 Positioned.fill(
                                   child: Image.network(
                                     item["image"] ?? "",
                                     fit: BoxFit.cover,
-                                    loadingBuilder: (context, child, progress) {
+                                    loadingBuilder:
+                                        (context, child, progress) {
                                       if (progress == null) return child;
                                       return Container(
                                         color: Colors.grey.shade900,
@@ -362,18 +401,16 @@ class _HomePageState extends State<HomePage> {
                                     errorBuilder:
                                         (context, error, stackTrace) =>
                                             Container(
-                                              color: Colors.black,
-                                              alignment: Alignment.center,
-                                              child: Icon(
-                                                Icons.broken_image,
-                                                color: Colors.white54,
-                                                size: 40,
-                                              ),
-                                            ),
+                                      color: Colors.black,
+                                      alignment: Alignment.center,
+                                      child: const Icon(
+                                        Icons.broken_image,
+                                        color: Colors.white54,
+                                        size: 40,
+                                      ),
+                                    ),
                                   ),
                                 ),
-
-                                // Gradient Overlay (bottom fade)
                                 Positioned.fill(
                                   child: Container(
                                     decoration: BoxDecoration(
@@ -388,30 +425,6 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                   ),
                                 ),
-
-                                // Banner Title (Optional)
-                                // Positioned(
-                                //   bottom: 12,
-                                //   left: 12,
-                                //   right: 12,
-                                //   child: Text(
-                                //     item["title"] ?? "",
-                                //     style: const TextStyle(
-                                //       color: Colors.white,
-                                //       fontSize: 18,
-                                //       fontWeight: FontWeight.bold,
-                                //       shadows: [
-                                //         Shadow(
-                                //           offset: Offset(0, 1),
-                                //           blurRadius: 4,
-                                //           color: Colors.black54,
-                                //         )
-                                //       ],
-                                //     ),
-                                //     maxLines: 1,
-                                //     overflow: TextOverflow.ellipsis,
-                                //   ),
-                                // ),
                               ],
                             );
                           }).toList(),
@@ -427,6 +440,7 @@ class _HomePageState extends State<HomePage> {
 
                     const SizedBox(height: 25),
 
+                    // BUTTONS
                     buildButton(
                       "Connect Coaches",
                       onTap: () => Navigator.push(
@@ -436,7 +450,6 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                     ),
-
                     buildButton(
                       "Connect Students",
                       onTap: () => Navigator.push(
@@ -446,7 +459,6 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                     ),
-
                     buildButton(
                       "Find Clubs",
                       onTap: () => Navigator.push(
@@ -456,7 +468,6 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                     ),
-
                     buildButton(
                       "Find Events",
                       onTap: () => Navigator.push(
@@ -466,7 +477,6 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                     ),
-
                     buildButton(
                       "Buy and Sell products",
                       onTap: () => Navigator.push(
@@ -479,6 +489,7 @@ class _HomePageState extends State<HomePage> {
 
                     const SizedBox(height: 25),
 
+                    // CLUBS
                     const Text(
                       "Recommended Clubs near you",
                       style: TextStyle(
@@ -487,10 +498,8 @@ class _HomePageState extends State<HomePage> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-
                     const SizedBox(height: 10),
-
-                    Container(
+                    SizedBox(
                       height: MediaQuery.of(context).size.height * 0.28,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
@@ -505,7 +514,6 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 25),
 
                     // EVENTS
-                    // EVENTS
                     const Text(
                       "Upcoming Events",
                       style: TextStyle(
@@ -515,7 +523,6 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
                     eventsLoading
                         ? const Center(
                             child: CircularProgressIndicator(
@@ -523,72 +530,78 @@ class _HomePageState extends State<HomePage> {
                             ),
                           )
                         : eventsNoData
-                        ? const Text(
-                            "No events found",
-                            style: TextStyle(color: Colors.white70),
-                          )
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: events.length,
-                            itemBuilder: (_, i) {
-                              final e = events[i];
+                            ? const Text(
+                                "No events found",
+                                style: TextStyle(color: Colors.white70),
+                              )
+                            : ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: events.length,
+                                itemBuilder: (_, i) {
+                                  final e = events[i];
 
-                              List<dynamic> gallery = e["images"] ?? [];
+                                  List<dynamic> gallery = e["images"] ?? [];
 
-                              String mainImage = e["image"] ?? "";
+                                  String mainImage = e["image"] ?? "";
 
-                              String clubName = e["club_name"] ?? "Club";
+                                  String clubName =
+                                      e["club_name"] ?? "Club";
 
-                              String fromDate = e["from_date"] ?? "";
-                              String toDate = e["to_date"] ?? "";
-                              String fromTime = e["from_time"] ?? "";
-                              String description = e["description"] ?? "";
-                              String title = e["title"] ?? "";
+                                  String fromDate = e["from_date"] ?? "";
+                                  String toDate = e["to_date"] ?? "";
+                                  String fromTime = e["from_time"] ?? "";
+                                  String description =
+                                      e["description"] ?? "";
+                                  String title = e["title"] ?? "";
 
-                              String dateLabel = "$fromDate → $toDate";
+                                  String dateLabel =
+                                      "$fromDate → $toDate";
 
-                              String timeLeft = getTimeLeft(fromDate, fromTime);
+                                  String timeLeft =
+                                      getTimeLeft(fromDate, fromTime);
 
-                              // BUILD IMAGE LIST
-                              List<String> imageList = [];
+                                  List<String> imageList = [];
 
-                              if (mainImage != null && mainImage.isNotEmpty) {
-                                imageList.add("$api$mainImage");
-                              }
+                                  if (mainImage.isNotEmpty) {
+                                    imageList.add("$api$mainImage");
+                                  }
 
-                              for (var g in gallery) {
-                                if (g != null &&
-                                    g["image"] != null &&
-                                    g["image"].toString().isNotEmpty) {
-                                  imageList.add("$api${g["image"]}");
-                                }
-                              }
+                                  for (var g in gallery) {
+                                    if (g != null &&
+                                        g["image"] != null &&
+                                        g["image"]
+                                            .toString()
+                                            .isNotEmpty) {
+                                      imageList.add("$api${g["image"]}");
+                                    }
+                                  }
 
-                              if (imageList.isEmpty) {
-                                return buildEventCard(
-                                  clubName: clubName,
-                                  date: dateLabel,
-                                  location: "",
-                                  title: title,
-                                  timeLeft: timeLeft,
-                                  icon: Icons.favorite_border,
-                                );
-                              }
+                                  if (imageList.isEmpty) {
+                                    return buildEventCard(
+                                      clubName: clubName,
+                                      date: dateLabel,
+                                      location: "",
+                                      title: title,
+                                      timeLeft: timeLeft,
+                                      icon: Icons.favorite_border,
+                                    );
+                                  }
 
-                              return buildEventCardWithDynamicImages(
-                                clubName: clubName,
-                                date: dateLabel,
-                                location: "",
-                                title: title,
-                                images: imageList,
-                                description: description,
-                                context: context,
-                              );
-                            },
-                          ),
+                                  return buildEventCardWithDynamicImages(
+                                    clubName: clubName,
+                                    date: dateLabel,
+                                    location: "",
+                                    title: title,
+                                    images: imageList,
+                                    description: description,
+                                    context: context,
+                                  );
+                                },
+                              ),
                     const SizedBox(height: 25),
 
+                    // COACHES
                     const Text(
                       "Suggested Coaches",
                       style: TextStyle(
@@ -598,7 +611,6 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(height: 15),
-
                     SizedBox(
                       height: 210,
                       child: coachesLoading
@@ -608,18 +620,22 @@ class _HomePageState extends State<HomePage> {
                               ),
                             )
                           : coachesNoData
-                          ? const Center(
-                              child: Text(
-                                "No coaches found",
-                                style: TextStyle(color: Colors.white70),
-                              ),
-                            )
-                          : ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: coaches.length,
-                              itemBuilder: (_, i) =>
-                                  CoachFollowCard(coach: coaches[i]),
-                            ),
+                              ? const Center(
+                                  child: Text(
+                                    "No coaches found",
+                                    style: TextStyle(color: Colors.white70),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: coaches.length,
+                                  itemBuilder: (_, i) =>
+                                      CoachFollowCard(
+                                    coach: coaches[i],
+                                    myFollowing: myFollowing,
+                                    myRequests: myRequests,
+                                  ),
+                                ),
                     ),
                   ],
                 ),
@@ -662,7 +678,7 @@ Widget buildClubCardFromApi(Map club) {
 
   return Container(
     width: 160,
-    height: 100, // Perfect balanced height
+    height: 100,
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
       color: Colors.white10,
@@ -671,17 +687,14 @@ Widget buildClubCardFromApi(Map club) {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        // Avatar
         CircleAvatar(
           radius: 30,
           backgroundImage: imageUrl.isNotEmpty
               ? NetworkImage(imageUrl)
-              : const AssetImage("lib/assets/images.png"),
+              : const AssetImage("lib/assets/images.png")
+                  as ImageProvider,
         ),
-
         const SizedBox(height: 10),
-
-        // Club Name
         Text(
           title,
           textAlign: TextAlign.center,
@@ -689,11 +702,10 @@ Widget buildClubCardFromApi(Map club) {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(color: Colors.white, fontSize: 14),
         ),
-
-        const Spacer(), // push Follow button slightly down
-        // Follow Button
+        const Spacer(),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.teal,
             borderRadius: BorderRadius.circular(20),
@@ -739,23 +751,24 @@ Widget buildEventCard({
               children: [
                 Text(
                   clubName,
-                  style: const TextStyle(color: Colors.white, fontSize: 15),
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 15),
                 ),
                 Text(
                   date,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  style: const TextStyle(
+                      color: Colors.white54, fontSize: 12),
                 ),
                 Text(
                   location,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  style: const TextStyle(
+                      color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
           ],
         ),
-
         const SizedBox(height: 10),
-
         Text(
           title,
           style: const TextStyle(
@@ -765,24 +778,23 @@ Widget buildEventCard({
           ),
         ),
         const SizedBox(height: 6),
-
         Text(
           timeLeft,
-          style: const TextStyle(color: Colors.tealAccent, fontSize: 13),
+          style:
+              const TextStyle(color: Colors.tealAccent, fontSize: 13),
         ),
         const SizedBox(height: 6),
-
         Text(
           location,
-          style: const TextStyle(color: Colors.white54, fontSize: 12),
+          style: const TextStyle(
+              color: Colors.white54, fontSize: 12),
         ),
-
         const SizedBox(height: 10),
-
-        Row(
+        const Row(
           mainAxisAlignment: MainAxisAlignment.end,
-          children: const [
-            Icon(Icons.thumb_up_alt_outlined, color: Colors.white70, size: 22),
+          children: [
+            Icon(Icons.thumb_up_alt_outlined,
+                color: Colors.white70, size: 22),
             SizedBox(width: 14),
           ],
         ),
@@ -798,7 +810,6 @@ void showImagePopup(BuildContext context, String imageUrl) {
     builder: (_) => Dialog(
       backgroundColor: Colors.black87,
       insetPadding: const EdgeInsets.all(12),
-
       child: GestureDetector(
         onTap: () => Navigator.of(context).pop(),
         child: ClipRRect(
@@ -842,23 +853,24 @@ Widget buildEventCardWithDynamicImages({
               children: [
                 Text(
                   clubName,
-                  style: const TextStyle(color: Colors.white, fontSize: 15),
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 15),
                 ),
                 Text(
                   date,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  style: const TextStyle(
+                      color: Colors.white54, fontSize: 12),
                 ),
                 Text(
                   location,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  style: const TextStyle(
+                      color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
           ],
         ),
-
         const SizedBox(height: 10),
-
         Text(
           title,
           style: const TextStyle(
@@ -867,9 +879,7 @@ Widget buildEventCardWithDynamicImages({
             fontWeight: FontWeight.bold,
           ),
         ),
-
         const SizedBox(height: 10),
-
         SizedBox(
           height: 110,
           child: Row(
@@ -897,29 +907,28 @@ Widget buildEventCardWithDynamicImages({
             }),
           ),
         ),
-
         const SizedBox(height: 10),
-
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.info, color: Colors.amberAccent, size: 18),
+            const Icon(Icons.info,
+                color: Colors.amberAccent, size: 18),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
                 description,
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
+                style: const TextStyle(
+                    color: Colors.white70, fontSize: 13),
               ),
             ),
           ],
         ),
-
         const SizedBox(height: 10),
-
-        Row(
+        const Row(
           mainAxisAlignment: MainAxisAlignment.end,
-          children: const [
-            Icon(Icons.thumb_up_alt_outlined, color: Colors.white70, size: 22),
+          children: [
+            Icon(Icons.thumb_up_alt_outlined,
+                color: Colors.white70, size: 22),
             SizedBox(width: 14),
           ],
         ),
@@ -930,38 +939,57 @@ Widget buildEventCardWithDynamicImages({
 
 class CoachFollowCard extends StatefulWidget {
   final Map coach;
-  const CoachFollowCard({super.key, required this.coach});
+  final List<int> myFollowing;
+  final List<int> myRequests;
+
+  const CoachFollowCard({
+    super.key,
+    required this.coach,
+    required this.myFollowing,
+    required this.myRequests,
+  });
 
   @override
   State<CoachFollowCard> createState() => _CoachFollowCardState();
 }
 
 class _CoachFollowCardState extends State<CoachFollowCard> {
-  late bool isFollowing;
+  String? _overrideStatus; // "none", "requested", "following"
 
-  @override
-  void initState() {
-    super.initState();
-    // Load initial state only once
-    isFollowing = widget.coach["is_following"] == true;
+  String get followStatus {
+    final coachId = widget.coach["id"] as int;
+
+    if (_overrideStatus != null) {
+      return _overrideStatus!;
+    }
+
+    if (widget.myFollowing.contains(coachId)) {
+      return "following";
+    }
+    if (widget.myRequests.contains(coachId)) {
+      return "requested";
+    }
+    return "none";
   }
 
-  Future<void> followCoach(int coachId) async {
+  Future<void> sendFollowRequest(int coachId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
 
-    final url = Uri.parse('$api/api/myskates/follow/user/$coachId/');
+    final url =
+        Uri.parse('$api/api/myskates/user/follow/request/');
 
     final response = await http.post(
       url,
       headers: {"Authorization": "Bearer $token"},
+      body: {"following_id": coachId.toString()},
     );
 
-    print("FOLLOW: ${response.statusCode} ${response.body}");
+    print("FOLLOW REQUEST: ${response.statusCode} ${response.body}");
 
-    if (response.statusCode == 201 || response.statusCode == 200) {
+    if (response.statusCode == 201) {
       setState(() {
-        isFollowing = true;
+        _overrideStatus = "requested";
       });
     }
   }
@@ -970,18 +998,69 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
 
-    final url = Uri.parse('$api/api/myskates/follow/user/$coachId/');
+    final url =
+        Uri.parse('$api/api/myskates/follow/user/$coachId/');
 
     final response = await http.delete(
       url,
       headers: {"Authorization": "Bearer $token"},
     );
 
+    print("UNFOLLOW: ${response.statusCode} ${response.body}");
+
     if (response.statusCode == 200) {
       setState(() {
-        isFollowing = false;
+        _overrideStatus = "none";
       });
     }
+  }
+
+  Widget followButton(int coachId) {
+    if (followStatus == "following") {
+      return ElevatedButton(
+        onPressed: () => unfollowCoach(coachId),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.grey,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: const Text(
+          "Following",
+          style: TextStyle(color: Colors.white),
+        ),
+      );
+    }
+
+    if (followStatus == "requested") {
+      return ElevatedButton(
+        onPressed: null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.orange,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: const Text(
+          "Requested",
+          style: TextStyle(color: Colors.white),
+        ),
+      );
+    }
+
+    return ElevatedButton(
+      onPressed: () => sendFollowRequest(coachId),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF00AFA5),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      child: const Text(
+        "Follow",
+        style: TextStyle(color: Colors.white),
+      ),
+    );
   }
 
   @override
@@ -996,7 +1075,8 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
     int coachId = coach["id"];
 
     String? img = coach["profile"];
-    String imageUrl = img != null && img.isNotEmpty ? "$api$img" : "";
+    String imageUrl =
+        img != null && img.isNotEmpty ? "$api$img" : "";
 
     return Container(
       width: 160,
@@ -1012,54 +1092,32 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
             radius: 28,
             backgroundImage: imageUrl.isNotEmpty
                 ? NetworkImage(imageUrl)
-                : const AssetImage("lib/assets/img.jpg"),
+                : const AssetImage("lib/assets/img.jpg")
+                    as ImageProvider,
           ),
-
           const SizedBox(height: 10),
-
           Text(
             name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white, fontSize: 15),
+            style: const TextStyle(
+                color: Colors.white, fontSize: 15),
           ),
-
           const SizedBox(height: 4),
-
           Text(
             exp,
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
+            style: const TextStyle(
+                color: Colors.white60, fontSize: 12),
           ),
           Text(
             city,
-            style: const TextStyle(color: Colors.white38, fontSize: 11),
+            style: const TextStyle(
+                color: Colors.white38, fontSize: 11),
           ),
-
           const SizedBox(height: 12),
-
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                if (isFollowing) {
-                  unfollowCoach(coachId);
-                } else {
-                  followCoach(coachId);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isFollowing
-                    ? Colors.grey
-                    : const Color(0xFF00AFA5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(
-                isFollowing ? "Following" : "Follow",
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
+            child: followButton(coachId),
           ),
         ],
       ),
