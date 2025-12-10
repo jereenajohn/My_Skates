@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/CoachApprovalTabs.dart';
 import 'package:my_skates/ADMIN/add_banner.dart';
+import 'package:my_skates/ADMIN/add_product.dart';
 import 'package:my_skates/ADMIN/approve_coach.dart';
 import 'package:my_skates/ADMIN/menu.dart';
 import 'package:my_skates/api.dart';
