@@ -25,7 +25,7 @@ class _AddProductState extends State<AddProduct> {
   String? selectedDistrict;  // ID
 
   List<Map<String, dynamic>> countryList = [];
-  List<Map<String, dynamic>> stateList = [];
+  List<Map<String, dynamic>> categoryList = [];
   List<Map<String, dynamic>> allDistricts = [];
   List<Map<String, dynamic>> districtList = [];
 
@@ -35,125 +35,39 @@ class _AddProductState extends State<AddProduct> {
 
   DateTime? dob;
 
-  final TextEditingController firstCtrl = TextEditingController();
-  final TextEditingController lastCtrl = TextEditingController();
-  final TextEditingController phoneCtrl = TextEditingController();
-  final TextEditingController emailCtrl = TextEditingController();
-  final TextEditingController altPhoneCtrl = TextEditingController();
-  final TextEditingController ageCtrl = TextEditingController();
-  final TextEditingController zipCtrl = TextEditingController();
-  final TextEditingController instaCtrl = TextEditingController();
+  
+  final TextEditingController titleCtrl = TextEditingController();
+  final TextEditingController descriptionCtrl = TextEditingController();
+   final TextEditingController priceCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     loadAllData();
   }
-
   Future<void> loadAllData() async {
+
+    await fetchcategory();
     await fetchProfileData();
-    await Future.wait([fetchCountries(), fetchStates(), fetchDistricts()]);
-    mapExistingIDs();
-  }
-
-  // Convert backend NAME → ID
-  void mapExistingIDs() {
-    // Gender fix (backend sends "Male")
-    if (gender != null) {
-      gender = gender!.toLowerCase(); // Male → male
-    }
-
-    // Country
-    if (selectedCountry != null) {
-      final c = countryList.firstWhere(
-        (e) => e["name"] == selectedCountry,
-        orElse: () => {},
-      );
-      if (c.isNotEmpty) selectedCountry = c["id"].toString();
-    }
-
-    // State
-    if (selectedState != null) {
-      final s = stateList.firstWhere(
-        (e) => e["name"] == selectedState,
-        orElse: () => {},
-      );
-      if (s.isNotEmpty) selectedState = s["id"].toString();
-    }
-
-    // District
-    if (selectedDistrict != null) {
-      final d = allDistricts.firstWhere(
-        (e) => e["name"] == selectedDistrict,
-        orElse: () => {},
-      );
-      if (d.isNotEmpty) selectedDistrict = d["id"].toString();
-    }
-
-    // Filter districts based on selected state ID
-    if (selectedState != null) {
-      String stateName = stateList
-          .firstWhere((s) => s["id"].toString() == selectedState)["name"];
-
-      districtList = allDistricts.where((d) => d["state"] == stateName).toList();
-    }
-
     setState(() {});
   }
 
-  // ---------------- FETCH API ----------------
+ 
 
-  Future<void> fetchCountries() async {
+  Future<void> fetchcategory() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
 
       final res = await http.get(
-        Uri.parse("$api/api/myskates/country/"),
+        Uri.parse("$api/api/myskates/products/category/"),
         headers: {"Authorization": "Bearer $token"},
       );
-
+print("res.body:;;;;;;;;;;;;: ${res.body}");
       if (res.statusCode == 200) {
         List data = jsonDecode(res.body);
-        countryList =
+        categoryList =
             data.map((e) => {"id": e["id"], "name": e["name"]}).toList();
-      }
-    } catch (e) {}
-  }
-
-  Future<void> fetchStates() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("access");
-
-      final res = await http.get(
-        Uri.parse("$api/api/myskates/state/"),
-        headers: {"Authorization": "Bearer $token"},
-      );
-
-      if (res.statusCode == 200) {
-        List data = jsonDecode(res.body);
-        stateList =
-            data.map((e) => {"id": e["id"], "name": e["name"]}).toList();
-      }
-    } catch (e) {}
-  }
-
-  Future<void> fetchDistricts() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("access");
-
-      final res = await http.get(
-        Uri.parse("$api/api/myskates/district/"),
-        headers: {"Authorization": "Bearer $token"},
-      );
-
-      if (res.statusCode == 200) {
-        List data = jsonDecode(res.body);
-        allDistricts = data
-            .map((e) => {"id": e["id"], "name": e["name"], "state": e["state"]})
-            .toList();
       }
     } catch (e) {}
   }
@@ -172,15 +86,8 @@ class _AddProductState extends State<AddProduct> {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
 
-        firstCtrl.text = data["first_name"] ?? "";
-        lastCtrl.text = data["last_name"] ?? "";
-        phoneCtrl.text = data["phone"] ?? "";
-        emailCtrl.text = data["email"] ?? "";
-        altPhoneCtrl.text = data["alt_phone"] ?? "";
-        ageCtrl.text = data["age"]?.toString() ?? "";
-        zipCtrl.text = data["zip_code"]?.toString() ?? "";
-        instaCtrl.text = data["instagram"] ?? "";
-
+      
+       
         gender = data["gender"]?.toString(); // ex: "Male"
         selectedCountry = data["country"]?.toString();
         selectedState = data["state"]?.toString();
@@ -197,70 +104,80 @@ class _AddProductState extends State<AddProduct> {
     } catch (e) {}
   }
 
-  // ---------------- SUBMIT ----------------
+  Future<void> submitProduct() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+    final userId = prefs.getInt("id");
 
-  Future<void> submitProfile() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("access");
-      final userId = prefs.getInt("id");
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Login expired. Please login again.")),
+      );
+      return;
+    }
 
-      var request = http.MultipartRequest(
-        "PUT",
-        Uri.parse("$api/api/myskates/user/extras/details/$userId/"),
+    var request = http.MultipartRequest(
+      "POST",
+      Uri.parse("$api/api/myskates/products/add/"),
+    );
+
+    request.headers["Authorization"] = "Bearer $token";
+
+    // Add normal text fields
+    request.fields["user"] = userId.toString();
+    request.fields["title"] = titleCtrl.text.trim();
+    request.fields["description"] = descriptionCtrl.text.trim();
+    request.fields["price"] = priceCtrl.text.trim();
+
+    if (selectedState != null) {
+      request.fields["category"] = selectedState.toString();
+    }
+
+    // Add Image if selected
+    if (profileImage != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath("image", profileImage!.path),
+      );
+    }
+
+    // Send request
+    var response = await request.send();
+    var responseBody = await response.stream.bytesToString();
+
+    print("STATUS: ${response.statusCode}");
+    print("BODY: $responseBody");
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Product added successfully!")),
       );
 
-      request.headers["Authorization"] = "Bearer $token";
-
-      request.fields.addAll({
-        "first_name": firstCtrl.text.trim(),
-        "last_name": lastCtrl.text.trim(),
-        "phone": phoneCtrl.text.trim(),
-        "email": emailCtrl.text.trim(),
-        "alt_phone": altPhoneCtrl.text.trim(),
-        "gender": gender ?? "", // sends ID like "male"
-        "age": ageCtrl.text.trim(),
-        "zip_code": zipCtrl.text.trim(),
-        "instagram": instaCtrl.text.trim(),
-        "dob": dob != null ? dob!.toIso8601String().substring(0, 10) : "",
-        "country": selectedCountry ?? "",
-        "state": selectedState ?? "",
-        "district": selectedDistrict ?? "",
-      });
-
-      if (profileImage != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath("profile", profileImage!.path),
-        );
-      }
-
-      final response = await request.send();
-      final result = await response.stream.bytesToString();
-
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: Colors.teal,
-            content: Text(
-              "Profile updated successfully",
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-          ),
-        );
-
-Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()));
-      } else {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(result)));
-      }
-    } catch (e) {}
+      // Go back to home
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed: $responseBody")),
+      );
+    }
+  } catch (e) {
+    print("Error in submitProduct: $e");
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Something went wrong")),
+    );
   }
+}
 
   // ---------------- UI ----------------
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        backgroundColor: Colors.transparent,   // IMPORTANT
+  extendBodyBehindAppBar: true,  
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -275,110 +192,117 @@ Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()))
               key: _formKey,
               child: Column(
                 children: [
-                  const SizedBox(height: 20),
+                  Align(
+  alignment: Alignment.topLeft,
+  child: GestureDetector(
+    onTap: () {
+      Navigator.pop(context);
+    },
+    child: Container(
+      height: 42,
+      width: 42,
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(255, 134, 134, 134).withOpacity(0.15),   // soft transparent circle
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white24),
+      ),
+      child: const Icon(
+        Icons.keyboard_arrow_left_rounded,
+        color: Color.fromARGB(255, 78, 78, 78),
+        size: 28,
+      ),
+    ),
+  ),
+),
 
-                  GestureDetector(
-                    onTap: () async {
-                      final pick = await _picker.pickImage(
-                        source: ImageSource.gallery,
-                      );
-                      if (pick != null) {
-                        setState(() {
-                          profileImage = File(pick.path);
-                        });
-                      }
-                    },
-                    child: CircleAvatar(
-                      radius: 70,
-                      backgroundColor: Colors.white24,
-                      backgroundImage: profileImage != null
-                          ? FileImage(profileImage!)
-                          : (profileNetworkImage != null
-                              ? NetworkImage(profileNetworkImage!)
-                              : null) as ImageProvider<Object>?,
-                      child: profileImage == null &&
-                              profileNetworkImage == null
-                          ? const Text("Upload", style: TextStyle(color: Colors.white))
-                          : null,
-                    ),
-                  ),
+SizedBox(height: 20),
+
+
+           GestureDetector(
+  onTap: () async {
+    final pick = await _picker.pickImage(source: ImageSource.gallery);
+    if (pick != null) {
+      setState(() {
+        profileImage = File(pick.path);
+      });
+    }
+  },
+  child: Container(
+    height: 180,
+    width: MediaQuery.of(context).size.width * 0.9,
+    decoration: BoxDecoration(
+      color: const Color.fromARGB(195, 30, 29, 29),
+      borderRadius: BorderRadius.circular(15),
+      border: Border.all(
+        color: const Color.fromARGB(172, 90, 90, 90),
+        width: 1,
+      ),
+    ),
+
+    // SHOW IMAGE IF SELECTED
+    child: profileImage == null
+        ? Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(244, 55, 55, 55),
+                borderRadius: BorderRadius.circular(25),
+              ),
+              child: const Text(
+                "Upload Image",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          )
+        : ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: Image.file(
+              profileImage!,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            ),
+          ),
+  ),
+),
+
+
+
 
                   const SizedBox(height: 30),
 
-                  Row(
-                    children: [
-                      Expanded(child: _inputField("First Name", firstCtrl)),
-                      const SizedBox(width: 15),
-                      Expanded(child: _inputField("Last Name", lastCtrl)),
-                    ],
+                
+                  _inputField("Title", titleCtrl),
+                  _inputFieldmax(
+                    "Description",
+                    
+                    descriptionCtrl,
+                    maxLines: 4,     // description style
+  maxLength: 100,
+  isNumber: false,
                   ),
 
-                  _inputField("Phone", phoneCtrl, readOnly: true),
-                  _inputField("Email", emailCtrl),
-                  _inputField(
-                    "Alt Phone",
-                    altPhoneCtrl,
-                    isNumber: true,
-                    maxLength: 10,
-                  ),
+                
+
+                 
 
                   Row(
                     children: [
                       Expanded(
                         child: _dropdownField(
-                          label: "Gender",
-                          value: gender,
-                          items: const [
-                            {"id": "male", "name": "Male"},
-                            {"id": "female", "name": "Female"},
-                            {"id": "other", "name": "Other"},
-                          ],
-                          onChange: (v) => setState(() => gender = v),
-                        ),
-                      ),
-                      const SizedBox(width: 15),
-                      Expanded(child: _dobPicker()),
-                    ],
-                  ),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _inputField(
-                          "Zip Code",
-                          zipCtrl,
-                          isNumber: true,
-                        ),
-                      ),
-                      const SizedBox(width: 15),
-                      Expanded(
-                        child: _dropdownField(
-                          label: "Country",
-                          value: selectedCountry,
-                          items: countryList,
-                          onChange: (v) {
-                            selectedCountry = v;
-                            setState(() {});
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _dropdownField(
-                          label: "State",
+                          label: "category",
                           value: selectedState,
-                          items: stateList,
+                          items: categoryList,
                           onChange: (v) {
                             selectedState = v;
 
                             districtList = allDistricts.where(
                               (d) =>
                                   d["state"] ==
-                                  stateList.firstWhere(
+                                  categoryList.firstWhere(
                                     (s) => s["id"].toString() == v,
                                   )["name"],
                             ).toList();
@@ -388,24 +312,13 @@ Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()))
                           },
                         ),
                       ),
-                      const SizedBox(width: 15),
-                      Expanded(
-                        child: _dropdownField(
-                          label: "District",
-                          value: selectedDistrict,
-                          items: districtList,
-                          onChange: (v) {
-                            selectedDistrict = v;
-                            setState(() {});
-                          },
-                        ),
-                      ),
+                    
                     ],
                   ),
 
-                  _inputField("Instagram", instaCtrl),
+                  _inputField("Price", priceCtrl),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 20),
 
                   SizedBox(
                     width: double.infinity,
@@ -422,7 +335,7 @@ Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()))
                           return;
                         }
 
-                        submitProfile();
+                       submitProduct();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal,
@@ -432,7 +345,7 @@ Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()))
                         ),
                       ),
                       child: const Text(
-                        "Update Profile",
+                        "Submit",
                         style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ),
@@ -468,7 +381,7 @@ Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()))
         ],
         style: TextStyle(color: readOnly ? Colors.white70 : Colors.white),
         decoration: _dec(label).copyWith(
-          fillColor: readOnly ? Colors.black26 : const Color(0xFF1E1E1E),
+          fillColor: readOnly ? const Color.fromARGB(172, 30, 29, 29) : const Color(0xFF1E1E1E),
         ),
         validator: (v) {
           final value = v?.trim() ?? "";
@@ -487,6 +400,64 @@ Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()))
       ),
     );
   }
+
+  Widget _inputFieldmax(
+  String label,
+  TextEditingController controller, {
+  bool readOnly = false,
+  bool isNumber = false,
+  int? maxLength,
+  int maxLines = 1,      // NEW: multiline support
+}) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 20),
+    child: TextFormField(
+      controller: controller,
+      readOnly: readOnly,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+
+      // If multiline → always use multiline keyboard
+      keyboardType: maxLines > 1
+          ? TextInputType.multiline
+          : (isNumber ? TextInputType.number : TextInputType.text),
+
+      maxLines: maxLines,     // NEW
+
+      inputFormatters: [
+        if (isNumber && maxLines == 1) FilteringTextInputFormatter.digitsOnly,
+        if (maxLength != null) LengthLimitingTextInputFormatter(maxLength),
+      ],
+
+      style: TextStyle(color: readOnly ? Colors.white70 : Colors.white),
+
+      decoration: _dec(label).copyWith(
+        fillColor: readOnly
+            ? const Color.fromARGB(172, 30, 29, 29)
+            : const Color(0xFF1E1E1E),
+      ),
+
+      validator: (v) {
+        final value = v?.trim() ?? "";
+
+        if (value.isEmpty) return "$label is required";
+
+        if (label == "Email") {
+          final regex =
+              RegExp(r"^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}$");
+          if (!regex.hasMatch(value)) return "Enter valid email";
+        }
+
+        // Only validate phone length if the field is SINGLE LINE
+        if (label == "Alt Phone" && maxLines == 1 && value.length != 10) {
+          return "Alt Phone must be 10 digits";
+        }
+
+        return null;
+      },
+    ),
+  );
+}
+
 
   InputDecoration _dec(String label) {
     return InputDecoration(
