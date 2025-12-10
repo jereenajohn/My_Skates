@@ -9,6 +9,7 @@ import 'package:my_skates/profile_page.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
+
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -21,7 +22,7 @@ class _DashboardPageState extends State<DashboardPage> {
   String studentRole = "";
   String? studentImage;
   bool isLoading = true;
-final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   initState() {
@@ -47,11 +48,11 @@ final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   //   SharedPreferences prefs = await SharedPreferences.getInstance();
   //   return prefs.getInt('id');
   // }
-List<Map<String, dynamic>> banner = [];
+  List<Map<String, dynamic>> banner = [];
 
-    Future<void> getbanner() async {
+  Future<void> getbanner() async {
     try {
-       final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
 
       var response = await http.get(
@@ -61,56 +62,48 @@ List<Map<String, dynamic>> banner = [];
           'Content-Type': 'application/json',
         },
       );
-        
-        List<Map<String, dynamic>> statelist = [];
-print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
+
+      List<Map<String, dynamic>> statelist = [];
+      print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
       print(response.statusCode);
       if (response.statusCode == 200) {
         final parsed = jsonDecode(response.body);
         var productsData = parsed;
 
-        
- for (var productData in productsData) {
+        for (var productData in productsData) {
           String imageUrl = "$api${productData['image']}";
           statelist.add({
             'id': productData['id'],
             'title': productData['title'],
             'image': imageUrl,
-            
           });
-        
         }
         setState(() {
           banner = statelist;
           print("statelistttttttttttttttttttt:$banner");
-                  
-
-          
         });
       }
-    } catch (error) {
-      
-    }
+    } catch (error) {}
   }
- Future<void> fetchStudentDetails() async {
-  final prefs = await SharedPreferences.getInstance();
 
-  setState(() {
-    studentName = prefs.getString("name") ?? "User";
-    studentRole = prefs.getString("user_type") ?? "";
-    studentImage = prefs.getString("profile"); // if you save profile later
-    isLoading = false;
-  });
+  Future<void> fetchStudentDetails() async {
+    final prefs = await SharedPreferences.getInstance();
 
-  print("USER FROM PREFS:");
-  print("Name: $studentName");
-  print("Role: $studentRole");
-}
+    setState(() {
+      studentName = prefs.getString("name") ?? "User";
+      studentRole = prefs.getString("user_type") ?? "";
+      studentImage = prefs.getString("profile"); // if you save profile later
+      isLoading = false;
+    });
+
+    print("USER FROM PREFS:");
+    print("Name: $studentName");
+    print("Role: $studentRole");
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      
       backgroundColor: Colors.black,
       body: SafeArea(
         child: SingleChildScrollView(
@@ -119,190 +112,192 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // PROFILE ROW
-             Row(
-  children: [
-    GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ProfilePage(),
-          ),
-        );
-      },
-      child: CircleAvatar(
-        radius: 28,
-        backgroundImage: studentImage != null && studentImage!.isNotEmpty
-            ? NetworkImage("$api$studentImage")
-            : const AssetImage("lib/assets/img.jpg") as ImageProvider,
-      ),
-    ),
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ProfilePage(),
+                        ),
+                      );
+                    },
+                    child: CircleAvatar(
+                      radius: 28,
+                      backgroundImage:
+                          studentImage != null && studentImage!.isNotEmpty
+                          ? NetworkImage("$api$studentImage")
+                          : const AssetImage("lib/assets/img.jpg")
+                                as ImageProvider,
+                    ),
+                  ),
 
-    const SizedBox(width: 12),
+                  const SizedBox(width: 12),
 
-    Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          studentName,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        Text(
-          studentRole,
-          style: const TextStyle(color: Colors.white70),
-        ),
-      ],
-    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        studentName,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        studentRole,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
 
-    const Spacer(),
+                  const Spacer(),
 
-    // NOTIFICATION BUTTON
-    IconButton(
-      onPressed: () {},
-      icon: const Icon(
-        Icons.notifications_active,
-        color: Colors.tealAccent,
-      ),
-    ),
+                  // NOTIFICATION BUTTON
+                  IconButton(
+                    onPressed: () {},
+                    icon: const Icon(
+                      Icons.notifications_active,
+                      color: Colors.tealAccent,
+                    ),
+                  ),
 
-    // MENU BUTTON
-    IconButton(
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const MenuPage(),
-          ),
-        );
-      },
-      icon: const Icon(
-        Icons.menu,
-        color: Colors.tealAccent,
-        size: 28,
-      ),
-    ),
-  ],
-),
-
+                  // MENU BUTTON
+                  IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MenuPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.menu,
+                      color: Colors.tealAccent,
+                      size: 28,
+                    ),
+                  ),
+                ],
+              ),
 
               const SizedBox(height: 20),
 
-         GestureDetector(
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const AddBanner(),
-      ),
-    );
-  },
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AddBanner()),
+                  );
+                },
 
-  child: Column(
-    children: [
-      // MAIN BANNER
-      Container(
-        height: 160,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.25),
-              blurRadius: 8,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: FlutterCarousel(
-            options: CarouselOptions(
-              height: 160,
-              autoPlay: true,
-              autoPlayInterval: Duration(seconds: 3),
-              viewportFraction: 1,
-              showIndicator: true,
-              slideIndicator: CircularSlideIndicator(
-               
-              ),
-            ),
-            items: banner.map((item) {
-              return Stack(
-                children: [
-                  // Background Image
-                  Positioned.fill(
-                    child: Image.network(
-                      item["image"] ?? "",
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, progress) {
-                        if (progress == null) return child;
-                        return Container(
-                          color: Colors.grey.shade900,
-                          alignment: Alignment.center,
-                          child: const CircularProgressIndicator(),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) =>
-                          Container(
-                        color: Colors.black,
-                        alignment: Alignment.center,
-                        child: Icon(Icons.broken_image,
-                            color: Colors.white54, size: 40),
-                      ),
-                    ),
-                  ),
-
-                  // Gradient Overlay (bottom fade)
-                  Positioned.fill(
-                    child: Container(
+                child: Column(
+                  children: [
+                    // MAIN BANNER
+                    Container(
+                      height: 160,
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.6),
-                          ],
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.25),
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: FlutterCarousel(
+                          options: CarouselOptions(
+                            height: 160,
+                            autoPlay: true,
+                            autoPlayInterval: Duration(seconds: 3),
+                            viewportFraction: 1,
+                            showIndicator: true,
+                            slideIndicator: CircularSlideIndicator(),
+                          ),
+                          items: banner.map((item) {
+                            return Stack(
+                              children: [
+                                // Background Image
+                                Positioned.fill(
+                                  child: Image.network(
+                                    item["image"] ?? "",
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, progress) {
+                                      if (progress == null) return child;
+                                      return Container(
+                                        color: Colors.grey.shade900,
+                                        alignment: Alignment.center,
+                                        child:
+                                            const CircularProgressIndicator(),
+                                      );
+                                    },
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
+                                              color: Colors.black,
+                                              alignment: Alignment.center,
+                                              child: Icon(
+                                                Icons.broken_image,
+                                                color: Colors.white54,
+                                                size: 40,
+                                              ),
+                                            ),
+                                  ),
+                                ),
+
+                                // Gradient Overlay (bottom fade)
+                                Positioned.fill(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.transparent,
+                                          Colors.black.withOpacity(0.6),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                // Banner Title (Optional)
+                                // Positioned(
+                                //   bottom: 12,
+                                //   left: 12,
+                                //   right: 12,
+                                //   child: Text(
+                                //     item["title"] ?? "",
+                                //     style: const TextStyle(
+                                //       color: Colors.white,
+                                //       fontSize: 18,
+                                //       fontWeight: FontWeight.bold,
+                                //       shadows: [
+                                //         Shadow(
+                                //           offset: Offset(0, 1),
+                                //           blurRadius: 4,
+                                //           color: Colors.black54,
+                                //         )
+                                //       ],
+                                //     ),
+                                //     maxLines: 1,
+                                //     overflow: TextOverflow.ellipsis,
+                                //   ),
+                                // ),
+                              ],
+                            );
+                          }).toList(),
                         ),
                       ),
                     ),
-                  ),
-
-                  // Banner Title (Optional)
-                  // Positioned(
-                  //   bottom: 12,
-                  //   left: 12,
-                  //   right: 12,
-                  //   child: Text(
-                  //     item["title"] ?? "",
-                  //     style: const TextStyle(
-                  //       color: Colors.white,
-                  //       fontSize: 18,
-                  //       fontWeight: FontWeight.bold,
-                  //       shadows: [
-                  //         Shadow(
-                  //           offset: Offset(0, 1),
-                  //           blurRadius: 4,
-                  //           color: Colors.black54,
-                  //         )
-                  //       ],
-                  //     ),
-                  //     maxLines: 1,
-                  //     overflow: TextOverflow.ellipsis,
-                  //   ),
-                  // ),
-                ],
-              );
-            }).toList(),
-          ),
-        ),
-      ),
-    ],
-  ),
-),
+                  ],
+                ),
+              ),
 
               const SizedBox(height: 22),
 
@@ -523,7 +518,6 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
           ),
         ),
         onPressed: () {
-
           if (title == "Connect Coaches") {
             Navigator.push(
               context,
@@ -532,8 +526,6 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
               ),
             );
           }
-
-
         },
         child: Text(
           title,

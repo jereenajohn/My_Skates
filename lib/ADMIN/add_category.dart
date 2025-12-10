@@ -119,49 +119,61 @@ class _AddCategoryState extends State<AddCategory> {
     }
   }
 
-  // UPDATE CATEGORY
-  Future<void> updateProductCategory(
-    int id,
-    String name,
-    BuildContext context,
-  ) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
+ Future<void> updateProductCategory(
+  int id,
+  String name,
+  BuildContext context,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
 
-    try {
-      var response = await http.put(
-        Uri.parse("$api/api/myskates/products/category/$id/"),
-        headers: {
-          "Authorization": "Bearer $token",
-        },
-        body: {
-          "name": name,
-        },
+  try {
+    var response = await http.put(
+      Uri.parse("$api/api/myskates/products/category/edit/$id/"),
+      headers: {
+        "Authorization": "Bearer $token",
+      },
+      body: {
+        "name": name,
+      },
+    );
+
+    print("UPDATE STATUS: ${response.statusCode}");
+    print("UPDATE BODY: ${response.body}");
+
+    if (response.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Category updated successfully"),
+          backgroundColor: Colors.orange,
+        ),
       );
 
-      print("UPDATE STATUS: ${response.statusCode}");
-      print("UPDATE BODY: ${response.body}");
+      isEditMode = false;
+      editingCategoryId = null;
+      categoryCtrl.clear();
+      showForm = false;
 
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Category updated successfully"),
-            backgroundColor: Colors.orange,
-          ),
-        );
-
-        isEditMode = false;
-        editingCategoryId = null;
-        categoryCtrl.clear();
-        showForm = false;
-
-        getProductCategories();
-        setState(() {});
-      }
-    } catch (e) {
-      print(e);
+      await getProductCategories();
+      setState(() {});
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed: ${response.body}"),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
+  } catch (e) {
+    print("ERROR: $e");
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Something went wrong"),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -273,18 +285,19 @@ class _AddCategoryState extends State<AddCategory> {
           return;
         }
 
-        if (isEditMode) {
-          updateProductCategory(
-            editingCategoryId!,
-            categoryCtrl.text.trim(),
-            context,
-          );
-        } else {
-          addProductCategory(
-            categoryCtrl.text.trim(),
-            context,
-          );
-        }
+       if (isEditMode) {
+  updateProductCategory(
+    editingCategoryId!,
+    categoryCtrl.text.trim(),
+    context,
+  );
+} else {
+  addProductCategory(
+    categoryCtrl.text.trim(),
+    context,
+  );
+}
+
       },
       child: Container(
         width: double.infinity,
