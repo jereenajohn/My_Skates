@@ -527,6 +527,14 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             );
           }
+          if(title =="Buy and Sell products"){
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AddProduct(),
+              ),
+            );
+          }
         },
         child: Text(
           title,
