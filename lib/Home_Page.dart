@@ -33,6 +33,7 @@ class _HomePageState extends State<HomePage> {
   List events = [];
   bool eventsLoading = true;
   bool eventsNoData = false;
+  bool isFollowing = false;
 
   @override
   initState() {
@@ -617,7 +618,7 @@ class _HomePageState extends State<HomePage> {
                               scrollDirection: Axis.horizontal,
                               itemCount: coaches.length,
                               itemBuilder: (_, i) =>
-                                  simpleCoachCard(context, coaches[i]),
+                                  CoachFollowCard(coach: coaches[i]),
                             ),
                     ),
                   ],
@@ -927,25 +928,77 @@ Widget buildEventCardWithDynamicImages({
   );
 }
 
-// COACH CARD (WITH CONNECT BUTTON)
-Widget simpleCoachCard(BuildContext context, Map coach) {
-  String name = "${coach['first_name']} ${coach['last_name']}";
-  String exp = coach["experience"] != null
-      ? "Exp: ${coach["experience"]} yrs"
-      : "Experience N/A";
-  String city = coach["district_name"] ?? "";
-  int coachId = coach["id"]; // << coach ID
-  String? img = coach["profile"];
-  String imageUrl = img != null && img.isNotEmpty ? "$api$img" : "";
+class CoachFollowCard extends StatefulWidget {
+  final Map coach;
+  const CoachFollowCard({super.key, required this.coach});
 
-  return GestureDetector(
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => CoachDetailsPage(coachId: coachId)),
-      );
-    },
-    child: Container(
+  @override
+  State<CoachFollowCard> createState() => _CoachFollowCardState();
+}
+
+class _CoachFollowCardState extends State<CoachFollowCard> {
+  late bool isFollowing;
+
+  @override
+  void initState() {
+    super.initState();
+    // Load initial state only once
+    isFollowing = widget.coach["is_following"] == true;
+  }
+
+  Future<void> followCoach(int coachId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    final url = Uri.parse('$api/api/myskates/follow/user/$coachId/');
+
+    final response = await http.post(
+      url,
+      headers: {"Authorization": "Bearer $token"},
+    );
+
+    print("FOLLOW: ${response.statusCode} ${response.body}");
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      setState(() {
+        isFollowing = true;
+      });
+    }
+  }
+
+  Future<void> unfollowCoach(int coachId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    final url = Uri.parse('$api/api/myskates/follow/user/$coachId/');
+
+    final response = await http.delete(
+      url,
+      headers: {"Authorization": "Bearer $token"},
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        isFollowing = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final coach = widget.coach;
+
+    String name = "${coach['first_name']} ${coach['last_name']}";
+    String exp = coach["experience"] != null
+        ? "Exp: ${coach["experience"]} yrs"
+        : "Experience N/A";
+    String city = coach["district_name"] ?? "";
+    int coachId = coach["id"];
+
+    String? img = coach["profile"];
+    String imageUrl = img != null && img.isNotEmpty ? "$api$img" : "";
+
+    return Container(
       width: 160,
       margin: const EdgeInsets.only(right: 10),
       padding: const EdgeInsets.all(12),
@@ -988,28 +1041,28 @@ Widget simpleCoachCard(BuildContext context, Map coach) {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CoachDetailsPage(coachId: coachId),
-                  ),
-                );
+                if (isFollowing) {
+                  unfollowCoach(coachId);
+                } else {
+                  followCoach(coachId);
+                }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00AFA5),
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                backgroundColor: isFollowing
+                    ? Colors.grey
+                    : const Color(0xFF00AFA5),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
-                "Connect",
-                style: TextStyle(color: Colors.white, fontSize: 13),
+              child: Text(
+                isFollowing ? "Following" : "Follow",
+                style: const TextStyle(color: Colors.white),
               ),
             ),
           ),
         ],
       ),
-    ),
-  );
+    );
+  }
 }
