@@ -188,44 +188,6 @@ class _HomePageState extends State<HomePage> {
     } catch (error) {}
   }
 
-  // // NEW: FETCH FOLLOWING + PENDING REQUESTS
-  // Future<void> fetchFollowStatus() async {
-  //   try {
-  //     final prefs = await SharedPreferences.getInstance();
-  //     final token = prefs.getString("access");
-
-  //     // APPROVED FOLLOWING USERS
-  //     var r1 = await http.get(
-  //       Uri.parse("$api/api/myskates/following/users/"),
-  //       headers: {"Authorization": "Bearer $token"},
-  //     );
-  //     print("FOLLOWING USERS STATUS: ${r1.statusCode} BODY: ${r1.body}");
-  //     if (r1.statusCode == 200) {
-  //       final data = jsonDecode(r1.body);
-  //       myFollowing = List<int>.from(
-  //         (data["data"] as List).map((e) => e["following__id"] as int),
-  //       );
-  //     }
-
-  //     // PENDING FOLLOW REQUESTS
-  //     var r2 = await http.get(
-  //       Uri.parse("$api/api/myskates/user/follow/requests/"),
-  //       headers: {"Authorization": "Bearer $token"},
-  //     );
-  //     print("PENDING REQUEST STATUS: ${r2.statusCode} BODY: ${r2.body}");
-  //     if (r2.statusCode == 200) {
-  //       final data = jsonDecode(r2.body);
-  //       myRequests = List<int>.from(
-  //         (data as List).map((e) => e["following"] as int),
-  //       );
-  //     }
-
-  //     setState(() {});
-  //   } catch (e) {
-  //     print("ERROR FETCH FOLLOW STATUS: $e");
-  //   }
-  // }
-
   // FETCH COACHES
   Future<void> fetchCoaches() async {
     String? token = await getToken();
@@ -356,6 +318,42 @@ class _HomePageState extends State<HomePage> {
         eventsNoData = true;
       });
     }
+  }
+
+  Future<void> unfollowCoach(int coachId) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+
+  final res = await http.post(
+    Uri.parse('$api/api/myskates/user/unfollow/'),
+    headers: {"Authorization": "Bearer $token"},
+    body: {"following_id": coachId.toString()},
+  );
+
+  print("UNFOLLOW: ${res.body}");
+
+  setState(() {
+    myFollowing.remove(coachId);     // remove following
+    myApprovedSent.remove(coachId);  // remove approved
+    myRequests.remove(coachId);      // remove pending (IMPORTANT FIX)
+  });
+}
+
+  Future<void> cancelPendingRequest(int coachId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    final res = await http.post(
+      Uri.parse('$api/api/myskates/user/follow/cancel/'),
+      headers: {"Authorization": "Bearer $token"},
+      body: {"following_id": coachId.toString()},
+    );
+
+    print("CANCEL PENDING REQUEST: ${res.body}");
+
+    setState(() {
+      myRequests.remove(coachId);
+    });
   }
 
   // UI BUILD
@@ -706,9 +704,12 @@ class _HomePageState extends State<HomePage> {
                               itemBuilder: (_, i) => CoachFollowCard(
                                 coach: coaches[i],
                                 onFollow: sendFollowRequest,
+                                onCancelPending: cancelPendingRequest,
+                                onUnfollow: unfollowCoach,
                                 myFollowing: myFollowing,
                                 myRequests: myRequests,
                                 myApprovedSent: myApprovedSent,
+                                refreshParent: () => setState(() {}),
                               ),
                             ),
                     ),
@@ -1002,8 +1003,12 @@ class CoachFollowCard extends StatefulWidget {
   final Map coach;
   final List<int> myFollowing;
   final List<int> myRequests;
-  final Function(int) onFollow; // coming from HomePage
+  final Function(int) onFollow;
   final List<int> myApprovedSent;
+
+  final Function(int) onCancelPending;
+  final Function(int) onUnfollow;
+  final Function() refreshParent;
 
   const CoachFollowCard({
     super.key,
@@ -1012,6 +1017,9 @@ class CoachFollowCard extends StatefulWidget {
     required this.myRequests,
     required this.onFollow,
     required this.myApprovedSent,
+    required this.onCancelPending,
+    required this.onUnfollow,
+    required this.refreshParent,
   });
 
   @override
@@ -1081,50 +1089,48 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
   Widget _buildButton(int coachId) {
     // ALREADY FOLLOWING (from followers list)
     if (widget.myFollowing.contains(coachId)) {
-      return _followingBtn();
+      return _followingBtn(coachId);
     }
 
     // SENT APPROVED REQUESTS (this is new)
     if (widget.myApprovedSent.contains(coachId)) {
-      return _followingBtn();
+      return _followingBtn(coachId);
     }
 
     // REQUESTED (pending)
     if (widget.myRequests.contains(coachId)) {
-      return _requestedBtn();
+      return _requestedBtn(coachId);
     }
 
     // DEFAULT — FOLLOW
     return _followBtn(coachId);
   }
 
-  Widget _followingBtn() {
-    return OutlinedButton(
-      onPressed: null,
-      style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Colors.white, width: 1.5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: Colors.transparent, // keep dark background
-      ),
-      child: const Text(
-        "Following",
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-      ),
-    );
-  }
+Widget _followingBtn(int coachId) {
+  return OutlinedButton(
+    onPressed: () async {
+      await widget.onUnfollow(coachId);
+      widget.refreshParent();   // Refresh parent UI
+    },
+    style: OutlinedButton.styleFrom(
+      side: BorderSide(color: Colors.white, width: 1.5),
+    ),
+    child: const Text("Following", style: TextStyle(color: Colors.white)),
+  );
+}
 
-  Widget _requestedBtn() {
+
+  Widget _requestedBtn(int coachId) {
     return OutlinedButton(
-      onPressed: null,
+      onPressed: () async {
+        await widget.onCancelPending(coachId);
+        widget.refreshParent(); // THIS FIXES UI
+      },
       style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Colors.white, width: 1.5),
+        side: BorderSide(color: Colors.white, width: 1.5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: Colors.transparent,
       ),
-      child: const Text(
-        "Requested",
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-      ),
+      child: const Text("Requested", style: TextStyle(color: Colors.white)),
     );
   }
 
@@ -1132,9 +1138,7 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
     return ElevatedButton(
       onPressed: () async {
         await widget.onFollow(coachId);
-        setState(() {
-          widget.myRequests.add(coachId);
-        });
+        widget.refreshParent(); // FIX
       },
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF00AFA5),
