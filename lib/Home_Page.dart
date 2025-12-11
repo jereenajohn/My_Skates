@@ -38,6 +38,8 @@ class _HomePageState extends State<HomePage> {
   // NEW: follow status caches
   List<int> myFollowing = [];
   List<int> myRequests = [];
+  bool followLoaded = false;
+  List<int> myApprovedSent = [];
 
   @override
   initState() {
@@ -47,13 +49,86 @@ class _HomePageState extends State<HomePage> {
     fetchEvents();
     refreshUserProfile().then((_) => fetchStudentDetails());
     getbanner();
-    fetchFollowStatus();
-    fetchCoaches();
+
+    loadEverything(); // Single initialization
   }
+
+  Future<void> loadEverything() async {
+    await fetchFollowStatus(); // load following + pending
+    await fetchCoaches(); // then load coaches (depends on above)
+    setState(() {});
+  }
+
+  // Future<void> initLoad() async {
+  //   await fetchFollowStatus();
+  //   await fetchCoaches();
+  //   setState(() {});
+  // }
 
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('access');
+  }
+
+  Future<void> fetchFollowStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      print("================ FETCH FOLLOW STATUS START ================");
+
+      // 1) FETCH PENDING REQUESTS
+      var rPending = await http.get(
+        Uri.parse("$api/api/myskates/user/follow/sent/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+      print("PENDING: ${rPending.body}");
+
+      if (rPending.statusCode == 200) {
+        final dataPending = jsonDecode(rPending.body);
+        myRequests = List<int>.from(
+          (dataPending as List).map((e) => e["following"]),
+        );
+      }
+
+      // 2) FETCH APPROVED SENT REQUESTS
+      var rApproved = await http.get(
+        Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+      print("APPROVED SENT: ${rApproved.body}");
+
+      if (rApproved.statusCode == 200) {
+        final dataApproved = jsonDecode(rApproved.body);
+        myApprovedSent = List<int>.from(
+          (dataApproved as List).map((e) => e["following"]),
+        );
+      }
+
+      followLoaded = true;
+      setState(() {});
+    } catch (e) {
+      print("ERROR IN FOLLOW STATUS: $e");
+    }
+  }
+
+  Future<void> sendFollowRequest(int coachId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    final response = await http.post(
+      Uri.parse('$api/api/myskates/user/follow/request/'),
+      headers: {"Authorization": "Bearer $token"},
+      body: {"following_id": coachId.toString()},
+    );
+
+    print(response.body);
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      // Force update cached pending list
+      myRequests.add(coachId);
+      setState(() {});
+    }
   }
 
   Future<void> refreshUserProfile() async {
@@ -113,43 +188,43 @@ class _HomePageState extends State<HomePage> {
     } catch (error) {}
   }
 
-  // NEW: FETCH FOLLOWING + PENDING REQUESTS
-  Future<void> fetchFollowStatus() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("access");
+  // // NEW: FETCH FOLLOWING + PENDING REQUESTS
+  // Future<void> fetchFollowStatus() async {
+  //   try {
+  //     final prefs = await SharedPreferences.getInstance();
+  //     final token = prefs.getString("access");
 
-      // APPROVED FOLLOWING USERS
-      var r1 = await http.get(
-        Uri.parse("$api/api/myskates/following/users/"),
-        headers: {"Authorization": "Bearer $token"},
-      );
-      print("FOLLOWING USERS STATUS: ${r1.statusCode} BODY: ${r1.body}");
-      if (r1.statusCode == 200) {
-        final data = jsonDecode(r1.body);
-        myFollowing = List<int>.from(
-          (data["data"] as List).map((e) => e["following__id"] as int),
-        );
-      }
+  //     // APPROVED FOLLOWING USERS
+  //     var r1 = await http.get(
+  //       Uri.parse("$api/api/myskates/following/users/"),
+  //       headers: {"Authorization": "Bearer $token"},
+  //     );
+  //     print("FOLLOWING USERS STATUS: ${r1.statusCode} BODY: ${r1.body}");
+  //     if (r1.statusCode == 200) {
+  //       final data = jsonDecode(r1.body);
+  //       myFollowing = List<int>.from(
+  //         (data["data"] as List).map((e) => e["following__id"] as int),
+  //       );
+  //     }
 
-      // PENDING FOLLOW REQUESTS
-      var r2 = await http.get(
-        Uri.parse("$api/api/myskates/user/follow/requests/"),
-        headers: {"Authorization": "Bearer $token"},
-      );
-      print("PENDING REQUEST STATUS: ${r2.statusCode} BODY: ${r2.body}");
-      if (r2.statusCode == 200) {
-        final data = jsonDecode(r2.body);
-        myRequests = List<int>.from(
-          (data as List).map((e) => e["following"] as int),
-        );
-      }
+  //     // PENDING FOLLOW REQUESTS
+  //     var r2 = await http.get(
+  //       Uri.parse("$api/api/myskates/user/follow/requests/"),
+  //       headers: {"Authorization": "Bearer $token"},
+  //     );
+  //     print("PENDING REQUEST STATUS: ${r2.statusCode} BODY: ${r2.body}");
+  //     if (r2.statusCode == 200) {
+  //       final data = jsonDecode(r2.body);
+  //       myRequests = List<int>.from(
+  //         (data as List).map((e) => e["following"] as int),
+  //       );
+  //     }
 
-      setState(() {});
-    } catch (e) {
-      print("ERROR FETCH FOLLOW STATUS: $e");
-    }
-  }
+  //     setState(() {});
+  //   } catch (e) {
+  //     print("ERROR FETCH FOLLOW STATUS: $e");
+  //   }
+  // }
 
   // FETCH COACHES
   Future<void> fetchCoaches() async {
@@ -313,9 +388,9 @@ class _HomePageState extends State<HomePage> {
                         radius: 28,
                         backgroundImage:
                             studentImage != null && studentImage!.isNotEmpty
-                                ? NetworkImage("$api$studentImage")
-                                : const AssetImage("lib/assets/img.jpg")
-                                    as ImageProvider,
+                            ? NetworkImage("$api$studentImage")
+                            : const AssetImage("lib/assets/img.jpg")
+                                  as ImageProvider,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -388,8 +463,7 @@ class _HomePageState extends State<HomePage> {
                                   child: Image.network(
                                     item["image"] ?? "",
                                     fit: BoxFit.cover,
-                                    loadingBuilder:
-                                        (context, child, progress) {
+                                    loadingBuilder: (context, child, progress) {
                                       if (progress == null) return child;
                                       return Container(
                                         color: Colors.grey.shade900,
@@ -401,14 +475,14 @@ class _HomePageState extends State<HomePage> {
                                     errorBuilder:
                                         (context, error, stackTrace) =>
                                             Container(
-                                      color: Colors.black,
-                                      alignment: Alignment.center,
-                                      child: const Icon(
-                                        Icons.broken_image,
-                                        color: Colors.white54,
-                                        size: 40,
-                                      ),
-                                    ),
+                                              color: Colors.black,
+                                              alignment: Alignment.center,
+                                              child: const Icon(
+                                                Icons.broken_image,
+                                                color: Colors.white54,
+                                                size: 40,
+                                              ),
+                                            ),
                                   ),
                                 ),
                                 Positioned.fill(
@@ -530,75 +604,69 @@ class _HomePageState extends State<HomePage> {
                             ),
                           )
                         : eventsNoData
-                            ? const Text(
-                                "No events found",
-                                style: TextStyle(color: Colors.white70),
-                              )
-                            : ListView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: events.length,
-                                itemBuilder: (_, i) {
-                                  final e = events[i];
+                        ? const Text(
+                            "No events found",
+                            style: TextStyle(color: Colors.white70),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: events.length,
+                            itemBuilder: (_, i) {
+                              final e = events[i];
 
-                                  List<dynamic> gallery = e["images"] ?? [];
+                              List<dynamic> gallery = e["images"] ?? [];
 
-                                  String mainImage = e["image"] ?? "";
+                              String mainImage = e["image"] ?? "";
 
-                                  String clubName =
-                                      e["club_name"] ?? "Club";
+                              String clubName = e["club_name"] ?? "Club";
 
-                                  String fromDate = e["from_date"] ?? "";
-                                  String toDate = e["to_date"] ?? "";
-                                  String fromTime = e["from_time"] ?? "";
-                                  String description =
-                                      e["description"] ?? "";
-                                  String title = e["title"] ?? "";
+                              String fromDate = e["from_date"] ?? "";
+                              String toDate = e["to_date"] ?? "";
+                              String fromTime = e["from_time"] ?? "";
+                              String description = e["description"] ?? "";
+                              String title = e["title"] ?? "";
 
-                                  String dateLabel =
-                                      "$fromDate → $toDate";
+                              String dateLabel = "$fromDate → $toDate";
 
-                                  String timeLeft =
-                                      getTimeLeft(fromDate, fromTime);
+                              String timeLeft = getTimeLeft(fromDate, fromTime);
 
-                                  List<String> imageList = [];
+                              List<String> imageList = [];
 
-                                  if (mainImage.isNotEmpty) {
-                                    imageList.add("$api$mainImage");
-                                  }
+                              if (mainImage.isNotEmpty) {
+                                imageList.add("$api$mainImage");
+                              }
 
-                                  for (var g in gallery) {
-                                    if (g != null &&
-                                        g["image"] != null &&
-                                        g["image"]
-                                            .toString()
-                                            .isNotEmpty) {
-                                      imageList.add("$api${g["image"]}");
-                                    }
-                                  }
+                              for (var g in gallery) {
+                                if (g != null &&
+                                    g["image"] != null &&
+                                    g["image"].toString().isNotEmpty) {
+                                  imageList.add("$api${g["image"]}");
+                                }
+                              }
 
-                                  if (imageList.isEmpty) {
-                                    return buildEventCard(
-                                      clubName: clubName,
-                                      date: dateLabel,
-                                      location: "",
-                                      title: title,
-                                      timeLeft: timeLeft,
-                                      icon: Icons.favorite_border,
-                                    );
-                                  }
+                              if (imageList.isEmpty) {
+                                return buildEventCard(
+                                  clubName: clubName,
+                                  date: dateLabel,
+                                  location: "",
+                                  title: title,
+                                  timeLeft: timeLeft,
+                                  icon: Icons.favorite_border,
+                                );
+                              }
 
-                                  return buildEventCardWithDynamicImages(
-                                    clubName: clubName,
-                                    date: dateLabel,
-                                    location: "",
-                                    title: title,
-                                    images: imageList,
-                                    description: description,
-                                    context: context,
-                                  );
-                                },
-                              ),
+                              return buildEventCardWithDynamicImages(
+                                clubName: clubName,
+                                date: dateLabel,
+                                location: "",
+                                title: title,
+                                images: imageList,
+                                description: description,
+                                context: context,
+                              );
+                            },
+                          ),
                     const SizedBox(height: 25),
 
                     // COACHES
@@ -613,29 +681,36 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 15),
                     SizedBox(
                       height: 210,
-                      child: coachesLoading
+                      child: !followLoaded
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            )
+                          : coachesLoading
                           ? const Center(
                               child: CircularProgressIndicator(
                                 color: Colors.white,
                               ),
                             )
                           : coachesNoData
-                              ? const Center(
-                                  child: Text(
-                                    "No coaches found",
-                                    style: TextStyle(color: Colors.white70),
-                                  ),
-                                )
-                              : ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: coaches.length,
-                                  itemBuilder: (_, i) =>
-                                      CoachFollowCard(
-                                    coach: coaches[i],
-                                    myFollowing: myFollowing,
-                                    myRequests: myRequests,
-                                  ),
-                                ),
+                          ? const Center(
+                              child: Text(
+                                "No coaches found",
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            )
+                          : ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: coaches.length,
+                              itemBuilder: (_, i) => CoachFollowCard(
+                                coach: coaches[i],
+                                onFollow: sendFollowRequest,
+                                myFollowing: myFollowing,
+                                myRequests: myRequests,
+                                myApprovedSent: myApprovedSent,
+                              ),
+                            ),
                     ),
                   ],
                 ),
@@ -691,8 +766,7 @@ Widget buildClubCardFromApi(Map club) {
           radius: 30,
           backgroundImage: imageUrl.isNotEmpty
               ? NetworkImage(imageUrl)
-              : const AssetImage("lib/assets/images.png")
-                  as ImageProvider,
+              : const AssetImage("lib/assets/images.png") as ImageProvider,
         ),
         const SizedBox(height: 10),
         Text(
@@ -704,8 +778,7 @@ Widget buildClubCardFromApi(Map club) {
         ),
         const Spacer(),
         Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.teal,
             borderRadius: BorderRadius.circular(20),
@@ -751,18 +824,15 @@ Widget buildEventCard({
               children: [
                 Text(
                   clubName,
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 15),
+                  style: const TextStyle(color: Colors.white, fontSize: 15),
                 ),
                 Text(
                   date,
-                  style: const TextStyle(
-                      color: Colors.white54, fontSize: 12),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
                 Text(
                   location,
-                  style: const TextStyle(
-                      color: Colors.white54, fontSize: 12),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
@@ -780,21 +850,18 @@ Widget buildEventCard({
         const SizedBox(height: 6),
         Text(
           timeLeft,
-          style:
-              const TextStyle(color: Colors.tealAccent, fontSize: 13),
+          style: const TextStyle(color: Colors.tealAccent, fontSize: 13),
         ),
         const SizedBox(height: 6),
         Text(
           location,
-          style: const TextStyle(
-              color: Colors.white54, fontSize: 12),
+          style: const TextStyle(color: Colors.white54, fontSize: 12),
         ),
         const SizedBox(height: 10),
         const Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Icon(Icons.thumb_up_alt_outlined,
-                color: Colors.white70, size: 22),
+            Icon(Icons.thumb_up_alt_outlined, color: Colors.white70, size: 22),
             SizedBox(width: 14),
           ],
         ),
@@ -853,18 +920,15 @@ Widget buildEventCardWithDynamicImages({
               children: [
                 Text(
                   clubName,
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 15),
+                  style: const TextStyle(color: Colors.white, fontSize: 15),
                 ),
                 Text(
                   date,
-                  style: const TextStyle(
-                      color: Colors.white54, fontSize: 12),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
                 Text(
                   location,
-                  style: const TextStyle(
-                      color: Colors.white54, fontSize: 12),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
@@ -911,14 +975,12 @@ Widget buildEventCardWithDynamicImages({
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.info,
-                color: Colors.amberAccent, size: 18),
+            const Icon(Icons.info, color: Colors.amberAccent, size: 18),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
                 description,
-                style: const TextStyle(
-                    color: Colors.white70, fontSize: 13),
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
               ),
             ),
           ],
@@ -927,8 +989,7 @@ Widget buildEventCardWithDynamicImages({
         const Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Icon(Icons.thumb_up_alt_outlined,
-                color: Colors.white70, size: 22),
+            Icon(Icons.thumb_up_alt_outlined, color: Colors.white70, size: 22),
             SizedBox(width: 14),
           ],
         ),
@@ -941,12 +1002,16 @@ class CoachFollowCard extends StatefulWidget {
   final Map coach;
   final List<int> myFollowing;
   final List<int> myRequests;
+  final Function(int) onFollow; // coming from HomePage
+  final List<int> myApprovedSent;
 
   const CoachFollowCard({
     super.key,
     required this.coach,
     required this.myFollowing,
     required this.myRequests,
+    required this.onFollow,
+    required this.myApprovedSent,
   });
 
   @override
@@ -954,115 +1019,6 @@ class CoachFollowCard extends StatefulWidget {
 }
 
 class _CoachFollowCardState extends State<CoachFollowCard> {
-  String? _overrideStatus; // "none", "requested", "following"
-
-  String get followStatus {
-    final coachId = widget.coach["id"] as int;
-
-    if (_overrideStatus != null) {
-      return _overrideStatus!;
-    }
-
-    if (widget.myFollowing.contains(coachId)) {
-      return "following";
-    }
-    if (widget.myRequests.contains(coachId)) {
-      return "requested";
-    }
-    return "none";
-  }
-
-  Future<void> sendFollowRequest(int coachId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-
-    final url =
-        Uri.parse('$api/api/myskates/user/follow/request/');
-
-    final response = await http.post(
-      url,
-      headers: {"Authorization": "Bearer $token"},
-      body: {"following_id": coachId.toString()},
-    );
-
-    print("FOLLOW REQUEST: ${response.statusCode} ${response.body}");
-
-    if (response.statusCode == 201) {
-      setState(() {
-        _overrideStatus = "requested";
-      });
-    }
-  }
-
-  Future<void> unfollowCoach(int coachId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-
-    final url =
-        Uri.parse('$api/api/myskates/follow/user/$coachId/');
-
-    final response = await http.delete(
-      url,
-      headers: {"Authorization": "Bearer $token"},
-    );
-
-    print("UNFOLLOW: ${response.statusCode} ${response.body}");
-
-    if (response.statusCode == 200) {
-      setState(() {
-        _overrideStatus = "none";
-      });
-    }
-  }
-
-  Widget followButton(int coachId) {
-    if (followStatus == "following") {
-      return ElevatedButton(
-        onPressed: () => unfollowCoach(coachId),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.grey,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        child: const Text(
-          "Following",
-          style: TextStyle(color: Colors.white),
-        ),
-      );
-    }
-
-    if (followStatus == "requested") {
-      return ElevatedButton(
-        onPressed: null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.orange,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        child: const Text(
-          "Requested",
-          style: TextStyle(color: Colors.white),
-        ),
-      );
-    }
-
-    return ElevatedButton(
-      onPressed: () => sendFollowRequest(coachId),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF00AFA5),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-      child: const Text(
-        "Follow",
-        style: TextStyle(color: Colors.white),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final coach = widget.coach;
@@ -1075,8 +1031,7 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
     int coachId = coach["id"];
 
     String? img = coach["profile"];
-    String imageUrl =
-        img != null && img.isNotEmpty ? "$api$img" : "";
+    String imageUrl = img != null && img.isNotEmpty ? "$api$img" : "";
 
     return Container(
       width: 160,
@@ -1092,35 +1047,100 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
             radius: 28,
             backgroundImage: imageUrl.isNotEmpty
                 ? NetworkImage(imageUrl)
-                : const AssetImage("lib/assets/img.jpg")
-                    as ImageProvider,
+                : const AssetImage("lib/assets/img.jpg") as ImageProvider,
           ),
+
           const SizedBox(height: 10),
+
           Text(
             name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-                color: Colors.white, fontSize: 15),
+            style: const TextStyle(color: Colors.white, fontSize: 15),
           ),
+
           const SizedBox(height: 4),
+
           Text(
             exp,
-            style: const TextStyle(
-                color: Colors.white60, fontSize: 12),
+            style: const TextStyle(color: Colors.white60, fontSize: 12),
           ),
           Text(
             city,
-            style: const TextStyle(
-                color: Colors.white38, fontSize: 11),
+            style: const TextStyle(color: Colors.white38, fontSize: 11),
           ),
+
           const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: followButton(coachId),
-          ),
+
+          SizedBox(width: double.infinity, child: _buildButton(coachId)),
         ],
       ),
+    );
+  }
+
+  Widget _buildButton(int coachId) {
+    // ALREADY FOLLOWING (from followers list)
+    if (widget.myFollowing.contains(coachId)) {
+      return _followingBtn();
+    }
+
+    // SENT APPROVED REQUESTS (this is new)
+    if (widget.myApprovedSent.contains(coachId)) {
+      return _followingBtn();
+    }
+
+    // REQUESTED (pending)
+    if (widget.myRequests.contains(coachId)) {
+      return _requestedBtn();
+    }
+
+    // DEFAULT — FOLLOW
+    return _followBtn(coachId);
+  }
+
+  Widget _followingBtn() {
+    return OutlinedButton(
+      onPressed: null,
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: Colors.white, width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: Colors.transparent, // keep dark background
+      ),
+      child: const Text(
+        "Following",
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _requestedBtn() {
+    return OutlinedButton(
+      onPressed: null,
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: Colors.white, width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: Colors.transparent,
+      ),
+      child: const Text(
+        "Requested",
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _followBtn(int coachId) {
+    return ElevatedButton(
+      onPressed: () async {
+        await widget.onFollow(coachId);
+        setState(() {
+          widget.myRequests.add(coachId);
+        });
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF00AFA5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: const Text("Follow", style: TextStyle(color: Colors.white)),
     );
   }
 }
