@@ -321,23 +321,23 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> unfollowCoach(int coachId) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
 
-  final res = await http.post(
-    Uri.parse('$api/api/myskates/user/unfollow/'),
-    headers: {"Authorization": "Bearer $token"},
-    body: {"following_id": coachId.toString()},
-  );
+    final res = await http.post(
+      Uri.parse('$api/api/myskates/user/unfollow/'),
+      headers: {"Authorization": "Bearer $token"},
+      body: {"following_id": coachId.toString()},
+    );
 
-  print("UNFOLLOW: ${res.body}");
+    print("UNFOLLOW: ${res.body}");
 
-  setState(() {
-    myFollowing.remove(coachId);     // remove following
-    myApprovedSent.remove(coachId);  // remove approved
-    myRequests.remove(coachId);      // remove pending (IMPORTANT FIX)
-  });
-}
+    setState(() {
+      myFollowing.remove(coachId); // remove following
+      myApprovedSent.remove(coachId); // remove approved
+      myRequests.remove(coachId); // remove pending (IMPORTANT FIX)
+    });
+  }
 
   Future<void> cancelPendingRequest(int coachId) async {
     final prefs = await SharedPreferences.getInstance();
@@ -1106,19 +1106,18 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
     return _followBtn(coachId);
   }
 
-Widget _followingBtn(int coachId) {
-  return OutlinedButton(
-    onPressed: () async {
-      await widget.onUnfollow(coachId);
-      widget.refreshParent();   // Refresh parent UI
-    },
-    style: OutlinedButton.styleFrom(
-      side: BorderSide(color: Colors.white, width: 1.5),
-    ),
-    child: const Text("Following", style: TextStyle(color: Colors.white)),
-  );
-}
-
+  Widget _followingBtn(int coachId) {
+    return OutlinedButton(
+      onPressed: () async {
+        await widget.onUnfollow(coachId);
+        widget.refreshParent(); // Refresh parent UI
+      },
+      style: OutlinedButton.styleFrom(
+        side: BorderSide(color: Colors.white, width: 1.5),
+      ),
+      child: const Text("Following", style: TextStyle(color: Colors.white)),
+    );
+  }
 
   Widget _requestedBtn(int coachId) {
     return OutlinedButton(
