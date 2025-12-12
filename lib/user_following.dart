@@ -1,0 +1,139 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:my_skates/api.dart';
+
+class UserFollowing extends StatefulWidget {
+  const UserFollowing({super.key});
+
+  @override
+  State<UserFollowing> createState() => _UserFollowingState();
+}
+
+class _UserFollowingState extends State<UserFollowing> {
+  List<Map<String, dynamic>> following = [];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchFollowing();
+  }
+
+  // ------------------------------------------------------------
+  // FETCH FOLLOWING LIST
+  // ------------------------------------------------------------
+  Future<void> fetchFollowing() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final res = await http.get(
+        Uri.parse("$api/api/myskates/user/following/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      print("===== FETCH FOLLOWING =====");
+      print("STATUS: ${res.statusCode}");
+      print("BODY: ${res.body}");
+      print("==========================");
+
+      if (res.statusCode == 200) {
+        final List raw = jsonDecode(res.body);
+
+        setState(() {
+          following = raw
+              .map<Map<String, dynamic>>(
+                  (e) => Map<String, dynamic>.from(e))
+              .toList();
+          loading = false;
+        });
+      } else {
+        loading = false;
+      }
+    } catch (e) {
+      print("FOLLOWING ERROR: $e");
+      loading = false;
+    }
+  }
+
+  // ------------------------------------------------------------
+  // UI
+  // ------------------------------------------------------------
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text(
+          "Following",
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: loading
+          ? const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            )
+          : following.isEmpty
+              ? const Center(
+                  child: Text(
+                    "You are not following anyone",
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
+                )
+              : ListView.separated(
+                  itemCount: following.length,
+                  separatorBuilder: (_, __) => const Divider(
+                    color: Colors.white12,
+                    indent: 80,
+                  ),
+                  itemBuilder: (_, i) {
+                    final f = following[i];
+
+                    return ListTile(
+                      leading: const CircleAvatar(
+                        radius: 26,
+                        backgroundImage:
+                            AssetImage("lib/assets/img.jpg"),
+                      ),
+                      title: Text(
+                        f["following_name"] ?? "",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        "Following",
+                        style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 13,
+                        ),
+                      ),
+                      trailing: OutlinedButton(
+                        onPressed: () {
+                          // Optional: Unfollow API later
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side:
+                              const BorderSide(color: Colors.white24),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          "Following",
+                          style:
+                              TextStyle(color: Colors.white70),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
