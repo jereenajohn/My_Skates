@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/profile_page.dart'; // <-- Navigation Target Example
 import 'package:my_skates/user_follow_requests.dart';
+import 'package:my_skates/user_followers_list.dart';
 import 'package:my_skates/user_view_events.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -173,6 +174,24 @@ class _UserSettingsState extends State<UserSettings> {
                 },
               ),
               _divider(),
+
+
+              
+
+               _menuTile(
+                icon: Icons.home,
+                text: "Followers",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const UserFollowersList(),
+                    ),
+                  );
+                },
+              ),
+              _divider(),
+
 
               _menuTile(icon: Icons.show_chart_outlined, text: "Your activity"),
               _divider(),
