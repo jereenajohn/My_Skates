@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/profile_page.dart'; // <-- Navigation Target Example
+import 'package:my_skates/user_follow_requests.dart';
 import 'package:my_skates/user_view_events.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,43 +20,45 @@ class _UserSettingsState extends State<UserSettings> {
 
   // ADD THIS INSIDE _UserSettingsState
 
- Future<void> logoutUser() async {
-  final prefs = await SharedPreferences.getInstance();
+  Future<void> logoutUser() async {
+    final prefs = await SharedPreferences.getInstance();
 
-  // Debug check before logout
-  print("Token BEFORE logout: ${prefs.getString('token')}");
-  print("ID BEFORE logout: ${prefs.getInt('id')}");
+    // Debug check before logout
+    print("Token BEFORE logout: ${prefs.getString('token')}");
+    print("ID BEFORE logout: ${prefs.getInt('id')}");
 
-  // Remove saved login data
-  await prefs.remove('token');
-  await prefs.remove('id');
+    // Remove saved login data
+    await prefs.remove('token');
+    await prefs.remove('id');
 
-  // Debug check after logout
-  print("Token AFTER logout: ${prefs.getString('token')}");
-  print("ID AFTER logout: ${prefs.getInt('id')}");
+    // Debug check after logout
+    print("Token AFTER logout: ${prefs.getString('token')}");
+    print("ID AFTER logout: ${prefs.getInt('id')}");
 
-  // Snackbar message
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text(
-        "Logout successfully",
-        style: TextStyle(color: Colors.white, fontSize: 16),
+    // Snackbar message
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          "Logout successfully",
+          style: TextStyle(color: Colors.white, fontSize: 16),
+        ),
+        backgroundColor: Colors.teal,
+        duration: Duration(seconds: 2),
       ),
-      backgroundColor: Colors.teal,
-      duration: Duration(seconds: 2),
-    ),
-  );
+    );
 
-  // Delay slightly so snackbar is visible before redirect
-  await Future.delayed(const Duration(milliseconds: 600));
+    // Delay slightly so snackbar is visible before redirect
+    await Future.delayed(const Duration(milliseconds: 600));
 
-  // Navigate to Login Page & clear all previous screens
-  Navigator.pushAndRemoveUntil(
-    context,
-    MaterialPageRoute(builder: (_) => const Loginpage()),  // <-- your login page
-    (route) => false,
-  );
-}
+    // Navigate to Login Page & clear all previous screens
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const Loginpage(),
+      ), // <-- your login page
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -145,13 +148,27 @@ class _UserSettingsState extends State<UserSettings> {
               const SizedBox(height: 12),
               _menuTile(icon: Icons.phone, text: "Change Phone Number"),
               _divider(),
-                _menuTile(
+              _menuTile(
                 icon: Icons.home,
                 text: "View Events",
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const UserViewEvents()),
+                  );
+                },
+              ),
+              _divider(),
+
+              _menuTile(
+                icon: Icons.home,
+                text: "Follow Requests",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const StudentFollowRequest(),
+                    ),
                   );
                 },
               ),
