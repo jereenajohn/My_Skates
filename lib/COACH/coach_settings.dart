@@ -3,6 +3,7 @@ import 'package:my_skates/COACH/add_club.dart';
 import 'package:my_skates/COACH/coach_add_events.dart';
 import 'package:my_skates/COACH/coach_follow_request.dart';
 import 'package:my_skates/COACH/coach_followers_list.dart';
+import 'package:my_skates/COACH/coach_following_list.dart';
 import 'package:my_skates/COACH/coach_profile.dart';
 import 'package:my_skates/COACH/view_clubs.dart';
 import 'package:my_skates/loginpage.dart';
@@ -193,6 +194,18 @@ class _CoachSettingsState extends State<CoachSettings> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const CoachFollowersList()),
+                  );
+                },
+              ),
+              _divider(),
+
+   _menuTile(
+                icon: Icons.home,
+                text: "Following",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CoachFollowingList()),
                   );
                 },
               ),
