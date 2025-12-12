@@ -82,7 +82,7 @@ class _HomePageState extends State<HomePage> {
         Uri.parse("$api/api/myskates/user/follow/sent/"),
         headers: {"Authorization": "Bearer $token"},
       );
-      print("PENDING: ${rPending.body}");
+      print("PENDINGGG: ${rPending.body}");
 
       if (rPending.statusCode == 200) {
         final dataPending = jsonDecode(rPending.body);
