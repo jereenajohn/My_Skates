@@ -56,33 +56,30 @@ class _CoachFollowingListState extends State<CoachFollowingList> {
       loading = false;
     }
   }
-Future<void> unfollowUser(int followingUserId) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
 
-    final response = await http.post(
-      Uri.parse("$api/api/myskates/user/follow/remove/follower/"),
-      headers: {"Authorization": "Bearer $token"},
-      body: {
-        "follower_id": followingUserId.toString(),
-      },
-    );
+  Future<void> unfollowUser(int followingUserId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
 
-    print("UNFOLLOW STATUS: ${response.statusCode}");
-    print("UNFOLLOW BODY: ${response.body}");
+      final response = await http.post(
+        Uri.parse("$api/api/myskates/user/follow/remove/follower/"),
+        headers: {"Authorization": "Bearer $token"},
+        body: {"follower_id": followingUserId.toString()},
+      );
 
-    if (response.statusCode == 200 || response.statusCode == 204) {
-      setState(() {
-        following.removeWhere(
-          (f) => f["following"] == followingUserId,
-        );
-      });
+      print("UNFOLLOW STATUS: ${response.statusCode}");
+      print("UNFOLLOW BODY: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        setState(() {
+          following.removeWhere((f) => f["following"] == followingUserId);
+        });
+      }
+    } catch (e) {
+      print("UNFOLLOW ERROR: $e");
     }
-  } catch (e) {
-    print("UNFOLLOW ERROR: $e");
   }
-}
 
   // ------------------------------------------------------------
   // UI
@@ -130,9 +127,9 @@ Future<void> unfollowUser(int followingUserId) async {
                     style: TextStyle(color: Colors.white54, fontSize: 13),
                   ),
                   trailing: OutlinedButton(
-                   onPressed: () {
-  unfollowUser(f["following"]);
-},
+                    onPressed: () {
+                      unfollowUser(f["following"]);
+                    },
 
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Colors.white),
