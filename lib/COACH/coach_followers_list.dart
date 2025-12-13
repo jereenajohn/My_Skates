@@ -14,7 +14,11 @@ class CoachFollowersList extends StatefulWidget {
 class _CoachFollowersListState extends State<CoachFollowersList> {
   bool loading = true;
   bool noData = false;
-  List followers = [];
+
+  /// Normalized followers list
+  /// Each item will have:
+  /// id, first_name, last_name, profile, user_type
+  List<Map<String, dynamic>> followers = [];
 
   @override
   void initState() {
@@ -22,7 +26,9 @@ class _CoachFollowersListState extends State<CoachFollowersList> {
     fetchCoachFollowers();
   }
 
-  // 🔹 Fetch followers of logged-in coach
+  // ------------------------------------------------------------
+  // FETCH FOLLOWERS
+  // ------------------------------------------------------------
   Future<void> fetchCoachFollowers() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -38,15 +44,24 @@ class _CoachFollowersListState extends State<CoachFollowersList> {
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        if (decoded is List) {
-          setState(() {
-            followers = decoded
-                .where((f) => f["status"] == "approved")
-                .toList();
-            noData = followers.isEmpty;
-            loading = false;
-          });
-        }
+        final List raw = decoded["data"] ?? [];
+
+        /// 🔹 Normalize API response here
+        final List<Map<String, dynamic>> normalized = raw.map((e) {
+          return {
+            "id": e["follower__id"],
+            "first_name": e["follower__first_name"],
+            "last_name": e["follower__last_name"],
+            "profile": e["follower__profile"],
+            "user_type": e["follower__user_type"],
+          };
+        }).where((e) => e["id"] != null).toList();
+
+        setState(() {
+          followers = normalized;
+          noData = followers.isEmpty;
+          loading = false;
+        });
       } else {
         setState(() {
           noData = true;
@@ -62,7 +77,9 @@ class _CoachFollowersListState extends State<CoachFollowersList> {
     }
   }
 
-  // 🔹 Remove follower
+  // ------------------------------------------------------------
+  // REMOVE FOLLOWER
+  // ------------------------------------------------------------
   Future<void> removeFollower(int followerId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -81,7 +98,8 @@ class _CoachFollowersListState extends State<CoachFollowersList> {
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         setState(() {
-          followers.removeWhere((f) => f["follower"] == followerId);
+          followers.removeWhere((f) => f["id"] == followerId);
+          noData = followers.isEmpty;
         });
       }
     } catch (e) {
@@ -89,6 +107,9 @@ class _CoachFollowersListState extends State<CoachFollowersList> {
     }
   }
 
+  // ------------------------------------------------------------
+  // UI
+  // ------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -109,21 +130,27 @@ class _CoachFollowersListState extends State<CoachFollowersList> {
               ? const Center(
                   child: Text(
                     "No followers yet",
-                    style: TextStyle(color: Colors.white70),
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 )
-              : ListView.builder(
+              : ListView.separated(
                   itemCount: followers.length,
+                  separatorBuilder: (_, __) =>
+                      const Divider(color: Colors.white12, indent: 72),
                   itemBuilder: (_, i) =>
                       _buildFollowerTile(followers[i]),
                 ),
     );
   }
 
-  // 🔹 Instagram-style follower row
-  Widget _buildFollowerTile(Map follower) {
-    String name = follower["follower_name"] ?? "User";
-    int followerId = follower["follower"];
+  // ------------------------------------------------------------
+  // FOLLOWER TILE
+  // ------------------------------------------------------------
+  Widget _buildFollowerTile(Map<String, dynamic> follower) {
+    final int followerId = follower["id"];
+    final String name =
+        "${follower["first_name"] ?? ""} ${follower["last_name"] ?? ""}"
+            .trim();
 
     return ListTile(
       leading: const CircleAvatar(
@@ -131,12 +158,16 @@ class _CoachFollowersListState extends State<CoachFollowersList> {
         backgroundImage: AssetImage("lib/assets/img.jpg"),
       ),
       title: Text(
-        name,
-        style: const TextStyle(color: Colors.white, fontSize: 15),
+        name.isEmpty ? "User" : name,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      subtitle: const Text(
-        "Following you",
-        style: TextStyle(color: Colors.white54, fontSize: 12),
+      subtitle: Text(
+        follower["user_type"] ?? "",
+        style: const TextStyle(color: Colors.white54, fontSize: 12),
       ),
       trailing: OutlinedButton(
         onPressed: () {

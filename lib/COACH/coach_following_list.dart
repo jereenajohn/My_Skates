@@ -40,7 +40,8 @@ class _CoachFollowingListState extends State<CoachFollowingList> {
       print("==========================");
 
       if (res.statusCode == 200) {
-        final List raw = jsonDecode(res.body);
+        final decoded = jsonDecode(res.body); // Map<String, dynamic>
+        final List raw = decoded["data"] ?? [];
 
         setState(() {
           following = raw
@@ -63,9 +64,9 @@ class _CoachFollowingListState extends State<CoachFollowingList> {
       final token = prefs.getString("access");
 
       final response = await http.post(
-        Uri.parse("$api/api/myskates/user/follow/remove/follower/"),
+        Uri.parse("$api/api/myskates/user/unfollow/"),
         headers: {"Authorization": "Bearer $token"},
-        body: {"follower_id": followingUserId.toString()},
+      body: {"following_id": followingUserId.toString()},
       );
 
       print("UNFOLLOW STATUS: ${response.statusCode}");
@@ -73,7 +74,7 @@ class _CoachFollowingListState extends State<CoachFollowingList> {
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         setState(() {
-          following.removeWhere((f) => f["following"] == followingUserId);
+          following.removeWhere((f) => f["id"] == followingUserId);
         });
       }
     } catch (e) {
@@ -115,22 +116,21 @@ class _CoachFollowingListState extends State<CoachFollowingList> {
                     backgroundImage: AssetImage("lib/assets/img.jpg"),
                   ),
                   title: Text(
-                    f["following_name"] ?? "",
+                    "${f["first_name"] ?? ""} ${f["last_name"] ?? ""}",
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  subtitle: const Text(
-                    "Following",
-                    style: TextStyle(color: Colors.white54, fontSize: 13),
+                  subtitle: Text(
+                    f["user_type"] ?? "",
+                    style: const TextStyle(color: Colors.white54, fontSize: 13),
                   ),
                   trailing: OutlinedButton(
                     onPressed: () {
-                      unfollowUser(f["following"]);
+                      unfollowUser(f["id"]);
                     },
-
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Colors.white),
                       shape: RoundedRectangleBorder(
