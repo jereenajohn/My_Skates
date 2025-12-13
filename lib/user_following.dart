@@ -58,6 +58,37 @@ class _UserFollowingState extends State<UserFollowing> {
     }
   }
 
+
+  
+Future<void> unfollowUser(int followingUserId) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    final response = await http.post(
+      Uri.parse("$api/api/myskates/user/follow/remove/follower/"),
+      headers: {"Authorization": "Bearer $token"},
+      body: {
+        "follower_id": followingUserId.toString(),
+      },
+    );
+
+    print("UNFOLLOW STATUS: ${response.statusCode}");
+    print("UNFOLLOW BODY: ${response.body}");
+
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      setState(() {
+        following.removeWhere(
+          (f) => f["following"] == followingUserId,
+        );
+      });
+    }
+  } catch (e) {
+    print("UNFOLLOW ERROR: $e");
+  }
+}
+
+
   // ------------------------------------------------------------
   // UI
   // ------------------------------------------------------------
@@ -115,22 +146,21 @@ class _UserFollowingState extends State<UserFollowing> {
                         ),
                       ),
                       trailing: OutlinedButton(
-                        onPressed: () {
-                          // Optional: Unfollow API later
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side:
-                              const BorderSide(color: Colors.white24),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
-                          "Following",
-                          style:
-                              TextStyle(color: Colors.white70),
-                        ),
+                    onPressed: () {
+                      unfollowUser(f["following"]);
+                    },
+
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.white),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
+                    ),
+                    child: const Text(
+                      "Unfollow",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
                     );
                   },
                 ),
