@@ -6,7 +6,7 @@ import 'package:my_skates/ADMIN/add_product.dart';
 import 'package:my_skates/ADMIN/approve_coach.dart';
 import 'package:my_skates/ADMIN/menu.dart';
 import 'package:my_skates/api.dart';
-import 'package:my_skates/profile_page.dart';
+import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';

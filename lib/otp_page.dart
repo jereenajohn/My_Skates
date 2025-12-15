@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/COACH/waiting_page.dart';
-import 'package:my_skates/Home_Page.dart';
+import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/registeration_page.dart';

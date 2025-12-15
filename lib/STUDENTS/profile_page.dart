@@ -8,14 +8,14 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 
-class CoachProfile extends StatefulWidget {
-  const CoachProfile({super.key});
+class ProfilePage extends StatefulWidget {
+  const ProfilePage({super.key});
 
   @override
-  State<CoachProfile> createState() => _CoachProfileState();
+  State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _CoachProfileState extends State<CoachProfile> {
+class _ProfilePageState extends State<ProfilePage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   // Store IDs only
