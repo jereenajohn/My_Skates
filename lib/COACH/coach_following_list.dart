@@ -66,7 +66,7 @@ class _CoachFollowingListState extends State<CoachFollowingList> {
       final response = await http.post(
         Uri.parse("$api/api/myskates/user/unfollow/"),
         headers: {"Authorization": "Bearer $token"},
-      body: {"following_id": followingUserId.toString()},
+        body: {"following_id": followingUserId.toString()},
       );
 
       print("UNFOLLOW STATUS: ${response.statusCode}");

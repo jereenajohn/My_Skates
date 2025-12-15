@@ -57,16 +57,15 @@ class _UserFollowingState extends State<UserFollowing> {
       setState(() => loading = false);
     }
   }
-
-  Future<void> unfollowUser(int followingUserId) async {
+ Future<void> unfollowUser(int followingUserId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
 
       final response = await http.post(
-        Uri.parse("$api/api/myskates/user/follow/remove/follower/"),
+        Uri.parse("$api/api/myskates/user/unfollow/"),
         headers: {"Authorization": "Bearer $token"},
-        body: {"follower_id": followingUserId.toString()},
+      body: {"following_id": followingUserId.toString()},
       );
 
       print("UNFOLLOW STATUS: ${response.statusCode}");
@@ -74,7 +73,7 @@ class _UserFollowingState extends State<UserFollowing> {
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         setState(() {
-          following.removeWhere((f) => f["following"] == followingUserId);
+          following.removeWhere((f) => f["id"] == followingUserId);
         });
       }
     } catch (e) {
