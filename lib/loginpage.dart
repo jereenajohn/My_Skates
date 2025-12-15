@@ -42,7 +42,7 @@ class _LoginpageState extends State<Loginpage> {
 
       // SUCCESS CASE (STATUS 200 or 201 depending on your API)
       if (response.statusCode == 200 || response.statusCode == 201) {
-        _showMessage("OTP sent successfully");
+        _showMessage("OTP sent successfully ${response.body}");
 
         Navigator.push(
           context,

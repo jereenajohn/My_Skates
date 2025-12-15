@@ -74,18 +74,11 @@ class _CoachFollowRequestState extends State<CoachFollowRequest> {
 Future<void> confirmRequest(int index) async {
   final r = requests[index];
 
-  print("===== CONFIRM REQUEST =====");
-  print("INDEX: $index");
-  print("REQUEST ID: ${r["id"]}");
-  print("FOLLOWER ID: ${r["follower"]}");
-  print("CURRENT STATUS_UI: ${r["status_ui"]}");
-
   r["isLoading"] = true;
   setState(() {});
 
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString("access");
-  print("TOKEN: $token");
 
   final res = await http.post(
     Uri.parse("$api/api/myskates/user/follow/approve/"),
@@ -96,19 +89,28 @@ Future<void> confirmRequest(int index) async {
     },
   );
 
-  print("CONFIRM STATUS CODE: ${res.statusCode}");
-  print("CONFIRM RESPONSE BODY: ${res.body}");
-
   if (res.statusCode == 200) {
-    r["status_ui"] = "follow_back";
-    print("STATUS UPDATED → follow_back");
-  } else {
-    print("CONFIRM FAILED");
+    // 🔍 check if already following
+    final approvedRes = await http.get(
+      Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
+      headers: {"Authorization": "Bearer $token"},
+    );
+
+    if (approvedRes.statusCode == 200) {
+      final List approved = jsonDecode(approvedRes.body);
+      final approvedIds =
+          approved.map((e) => e["following"]).toSet();
+
+      if (approvedIds.contains(r["follower"])) {
+        requests.removeAt(index); // already mutual
+      } else {
+        r["status_ui"] = "follow_back";
+      }
+    }
   }
 
   r["isLoading"] = false;
   setState(() {});
-  print("===== CONFIRM END =====");
 }
 
 
@@ -118,17 +120,11 @@ Future<void> confirmRequest(int index) async {
 Future<void> followBack(int index) async {
   final r = requests[index];
 
-  print("===== FOLLOW BACK =====");
-  print("INDEX: $index");
-  print("FOLLOWING USER ID: ${r["follower"]}");
-  print("CURRENT STATUS_UI: ${r["status_ui"]}");
-
   r["isLoading"] = true;
   setState(() {});
 
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString("access");
-  print("TOKEN: $token");
 
   final res = await http.post(
     Uri.parse("$api/api/myskates/user/follow/request/"),
@@ -138,21 +134,22 @@ Future<void> followBack(int index) async {
     },
   );
 
-  print("FOLLOW BACK STATUS CODE: ${res.statusCode}");
-  print("FOLLOW BACK RESPONSE BODY: ${res.body}");
-
   if (res.statusCode == 200 || res.statusCode == 201) {
-    r["status_ui"] = "requested";
-    print("STATUS UPDATED → requested");
-  } else {
-    print("FOLLOW BACK FAILED");
+    final data = jsonDecode(res.body);
+
+    /// 🔑 IMPORTANT LOGIC
+    if (data["status"] == "approved") {
+      // Already following
+      r["status_ui"] = "following";
+    } else {
+      // Request newly sent
+      r["status_ui"] = "requested";
+    }
   }
 
   r["isLoading"] = false;
   setState(() {});
-  print("===== FOLLOW BACK END =====");
 }
-
 
   // ------------------------------------------------------------
   // REJECT REQUEST
