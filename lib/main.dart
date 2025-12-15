@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/ADMIN/dashboard.dart';
-import 'package:my_skates/Home_Page.dart';
+import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/loginpage.dart';
 
 void main() {

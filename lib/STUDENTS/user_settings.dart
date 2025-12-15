@@ -1,23 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:my_skates/COACH/add_club.dart';
-import 'package:my_skates/COACH/coach_add_events.dart';
-import 'package:my_skates/COACH/coach_follow_request.dart';
-import 'package:my_skates/COACH/coach_followers_list.dart';
-import 'package:my_skates/COACH/coach_following_list.dart';
-import 'package:my_skates/COACH/coach_profile.dart';
-import 'package:my_skates/COACH/view_clubs.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart'; // <-- Navigation Target Example
+import 'package:my_skates/STUDENTS/user_follow_requests.dart';
+import 'package:my_skates/STUDENTS/user_followers_list.dart';
+import 'package:my_skates/STUDENTS/user_following.dart';
+import 'package:my_skates/STUDENTS/user_view_events.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class CoachSettings extends StatefulWidget {
-  const CoachSettings({super.key});
+class UserSettings extends StatefulWidget {
+  const UserSettings({super.key});
 
   @override
-  State<CoachSettings> createState() => _CoachSettingsState();
+  State<UserSettings> createState() => _UserSettingsState();
 }
 
-class _CoachSettingsState extends State<CoachSettings> {
+class _UserSettingsState extends State<UserSettings> {
   @override
   void initState() {
     super.initState();
@@ -133,7 +130,7 @@ class _CoachSettingsState extends State<CoachSettings> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const CoachProfile()),
+                    MaterialPageRoute(builder: (_) => const ProfilePage()),
                   );
                 },
               ),
@@ -155,66 +152,57 @@ class _CoachSettingsState extends State<CoachSettings> {
               _divider(),
               _menuTile(
                 icon: Icons.home,
-                text: "Add Club",
+                text: "View Events",
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const AddClub()),
+                    MaterialPageRoute(builder: (_) => const UserViewEvents()),
                   );
                 },
               ),
               _divider(),
-               _menuTile(
-                icon: Icons.home,
-                text: "View Club",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ViewClubs()),
-                  );
-                },
-              ),
-              _divider(),
-               _menuTile(
+
+              _menuTile(
                 icon: Icons.home,
                 text: "Follow Requests",
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const CoachFollowRequest()),
+                    MaterialPageRoute(
+                      builder: (_) => const StudentFollowRequest(),
+                    ),
                   );
                 },
               ),
               _divider(),
 
-                _menuTile(
+              _menuTile(
                 icon: Icons.home,
                 text: "Followers",
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const CoachFollowersList()),
+                    MaterialPageRoute(
+                      builder: (_) => const UserFollowersList(),
+                    ),
                   );
                 },
               ),
               _divider(),
-
-   _menuTile(
+              _menuTile(
                 icon: Icons.home,
                 text: "Following",
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const CoachFollowingList()),
+                    MaterialPageRoute(builder: (_) => const UserFollowing()),
                   );
                 },
               ),
               _divider(),
 
-
               _menuTile(icon: Icons.show_chart_outlined, text: "Your activity"),
               _divider(),
-              
               _menuTile(
                 icon: Icons.notifications_outlined,
                 text: "Notifications",
