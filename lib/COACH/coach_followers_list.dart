@@ -48,7 +48,7 @@ class _CoachFollowersListState extends State<CoachFollowersList> {
 
         /// 🔹 Normalize API response here
         final List<Map<String, dynamic>> normalized = raw.map((e) {
-          return {
+          return { 
             "id": e["follower__id"],
             "first_name": e["follower__first_name"],
             "last_name": e["follower__last_name"],
