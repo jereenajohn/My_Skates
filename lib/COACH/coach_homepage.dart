@@ -9,7 +9,6 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 
-
 class CoachHomepage extends StatefulWidget {
   const CoachHomepage({super.key});
 
@@ -22,12 +21,28 @@ class _CoachHomepageState extends State<CoachHomepage> {
   String studentRole = "";
   String? studentImage;
   bool isLoading = true;
+  List<Map<String, dynamic>> students = [];
+  bool studentsLoading = true;
+  bool studentsNoData = false;
+
+  // FOLLOW STATUS (same as user homepage)
+  List<int> myFollowing = [];
+  List<int> myRequests = [];
+  List<int> myApprovedSent = [];
+  bool followLoaded = false;
 
   @override
-  initState() {
+  void initState() {
     super.initState();
-    fetchStudentDetails();
+    fetchcoachDetails();
     getbanner();
+
+    loadEverything();
+  }
+
+  Future<void> loadEverything() async {
+    await fetchFollowStatus();
+    await fetchStudents();
   }
 
   Future<String?> getToken() async {
@@ -40,7 +55,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
     return prefs.getInt("id");
   }
 
-  Future<void> fetchStudentDetails() async {
+  Future<void> fetchcoachDetails() async {
     try {
       String? token = await getToken();
       int? userId = await getUserId();
@@ -85,7 +100,169 @@ class _CoachHomepageState extends State<CoachHomepage> {
     }
   }
 
-  
+  Future<void> fetchStudents() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/student/details/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      print("FETCH STUDENTS STATUS: ${response.statusCode}");
+      print("FETCH STUDENTS BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+
+        setState(() {
+          students = data
+              .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+              .toList();
+          studentsNoData = students.isEmpty;
+          studentsLoading = false;
+        });
+      } else {
+        studentsNoData = true;
+        studentsLoading = false;
+        setState(() {});
+      }
+    } catch (e) {
+      print("FETCH STUDENTS ERROR: $e");
+      studentsNoData = true;
+      studentsLoading = false;
+      setState(() {});
+    }
+  }
+
+  Future<void> fetchFollowStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      // Pending sent requests
+      final rPending = await http.get(
+        Uri.parse("$api/api/myskates/user/follow/sent/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      if (rPending.statusCode == 200) {
+        final data = jsonDecode(rPending.body);
+        myRequests = List<int>.from((data as List).map((e) => e["following"]));
+      }
+
+      // Approved sent requests
+      final rApproved = await http.get(
+        Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      if (rApproved.statusCode == 200) {
+        final data = jsonDecode(rApproved.body);
+        myApprovedSent = List<int>.from(
+          (data as List).map((e) => e["following"]),
+        );
+      }
+
+      followLoaded = true;
+      setState(() {});
+    } catch (e) {
+      print("COACH FOLLOW STATUS ERROR: $e");
+    }
+  }
+Future<void> followStudent(int studentId) async {
+  try {
+    print("➡️ followStudent() called with studentId=$studentId");
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    final response = await http.post(
+      Uri.parse("$api/api/myskates/user/follow/request/"),
+      headers: {"Authorization": "Bearer $token"},
+      body: {"following_id": studentId.toString()},
+    );
+
+    print("📡 FOLLOW API STATUS: ${response.statusCode}");
+    print("📡 FOLLOW API BODY: ${response.body}");
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final decoded = jsonDecode(response.body);
+
+      print("🔍 FOLLOW RESPONSE PARSED: $decoded");
+
+      if (decoded["status"] == "pending") {
+        setState(() {
+          if (!myRequests.contains(studentId)) {
+            myRequests.add(studentId);
+          }
+        });
+        print("🟡 STATE UPDATE → myRequests=$myRequests");
+      }
+
+      if (decoded["status"] == "approved") {
+        setState(() {
+          myApprovedSent.add(studentId);
+          myRequests.remove(studentId);
+        });
+        print("🟢 STATE UPDATE → myApprovedSent=$myApprovedSent");
+      }
+    }
+  } catch (e) {
+    print("❌ FOLLOW STUDENT ERROR: $e");
+  }
+}
+
+Future<void> cancelPendingRequest(int userId) async {
+  print("➡️ cancelPendingRequest() called for userId=$userId");
+
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+
+  final response = await http.post(
+    Uri.parse('$api/api/myskates/user/follow/cancel/'),
+    headers: {"Authorization": "Bearer $token"},
+    body: {"following_id": userId.toString()},
+  );
+
+  print("📡 CANCEL REQUEST STATUS: ${response.statusCode}");
+  print("📡 CANCEL REQUEST BODY: ${response.body}");
+
+  setState(() {
+    myRequests.remove(userId);
+  });
+
+  print("🧹 STATE UPDATE → myRequests=$myRequests");
+}
+
+ Future<void> unfollowUser(int userId) async {
+  print("➡️ unfollowUser() called for userId=$userId");
+
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+
+  final response = await http.post(
+    Uri.parse('$api/api/myskates/user/unfollow/'),
+    headers: {"Authorization": "Bearer $token"},
+    body: {"following_id": userId.toString()},
+  );
+
+  print("📡 UNFOLLOW STATUS: ${response.statusCode}");
+  print("📡 UNFOLLOW BODY: ${response.body}");
+
+  setState(() {
+    myFollowing.remove(userId);
+    myApprovedSent.remove(userId);
+    myRequests.remove(userId);
+  });
+
+  print("🧹 STATE UPDATE → myFollowing=$myFollowing");
+}
+
   List<Map<String, dynamic>> banner = [];
 
   Future<void> getbanner() async {
@@ -123,7 +300,6 @@ class _CoachHomepageState extends State<CoachHomepage> {
       }
     } catch (error) {}
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -206,7 +382,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                   Container(
+                    Container(
                       height: 160,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(14),
@@ -435,6 +611,48 @@ class _CoachHomepageState extends State<CoachHomepage> {
                     ),
 
                     const SizedBox(height: 20),
+
+                    const Text(
+                      "Suggested Students",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 190,
+                      child: studentsLoading
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            )
+                          : studentsNoData
+                          ? const Center(
+                              child: Text(
+                                "No students found",
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            )
+                          : ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: students.length,
+                              itemBuilder: (_, i) => StudentFollowCard(
+                                student: students[i],
+                                myFollowing: myFollowing,
+                                myRequests: myRequests,
+                                myApprovedSent: myApprovedSent,
+                                onFollow: followStudent,
+                                onCancelPending: cancelPendingRequest,
+                                onUnfollow: unfollowUser,
+                                refreshParent: () => setState(() {}),
+                              ),
+                            ),
+                    ),
+
+                    SizedBox(height: 20),
 
                     buildEventCard(
                       clubName: "Langham Skating Club",
@@ -851,4 +1069,242 @@ Widget buildCoachCard({
       ],
     ),
   );
+}
+
+class SimpleStudentCard extends StatelessWidget {
+  final Map<String, dynamic> student;
+  final VoidCallback onFollow;
+
+  const SimpleStudentCard({
+    super.key,
+    required this.student,
+    required this.onFollow,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final String name =
+        "${student["first_name"] ?? ""} ${student["last_name"] ?? ""}";
+    final String standard = student["standard"] ?? "";
+    final String institution = student["institution"] ?? "";
+
+    return Container(
+      width: 150,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircleAvatar(
+            radius: 26,
+            backgroundImage: AssetImage("lib/assets/img.jpg"),
+          ),
+          const SizedBox(height: 8),
+
+          Text(
+            name.trim(),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+
+          const SizedBox(height: 2),
+
+          Text(
+            institution,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+
+          Text(
+            standard.isNotEmpty ? "Class $standard" : "",
+            style: const TextStyle(color: Colors.white54, fontSize: 11),
+          ),
+
+          const SizedBox(height: 10),
+
+          SizedBox(
+            width: double.infinity,
+            height: 32,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00AFA5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: EdgeInsets.zero,
+              ),
+              onPressed: onFollow,
+              child: const Text(
+                "Follow",
+                style: TextStyle(fontSize: 13, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class StudentFollowCard extends StatefulWidget {
+  final Map student;
+  final List<int> myFollowing;
+  final List<int> myRequests;
+  final List<int> myApprovedSent;
+
+  final Function(int) onFollow;
+  final Function(int) onCancelPending;
+  final Function(int) onUnfollow;
+  final Function() refreshParent;
+
+  const StudentFollowCard({
+    super.key,
+    required this.student,
+    required this.myFollowing,
+    required this.myRequests,
+    required this.myApprovedSent,
+    required this.onFollow,
+    required this.onCancelPending,
+    required this.onUnfollow,
+    required this.refreshParent,
+  });
+
+  @override
+  State<StudentFollowCard> createState() => _StudentFollowCardState();
+}
+
+class _StudentFollowCardState extends State<StudentFollowCard> {
+  @override
+  Widget build(BuildContext context) {
+    final student = widget.student;
+    final int userId = student["id"];
+
+    String name = "${student['first_name'] ?? ''} ${student['last_name'] ?? ''}"
+        .trim();
+    if (name.isEmpty) name = "Student";
+
+    String standard = student["standard"] != null
+        ? "Class ${student["standard"]}"
+        : "Student";
+
+    String imageUrl =
+        student["profile"] != null && student["profile"].toString().isNotEmpty
+        ? "$api${student["profile"]}"
+        : "";
+
+    return Container(
+      width: 160,
+      margin: const EdgeInsets.only(right: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundImage: imageUrl.isNotEmpty
+                ? NetworkImage(imageUrl)
+                : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+          ),
+
+          const SizedBox(height: 8),
+
+          Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white, fontSize: 15),
+          ),
+
+          const SizedBox(height: 2),
+
+          Text(
+            standard,
+            style: const TextStyle(color: Colors.white60, fontSize: 12),
+          ),
+
+          const Spacer(),
+
+          SizedBox(
+            width: double.infinity,
+            height: 34,
+            child: _buildButton(userId),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildButton(int userId) {
+    if (widget.myFollowing.contains(userId)) {
+      return _followingBtn(userId);
+    }
+
+    if (widget.myApprovedSent.contains(userId)) {
+      return _followingBtn(userId);
+    }
+
+    if (widget.myRequests.contains(userId)) {
+      return _requestedBtn(userId);
+    }
+
+    return _followBtn(userId);
+  }
+
+Widget _followBtn(int userId) {
+  return ElevatedButton(
+    onPressed: () async {
+      print("🟢 FOLLOW BUTTON CLICKED → userId=$userId");
+      await widget.onFollow(userId);
+      widget.refreshParent();
+    },
+    style: ElevatedButton.styleFrom(
+      backgroundColor: const Color(0xFF00AFA5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    child: const Text("Follow", style: TextStyle(color: Colors.white)),
+  );
+}
+Widget _requestedBtn(int userId) {
+  return OutlinedButton(
+    onPressed: () async {
+      print("🟡 REQUESTED BUTTON CLICKED (CANCEL) → userId=$userId");
+      await widget.onCancelPending(userId);
+      widget.refreshParent();
+    },
+    style: OutlinedButton.styleFrom(
+      side: const BorderSide(color: Colors.white),
+    ),
+    child: const Text("Requested", style: TextStyle(color: Colors.white)),
+  );
+}
+
+ Widget _followingBtn(int userId) {
+  return OutlinedButton(
+    onPressed: () async {
+      print("🔴 FOLLOWING BUTTON CLICKED (UNFOLLOW) → userId=$userId");
+      await widget.onUnfollow(userId);
+      widget.refreshParent();
+    },
+    style: OutlinedButton.styleFrom(
+      side: const BorderSide(color: Colors.white),
+    ),
+    child: const Text("Following", style: TextStyle(color: Colors.white)),
+  );
+}
 }
