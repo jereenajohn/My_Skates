@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/profile_page.dart';
@@ -34,15 +37,30 @@ class _CoachHomepageState extends State<CoachHomepage> {
   List coaches = [];
   bool coachesLoading = true;
   bool coachesNoData = false;
+  int followRequestCount = 0;
+
+  late final Timer _timer;
 
   @override
   void initState() {
     super.initState();
     fetchcoachDetails();
     getbanner();
+    fetchFollowRequestCount();
 
     loadEverything();
+     _timer = Timer.periodic(
+    const Duration(seconds: 15),
+    (_) => fetchFollowRequestCount(),
+  );
   }
+
+  
+@override
+void dispose() {
+  _timer.cancel();
+  super.dispose();
+}
 
   Future<void> loadEverything() async {
     await fetchFollowStatus();
@@ -59,6 +77,23 @@ class _CoachHomepageState extends State<CoachHomepage> {
   Future<int?> getUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getInt("id");
+  }
+
+  Future<void> fetchFollowRequestCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    final res = await http.get(
+      Uri.parse("$api/api/myskates/user/follow/requests/"),
+      headers: {"Authorization": "Bearer $token"},
+    );
+
+    if (res.statusCode == 200) {
+      final List data = jsonDecode(res.body);
+      setState(() {
+        followRequestCount = data.length;
+      });
+    }
   }
 
   Future<void> fetchcoachDetails() async {
@@ -442,12 +477,52 @@ class _CoachHomepageState extends State<CoachHomepage> {
                     ),
 
                     const Spacer(),
-                    IconButton(
-                      onPressed: () {},
-                      icon: const Icon(
-                        Icons.notifications_active,
-                        color: Colors.tealAccent,
-                      ),
+                    Stack(
+                      children: [
+                        IconButton(
+                          onPressed: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const CoachActivityPage(),
+                              ),
+                            );
+
+                            // 🔁 Refresh count when coming back
+                            fetchFollowRequestCount();
+                          },
+                          icon: const Icon(
+                            Icons.notifications_none,
+                            color: Colors.tealAccent,
+                          ),
+                        ),
+
+                        if (followRequestCount > 0)
+                          Positioned(
+                            right: 6,
+                            top: 6,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 18,
+                                minHeight: 18,
+                              ),
+                              child: Text(
+                                followRequestCount.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
