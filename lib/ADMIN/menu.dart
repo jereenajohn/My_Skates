@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/add_category.dart';
 import 'package:my_skates/ADMIN/add_country.dart';
 import 'package:my_skates/ADMIN/add_district.dart';
+import 'package:my_skates/ADMIN/add_product_banner.dart';
 import 'package:my_skates/ADMIN/add_state.dart';
 import 'package:my_skates/COACH/add_club.dart';
 import 'package:my_skates/loginpage.dart';
@@ -161,7 +162,14 @@ Future<void> logoutUser() async {
                 },
                 child: _menuTile(icon: Icons.show_chart_outlined, text: "Your activity")),
               _divider(),
-              _menuTile(icon: Icons.notifications_outlined, text: "Notifications"),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AddproductBanner()),
+                  );
+                },
+                child: _menuTile(icon: Icons.notifications_outlined, text: "Product Banner")),
               _divider(),
               _menuTile(icon: Icons.access_time, text: "Time management"),
               _divider(),
