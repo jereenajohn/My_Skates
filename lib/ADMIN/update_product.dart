@@ -2,20 +2,22 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:my_skates/Home_Page.dart';
 import 'package:my_skates/api.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 
-class AddProduct extends StatefulWidget {
-  const AddProduct({super.key});
+class UpdateProduct extends StatefulWidget {
+  var productId;
+  UpdateProduct({super.key,required this.productId});
 
   @override
-  State<AddProduct> createState() => _AddProductState();
+  State<UpdateProduct> createState() => _UpdateProductState();
 }
 
-class _AddProductState extends State<AddProduct> {
+class _UpdateProductState extends State<UpdateProduct> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   // Store IDs only
@@ -47,12 +49,45 @@ class _AddProductState extends State<AddProduct> {
   }
   Future<void> loadAllData() async {
 
+    getproductDetails();
+
     await fetchcategory();
-    await fetchProfileData();
+   // await fetchProfileData();
     setState(() {});
   }
 
  
+ Future<void> getproductDetails() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    final res = await http.get(
+      Uri.parse("$api/api/myskates/products/update/${widget.productId}/"),
+      headers: {"Authorization": "Bearer $token"},
+    );
+
+    if (res.statusCode == 200) {
+      final json = jsonDecode(res.body);
+      final data = json["data"]; // ✅ IMPORTANT
+
+      setState(() {
+        titleCtrl.text = data["title"] ?? "";
+        descriptionCtrl.text = data["description"] ?? "";
+        priceCtrl.text = data["price"]?.toString() ?? "";
+
+        selectedState = data["category"]?.toString();
+
+        // show existing image
+        if (data["image"] != null && data["image"] != "") {
+          profileNetworkImage = "$api${data["image"]}";
+        }
+      });
+    }
+  } catch (e) {
+    debugPrint("Error in getproductDetails: $e");
+  }
+}
 
   Future<void> fetchcategory() async {
     try {
@@ -117,7 +152,7 @@ print("res.body:;;;;;;;;;;;;: ${res.body}");
       return;
     }
 
-    if(profileImage == null){
+    if(profileImage == null && profileNetworkImage == null){
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please select an image.")),
       );
@@ -127,8 +162,8 @@ print("res.body:;;;;;;;;;;;;: ${res.body}");
 
 
     var request = http.MultipartRequest(
-      "POST",
-      Uri.parse("$api/api/myskates/products/add/"),
+      "PUT",
+      Uri.parse("$api/api/myskates/products/update/${widget.productId}/"),
     );
 
     request.headers["Authorization"] = "Bearer $token";
@@ -162,10 +197,9 @@ print("res.body:;;;;;;;;;;;;: ${res.body}");
         const SnackBar(content: Text("Product added successfully!")),
       );
 
-      // Go back to home
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const AddProduct()),
+        MaterialPageRoute(builder: (context) =>  DashboardPage()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -185,7 +219,9 @@ print("res.body:;;;;;;;;;;;;: ${res.body}");
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: Colors.transparent,   // IMPORTANT
+        backgroundColor: const Color.fromARGB(255, 0, 0, 0), 
+  resizeToAvoidBottomInset: false,
+  extendBody: true,  // IMPORTANT
   extendBodyBehindAppBar: true,  
       body: Container(
         decoration: const BoxDecoration(
@@ -195,7 +231,9 @@ print("res.body:;;;;;;;;;;;;: ${res.body}");
           ),
         ),
         child: SafeArea(
+           bottom: false, 
           child: SingleChildScrollView(
+             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.all(20),
             child: Form(
               key: _formKey,
@@ -249,32 +287,41 @@ SizedBox(height: 20),
     ),
 
     // SHOW IMAGE IF SELECTED
-    child: profileImage == null
-        ? Center(
+   child: profileImage != null
+    ? ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: Image.file(
+          profileImage!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+        ),
+      )
+    : profileNetworkImage != null
+        ? ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: Image.network(
+              profileNetworkImage!,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            ),
+          )
+        : Center(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: const Color.fromARGB(244, 55, 55, 55),
                 borderRadius: BorderRadius.circular(25),
               ),
               child: const Text(
                 "Upload Image",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: Colors.white, fontSize: 16),
               ),
             ),
-          )
-        : ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: Image.file(
-              profileImage!,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-            ),
           ),
+
   ),
 ),
 
@@ -335,14 +382,14 @@ SizedBox(height: 20),
                       onPressed: () {
                         if (!_formKey.currentState!.validate()) return;
 
-                        if (dob == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Date of Birth is required"),
-                            ),
-                          );
-                          return;
-                        }
+                        // if (dob == null) {
+                        //   ScaffoldMessenger.of(context).showSnackBar(
+                        //     const SnackBar(
+                        //       content: Text("Date of Birth is required"),
+                        //     ),
+                        //   );
+                        //   return;
+                        // }
 
                        submitProduct();
                       },

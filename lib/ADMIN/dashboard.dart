@@ -5,6 +5,8 @@ import 'package:my_skates/ADMIN/add_banner.dart';
 import 'package:my_skates/ADMIN/add_product.dart';
 import 'package:my_skates/ADMIN/approve_coach.dart';
 import 'package:my_skates/ADMIN/menu.dart';
+import 'package:my_skates/ADMIN/productapprove_tab.dart';
+import 'package:my_skates/ADMIN/user_approved_products.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/profile_page.dart';
 import 'dart:convert';
@@ -532,6 +534,22 @@ class _DashboardPageState extends State<DashboardPage> {
               context,
               MaterialPageRoute(
                 builder: (context) => const AddProduct(),
+              ),
+            );
+          }
+          if(title =="Find Events"){
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ProductapproveTab(),
+              ),
+            );
+          }
+          if(title =="Find Clubs"){
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const UserApprovedProducts(),
               ),
             );
           }

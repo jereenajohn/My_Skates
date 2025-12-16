@@ -10,20 +10,21 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
 
-class AddBanner extends StatefulWidget {
-  const AddBanner({super.key});
+class AddproductBanner extends StatefulWidget {
+  const AddproductBanner({super.key});
 
   @override
-  State<AddBanner> createState() => _AddBannerState();
+  State<AddproductBanner> createState() => _AddproductBannerState();
 }
 
-class _AddBannerState extends State<AddBanner> {
+class _AddproductBannerState extends State<AddproductBanner> {
   // Controllers
   final TextEditingController bannerNameCtrl = TextEditingController();
- int? editingBannerId;
-String? existingBannerImage;
+ 
 XFile? pickedImage;
 final ImagePicker picker = ImagePicker();
+int? editingBannerId;
+String? existingBannerImage;
 
   @override
   void initState() {
@@ -41,175 +42,6 @@ Future<void> pickImageFromGallery() async {
   }
 }
 
-bool validateForm() {
-  // Banner Name Validation
-  if (bannerNameCtrl.text.trim().isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text("Banner Name is required"),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    return false;
-  }
-
-  // IMAGE VALIDATION → ONLY WHEN CREATING
-  if (editingBannerId == null && pickedImage == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text("Please upload a banner image"),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    return false;
-  }
-
-  return true; // All good
-}
-
-
- Future<void> deleteBanner(int id) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-
-  var response = await http.delete(
-    Uri.parse("$api/api/myskates/banner/$id/"),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    },
-  );
-
-  if (response.statusCode == 200) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Banner Deleted"), backgroundColor: Colors.green),
-    );
-    getBanner();
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Delete Failed"), backgroundColor: Colors.red),
-    );
-  }
-}
-Future<void> updateBanner() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-
-    var url = Uri.parse("$api/api/myskates/banner/$editingBannerId/");
-    var request = http.MultipartRequest("PUT", url);
-
-    request.headers["Authorization"] = "Bearer $token";
-
-    request.fields["title"] = bannerNameCtrl.text.trim();
-
-    if (pickedImage != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath("image", pickedImage!.path),
-      );
-    }
-
-    var response = await request.send();
-    var responseBody = await response.stream.bytesToString();
-
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Banner Updated Successfully!"),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      // RESET FORM
-      setState(() {
-        editingBannerId = null;
-        existingBannerImage = null;
-        pickedImage = null;
-        bannerNameCtrl.clear();
-      });
-
-      getBanner();   // REFRESH LIST
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Update Failed: $responseBody"),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  } catch (e) {
-    print("UPDATE ERROR: $e");
-  }
-}
-
-
-Future<void> submitClub() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-    final id = prefs.getInt("id");
-
-
-    if (token == null) {
-      print("No TOKEN found");
-      return;
-    }
-
-    var url = Uri.parse("$api/api/myskates/banner/"); // Replace with actual endpoint
-
-    var request = http.MultipartRequest("POST", url);
-    request.headers["Authorization"] = "Bearer $token";
-
-    // Add all text fields
-    request.fields.addAll({
-      "title": bannerNameCtrl.text.trim(),
-    });
-
-    // Upload image if selected
-    if (pickedImage != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          "image",           // backend field name
-          pickedImage!.path,
-        ),
-      );
-    }
-
-    print("Sending request...");
-    var response = await request.send();
-
-    var responseBody = await response.stream.bytesToString();
-    print("STATUS CODE: ${response.statusCode}");
-    print("RESPONSE: $responseBody");
-
-   if (response.statusCode == 200 || response.statusCode == 201) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: const Text("Banner Created Successfully!"),
-      backgroundColor: Colors.green,     // SUCCESS GREEN
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ),
-  );
-  Navigator.push(context, MaterialPageRoute(builder: (context) => const AddBanner()));
-} else {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text("Failed: $responseBody"),
-      backgroundColor: Colors.red,       // ERROR RED
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ),
-  );
-}
-
-  } catch (e) {
-    print("UPLOAD ERROR: $e");
-  }
-}
-
 
  List<Map<String, dynamic>> Banner = [];
 
@@ -219,7 +51,7 @@ Future<void> submitClub() async {
       final token = prefs.getString("access");
 
       var response = await http.get(
-        Uri.parse('$api/api/myskates/banner/'),
+        Uri.parse('$api/api/myskates/product/banner/'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -257,6 +89,176 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
       
     }
   }
+
+  Future<void> deleteBanner(int id) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+
+  var response = await http.delete(
+    Uri.parse("$api/api/myskates/product/banner/edit/$id/"),
+    headers: {
+      "Authorization": "Bearer $token",
+      "Content-Type": "application/json",
+    },
+  );
+
+  if (response.statusCode == 200) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Banner Deleted"), backgroundColor: Colors.green),
+    );
+    getBanner();
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Delete Failed"), backgroundColor: Colors.red),
+    );
+  }
+}
+
+
+Future<void> submitClub() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+    final id = prefs.getInt("id");
+
+
+    if (token == null) {
+      print("No TOKEN found");
+      return;
+    }
+
+    var url = Uri.parse("$api/api/myskates/product/banner/"); // Replace with actual endpoint
+
+    var request = http.MultipartRequest("POST", url);
+    request.headers["Authorization"] = "Bearer $token";
+
+    // Add all text fields
+    request.fields.addAll({
+      "title": bannerNameCtrl.text.trim(),
+    });
+
+    // Upload image if selected
+    if (pickedImage != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          "image",           // backend field name
+          pickedImage!.path,
+        ),
+      );
+    }
+
+    print("Sending request...");
+    var response = await request.send();
+
+    var responseBody = await response.stream.bytesToString();
+    print("STATUS CODE: ${response.statusCode}");
+    print("RESPONSE: $responseBody");
+
+   if (response.statusCode == 200 || response.statusCode == 201) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: const Text("Banner Created Successfully!"),
+      backgroundColor: Colors.green,     // SUCCESS GREEN
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+  );
+  setState(() {
+  bannerNameCtrl.clear();
+  pickedImage = null;
+  existingBannerImage = null;
+  editingBannerId = null;
+});
+
+  Navigator.push(context, MaterialPageRoute(builder: (context) => const AddproductBanner()));
+} else {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text("Failed: $responseBody"),
+      backgroundColor: Colors.red,       // ERROR RED
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+  );
+}
+
+  } catch (e) {
+    print("UPLOAD ERROR: $e");
+  }
+}
+bool validateForm() {
+  // Banner Name Validation
+  if (bannerNameCtrl.text.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text("Banner Name is required"),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    return false;
+  }
+
+  // IMAGE VALIDATION → ONLY WHEN CREATING
+  if (editingBannerId == null && pickedImage == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text("Please upload a banner image"),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    return false;
+  }
+
+  return true; // All good
+}
+
+Future<void> updateBanner() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    var url = Uri.parse("$api/api/myskates/product/banner/edit/$editingBannerId/");
+    var request = http.MultipartRequest("PUT", url);
+
+    request.headers["Authorization"] = "Bearer $token";
+
+    request.fields["title"] = bannerNameCtrl.text.trim();
+
+    // Add image only if user selected a new one
+    if (pickedImage != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath("image", pickedImage!.path),
+      );
+    }
+
+    var response = await request.send();
+    var responseBody = await response.stream.bytesToString();
+
+    if (response.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Banner Updated Successfully!"), backgroundColor: Colors.green),
+      );
+
+      // Reset form
+      setState(() {
+        editingBannerId = null;
+        existingBannerImage = null;
+        pickedImage = null;
+        bannerNameCtrl.clear();
+      });
+
+      getBanner();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Update Failed: $responseBody"), backgroundColor: Colors.red),
+      );
+    }
+  } catch (e) {
+    print("UPDATE ERROR: $e");
+  }
+}
 
   // UI STARTS HERE
   @override
@@ -297,7 +299,7 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
                   ],
                 ),
 
-                const SizedBox(height: 15),
+                const SizedBox(height: 20),
 
                 // UPLOAD PHOTO
              Center(
@@ -305,25 +307,25 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
     children: [
       GestureDetector(
         onTap: pickImageFromGallery,
-        child: Container(
-          height: 110,
-          width: 110,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: const Color.fromARGB(157, 37, 37, 37),
-            image: pickedImage != null
+         child: Container(
+  height: 110,
+  width: 110,
+  decoration: BoxDecoration(
+    shape: BoxShape.circle,
+    color: const Color.fromARGB(157, 37, 37, 37),
+    image: pickedImage != null
         ? DecorationImage(image: FileImage(File(pickedImage!.path)), fit: BoxFit.cover)
         : existingBannerImage != null
             ? DecorationImage(image: NetworkImage(existingBannerImage!), fit: BoxFit.cover)
-                : null,
-          ),
+            : null,
+  ),
   child: pickedImage == null && existingBannerImage == null
       ? const Icon(Icons.camera_alt_outlined, color: Colors.white54, size: 40)
-              : null,
-        ),
+      : null,
+),
 
       ),
-      const SizedBox(height: 5),
+      const SizedBox(height: 8),
       const Text(
         "Upload Photo",
         style: TextStyle(color: Colors.white70, fontSize: 15),
@@ -332,26 +334,27 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
   ),
 ),
 
-                const SizedBox(height: 5),
+                const SizedBox(height: 15),
 
                 buildLabel("Banner Name"),
                 buildTextField(bannerNameCtrl),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 22),
 
                 // CREATE CLUB BUTTON
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
+                 onPressed: () {
   if (validateForm()) {
     if (editingBannerId == null) {
-      submitClub();   // CREATE MODE
+      submitClub();     // CREATE MODE
     } else {
-      updateBanner(); // UPDATE MODE
+      updateBanner();   // UPDATE MODE
     }
   }
-                    },
+},
+
 
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00C9B8),
@@ -360,24 +363,24 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                   child: Text(
+                    child: Text(
   editingBannerId == null ? "Submit" : "Update",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+  style: TextStyle(
+    color: Colors.white,
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+  ),
+),
 
                   ),
                 ),
 
-                 const SizedBox(height: 20),
+               const SizedBox(height: 20),
 
 Text(
   "Existing Banners",
   style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+),
 
 const SizedBox(height: 10),
 
@@ -387,6 +390,8 @@ Column(
     return bannerItem(item);
   }).toList(),
 ),
+
+
 
               ],
             ),
@@ -461,10 +466,10 @@ Widget bannerItem(Map<String, dynamic> item) {
                     child: Container(
                       padding: EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color.fromARGB(172, 0, 0, 0),
+                        color: Colors.black54,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.edit, color: const Color.fromARGB(255, 4, 255, 188), size: 20),
+                      child: Icon(Icons.edit, color: Colors.white, size: 20),
                     ),
                   ),
 
@@ -478,7 +483,7 @@ Widget bannerItem(Map<String, dynamic> item) {
                     child: Container(
                       padding: EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color.fromARGB(174, 0, 0, 0),
+                        color: Colors.black54,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(Icons.delete, color: Colors.redAccent, size: 20),
@@ -493,6 +498,7 @@ Widget bannerItem(Map<String, dynamic> item) {
     ),
   );
 }
+
   // LABEL WIDGET
   Widget buildLabel(String text) {
     return Padding(
