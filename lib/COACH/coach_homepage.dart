@@ -271,7 +271,7 @@ void dispose() {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final decoded = jsonDecode(response.body);
 
-        print("🔍 FOLLOW RESPONSE PARSED: $decoded");
+        print("🔍 FOLLOW RESPONSE PARSEDDD: $decoded");
 
         if (decoded["status"] == "pending") {
           setState(() {
