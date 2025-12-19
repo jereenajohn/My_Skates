@@ -488,7 +488,7 @@ void dispose() {
                               ),
                             );
 
-                            // 🔁 Refresh count when coming back
+                            // 🔁 Refresh count when coming backkkk
                             fetchFollowRequestCount();
                           },
                           icon: const Icon(
