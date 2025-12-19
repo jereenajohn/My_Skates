@@ -484,7 +484,7 @@ void dispose() {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const CoachActivityPage(),
+                                builder: (_) => const CoachNotificationPage(),
                               ),
                             );
 
