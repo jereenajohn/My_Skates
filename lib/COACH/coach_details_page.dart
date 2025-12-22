@@ -6,6 +6,8 @@ import 'package:my_skates/api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class CoachDetailsPage extends StatefulWidget {
   final int coachId;
@@ -19,11 +21,95 @@ class CoachDetailsPage extends StatefulWidget {
 class _CoachDetailsPageState extends State<CoachDetailsPage> {
   Map<String, dynamic>? coach;
   bool isLoading = true;
+  List<dynamic> coachFeeds = [];
+  bool feedLoading = true;
+
+  final TextEditingController feedController = TextEditingController();
+  List<File> feedImages = [];
 
   @override
   void initState() {
     super.initState();
     fetchCoachDetails();
+    fetchCoachFeeds();
+  }
+
+  Future<void> postFeed() async {
+    if (feedController.text.isEmpty && feedImages.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    var request = http.MultipartRequest(
+      "POST",
+      Uri.parse("$api/api/myskates/feeds/"),
+    );
+
+    request.headers["Authorization"] = "Bearer $token";
+    request.fields["description"] = feedController.text;
+
+    for (var img in feedImages) {
+      request.files.add(await http.MultipartFile.fromPath("images", img.path));
+    }
+
+    print("Posting Feed: ${request.fields}");
+    print("Total Images: ${request.files.length}");
+
+    final response = await request.send();
+
+    print("Feed Post Status: ${response.statusCode}");
+
+    if (response.statusCode == 201) {
+      feedController.clear();
+      feedImages.clear();
+      fetchCoachFeeds();
+    }
+  }
+
+  Future<void> addFeedImages() async {
+    final ImagePicker picker = ImagePicker();
+
+    final List<XFile>? pickedImages = await picker.pickMultiImage();
+
+    if (pickedImages != null && pickedImages.isNotEmpty) {
+      setState(() {
+        feedImages.addAll(pickedImages.map((xfile) => File(xfile.path)));
+      });
+    }
+  }
+
+  Future<void> fetchCoachFeeds() async {
+    try {
+      setState(() => feedLoading = true);
+
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final res = await http.get(
+        Uri.parse("$api/api/myskates/feeds/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      print("Feed Status: ${res.statusCode}");
+      print("Feed Body: ${res.body}");
+
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body);
+
+        setState(() {
+          coachFeeds = decoded["data"] ?? [];
+          feedLoading = false;
+        });
+      } else {
+        feedLoading = false;
+      }
+    } catch (e) {
+      print("Feed Error: $e");
+      feedLoading = false;
+    }
   }
 
   Future<void> fetchCoachDetails() async {
@@ -448,6 +534,291 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
                   time: "4h 54m",
                   distance: "89.05 km",
                 ),
+
+                const SizedBox(height: 40),
+
+                // ======================= FEED SECTION =======================
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Feeds",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // ------------------ FEED COMPOSER ------------------
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1A1A),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundImage: NetworkImage(
+                              fullImageUrl(coach?["profile"]),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              controller: feedController,
+                              style: const TextStyle(color: Colors.white),
+                              maxLines: 3,
+                              decoration: InputDecoration(
+                                hintText: "Share something...",
+                                hintStyle: const TextStyle(color: Colors.grey),
+                                filled: true,
+                                fillColor: const Color(0xFF262626),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      if (feedImages.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: feedImages.length,
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                crossAxisSpacing: 6,
+                                mainAxisSpacing: 6,
+                              ),
+                          itemBuilder: (context, index) {
+                            return Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    feedImages[index],
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        feedImages.removeAt(index);
+                                      });
+                                    },
+                                    child: const CircleAvatar(
+                                      radius: 11,
+                                      backgroundColor: Colors.black54,
+                                      child: Icon(
+                                        Icons.close,
+                                        size: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+
+                      const SizedBox(height: 10),
+
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.photo_library,
+                              color: Colors.grey,
+                            ),
+                            onPressed: addFeedImages,
+                          ),
+                          const Spacer(),
+                          ElevatedButton(
+                            onPressed: postFeed,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: const Text(
+                              "Post",
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // ------------------ FEED LIST ------------------
+                // ======================= FEED LIST =======================
+                feedLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      )
+                    : coachFeeds.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Text(
+                          "No feeds yet",
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      )
+                    : Column(
+                        children: coachFeeds.map((feed) {
+                          final List images = feed["feed_image"] ?? [];
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 18),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1A1A1A),
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // ---------------- HEADER ----------------
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 18,
+                                      backgroundImage: NetworkImage(
+                                        fullImageUrl(coach?["profile"]),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            "${coach?["first_name"] ?? ""} ${coach?["last_name"] ?? ""}",
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            feed["created_at"] ?? "",
+                                            style: const TextStyle(
+                                              color: Colors.grey,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                // ---------------- DESCRIPTION ----------------
+                                if (feed["description"] != null &&
+                                    feed["description"]
+                                        .toString()
+                                        .isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    feed["description"],
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ],
+
+                                // ---------------- IMAGE GRID ----------------
+                                if (images.isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  GridView.builder(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    itemCount: images.length,
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: images.length == 1
+                                              ? 1
+                                              : 2,
+                                          crossAxisSpacing: 6,
+                                          mainAxisSpacing: 6,
+                                        ),
+                                    itemBuilder: (context, index) {
+                                      final imgPath = images[index]["image"];
+
+                                      return ClipRRect(
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: Image.network(
+                                          fullImageUrl(imgPath),
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (c, e, s) => Container(
+                                            color: Colors.grey.shade800,
+                                            child: const Icon(
+                                              Icons.broken_image,
+                                              color: Colors.white54,
+                                              size: 40,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+
+                                const SizedBox(height: 12),
+
+                                // ---------------- ACTION BAR ----------------
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceAround,
+                                  children: const [
+                                    Icon(
+                                      Icons.thumb_up_alt_outlined,
+                                      color: Colors.grey,
+                                      size: 20,
+                                    ),
+                                    Icon(
+                                      Icons.mode_comment_outlined,
+                                      color: Colors.grey,
+                                      size: 20,
+                                    ),
+                                    Icon(
+                                      Icons.share_outlined,
+                                      color: Colors.grey,
+                                      size: 20,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
 
                 const SizedBox(height: 40),
               ],
