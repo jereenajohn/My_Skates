@@ -271,7 +271,7 @@ void dispose() {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final decoded = jsonDecode(response.body);
 
-        print("🔍 FOLLOW RESPONSE PARSED: $decoded");
+        print("🔍 FOLLOW RESPONSE PARSEDDD: $decoded");
 
         if (decoded["status"] == "pending") {
           setState(() {
@@ -484,11 +484,11 @@ void dispose() {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const CoachActivityPage(),
+                                builder: (_) => const CoachNotificationPage(),
                               ),
                             );
 
-                            // 🔁 Refresh count when coming back
+                            // 🔁 Refresh count when coming backkkk
                             fetchFollowRequestCount();
                           },
                           icon: const Icon(

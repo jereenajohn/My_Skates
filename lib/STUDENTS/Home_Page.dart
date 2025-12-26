@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/COACH/coach_details_page.dart';
 import 'package:my_skates/STUDENTS/products.dart';
+import 'package:my_skates/STUDENTS/user_notification_page.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
@@ -47,6 +48,7 @@ class _HomePageState extends State<HomePage> {
   bool studentsNoData = false;
 
   int? loggedInUserId;
+  int followRequestCount = 0;
 
   @override
   initState() {
@@ -76,6 +78,23 @@ class _HomePageState extends State<HomePage> {
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('access');
+  }
+
+  Future<void> fetchFollowRequestCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    final res = await http.get(
+      Uri.parse("$api/api/myskates/user/follow/requests/"),
+      headers: {"Authorization": "Bearer $token"},
+    );
+
+    if (res.statusCode == 200) {
+      final List data = jsonDecode(res.body);
+      setState(() {
+        followRequestCount = data.length;
+      });
+    }
   }
 
   Future<void> fetchStudents() async {
@@ -442,6 +461,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(width: 12),
+
                     Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,7 +469,7 @@ class _HomePageState extends State<HomePage> {
                         Text(
                           studentName,
                           style: const TextStyle(
-                            fontSize: 15,
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -460,13 +480,54 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ],
                     ),
+
                     const Spacer(),
-                    IconButton(
-                      onPressed: () {},
-                      icon: const Icon(
-                        Icons.notifications_active,
-                        color: Colors.tealAccent,
-                      ),
+                    Stack(
+                      children: [
+                        IconButton(
+                          onPressed: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const StudentNotificationPage(),
+                              ),
+                            );
+
+                            // 🔁 Refresh count when coming back
+                            fetchFollowRequestCount();
+                          },
+                          icon: const Icon(
+                            Icons.notifications_none,
+                            color: Colors.tealAccent,
+                          ),
+                        ),
+
+                        if (followRequestCount > 0)
+                          Positioned(
+                            right: 6,
+                            top: 6,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 18,
+                                minHeight: 18,
+                              ),
+                              child: Text(
+                                followRequestCount.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
