@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/dashboard.dart';
-import 'package:my_skates/Home_Page.dart';
 import 'package:my_skates/api.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -219,9 +218,10 @@ print("res.body:;;;;;;;;;;;;: ${res.body}");
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      
         backgroundColor: const Color.fromARGB(255, 0, 0, 0), 
-  resizeToAvoidBottomInset: false,
-  extendBody: true,  // IMPORTANT
+  resizeToAvoidBottomInset: true,
+    extendBody: true,  // IMPORTANT
   extendBodyBehindAppBar: true,  
       body: Container(
         decoration: const BoxDecoration(
@@ -233,8 +233,8 @@ print("res.body:;;;;;;;;;;;;: ${res.body}");
         child: SafeArea(
            bottom: false, 
           child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.all(20),
             child: Form(
               key: _formKey,
               child: Column(

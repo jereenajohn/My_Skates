@@ -8,14 +8,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 
-class UserApprovedProducts extends StatefulWidget {
-  const UserApprovedProducts({super.key});
+class UserProducts extends StatefulWidget {
+  const UserProducts({super.key});
 
   @override
-  State<UserApprovedProducts> createState() => _UserApprovedProductsState();
+  State<UserProducts> createState() => _UserProductsState();
 }
 
-class _UserApprovedProductsState extends State<UserApprovedProducts> {
+class _UserProductsState extends State<UserProducts> {
   List<Map<String, dynamic>> products = [];
 bool pageLoading = true;      // initial screen load
 bool productsLoading = false; // status switch loading
@@ -111,13 +111,13 @@ Future<void> getproduct(String status) async {
   final userId = prefs.getInt("id");
 
   final response = await http.get(
-    Uri.parse('$api/api/myskates/products/status/$status/$userId/'),
+    Uri.parse('$api/api/myskates/products/status/$status/'),
     headers: {
       'Authorization': 'Bearer $token',
       'Content-Type': 'application/json',
     },
   );
-
+print("response.body${response.body}");
   if (response.statusCode == 200) {
     final List<dynamic> parsed = jsonDecode(response.body);
 
@@ -228,37 +228,7 @@ Future<void> getproduct(String status) async {
                               ),
                             ),
                             const SizedBox(width: 10),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  slideRightToLeftRoute(
-                                    AddProduct()
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                height: 40,
-                                width: 110,
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.25),
-                                  borderRadius: BorderRadius.circular(30),
-                                  border: Border.all(color: Colors.white24),
-                                ),
-                                child: const Center(
-                                  child: Text(
-                                    "Add product",
-                                    style: TextStyle(
-                                          fontFamily: 'Poppins',
-                                         fontWeight: FontWeight.w400,
-                                  
-                                  letterSpacing: 0.2,
-                              
-                                        color: Colors.white, fontSize: 13),
-                                  ),
-                                ),
-                              ),
-                            )
+                          
                           ],
                         ),
 

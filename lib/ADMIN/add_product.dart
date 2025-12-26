@@ -185,7 +185,7 @@ print("res.body:;;;;;;;;;;;;: ${res.body}");
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: Colors.transparent,   // IMPORTANT
+        backgroundColor: const Color.fromARGB(255, 0, 0, 0),   // IMPORTANT
   extendBodyBehindAppBar: true,  
       body: Container(
         decoration: const BoxDecoration(
