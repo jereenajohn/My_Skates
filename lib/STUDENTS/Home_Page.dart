@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/COACH/coach_details_page.dart';
+import 'package:my_skates/STUDENTS/products.dart';
 import 'package:my_skates/STUDENTS/user_notification_page.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
@@ -664,7 +665,7 @@ class _HomePageState extends State<HomePage> {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const UserConnectCoaches(),
+                          builder: (_) => const UserProducts(),
                         ),
                       ),
                     ),
