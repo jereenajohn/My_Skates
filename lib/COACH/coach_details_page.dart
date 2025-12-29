@@ -30,6 +30,10 @@ Set<int> removedImageIds = {};
 
   final TextEditingController feedController = TextEditingController();
   List<File> feedImages = [];
+  int? editingFeedId;
+bool isEditingFeed = false;
+List<Map<String, dynamic>> editingFeedExistingImages = [];
+
 
   @override
   void initState() {
@@ -37,38 +41,84 @@ Set<int> removedImageIds = {};
     fetchCoachDetails();
     fetchCoachFeeds();
   }
+ Future<void> updateFeed() async {
+  if (editingFeedId == null) return;
 
-  Future<void> postFeed() async {
-    if (feedController.text.isEmpty && feedImages.isEmpty) return;
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
 
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
+  final request = http.MultipartRequest(
+    "PUT",
+    Uri.parse("$api/api/myskates/feeds/update/$editingFeedId/"),
+  );
 
-    var request = http.MultipartRequest(
-      "POST",
-      Uri.parse("$api/api/myskates/feeds/"),
+  request.headers["Authorization"] = "Bearer $token";
+  request.fields["description"] = feedController.text;
+
+  for (var img in editingFeedExistingImages) {
+    request.fields["existing_images[]"] = img['id'].toString();
+  }
+
+  for (var img in feedImages) {
+    request.files.add(
+      await http.MultipartFile.fromPath("images", img.path),
     );
+  }
 
-    request.headers["Authorization"] = "Bearer $token";
-    request.fields["description"] = feedController.text;
+  final streamedResponse = await request.send();
+  final body = await streamedResponse.stream.bytesToString();
 
-    for (var img in feedImages) {
-      request.files.add(await http.MultipartFile.fromPath("images", img.path));
-    }
+  print("STATUS: ${streamedResponse.statusCode}");
+  print("BODYyyyyyyyy: $body");
+}
 
-    print("Posting Feed: ${request.fields}");
-    print("Total Images: ${request.files.length}");
 
-    final response = await request.send();
 
-    print("Feed Post Status: ${response.statusCode}");
+ Future<void> postFeed() async {
+  if (feedController.text.isEmpty && feedImages.isEmpty) return;
 
-    if (response.statusCode == 201) {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+
+  final request = http.MultipartRequest(
+    "POST",
+    Uri.parse("$api/api/myskates/feeds/"),
+  );
+
+  request.headers["Authorization"] = "Bearer $token";
+  request.fields["description"] = feedController.text;
+
+  for (var img in feedImages) {
+    request.files.add(
+      await http.MultipartFile.fromPath("images", img.path),
+    );
+  }
+
+  print("📤 POST FEED FIELDS: ${request.fields}");
+  print("📸 TOTAL IMAGES: ${request.files.length}");
+
+  // 🔥 SEND REQUEST
+  final streamedResponse = await request.send();
+
+  // 🔥 READ RESPONSE BODY
+  final responseBody =
+      await streamedResponse.stream.bytesToString();
+
+  // ✅ PRINT EVERYTHING
+  print("✅ POST FEED STATUS: ${streamedResponse.statusCode}");
+  print("📩 POST FEED BODY: $responseBody");
+
+  if (streamedResponse.statusCode == 201) {
+    setState(() {
       feedController.clear();
       feedImages.clear();
-      fetchCoachFeeds();
-    }
+    });
+    fetchCoachFeeds();
+  } else {
+    print("❌ POST FEED FAILED");
   }
+}
+
 
   Future<void> addFeedImages() async {
     final ImagePicker picker = ImagePicker();
@@ -88,9 +138,10 @@ Set<int> removedImageIds = {};
 
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
+      final id = prefs.getInt('id');
 
       final res = await http.get(
-        Uri.parse("$api/api/myskates/feeds/"),
+        Uri.parse("$api/api/myskates/feeds/user/$id/"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -933,6 +984,57 @@ void _showEditFeedDialog(Map feed) {
                             );
                           },
                         ),
+                        // EXISTING IMAGES (EDIT MODE)
+if (isEditingFeed && editingFeedExistingImages.isNotEmpty) ...[
+  const SizedBox(height: 10),
+  GridView.builder(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    itemCount: editingFeedExistingImages.length,
+    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 3,
+      crossAxisSpacing: 6,
+      mainAxisSpacing: 6,
+    ),
+    itemBuilder: (context, index) {
+      final img = editingFeedExistingImages[index];
+
+      return Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(
+              fullImageUrl(img['image']),
+              fit: BoxFit.cover,
+              width: double.infinity,
+            ),
+          ),
+          Positioned(
+            top: 4,
+            right: 4,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  editingFeedExistingImages.removeAt(index);
+                });
+              },
+              child: const CircleAvatar(
+                radius: 11,
+                backgroundColor: Colors.black54,
+                child: Icon(
+                  Icons.close,
+                  size: 14,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  ),
+],
+
                       ],
 
                       const SizedBox(height: 10),
@@ -948,17 +1050,19 @@ void _showEditFeedDialog(Map feed) {
                           ),
                           const Spacer(),
                           ElevatedButton(
-                            onPressed: postFeed,
+                            onPressed: isEditingFeed ? updateFeed : postFeed,
+
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.teal,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                               ),
                             ),
-                            child: const Text(
-                              "Post",
-                              style: TextStyle(color: Colors.white),
-                            ),
+                            child: Text(
+  isEditingFeed ? "Update" : "Post",
+  style: const TextStyle(color: Colors.white),
+),
+
                           ),
                         ],
                       ),
@@ -1004,74 +1108,75 @@ void _showEditFeedDialog(Map feed) {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // ---------------- HEADER ----------------
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 20,
-                                      backgroundColor: Colors.grey.shade800,
-                                      backgroundImage: NetworkImage(
-                                        fullImageUrl(coach?["profile"]),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            "${coach?["first_name"] ?? ""} ${coach?["last_name"] ?? ""}",
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 15,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            feed["created_at"] ?? "",
-                                            style: const TextStyle(
-                                              color: Colors.grey,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    PopupMenuButton<String>(
-  icon: Icon(
-    Icons.more_horiz,
-    color: Colors.grey.shade500,
-  ),
-  color: const Color(0xFF2A2A2A),
-  onSelected: (value) {
-    if (value == 'edit') {
-      _showEditFeedDialog(feed);
-    } else if (value == 'delete') {
-      _confirmDeleteFeed(feed["id"]);
-    }
-  },
-  itemBuilder: (context) => [
-    const PopupMenuItem(
-      value: 'edit',
-      child: Text(
-        'Update',
-        style: TextStyle(color: Colors.white),
+                               // ---------------- HEADER ----------------
+Row(
+  children: [
+    CircleAvatar(
+      radius: 18,
+      backgroundImage: NetworkImage(
+        fullImageUrl(coach?["profile"]),
       ),
     ),
-    const PopupMenuItem(
-      value: 'delete',
-      child: Text(
-        'Delete',
-        style: TextStyle(color: Colors.redAccent),
+    const SizedBox(width: 10),
+
+    Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "${coach?["first_name"] ?? ""} ${coach?["last_name"] ?? ""}",
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            feed["created_at"] ?? "",
+            style: const TextStyle(
+              color: Colors.grey,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    ),
+
+    // ✏️ EDIT ICON
+    GestureDetector(
+     onTap: () {
+  setState(() {
+    editingFeedId = feed['id'];
+    isEditingFeed = true;
+    feedController.text = feed['description'] ?? "";
+    feedImages.clear(); // new images only
+    editingFeedExistingImages =
+        List<Map<String, dynamic>>.from(feed['feed_image'] ?? []);
+  });
+
+  // scroll to composer
+  Scrollable.ensureVisible(
+    context,
+    duration: const Duration(milliseconds: 300),
+  );
+},
+
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Icon(
+          Icons.edit,
+          color: Colors.white70,
+          size: 18,
+        ),
       ),
     ),
   ],
 ),
 
-                                  ],
-                                ),
 
                                 // ---------------- DESCRIPTION ----------------
                                 if (feed["description"] != null &&

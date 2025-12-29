@@ -19,7 +19,8 @@ class _UserProductsState extends State<UserProducts> {
   List<Map<String, dynamic>> products = [];
 bool pageLoading = true;      // initial screen load
 bool productsLoading = false; // status switch loading
-String selectedStatus = "approved";
+int? selectedCategoryId;
+String selectedCategoryName = "";
 
 final List<Map<String, String>> statusTabs = [
   {"label": "Approved", "value": "approved"},
@@ -31,11 +32,11 @@ final List<Map<String, String>> statusTabs = [
 void initState() {
   super.initState();
   loadInitialData();
+  getProductCategories();
 }
 
 Future<void> loadInitialData() async {
   await getbanner();
-  await getproduct(selectedStatus);
   setState(() {
     pageLoading = false;
   });
@@ -101,6 +102,94 @@ List<Map<String, dynamic>> banner = [];
       }
     } catch (error) {}
   }
+  List<Map<String, dynamic>> categories = [];
+
+  // FETCH CATEGORY LIST
+  Future<void> getProductCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    try {
+      var response = await http.get(
+        Uri.parse("$api/api/myskates/products/category/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      print("CATEGORY LIST STATUS: ${response.statusCode}");
+      print("CATEGORY LIST BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final parsed = jsonDecode(response.body);
+
+        List<Map<String, dynamic>> list = [];
+
+        for (var item in parsed) {
+          list.add({
+            "id": item["id"],
+            "name": item["name"],
+          });
+        }
+
+       setState(() {
+  categories = list;
+});
+
+// 🔹 AUTO SELECT FIRST CATEGORY
+if (categories.isNotEmpty) {
+  selectedCategoryId = categories.first['id'];
+  selectedCategoryName = categories.first['name'];
+  getProductsByCategory(selectedCategoryId!);
+}
+
+      }
+    } catch (e) {
+      print("ERROR: $e");
+    }
+  }
+
+  Future<void> getProductsByCategory(int categoryId) async {
+  setState(() {
+    productsLoading = true;
+  });
+
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+
+  final response = await http.get(
+    Uri.parse('$api/api/myskates/products/category/$categoryId/'),
+    headers: {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  print("CATEGORY PRODUCTS RESPONSE: ${response.body}");
+
+  if (response.statusCode == 200) {
+    final Map<String, dynamic> parsed = jsonDecode(response.body);
+
+    final List<dynamic> dataList = parsed['data'] ?? [];
+
+    products = dataList.map((c) {
+      return {
+        'id': c['id'],
+        'title': c['title'] ?? "",
+        'image': c['image'] != null ? '$api${c['image']}' : "",
+        'category_name': c['category_name'] ?? "",
+        'price': c['price']?.toString() ?? "0",
+      };
+    }).toList();
+  }
+
+  setState(() {
+    productsLoading = false;
+  });
+}
+
+
 Future<void> getproduct(String status) async {
   setState(() {
     productsLoading = true;
@@ -341,11 +430,9 @@ print("response.body${response.body}");
 
                         const SizedBox(height: 15),
 Text(
-  selectedStatus == "approved"
-      ? "Approved Products"
-      : selectedStatus == "pending"
-          ? "Pending Products"
-          : "Disapproved Products",
+  selectedCategoryName.isEmpty
+      ? "Products"
+      : "$selectedCategoryName Products",
   style: const TextStyle(
     fontFamily: 'Poppins',
     color: Colors.white,
@@ -361,16 +448,16 @@ Text(
 SingleChildScrollView(
   scrollDirection: Axis.horizontal,
   child: Row(
-    children: statusTabs.map((tab) {
-      final bool isSelected = selectedStatus == tab["value"];
+    children: categories.map((cat) {
+      final bool isSelected = selectedCategoryId == cat['id'];
 
       return GestureDetector(
         onTap: () {
           setState(() {
-  selectedStatus = tab["value"]!;
-});
-getproduct(selectedStatus);
-
+            selectedCategoryId = cat['id'];
+            selectedCategoryName = cat['name'];
+          });
+          getProductsByCategory(cat['id']);
         },
         child: Container(
           margin: const EdgeInsets.only(right: 10),
@@ -383,7 +470,7 @@ getproduct(selectedStatus);
             border: Border.all(color: Colors.white24),
           ),
           child: Text(
-            tab["label"]!,
+            cat['name'],
             style: TextStyle(
               fontFamily: 'Poppins',
               fontSize: 14,
@@ -396,6 +483,7 @@ getproduct(selectedStatus);
     }).toList(),
   ),
 ),
+
                         const SizedBox(height: 20),
 // ------------------------------------------------------------
 // PRODUCTS GRID SECTION (NO FULL PAGE REFRESH)
@@ -415,7 +503,7 @@ else if (products.isEmpty)
     padding: const EdgeInsets.only(top: 40),
     child: Center(
       child: Text(
-        "No ${selectedStatus} products found",
+        "No products found",
         style: TextStyle(
           color: Colors.white70,
           fontSize: 14,
@@ -438,56 +526,7 @@ GridView.builder(
   itemBuilder: (context, index) {
     final p = products[index];
 
-    return Dismissible(
-      key: ValueKey(p['id']),
-      direction: DismissDirection.horizontal,
-
-      confirmDismiss: (direction) async {
-        // 👉 SWIPE RIGHT → UPDATE (NO UI)
-        if (direction == DismissDirection.startToEnd) {
-          _handleUpdateProduct(p);
-          return false; // do NOT dismiss
-        }
-
-        // 👈 SWIPE LEFT → DELETE (RED UI SAME AS BEFORE)
-        if (direction == DismissDirection.endToStart) {
-          return await _confirmDelete(context, p);
-        }
-
-        return false;
-      },
-
-      // ❌ REMOVE BLUE UPDATE BACKGROUND
-      background: const SizedBox.shrink(),
-
-      // 🔴 KEEP DELETE BACKGROUND EXACTLY SAME
-      secondaryBackground: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          color: Colors.redAccent.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Text(
-              "Delete",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Poppins',
-              ),
-            ),
-            SizedBox(width: 8),
-            Icon(Icons.delete, color: Colors.white),
-          ],
-        ),
-      ),
-
-      child: _productCard(p),
-    );
+    return _productCard(p);
   },
 ),
 

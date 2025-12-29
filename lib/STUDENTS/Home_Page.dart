@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/COACH/coach_details_page.dart';
 import 'package:my_skates/STUDENTS/products.dart';
-import 'package:my_skates/STUDENTS/user_notification_page.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
@@ -486,12 +485,12 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         IconButton(
                           onPressed: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const StudentNotificationPage(),
-                              ),
-                            );
+                            // await Navigator.push(
+                            //   context,
+                            //   MaterialPageRoute(
+                            //     builder: (_) => const StudentNotificationPage(),
+                            //   ),
+                            // );
 
                             // 🔁 Refresh count when coming back
                             fetchFollowRequestCount();
