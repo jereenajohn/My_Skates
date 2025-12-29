@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:my_skates/api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shimmer/shimmer.dart';
 
 class CoachTimelinePage extends StatefulWidget {
   // final String api;
@@ -204,7 +205,7 @@ class _CoachTimelinePageState extends State<CoachTimelinePage> {
   Future<void> deleteFeed(int id) async {
     final token = await getToken();
     await http.delete(
-      Uri.parse("$api/api/myskates/feeds/$id/"),
+      Uri.parse("$api/api/myskates/feeds/update/$id/"),
       headers: {"Authorization": "Bearer $token"},
     );
     fetchCoachFeeds();
@@ -221,6 +222,15 @@ class _CoachTimelinePageState extends State<CoachTimelinePage> {
     }
   }
 
+  void openComments(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.black,
+      isScrollControlled: true,
+      builder: (_) => const InstagramCommentsSheet(),
+    );
+  }
+
   String fullImageUrl(String path) => "$api$path";
 
   // ================= UI =================
@@ -232,13 +242,13 @@ class _CoachTimelinePageState extends State<CoachTimelinePage> {
         children: [
           Container(
             height: 260,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF00312D), Color(0xFF000000)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
+            // decoration: const BoxDecoration(
+            //   gradient: LinearGradient(
+            //     colors: [Color(0xFF00312D), Color(0xFF000000)],
+            //     begin: Alignment.topLeft,
+            //     end: Alignment.bottomRight,
+            //   ),
+            // ),
           ),
           SafeArea(
             child: SingleChildScrollView(
@@ -498,26 +508,32 @@ class _CoachTimelinePageState extends State<CoachTimelinePage> {
   Widget _feedCard(dynamic feed) {
     final List images = (feed["feed_image"] is List) ? feed["feed_image"] : [];
 
-    return _glassBox(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 🔹 HEADER (Instagram style)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
             children: [
-              const Icon(Icons.sports, color: accentColor),
-              const SizedBox(width: 8),
+              CircleAvatar(
+                radius: 18,
+                backgroundImage: (coachImage != null && coachImage!.isNotEmpty)
+                    ? NetworkImage(fullImageUrl(coachImage!))
+                    : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   coachName,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
               PopupMenuButton(
-                icon: const Icon(Icons.more_vert, color: Colors.white54),
+                icon: const Icon(Icons.more_vert, color: Colors.white70),
                 itemBuilder: (_) => const [
                   PopupMenuItem(value: "edit", child: Text("Edit")),
                   PopupMenuItem(value: "delete", child: Text("Delete")),
@@ -536,33 +552,49 @@ class _CoachTimelinePageState extends State<CoachTimelinePage> {
               ),
             ],
           ),
-          if ((feed["description"] ?? "").isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                feed["description"],
-                style: const TextStyle(color: Colors.white70),
-              ),
+        ),
+
+        // 🔹 FULL WIDTH IMAGE (EDGE TO EDGE)
+        if (images.isNotEmpty)
+          _InstagramFullWidthSlider(
+            images: images.map((e) => fullImageUrl(e["image"] ?? "")).toList(),
+          ),
+
+        // 🔹 ACTION BAR
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.favorite_border, color: Colors.white),
+              onPressed: () {},
             ),
-          if (images.isNotEmpty)
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-              ),
-              itemCount: images.length,
-              itemBuilder: (c, i) => Padding(
-                padding: const EdgeInsets.all(4),
-                child: Image.network(
-                  fullImageUrl(images[i]["image"] ?? ""),
-                  errorBuilder: (_, __, ___) =>
-                      const Icon(Icons.broken_image, color: Colors.white38),
-                ),
-              ),
+            IconButton(
+              icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+              onPressed: () => openComments(context),
             ),
-        ],
-      ),
+            IconButton(
+              icon: const Icon(Icons.send_outlined, color: Colors.white),
+              onPressed: () {},
+            ),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.bookmark_border, color: Colors.white),
+              onPressed: () {},
+            ),
+          ],
+        ),
+
+        // 🔹 DESCRIPTION
+        if ((feed["description"] ?? "").isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              feed["description"],
+              style: const TextStyle(color: Colors.white70),
+            ),
+          ),
+
+        const SizedBox(height: 24), // space between posts
+      ],
     );
   }
 
@@ -921,6 +953,261 @@ class _SportyHandle extends StatelessWidget {
           BoxShadow(color: Colors.black.withOpacity(0.6), blurRadius: 6),
         ],
       ),
+    );
+  }
+}
+
+class InstagramMediaSlider extends StatefulWidget {
+  final List<Map<String, dynamic>> media;
+
+  const InstagramMediaSlider({required this.media});
+
+  @override
+  State<InstagramMediaSlider> createState() => _InstagramMediaSliderState();
+}
+
+class _InstagramMediaSliderState extends State<InstagramMediaSlider> {
+  int index = 0;
+  bool liked = false;
+  bool showHeart = false;
+
+  void _onLike() {
+    setState(() {
+      liked = true;
+      showHeart = true;
+    });
+
+    Future.delayed(const Duration(milliseconds: 700), () {
+      setState(() => showHeart = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+
+    return GestureDetector(
+      onDoubleTap: _onLike,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: width,
+            height: width * 1.15,
+            child: PageView.builder(
+              itemCount: widget.media.length,
+              onPageChanged: (i) => setState(() => index = i),
+              itemBuilder: (context, i) {
+                final item = widget.media[i];
+                final type = item["type"] ?? "image";
+                final url = item["url"];
+
+                return Image.network(
+                  url,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (c, child, progress) {
+                    if (progress == null) return child;
+                    return Shimmer.fromColors(
+                      baseColor: Colors.grey.shade800,
+                      highlightColor: Colors.grey.shade700,
+                      child: Container(color: Colors.black),
+                    );
+                  },
+                  errorBuilder: (_, __, ___) =>
+                      const Icon(Icons.broken_image, color: Colors.white38),
+                );
+              },
+            ),
+          ),
+
+          // ❤️ DOUBLE TAP HEART
+          if (showHeart)
+            const Icon(Icons.favorite, size: 120, color: Colors.white),
+
+          // 🔢 IMAGE COUNTER
+          Positioned(
+            top: 14,
+            right: 14,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                "${index + 1}/${widget.media.length}",
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
+          ),
+
+          // 🔵 DOTS
+          if (widget.media.length > 1)
+            Positioned(
+              bottom: 12,
+              child: Row(
+                children: List.generate(
+                  widget.media.length,
+                  (i) => Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: i == index ? 7 : 5,
+                    height: i == index ? 7 : 5,
+                    decoration: BoxDecoration(
+                      color: i == index
+                          ? const Color(0xFF2EE6A6)
+                          : Colors.white54,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class InstagramCommentsSheet extends StatelessWidget {
+  const InstagramCommentsSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white38,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            "Comments",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          const Divider(color: Colors.white12),
+
+          Expanded(
+            child: ListView.builder(
+              itemCount: 10,
+              itemBuilder: (_, i) => ListTile(
+                leading: const CircleAvatar(radius: 16),
+                title: Text(
+                  "User $i",
+                  style: const TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  "Nice post!",
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ),
+            ),
+          ),
+
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                const CircleAvatar(radius: 16),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: TextField(
+                    style: TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: "Add a comment...",
+                      hintStyle: TextStyle(color: Colors.white38),
+                      border: InputBorder.none,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {},
+                  child: const Text(
+                    "Post",
+                    style: TextStyle(color: Color(0xFF2EE6A6)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InstagramFullWidthSlider extends StatefulWidget {
+  final List<String> images;
+
+  const _InstagramFullWidthSlider({required this.images});
+
+  @override
+  State<_InstagramFullWidthSlider> createState() =>
+      _InstagramFullWidthSliderState();
+}
+
+class _InstagramFullWidthSliderState extends State<_InstagramFullWidthSlider> {
+  int index = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+
+    return Stack(
+      alignment: Alignment.bottomCenter,
+      children: [
+        SizedBox(
+          width: width,
+          height: width * 1.15,
+          child: PageView.builder(
+            itemCount: widget.images.length,
+            onPageChanged: (i) => setState(() => index = i),
+            itemBuilder: (context, i) {
+              return Image.network(
+                widget.images[i],
+                fit: BoxFit.cover,
+                width: width,
+                errorBuilder: (_, __, ___) => Container(
+                  color: Colors.black26,
+                  child: const Icon(
+                    Icons.broken_image,
+                    color: Colors.white38,
+                    size: 40,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        // DOT INDICATORS (only if more than 1 image)
+        if (widget.images.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                widget.images.length,
+                (i) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: i == index ? 7 : 5,
+                  height: i == index ? 7 : 5,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: i == index
+                        ? const Color(0xFF2EE6A6)
+                        : Colors.white54,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
