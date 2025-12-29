@@ -41,6 +41,8 @@ List<Map<String, dynamic>> editingFeedExistingImages = [];
     fetchCoachDetails();
     fetchCoachFeeds();
   }
+
+  
  Future<void> updateFeed() async {
   if (editingFeedId == null) return;
 

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/COACH/coach_menu_page.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/api.dart';
@@ -442,7 +443,7 @@ void dispose() {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const CoachSettings(),
+                            builder: (_) => const CoachMenuPage(),
                           ),
                         );
                       },
