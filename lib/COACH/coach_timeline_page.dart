@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:provider/provider.dart';
+import '../providers/feed_comments_provider.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -60,6 +62,64 @@ class _CoachTimelinePageState extends State<CoachTimelinePage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getInt("id");
   }
+
+  // Future<void> postFeedComment(int feedId, String comment) async {
+  //   if (comment.trim().isEmpty) return;
+
+  //   try {
+  //     final prefs = await SharedPreferences.getInstance();
+  //     final token = prefs.getString("access");
+
+  //     final res = await http.post(
+  //       Uri.parse("$api/api/myskates/feeds/$feedId/comment/"),
+  //       headers: {
+  //         "Authorization": "Bearer $token",
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: jsonEncode({"comment": comment}),
+  //     );
+
+  //     print("POST COMMENT STATUS = ${res.statusCode}");
+  //     print("POST COMMENT BODY = ${res.body}");
+
+  //     if (res.statusCode == 201) {
+  //       fetchFeedComments(feedId); // 🔁 refresh list
+  //     }
+  //   } catch (e) {
+  //     print("ERROR POSTING COMMENT = $e");
+  //   }
+  // }
+
+  //   Future<void> fetchFeedComments(int feedId) async {
+  //   try {
+  //     setState(() => commentsLoading = true);
+
+  //     final prefs = await SharedPreferences.getInstance();
+  //     final token = prefs.getString("access");
+
+  //     final res = await http.get(
+  //       Uri.parse("$api/api/myskates/feeds/$feedId/comments/"),
+  //       headers: {"Authorization": "Bearer $token"},
+  //     );
+
+  //     print("COMMENTS API STATUS = ${res.statusCode}");
+  //     print("COMMENTS API BODY = ${res.body}");
+
+  //     if (res.statusCode == 200) {
+  //       final decoded = jsonDecode(res.body);
+
+  //       setState(() {
+  //         feedComments = decoded is List
+  //             ? decoded
+  //             : decoded['data'] ?? [];
+  //         commentsLoading = false;
+  //       });
+  //     }
+  //   } catch (e) {
+  //     print("ERROR FETCHING COMMENTS = $e");
+  //     setState(() => commentsLoading = false);
+  //   }
+  // }
 
   // ================= PROFILE API =================
   Future<void> fetchcoachDetails() async {
@@ -222,12 +282,90 @@ class _CoachTimelinePageState extends State<CoachTimelinePage> {
     }
   }
 
-  void openComments(BuildContext context) {
+  void openComments(BuildContext context, int feedId) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      barrierColor: Colors.black.withOpacity(0.75),
+      builder: (_) => FeedCommentsSheet(feedId: feedId),
+    );
+  }
+
+  void _openRatingSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.black,
       isScrollControlled: true,
-      builder: (_) => const InstagramCommentsSheet(),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        double rating = 3;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 8),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white38,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Rate this session",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (i) {
+                      return IconButton(
+                        onPressed: () => setState(() => rating = i + 1),
+                        icon: Icon(
+                          i < rating ? Icons.star : Icons.star_border,
+                          color: const Color(0xFF2EE6A6),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2EE6A6),
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: () {
+                        // TODO: send rating to API
+                        Navigator.pop(context);
+                      },
+                      child: const Text("Submit Rating"),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -242,13 +380,14 @@ class _CoachTimelinePageState extends State<CoachTimelinePage> {
         children: [
           Container(
             height: 260,
-            // decoration: const BoxDecoration(
-            //   gradient: LinearGradient(
-            //     colors: [Color(0xFF00312D), Color(0xFF000000)],
-            //     begin: Alignment.topLeft,
-            //     end: Alignment.bottomRight,
-            //   ),
-            // ),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF00312D), Colors.black],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            ),
           ),
           SafeArea(
             child: SingleChildScrollView(
@@ -508,106 +647,128 @@ class _CoachTimelinePageState extends State<CoachTimelinePage> {
   Widget _feedCard(dynamic feed) {
     final List images = (feed["feed_image"] is List) ? feed["feed_image"] : [];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 🔹 HEADER (Instagram style)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
+    return Padding(
+      padding: const EdgeInsets.only(left: 12, right: 12, bottom: 28),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 🟢 LANE MARKER
+          Column(
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundImage: (coachImage != null && coachImage!.isNotEmpty)
-                    ? NetworkImage(fullImageUrl(coachImage!))
-                    : const AssetImage("lib/assets/img.jpg") as ImageProvider,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  coachName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
+              Container(
+                width: 12,
+                height: 12,
+                decoration: const BoxDecoration(
+                  color: accentColor,
+                  shape: BoxShape.circle,
                 ),
               ),
-              PopupMenuButton(
-                icon: const Icon(Icons.more_vert, color: Colors.white70),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: "edit", child: Text("Edit")),
-                  PopupMenuItem(value: "delete", child: Text("Delete")),
-                ],
-                onSelected: (v) {
-                  if (v == "edit") {
-                    setState(() {
-                      isEditingFeed = true;
-                      editingFeedId = feed["id"];
-                      feedController.text = feed["description"] ?? "";
-                    });
-                  } else {
-                    deleteFeed(feed["id"]);
-                  }
-                },
+              Container(
+                width: 2,
+                height: images.isNotEmpty ? 220 : 140,
+                color: Colors.white12,
               ),
             ],
           ),
-        ),
 
-        // 🔹 FULL WIDTH IMAGE (EDGE TO EDGE)
-        if (images.isNotEmpty)
-          _InstagramFullWidthSlider(
-            images: images.map((e) => fullImageUrl(e["image"] ?? "")).toList(),
+          const SizedBox(width: 12),
+
+          // 🛼 CONTENT LANE
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 🔹 COACH HEADER
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundImage:
+                          (coachImage != null && coachImage!.isNotEmpty)
+                          ? NetworkImage(fullImageUrl(coachImage!))
+                          : const AssetImage("lib/assets/img.jpg")
+                                as ImageProvider,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        coachName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    PopupMenuButton(
+                      icon: const Icon(Icons.more_vert, color: Colors.white54),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: "edit", child: Text("Edit")),
+                        PopupMenuItem(value: "delete", child: Text("Delete")),
+                      ],
+                      onSelected: (v) {
+                        if (v == "edit") {
+                          setState(() {
+                            isEditingFeed = true;
+                            editingFeedId = feed["id"];
+                            feedController.text = feed["description"] ?? "";
+                          });
+                        } else {
+                          deleteFeed(feed["id"]);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 10),
+
+                // 🔹 MEDIA STRIP (SESSION CLIP)
+                if (images.isNotEmpty)
+                  _FeedMediaBlock(
+                    images: images
+                        .map((e) => fullImageUrl(e["image"] ?? ""))
+                        .toList(),
+                  ),
+
+                const SizedBox(height: 10),
+
+                // 🔹 COACH NOTE
+                if ((feed["description"] ?? "").isNotEmpty)
+                  Text(
+                    feed["description"],
+                    style: const TextStyle(color: Colors.white70, height: 1.4),
+                  ),
+
+                const SizedBox(height: 12),
+
+                // 🔹 CONTROLS (PERFORMANCE-STYLE)
+                Row(
+                  children: [
+                    _ActionButton(
+                      icon: Icons.thumb_up_alt_outlined,
+                      label: "Good",
+                      onTap: () {},
+                    ),
+                    const SizedBox(width: 16),
+                    _ActionButton(
+                      icon: Icons.chat_bubble_outline,
+                      label: "Feedback",
+                      onTap: () => openComments(context, feed["id"]),
+                    ),
+
+                    const SizedBox(width: 16),
+                    _ActionButton(
+                      icon: Icons.star_border,
+                      label: "Score",
+                      onTap: () => _openRatingSheet(context),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-
-        // 🔹 ACTION BAR
-        Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.favorite_border, color: Colors.white),
-              onPressed: () {},
-            ),
-            IconButton(
-              icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
-              onPressed: () => openComments(context),
-            ),
-            IconButton(
-              icon: const Icon(Icons.send_outlined, color: Colors.white),
-              onPressed: () {},
-            ),
-            const Spacer(),
-            IconButton(
-              icon: const Icon(Icons.bookmark_border, color: Colors.white),
-              onPressed: () {},
-            ),
-          ],
-        ),
-
-        // 🔹 DESCRIPTION
-        if ((feed["description"] ?? "").isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(
-              feed["description"],
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ),
-
-        const SizedBox(height: 24), // space between posts
-      ],
-    );
-  }
-
-  Widget _glassBox({Widget? child, EdgeInsets? margin}) {
-    return Container(
-      margin: margin ?? const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
+        ],
       ),
-      child: child,
     );
   }
 }
@@ -938,6 +1099,106 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   }
 }
 
+void _openImagePopup(
+  BuildContext context,
+  List<String> images,
+  int startIndex,
+) {
+  showDialog(
+    context: context,
+    barrierColor: Colors.black,
+    builder: (_) {
+      return GestureDetector(
+        onTap: () => Navigator.pop(context),
+        child: Container(
+          color: Colors.black,
+          child: PageView.builder(
+            controller: PageController(initialPage: startIndex),
+            itemCount: images.length,
+            itemBuilder: (context, index) {
+              return InteractiveViewer(
+                minScale: 1,
+                maxScale: 4,
+                child: Center(
+                  child: Image.network(images[index], fit: BoxFit.contain),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _FeedMediaBlock extends StatefulWidget {
+  final List<String> images;
+
+  const _FeedMediaBlock({required this.images});
+
+  @override
+  State<_FeedMediaBlock> createState() => _FeedMediaBlockState();
+}
+
+class _FeedMediaBlockState extends State<_FeedMediaBlock> {
+  int currentIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+
+    return Stack(
+      alignment: Alignment.bottomCenter,
+      children: [
+        SizedBox(
+          height: width * 0.85, // 🔥 Taller feed image
+          child: PageView.builder(
+            itemCount: widget.images.length,
+            onPageChanged: (i) => setState(() => currentIndex = i),
+            itemBuilder: (context, index) {
+              return GestureDetector(
+                onTap: () => _openImagePopup(context, widget.images, index),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.network(
+                    widget.images[index],
+                    width: width,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        // 🔹 DOT INDICATOR (ONLY IF MULTIPLE IMAGES)
+        if (widget.images.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                widget.images.length,
+                (i) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: currentIndex == i ? 8 : 6,
+                  height: currentIndex == i ? 8 : 6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: currentIndex == i
+                        ? const Color(0xFF2EE6A6) // accent
+                        : Colors.white54,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _SportyHandle extends StatelessWidget {
   const _SportyHandle();
 
@@ -1208,6 +1469,346 @@ class _InstagramFullWidthSliderState extends State<_InstagramFullWidthSlider> {
             ),
           ),
       ],
+    );
+  }
+}
+
+class SkateTrackCarousel extends StatefulWidget {
+  final List<String> images;
+
+  const SkateTrackCarousel({required this.images});
+
+  @override
+  State<SkateTrackCarousel> createState() => _SkateTrackCarouselState();
+}
+
+class _SkateTrackCarouselState extends State<SkateTrackCarousel> {
+  int index = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+
+    return Column(
+      children: [
+        // 🔹 MEDIA WITH ANGLED ENERGY OVERLAY
+        ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+          child: Stack(
+            children: [
+              SizedBox(
+                width: w,
+                height: w * 0.7,
+                child: PageView.builder(
+                  itemCount: widget.images.length,
+                  onPageChanged: (i) => setState(() => index = i),
+                  itemBuilder: (context, i) {
+                    return Image.network(widget.images[i], fit: BoxFit.cover);
+                  },
+                ),
+              ),
+
+              // 🔹 ANGLED SKATE STRIPE
+              Positioned(
+                bottom: -20,
+                left: -40,
+                child: Transform.rotate(
+                  angle: -0.12,
+                  child: Container(
+                    width: w + 80,
+                    height: 26,
+                    color: const Color(0xFF2EE6A6).withOpacity(0.85),
+                  ),
+                ),
+              ),
+
+              // 🔹 SESSION LABEL
+              Positioned(
+                bottom: 10,
+                left: 16,
+                child: Row(
+                  children: const [
+                    Icon(Icons.speed, size: 18, color: Colors.black),
+                    SizedBox(width: 6),
+                    Text(
+                      "Skate Session",
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // 🔹 TRACK PROGRESS (LAP FEEL)
+        if (widget.images.length > 1)
+          Container(
+            height: 3,
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white12,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: (index + 1) / widget.images.length,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2EE6A6),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+
+class FeedCommentsSheet extends StatelessWidget {
+  final int feedId;
+  const FeedCommentsSheet({super.key, required this.feedId});
+
+  static const Color accentColor = Color(0xFF2EE6A6);
+
+  @override
+  Widget build(BuildContext context) {
+    final h = MediaQuery.of(context).size.height;
+    final controller = TextEditingController();
+
+    return ChangeNotifierProvider(
+      create: (_) => FeedCommentsProvider(feedId),
+      child: Container(
+        height: h * 0.85,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF00312D), Colors.black],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        child: Consumer<FeedCommentsProvider>(
+          builder: (_, p, __) {
+            return Column(
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          "Feedback",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(color: Colors.white12),
+
+                // Comments
+                Expanded(
+                  child: p.loading
+                      ? const Center(
+                          child: CircularProgressIndicator(color: accentColor),
+                        )
+                      : p.comments.isEmpty
+                      ? const Center(
+                          child: Text(
+                            "No comments yet.\nBe the first to share feedback.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white54,
+                              height: 1.4,
+                            ),
+                          ),
+                        )
+                      : RefreshIndicator(
+                          color: accentColor,
+                          onRefresh: p.fetchComments,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.all(12),
+                            itemCount: p.comments.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(color: Colors.white10),
+                            itemBuilder: (_, i) {
+                              final c = p.comments[i];
+
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: Colors.white12,
+                                  backgroundImage: c["profile_image"] != null
+                                      ? NetworkImage(
+                                          "$api${c["profile_image"]}",
+                                        )
+                                      : null,
+                                  child: c["profile_image"] == null
+                                      ? const Icon(
+                                          Icons.person,
+                                          color: Colors.white70,
+                                          size: 18,
+                                        )
+                                      : null,
+                                ),
+                                title: Text(
+                                  p.getUserName(c),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                subtitle: Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    c["comment"] ?? "",
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                ),
+
+                // Input
+                Container(
+                  padding: EdgeInsets.only(
+                    left: 12,
+                    right: 12,
+                    top: 8,
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 10,
+                  ),
+                  decoration: const BoxDecoration(
+                    border: Border(top: BorderSide(color: Colors.white10)),
+                  ),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.white12,
+                        child: Icon(
+                          Icons.person,
+                          color: Colors.white70,
+                          size: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          style: const TextStyle(color: Colors.white),
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (v) {
+                            p.postComment(v);
+                            controller.clear();
+                          },
+                          decoration: const InputDecoration(
+                            hintText: "Add a comment...",
+                            hintStyle: TextStyle(color: Colors.white38),
+                            border: InputBorder.none,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: p.posting
+                            ? null
+                            : () {
+                                p.postComment(controller.text);
+                                controller.clear();
+                              },
+                        child: Text(
+                          p.posting ? "Posting..." : "Post",
+                          style: TextStyle(
+                            color: p.posting ? Colors.white30 : accentColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 }
