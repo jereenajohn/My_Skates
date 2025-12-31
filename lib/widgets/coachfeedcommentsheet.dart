@@ -250,6 +250,9 @@ void _openEditSheet(
             ),
             const SizedBox(height: 12),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+              ),
               onPressed: () async {
                 await provider.updateComment(
                   commentId: c["id"],
@@ -257,7 +260,7 @@ void _openEditSheet(
                 );
                 Navigator.pop(context);
               },
-              child: const Text("Update"),
+              child: const Text("Update",style: TextStyle(color: Colors.white),),
             ),
           ],
         ),
@@ -286,7 +289,7 @@ void _confirmDelete(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text("Cancel"),
+          child: const Text("Cancel",style: TextStyle(color: Colors.white),),
         ),
         TextButton(
           onPressed: () async {
