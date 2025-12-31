@@ -4,16 +4,26 @@ import 'package:flutter/services.dart';
 import 'package:my_skates/widgets/coachfeedcommentsheet.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 
 import '../api.dart';
 import '../providers/coach_profile_provider.dart';
 import 'package:my_skates/providers/coach_feed_provider.dart';
-
+import 'package:share_plus/share_plus.dart';
 
 const Color accentColor = Color(0xFF2EE6A6);
 
-class CoachTimelinePage extends StatelessWidget {
-  const CoachTimelinePage({super.key});
+class CoachTimelinePage extends StatefulWidget {
+  final int? feedId; // 👈 optional
+
+  const CoachTimelinePage({super.key, this.feedId});
+
+  @override
+  State<CoachTimelinePage> createState() => _CoachTimelinePageState();
+}
+
+class _CoachTimelinePageState extends State<CoachTimelinePage> {
+  final Map<int, GlobalKey> _feedKeys = {};
 
   @override
   Widget build(BuildContext context) {
@@ -23,18 +33,37 @@ class CoachTimelinePage extends StatelessWidget {
           create: (_) => CoachProfileProvider()..fetchProfile(),
         ),
         ChangeNotifierProvider(
-          create: (_) => CoachFeedProvider()..fetchFeeds(),
+          create: (_) => CoachFeedProvider()
+            ..fetchFeeds().then((_) {
+              _scrollToFeedIfNeeded();
+            }),
         ),
       ],
-      child: const _CoachTimelineView(),
+      child: _CoachTimelineView(feedKeys: _feedKeys),
     );
   }
-}
 
+  void _scrollToFeedIfNeeded() {
+    if (widget.feedId == null) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final key = _feedKeys[widget.feedId];
+      if (key?.currentContext != null) {
+        Scrollable.ensureVisible(
+          key!.currentContext!,
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+}
 /* ───────────────────────── MAIN VIEW ───────────────────────── */
 
 class _CoachTimelineView extends StatelessWidget {
-  const _CoachTimelineView();
+  final Map<int, GlobalKey> feedKeys;
+
+  const _CoachTimelineView({required this.feedKeys});
 
   @override
   Widget build(BuildContext context) {
@@ -56,15 +85,18 @@ class _CoachTimelineView extends StatelessWidget {
           SafeArea(
             child: SingleChildScrollView(
               child: Column(
-                children: const [
-                  _TopBar(),
-                  SizedBox(height: 40),
-                  _ProfileHeader(),
-                  SizedBox(height: 20),
-                  _FeedComposer(),
-                  SizedBox(height: 20),
-                  _FeedList(),
-                  SizedBox(height: 40),
+                children: [
+                  const _TopBar(),
+                  const SizedBox(height: 40),
+                  const _ProfileHeader(),
+                  const SizedBox(height: 20),
+                  const _FeedComposer(),
+                  const SizedBox(height: 20),
+
+                  // ✅ this is dynamic, so the list cannot be const
+                  _FeedList(feedKeys: feedKeys),
+
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
@@ -262,7 +294,9 @@ class _FeedComposer extends StatelessWidget {
 /* ───────────────────────── FEED LIST ───────────────────────── */
 
 class _FeedList extends StatelessWidget {
-  const _FeedList();
+  final Map<int, GlobalKey> feedKeys;
+
+  const _FeedList({required this.feedKeys});
 
   @override
   Widget build(BuildContext context) {
@@ -281,12 +315,20 @@ class _FeedList extends StatelessWidget {
             style: TextStyle(color: Colors.white54),
           );
         }
-
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: p.feeds.length,
-          itemBuilder: (_, i) => _FeedCard(feed: p.feeds[i]),
+          itemBuilder: (_, i) {
+            final feed = p.feeds[i];
+
+            feedKeys.putIfAbsent(feed["id"], () => GlobalKey());
+
+            return KeyedSubtree(
+              key: feedKeys[feed["id"]],
+              child: _FeedCard(feed: feed),
+            );
+          },
         );
       },
     );
@@ -297,31 +339,58 @@ class _FeedList extends StatelessWidget {
 class _FeedCard extends StatelessWidget {
   final dynamic feed;
   const _FeedCard({required this.feed});
-  String _getFeedUserName() {
-    final firstName = feed["first_name"]?.toString().trim() ?? "";
-    final lastName = feed["last_name"]?.toString().trim() ?? "";
+  Future<void> _shareFeed(BuildContext context) async {
+    final int feedId = feed["id"];
 
-    if (firstName.isNotEmpty || lastName.isNotEmpty) {
-      return "$firstName $lastName".trim();
+    final String desc = (feed["description"] ?? "").toString().trim();
+
+    final List images = (feed["feed_image"] ?? []) as List;
+
+    // 🔗 PRODUCTION DEEP LINK
+    final String deepLink = "https://myskates.app/feed/$feedId";
+    // (for now you can use ngrok if needed)
+
+    final String shareText = [
+      if (desc.isNotEmpty) desc,
+      "",
+      "Open in MySkates 👇",
+      deepLink,
+    ].join("\n");
+
+    // If no images → text + link only
+    if (images.isEmpty || images.first["image"] == null) {
+      Share.share(shareText, subject: "MySkates Feed");
+      return;
     }
 
-    if (feed["user_name"] != null && feed["user_name"].toString().isNotEmpty) {
-      return feed["user_name"];
-    }
+    try {
+      // Download image for preview
+      final imageUrl = images.first["image"].toString();
+      final response = await http.get(Uri.parse(imageUrl));
 
-    if (feed["created_by_name"] != null &&
-        feed["created_by_name"].toString().isNotEmpty) {
-      return feed["created_by_name"];
-    }
+      final tempDir = await Directory.systemTemp.createTemp();
+      final file = File("${tempDir.path}/feed_$feedId.jpg");
+      await file.writeAsBytes(response.bodyBytes);
 
-    return "Coach";
+      // Share image + caption + deep link
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: shareText,
+        subject: "MySkates Feed",
+      );
+    } catch (e) {
+      Share.share(shareText, subject: "MySkates Feed");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final profile = context.read<CoachProfileProvider>();
-    final feedProvider = context.read<CoachFeedProvider>();
-
+    final feedProvider = context.watch<CoachFeedProvider>();
+    print("FEED DATA: $feed");
+    print("FEED IMAGES: ${feed["feed_image"]}");
+    print("FEED DESC: ${feed["description"]}");
+    print(profile.name);
     final List images = feed["feed_image"] ?? [];
 
     return Padding(
@@ -465,7 +534,7 @@ class _FeedCard extends StatelessWidget {
                 // 🔹 MEDIA
                 if (images.isNotEmpty)
                   _FeedMedia(
-                    images: images.map((e) => "$api${e["image"]}").toList(),
+                    images: images.map((e) => "${e["image"]}").toList(),
                   ),
 
                 // 🔹 DESCRIPTION
@@ -510,13 +579,11 @@ class _FeedCard extends StatelessWidget {
                         );
                       },
                     ),
-                    const SizedBox(width: 18),
+                    const Spacer(),
                     _ActionButton(
-                      icon: Icons.star_border,
-                      label: "Score",
-                      onTap: () {
-                        // rating sheet
-                      },
+                      icon: Icons.share_outlined,
+                      label: "", // empty = no visible text
+                      onTap: () => _shareFeed(context),
                     ),
                   ],
                 ),
