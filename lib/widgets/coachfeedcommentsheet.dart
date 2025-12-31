@@ -11,24 +11,21 @@ class FeedCommentsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final h = MediaQuery.of(context).size.height;
     final controller = TextEditingController();
 
     return ChangeNotifierProvider(
       create: (_) => FeedCommentsProvider(feedId),
-      child: Container(
-        height: h * 0.85,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF00312D), Colors.black],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-        ),
-        child: Consumer<FeedCommentsProvider>(
-          builder: (_, p, __) {
-            return Column(
+      child: Consumer<FeedCommentsProvider>(
+        builder: (_, p, __) {
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.85,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF00312D), Colors.black],
+              ),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            child: Column(
               children: [
                 const SizedBox(height: 10),
                 Container(
@@ -41,101 +38,127 @@ class FeedCommentsSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
 
-                // Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          "Feedback",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                /* ───────── HEADER ───────── */
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        "Feedback",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close, color: Colors.white70),
-                      ),
-                    ],
-                  ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
                 ),
 
                 const Divider(color: Colors.white12),
 
-                // Comments
+                /* ───────── COMMENTS ───────── */
                 Expanded(
                   child: p.loading
                       ? const Center(
-                          child: CircularProgressIndicator(color: accentColor),
-                        )
-                      : p.comments.isEmpty
-                          ? const Center(
-                              child: Text(
-                                "No comments yet.\nBe the first to share feedback.",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.white54, height: 1.4),
-                              ),
-                            )
-                          : RefreshIndicator(
-                              color: accentColor,
-                              onRefresh: p.fetchComments,
-                              child: ListView.separated(
-                                padding: const EdgeInsets.all(12),
-                                itemCount: p.comments.length,
-                                separatorBuilder: (_, __) =>
-                                    const Divider(color: Colors.white10),
-                                itemBuilder: (_, i) {
-                                  final c = p.comments[i];
+                          child: CircularProgressIndicator(color: accentColor))
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(12),
+                          itemCount: p.comments.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(color: Colors.white10),
+                          itemBuilder: (_, i) {
+                            final c = p.comments[i];
+                            final bool isMine = c["user"] == p.myUserId;
 
-                                  return ListTile(
-                                    contentPadding: EdgeInsets.zero,
-                                    leading: CircleAvatar(
-                                      radius: 18,
-                                      backgroundColor: Colors.white12,
-                                      backgroundImage: c["profile_image"] != null
-                                          ? NetworkImage("$api${c["profile_image"]}")
-                                          : null,
-                                      child: c["profile_image"] == null
-                                          ? const Icon(Icons.person,
-                                              color: Colors.white70, size: 18)
-                                          : null,
-                                    ),
-                                    title: Text(
-                                      p.getUserName(c),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
+
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: Colors.white12,
+                                  backgroundImage: c["profile_image"] != null
+                                      ? NetworkImage(
+                                          "$api${c["profile_image"]}")
+                                      : null,
+                                  child: c["profile_image"] == null
+                                      ? const Icon(Icons.person,
+                                          color: Colors.white70, size: 18)
+                                      : null,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              p.getUserName(c),
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                          if (isMine) ...[
+                                            IconButton(
+                                              icon: const Icon(Icons.edit,
+                                                  size: 18,
+                                                  color: Colors.white70),
+                                              padding: EdgeInsets.zero,
+                                              constraints:
+                                                  const BoxConstraints(),
+                                              onPressed: () =>
+                                                  _openEditSheet(context, p, c),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                  Icons.delete_outline,
+                                                  size: 18,
+                                                  color: Colors.redAccent),
+                                              padding: EdgeInsets.zero,
+                                              constraints:
+                                                  const BoxConstraints(),
+                                              onPressed: () =>
+                                                  _confirmDelete(
+                                                      context, p, c["id"]),
+                                            ),
+                                          ],
+                                        ],
                                       ),
-                                    ),
-                                    subtitle: Padding(
-                                      padding: const EdgeInsets.only(top: 4),
-                                      child: Text(
+                                      const SizedBox(height: 4),
+                                      Text(
                                         c["comment"] ?? "",
                                         style: const TextStyle(
                                           color: Colors.white70,
                                           height: 1.35,
                                         ),
                                       ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
                 ),
 
-                // Input
+                /* ───────── INPUT ───────── */
                 Container(
                   padding: EdgeInsets.only(
                     left: 12,
                     right: 12,
-                    top: 8,
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 10,
+                    bottom:
+                        MediaQuery.of(context).viewInsets.bottom + 10,
                   ),
                   decoration: const BoxDecoration(
                     border: Border(top: BorderSide(color: Colors.white10)),
@@ -145,36 +168,35 @@ class FeedCommentsSheet extends StatelessWidget {
                       const CircleAvatar(
                         radius: 16,
                         backgroundColor: Colors.white12,
-                        child: Icon(Icons.person, color: Colors.white70, size: 16),
+                        child: Icon(Icons.person,
+                            color: Colors.white70, size: 16),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: TextField(
                           controller: controller,
                           style: const TextStyle(color: Colors.white),
-                          textInputAction: TextInputAction.send,
                           onSubmitted: (v) {
                             p.postComment(v);
                             controller.clear();
                           },
                           decoration: const InputDecoration(
                             hintText: "Add a comment...",
-                            hintStyle: TextStyle(color: Colors.white38),
+                            hintStyle:
+                                TextStyle(color: Colors.white38),
                             border: InputBorder.none,
                           ),
                         ),
                       ),
                       TextButton(
-                        onPressed: p.posting
-                            ? null
-                            : () {
-                                p.postComment(controller.text);
-                                controller.clear();
-                              },
-                        child: Text(
-                          p.posting ? "Posting..." : "Post",
+                        onPressed: () {
+                          p.postComment(controller.text);
+                          controller.clear();
+                        },
+                        child: const Text(
+                          "Post",
                           style: TextStyle(
-                            color: p.posting ? Colors.white30 : accentColor,
+                            color: accentColor,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -183,10 +205,98 @@ class FeedCommentsSheet extends StatelessWidget {
                   ),
                 ),
               ],
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }
+}
+
+/* ───────────────────────── EDIT ───────────────────────── */
+
+void _openEditSheet(
+  BuildContext context,
+  FeedCommentsProvider provider,
+  Map<String, dynamic> c,
+) {
+  final controller = TextEditingController(text: c["comment"]);
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(
+          gradient:
+              LinearGradient(colors: [Color(0xFF00312D), Colors.black]),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Edit Comment",
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () async {
+                await provider.updateComment(
+                  commentId: c["id"],
+                  newText: controller.text,
+                );
+                Navigator.pop(context);
+              },
+              child: const Text("Update"),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/* ───────────────────────── DELETE ───────────────────────── */
+
+void _confirmDelete(
+  BuildContext context,
+  FeedCommentsProvider provider,
+  int id,
+) {
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      backgroundColor: Colors.black,
+      title: const Text("Delete Comment",
+          style: TextStyle(color: Colors.white)),
+      content: const Text(
+        "Are you sure you want to delete this comment?",
+        style: TextStyle(color: Colors.white70),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Cancel"),
+        ),
+        TextButton(
+          onPressed: () async {
+            await provider.deleteComment(id);
+            Navigator.pop(context);
+          },
+          child: const Text("Delete",
+              style: TextStyle(color: Colors.redAccent)),
+        ),
+      ],
+    ),
+  );
 }
