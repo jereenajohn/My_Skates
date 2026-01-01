@@ -286,7 +286,7 @@ void _confirmDelete(
         "Are you sure you want to delete this comment?",
         style: TextStyle(color: Colors.white70),
       ),
-      actions: [
+      actions: [  
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text("Cancel",style: TextStyle(color: Colors.white),),
