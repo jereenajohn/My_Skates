@@ -387,10 +387,18 @@ class _FeedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final profile = context.read<CoachProfileProvider>();
     final feedProvider = context.watch<CoachFeedProvider>();
-    print("FEED DATA: $feed");
-    print("FEED IMAGES: ${feed["feed_image"]}");
-    print("FEED DESC: ${feed["description"]}");
-    print(profile.name);
+
+    final int index = feedProvider.feeds.indexWhere(
+      (f) => f["id"] == feed["id"],
+    );
+
+    final bool isReposted =
+        index != -1 && feedProvider.feeds[index]["is_reposted"] == true;
+
+    final int repostCount = index != -1
+        ? feedProvider.feeds[index]["shares_count"] ?? 0
+        : 0;
+
     final List images = feed["feed_image"] ?? [];
 
     return Padding(
@@ -567,14 +575,19 @@ class _FeedCard extends StatelessWidget {
                     ),
 
                     const SizedBox(width: 18),
+
                     _ActionButton(
-                      icon: (feed["is_reposted"] ?? false)
-                          ? Icons.repeat
-                          : Icons.repeat_outlined,
-                      label: "${feed["reposts_count"] ?? 0}",
-                      isActive: feed["is_reposted"] ?? false,
+                      icon: isReposted ? Icons.repeat : Icons.repeat_outlined,
+                      label: "$repostCount", // 👈 ONLY API shares_count
+                      isActive: isReposted,
                       onTap: () {
-                        feedProvider.toggleRepost(feed["id"]);
+                        final provider = context.read<CoachFeedProvider>();
+                        final index = provider.feeds.indexWhere(
+                          (f) => f["id"] == feed["id"],
+                        );
+                        if (index == -1) return;
+
+                        provider.toggleRepost(feed["id"]);
                       },
                     ),
 

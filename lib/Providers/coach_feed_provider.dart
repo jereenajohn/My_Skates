@@ -25,11 +25,36 @@ class CoachFeedProvider extends ChangeNotifier {
     if (res.statusCode == 200) {
       final decoded = jsonDecode(res.body);
       feeds = decoded is List ? decoded : decoded["data"] ?? [];
+
+      print("============$feeds");
     }
 
     loading = false;
     notifyListeners();
   }
+
+  // Future<void> fetchAllFeeds() async {
+  //   loading = true;
+  //   notifyListeners();
+
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final token = prefs.getString("access");
+
+  //   final res = await http.get(
+  //     Uri.parse("$api/api/myskates/feeds/"),
+  //     headers: {"Authorization": "Bearer $token"},
+  //   );
+
+  //   if (res.statusCode == 200) {
+  //     final decoded = jsonDecode(res.body);
+
+  //     // API returns LIST directly
+  //     feeds = decoded is List ? decoded : [];
+  //   }
+
+  //   loading = false;
+  //   notifyListeners();
+  // }
 
   Future<void> toggleLike(int feedId) async {
     final prefs = await SharedPreferences.getInstance();
@@ -130,76 +155,67 @@ class CoachFeedProvider extends ChangeNotifier {
     fetchFeeds();
   }
 
-  Future<void> toggleRepost(int feedId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
 
-    print("---- TOGGLE REPOST ----");
-    print("Feed ID: $feedId");
-    print("Token exists: ${token != null}");
+Future<void> toggleRepost(int feedId) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+  if (token == null) return;
 
-    if (token == null) return;
+  final index = feeds.indexWhere((f) => f["id"] == feedId);
+  if (index == -1) return;
 
-    final index = feeds.indexWhere((f) => f["id"] == feedId);
-    if (index == -1) {
-      print("Feed not found in provider list");
-      return;
+  final bool isReposted = feeds[index]["is_reposted"] == true;
+  final int currentCount = feeds[index]["shares_count"] ?? 0;
+
+  // 🔐 LOCK (prevents double tap)
+  if (feeds[index]["_repost_loading"] == true) return;
+  feeds[index]["_repost_loading"] = true;
+
+  // 🔥 OPTIMISTIC UI
+  feeds[index]["is_reposted"] = !isReposted;
+  feeds[index]["shares_count"] = isReposted
+      ? (currentCount > 0 ? currentCount - 1 : 0)
+      : currentCount + 1;
+
+  notifyListeners();
+
+  try {
+    final uri = Uri.parse("$api/api/myskates/feeds/repost/$feedId/");
+
+    http.Response res;
+
+    if (isReposted) {
+      // 🗑️ REMOVE REPOST
+      res = await http.delete(
+        uri,
+        headers: {"Authorization": "Bearer $token"},
+      );
+      print("🗑️ DELETE REPOST RESPONSE:");
+    } else {
+      // 🔁 CREATE REPOST
+      res = await http.post(
+        uri,
+        headers: {"Authorization": "Bearer $token"},
+      );
+      print("🔁 POST REPOST RESPONSE:");
     }
 
-    final bool wasReposted = feeds[index]["is_reposted"] ?? false;
-    final int currentCount = feeds[index]["reposts_count"] ?? 0;
+    print("STATUS: ${res.statusCode}");
+    print("BODY: ${res.body}");
 
-    print("Was Reposted: $wasReposted");
-    print("Current Repost Count: $currentCount");
-
-    // 🔹 Optimistic UI update
-    feeds[index]["is_reposted"] = !wasReposted;
-    feeds[index]["reposts_count"] = wasReposted
-        ? currentCount - 1
-        : currentCount + 1;
-
-    print("Optimistic is_reposted: ${feeds[index]["is_reposted"]}");
-    print("Optimistic reposts_count: ${feeds[index]["reposts_count"]}");
-
-    notifyListeners();
-
-    try {
-      final uri = Uri.parse("$api/api/myskates/feeds/repost/$feedId/");
-
-      print("API URL: $uri");
-      print("API METHOD: ${wasReposted ? "DELETE" : "POST"}");
-
-      final response = wasReposted
-          ? await http.delete(uri, headers: {"Authorization": "Bearer $token"})
-          : await http.post(
-              uri,
-              headers: {
-                "Authorization": "Bearer $token",
-                "Content-Type": "application/json",
-              },
-            );
-
-      print("API STATUS: ${response.statusCode}");
-      print("API BODY: ${response.body}");
-
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        throw Exception("Repost API failed");
-      }
-
-      print("Repost API success");
-    } catch (e) {
-      print("Repost API ERROR: $e");
-
-      // 🔴 Rollback
-      feeds[index]["is_reposted"] = wasReposted;
-      feeds[index]["reposts_count"] = currentCount;
-
-      print("Rollback is_reposted: ${feeds[index]["is_reposted"]}");
-      print("Rollback reposts_count: ${feeds[index]["reposts_count"]}");
-
-      notifyListeners();
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      throw Exception("Repost failed");
     }
-
-    print("---- END TOGGLE REPOST ----");
+  } catch (e) {
+    // 🔴 ROLLBACK
+    feeds[index]["is_reposted"] = isReposted;
+    feeds[index]["shares_count"] = currentCount;
+    print("❌ REPOST ERROR: $e");
+  } finally {
+    feeds[index].remove("_repost_loading");
   }
+
+  notifyListeners();
+}
+
 }
