@@ -400,6 +400,8 @@ class _FeedCard extends StatelessWidget {
         : 0;
 
     final List images = feed["feed_image"] ?? [];
+    final bool repostLoading =
+        feedProvider.feeds[index]["_repost_loading"] == true;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 28),
@@ -577,18 +579,18 @@ class _FeedCard extends StatelessWidget {
                     const SizedBox(width: 18),
 
                     _ActionButton(
-                      icon: isReposted ? Icons.repeat : Icons.repeat_outlined,
-                      label: "$repostCount", // 👈 ONLY API shares_count
+                      icon: repostLoading
+                          ? Icons.hourglass_top
+                          : (isReposted ? Icons.repeat : Icons.repeat_outlined),
+                      label: "$repostCount",
                       isActive: isReposted,
-                      onTap: () {
-                        final provider = context.read<CoachFeedProvider>();
-                        final index = provider.feeds.indexWhere(
-                          (f) => f["id"] == feed["id"],
-                        );
-                        if (index == -1) return;
-
-                        provider.toggleRepost(feed["id"]);
-                      },
+                      onTap: repostLoading
+                          ? () {} // 🚫 disable tap
+                          : () {
+                              context.read<CoachFeedProvider>().toggleRepost(
+                                feed["id"],
+                              );
+                            },
                     ),
 
                     const SizedBox(width: 18),
