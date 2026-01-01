@@ -568,6 +568,18 @@ class _FeedCard extends StatelessWidget {
 
                     const SizedBox(width: 18),
                     _ActionButton(
+                      icon: (feed["is_reposted"] ?? false)
+                          ? Icons.repeat
+                          : Icons.repeat_outlined,
+                      label: "${feed["reposts_count"] ?? 0}",
+                      isActive: feed["is_reposted"] ?? false,
+                      onTap: () {
+                        feedProvider.toggleRepost(feed["id"]);
+                      },
+                    ),
+
+                    const SizedBox(width: 18),
+                    _ActionButton(
                       icon: Icons.chat_bubble_outline,
                       label: "Feedback",
                       onTap: () {

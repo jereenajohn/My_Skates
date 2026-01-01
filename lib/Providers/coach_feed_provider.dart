@@ -78,8 +78,6 @@ class CoachFeedProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  
-
   Future<void> postFeed(String text, List<File> images) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
@@ -130,5 +128,78 @@ class CoachFeedProvider extends ChangeNotifier {
     );
 
     fetchFeeds();
+  }
+
+  Future<void> toggleRepost(int feedId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    print("---- TOGGLE REPOST ----");
+    print("Feed ID: $feedId");
+    print("Token exists: ${token != null}");
+
+    if (token == null) return;
+
+    final index = feeds.indexWhere((f) => f["id"] == feedId);
+    if (index == -1) {
+      print("Feed not found in provider list");
+      return;
+    }
+
+    final bool wasReposted = feeds[index]["is_reposted"] ?? false;
+    final int currentCount = feeds[index]["reposts_count"] ?? 0;
+
+    print("Was Reposted: $wasReposted");
+    print("Current Repost Count: $currentCount");
+
+    // 🔹 Optimistic UI update
+    feeds[index]["is_reposted"] = !wasReposted;
+    feeds[index]["reposts_count"] = wasReposted
+        ? currentCount - 1
+        : currentCount + 1;
+
+    print("Optimistic is_reposted: ${feeds[index]["is_reposted"]}");
+    print("Optimistic reposts_count: ${feeds[index]["reposts_count"]}");
+
+    notifyListeners();
+
+    try {
+      final uri = Uri.parse("$api/api/myskates/feeds/repost/$feedId/");
+
+      print("API URL: $uri");
+      print("API METHOD: ${wasReposted ? "DELETE" : "POST"}");
+
+      final response = wasReposted
+          ? await http.delete(uri, headers: {"Authorization": "Bearer $token"})
+          : await http.post(
+              uri,
+              headers: {
+                "Authorization": "Bearer $token",
+                "Content-Type": "application/json",
+              },
+            );
+
+      print("API STATUS: ${response.statusCode}");
+      print("API BODY: ${response.body}");
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception("Repost API failed");
+      }
+
+      print("Repost API success");
+    } catch (e) {
+      print("Repost API ERROR: $e");
+
+      // 🔴 Rollback
+      feeds[index]["is_reposted"] = wasReposted;
+      feeds[index]["reposts_count"] = currentCount;
+
+      print("Rollback is_reposted: ${feeds[index]["is_reposted"]}");
+      print("Rollback reposts_count: ${feeds[index]["reposts_count"]}");
+
+      notifyListeners();
+    }
+
+    print("---- END TOGGLE REPOST ----");
   }
 }
