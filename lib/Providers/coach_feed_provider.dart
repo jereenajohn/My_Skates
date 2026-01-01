@@ -7,105 +7,193 @@ import '../api.dart';
 
 class CoachFeedProvider extends ChangeNotifier {
   bool loading = true;
-  List feeds = [];
 
+  /// USER-SPECIFIC FEEDS (is_liked, is_reposted)
+  List _userFeeds = [];
+
+  /// GLOBAL FEEDS (shares_count source of truth)
+  List _allFeeds = [];
+
+  /// 🔑 SINGLE READ-ONLY LIST FOR UI
+  List get feeds {
+    final Map<int, dynamic> allFeedMap = {
+      for (final f in _allFeeds)
+        if (f["id"] != null) f["id"]: f,
+    };
+
+    return _userFeeds.map((f) {
+      final all = allFeedMap[f["id"]];
+      return {
+        ...f,
+        "shares_count": all?["shares_count"] ?? f["shares_count"] ?? 0,
+      };
+    }).toList();
+  }
+
+  /* -----------------------------------------------------------
+   * FETCH FEEDS (MERGED)
+   * --------------------------------------------------------- */
   Future<void> fetchFeeds() async {
     loading = true;
     notifyListeners();
 
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-    final id = prefs.getInt("id");
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      final id = prefs.getInt("id");
+      if (token == null || id == null) return;
 
-    final res = await http.get(
-      Uri.parse("$api/api/myskates/feeds/user/$id/"),
-      headers: {"Authorization": "Bearer $token"},
-    );
-    print("Fetch Feeds Response: ${res.statusCode} - ${res.body}");
-    if (res.statusCode == 200) {
-      final decoded = jsonDecode(res.body);
-      feeds = decoded is List ? decoded : decoded["data"] ?? [];
+      final responses = await Future.wait([
+        http.get(
+          Uri.parse("$api/api/myskates/feeds/user/$id/"),
+          headers: {"Authorization": "Bearer $token"},
+        ),
+        http.get(
+          Uri.parse("$api/api/myskates/feeds/"),
+          headers: {"Authorization": "Bearer $token"},
+        ),
+      ]);
 
-      print("============$feeds");
+      // USER FEEDS
+      if (responses[0].statusCode == 200) {
+        final decoded = jsonDecode(responses[0].body);
+        _userFeeds = decoded is List ? decoded : decoded["data"] ?? [];
+      }
+
+      // ALL FEEDS (COUNTS)
+      if (responses[1].statusCode == 200) {
+        final decoded = jsonDecode(responses[1].body);
+        _allFeeds = decoded is List ? decoded : [];
+      }
+    } catch (e) {
+      print("❌ fetchFeeds ERROR: $e");
     }
 
     loading = false;
     notifyListeners();
   }
 
-  // Future<void> fetchAllFeeds() async {
-  //   loading = true;
-  //   notifyListeners();
-
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final token = prefs.getString("access");
-
-  //   final res = await http.get(
-  //     Uri.parse("$api/api/myskates/feeds/"),
-  //     headers: {"Authorization": "Bearer $token"},
-  //   );
-
-  //   if (res.statusCode == 200) {
-  //     final decoded = jsonDecode(res.body);
-
-  //     // API returns LIST directly
-  //     feeds = decoded is List ? decoded : [];
-  //   }
-
-  //   loading = false;
-  //   notifyListeners();
-  // }
-
+  /* -----------------------------------------------------------
+   * LIKE
+   * --------------------------------------------------------- */
   Future<void> toggleLike(int feedId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
     if (token == null) return;
 
-    final index = feeds.indexWhere((f) => f["id"] == feedId);
+    final index = _userFeeds.indexWhere((f) => f["id"] == feedId);
     if (index == -1) return;
 
-    final bool wasLiked = feeds[index]["is_liked"] ?? false;
-    final int currentCount = feeds[index]["likes_count"] ?? 0;
+    final bool wasLiked = _userFeeds[index]["is_liked"] == true;
+    final int currentCount = _userFeeds[index]["likes_count"] ?? 0;
 
-    // 🔹 Optimistic UI update
-    feeds[index]["is_liked"] = !wasLiked;
-    feeds[index]["likes_count"] = wasLiked
+    // Optimistic
+    _userFeeds[index]["is_liked"] = !wasLiked;
+    _userFeeds[index]["likes_count"] = wasLiked
         ? currentCount - 1
         : currentCount + 1;
 
     notifyListeners();
 
     try {
-      final response = await http.post(
+      final res = await http.post(
         Uri.parse("$api/api/myskates/feeds/$feedId/like/"),
-        headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json",
-        },
+        headers: {"Authorization": "Bearer $token"},
       );
 
-      print("Like API response: ${response.statusCode} - ${response.body}");
-
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-
-        // 🔹 Trust backend response
-        feeds[index]["is_liked"] = body["liked"] ?? false;
-      } else {
-        throw Exception("Like API failed");
-      }
-    } catch (e) {
-      // 🔴 Proper rollback
-      feeds[index]["is_liked"] = wasLiked;
-      feeds[index]["likes_count"] = wasLiked ? currentCount : currentCount;
+      if (res.statusCode != 200) throw Exception();
+    } catch (_) {
+      _userFeeds[index]["is_liked"] = wasLiked;
+      _userFeeds[index]["likes_count"] = currentCount;
     }
 
     notifyListeners();
   }
 
+  /* -----------------------------------------------------------
+   * REPOST (NO COUNT MATH)
+   * --------------------------------------------------------- */
+  Future<void> toggleRepost(int feedId) async {
+    print("🔁 toggleRepost called for feedId: $feedId");
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    if (token == null) {
+      print("❌ No token found");
+      return;
+    }
+
+    final index = _userFeeds.indexWhere((f) => f["id"] == feedId);
+    if (index == -1) {
+      print("❌ Feed not found in _userFeeds");
+      return;
+    }
+
+    if (_userFeeds[index]["_repost_loading"] == true) {
+      print("⏳ Repost already in progress for feedId: $feedId");
+      return;
+    }
+
+    _userFeeds[index]["_repost_loading"] = true;
+
+    final bool isReposted = _userFeeds[index]["is_reposted"] == true;
+
+    print("📌 Current repost state: $isReposted");
+    print(
+      "📊 Current shares_count (before API): ${_userFeeds[index]["shares_count"]}",
+    );
+
+    // 🔹 toggle icon ONLY (no count math)
+    _userFeeds[index]["is_reposted"] = !isReposted;
+    notifyListeners();
+
+    try {
+      final uri = Uri.parse("$api/api/myskates/feeds/repost/$feedId/");
+      print("🌐 API URL: $uri");
+      print(
+        "➡️ API METHOD: ${isReposted ? "DELETE (remove repost)" : "POST (add repost)"}",
+      );
+
+      final res = isReposted
+          ? await http.delete(uri, headers: {"Authorization": "Bearer $token"})
+          : await http.post(uri, headers: {"Authorization": "Bearer $token"});
+
+      print("✅ API STATUS: ${res.statusCode}");
+      print("📦 API BODY: ${res.body}");
+
+      if (res.statusCode != 200 && res.statusCode != 201) {
+        throw Exception("Repost failed");
+      }
+
+      print("🔄 Fetching feeds again for authoritative count...");
+      await fetchFeeds();
+
+      // after refresh
+      final refreshedIndex = _userFeeds.indexWhere((f) => f["id"] == feedId);
+      if (refreshedIndex != -1) {
+        print(
+          "📊 Updated shares_count (after fetch): ${_userFeeds[refreshedIndex]["shares_count"]}",
+        );
+      }
+    } catch (e) {
+      _userFeeds[index]["is_reposted"] = isReposted;
+      print("❌ REPOST ERROR: $e");
+    } finally {
+      _userFeeds[index].remove("_repost_loading");
+      print("✅ Repost flow completed for feedId: $feedId");
+    }
+
+    notifyListeners();
+  }
+
+  /* -----------------------------------------------------------
+   * CREATE / UPDATE / DELETE FEED
+   * --------------------------------------------------------- */
   Future<void> postFeed(String text, List<File> images) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
+    if (token == null) return;
 
     final req = http.MultipartRequest(
       "POST",
@@ -120,12 +208,13 @@ class CoachFeedProvider extends ChangeNotifier {
     }
 
     await req.send();
-    fetchFeeds();
+    await fetchFeeds();
   }
 
   Future<void> updateFeed(int id, String text, List<File> images) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
+    if (token == null) return;
 
     final req = http.MultipartRequest(
       "PUT",
@@ -140,82 +229,19 @@ class CoachFeedProvider extends ChangeNotifier {
     }
 
     await req.send();
-    fetchFeeds();
+    await fetchFeeds();
   }
 
   Future<void> deleteFeed(int id) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
+    if (token == null) return;
 
     await http.delete(
       Uri.parse("$api/api/myskates/feeds/update/$id/"),
       headers: {"Authorization": "Bearer $token"},
     );
 
-    fetchFeeds();
+    await fetchFeeds();
   }
-
-
-Future<void> toggleRepost(int feedId) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-  if (token == null) return;
-
-  final index = feeds.indexWhere((f) => f["id"] == feedId);
-  if (index == -1) return;
-
-  final bool isReposted = feeds[index]["is_reposted"] == true;
-  final int currentCount = feeds[index]["shares_count"] ?? 0;
-
-  // 🔐 LOCK (prevents double tap)
-  if (feeds[index]["_repost_loading"] == true) return;
-  feeds[index]["_repost_loading"] = true;
-
-  // 🔥 OPTIMISTIC UI
-  feeds[index]["is_reposted"] = !isReposted;
-  feeds[index]["shares_count"] = isReposted
-      ? (currentCount > 0 ? currentCount - 1 : 0)
-      : currentCount + 1;
-
-  notifyListeners();
-
-  try {
-    final uri = Uri.parse("$api/api/myskates/feeds/repost/$feedId/");
-
-    http.Response res;
-
-    if (isReposted) {
-      // 🗑️ REMOVE REPOST
-      res = await http.delete(
-        uri,
-        headers: {"Authorization": "Bearer $token"},
-      );
-      print("🗑️ DELETE REPOST RESPONSE:");
-    } else {
-      // 🔁 CREATE REPOST
-      res = await http.post(
-        uri,
-        headers: {"Authorization": "Bearer $token"},
-      );
-      print("🔁 POST REPOST RESPONSE:");
-    }
-
-    print("STATUS: ${res.statusCode}");
-    print("BODY: ${res.body}");
-
-    if (res.statusCode != 200 && res.statusCode != 201) {
-      throw Exception("Repost failed");
-    }
-  } catch (e) {
-    // 🔴 ROLLBACK
-    feeds[index]["is_reposted"] = isReposted;
-    feeds[index]["shares_count"] = currentCount;
-    print("❌ REPOST ERROR: $e");
-  } finally {
-    feeds[index].remove("_repost_loading");
-  }
-
-  notifyListeners();
-}
-
 }
