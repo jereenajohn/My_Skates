@@ -263,6 +263,45 @@ Future<List<Map<String, dynamic>>> fetchUserReposts(int userId) async {
 }
 
 
+// Future<void> repostWithText({
+//   required int feedId,
+//   String? text,
+// }) async {
+//   final prefs = await SharedPreferences.getInstance();
+//   final token = prefs.getString("access");
+//   if (token == null) return;
+
+//   // 1️⃣ Create repost
+//   final res = await http.post(
+//     Uri.parse("$api/api/myskates/feeds/repost/$feedId/"),
+//     headers: {"Authorization": "Bearer $token"},
+//   );
+
+//   if (res.statusCode != 201 && res.statusCode != 200) return;
+
+//   final decoded = jsonDecode(res.body);
+//   final int repostId = decoded["data"]["id"];
+
+
+//   if (text != null && text.isNotEmpty) {
+//     await http.patch(
+//       Uri.parse("$api/api/myskates/feeds/repost/$repostId/"),
+//       headers: {
+//         "Authorization": "Bearer $token",
+//         "Content-Type": "application/json",
+//       },
+//       body: jsonEncode({"text": text}),
+//     );
+
+//     print("✅ Repost text updated for repostId: $repostId");
+//     print("📦 Text: $text");
+
+//     print("📦 REPOST TEXT RESPONSE: ${res.body}");
+//   }
+
+//   await fetchFeeds();
+// }
+
 Future<void> repostWithText({
   required int feedId,
   String? text,
@@ -271,37 +310,24 @@ Future<void> repostWithText({
   final token = prefs.getString("access");
   if (token == null) return;
 
-  // 1️⃣ Create repost
   final res = await http.post(
     Uri.parse("$api/api/myskates/feeds/repost/$feedId/"),
-    headers: {"Authorization": "Bearer $token"},
+    headers: {
+      "Authorization": "Bearer $token",
+      "Content-Type": "application/json",
+    },
+    body: jsonEncode({
+      if (text != null && text.trim().isNotEmpty) "text": text.trim(),
+    }),
   );
 
-  if (res.statusCode != 201 && res.statusCode != 200) return;
+  print("🔁 REPOST POST STATUS: ${res.statusCode}");
+  print("📦 REPOST POST BODY: ${res.body}");
 
-  final decoded = jsonDecode(res.body);
-  final int repostId = decoded["data"]["id"];
-
-
-  if (text != null && text.isNotEmpty) {
-    await http.patch(
-      Uri.parse("$api/api/myskates/feeds/repost/$repostId/"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
-      body: jsonEncode({"text": text}),
-    );
-
-    print("✅ Repost text updated for repostId: $repostId");
-    print("📦 Text: $text");
-
-    print("📦 REPOST TEXT RESPONSE: ${res.body}");
-  }
+  if (res.statusCode != 200 && res.statusCode != 201) return;
 
   await fetchFeeds();
 }
-
 
   /* -----------------------------------------------------------
    * CREATE / UPDATE / DELETE FEED

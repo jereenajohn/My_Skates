@@ -106,26 +106,19 @@ class _RepostComposerSheetState extends State<RepostComposerSheet> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2EE6A6),
               ),
-              onPressed: posting
-                  ? null
-                  : () async {
-                      final text = controller.text.trim();
+             onPressed: posting
+    ? null
+    : () async {
+        setState(() => posting = true);
 
-                      if (text.isEmpty) {
-                        Navigator.pop(context); // plain repost
-                        await widget.feedProvider.toggleRepost(widget.feedId);
-                        return;
-                      }
+        await widget.feedProvider.repostWithText(
+          feedId: widget.feedId,
+          text: controller.text.trim(), // empty or filled
+        );
 
-                      setState(() => posting = true);
+        Navigator.pop(context);
+      },
 
-                      await widget.feedProvider.repostWithText(
-                        feedId: widget.feedId,
-                        text: text,
-                      );
-
-                      Navigator.pop(context);
-                    },
 
               child: Text(
                 posting ? "Posting..." : "Repost",
