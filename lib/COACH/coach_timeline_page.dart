@@ -23,7 +23,7 @@ class CoachTimelinePage extends StatefulWidget {
 }
 
 class _CoachTimelinePageState extends State<CoachTimelinePage> {
-  final Map<int, GlobalKey> _feedKeys = {};
+  final Map<Object, GlobalKey> _feedKeys = {};
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +47,8 @@ class _CoachTimelinePageState extends State<CoachTimelinePage> {
     if (widget.feedId == null) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final key = _feedKeys[widget.feedId];
+      final Object targetKey = widget.feedId!;
+      final key = _feedKeys[targetKey];
       if (key?.currentContext != null) {
         Scrollable.ensureVisible(
           key!.currentContext!,
@@ -61,12 +62,16 @@ class _CoachTimelinePageState extends State<CoachTimelinePage> {
 /* ───────────────────────── MAIN VIEW ───────────────────────── */
 
 class _CoachTimelineView extends StatelessWidget {
-  final Map<int, GlobalKey> feedKeys;
+  final Map<Object, GlobalKey> feedKeys;
 
   const _CoachTimelineView({required this.feedKeys});
 
   @override
   Widget build(BuildContext context) {
+    final profileLoading = context.watch<CoachProfileProvider>().loading;
+    final feedLoading = context.watch<CoachFeedProvider>().loading;
+
+    final bool isPageLoading = profileLoading || feedLoading;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -90,7 +95,9 @@ class _CoachTimelineView extends StatelessWidget {
                   const SizedBox(height: 40),
                   const _ProfileHeader(),
                   const SizedBox(height: 20),
-                  const _FeedComposer(),
+                  isPageLoading
+                      ? const FeedComposerSkeleton()
+                      : const _FeedComposer(),
                   const SizedBox(height: 20),
 
                   // ✅ this is dynamic, so the list cannot be const
@@ -139,8 +146,9 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<CoachProfileProvider>(
       builder: (_, p, __) {
+        // ✅ Skeleton instead of spinner
         if (p.loading) {
-          return const CircularProgressIndicator(color: accentColor);
+          return const ProfileHeaderSkeleton();
         }
 
         return Column(
@@ -292,9 +300,8 @@ class _FeedComposer extends StatelessWidget {
 }
 
 /* ───────────────────────── FEED LIST ───────────────────────── */
-
 class _FeedList extends StatelessWidget {
-  final Map<int, GlobalKey> feedKeys;
+  final Map<Object, GlobalKey> feedKeys;
 
   const _FeedList({required this.feedKeys});
 
@@ -302,30 +309,28 @@ class _FeedList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<CoachFeedProvider>(
       builder: (_, p, __) {
+        // ✅ Skeleton loading
         if (p.loading) {
-          return const Padding(
-            padding: EdgeInsets.all(24),
-            child: CircularProgressIndicator(color: accentColor),
-          );
+          return const FeedSkeletonList();
         }
 
+        // ✅ Empty state
         if (p.feeds.isEmpty) {
-          return const Text(
-            "No posts yet",
-            style: TextStyle(color: Colors.white54),
-          );
+          return const EmptyFeedState();
         }
+
+        // ✅ Normal feed
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: p.feeds.length,
           itemBuilder: (_, i) {
             final feed = p.feeds[i];
-
-            feedKeys.putIfAbsent(feed["id"], () => GlobalKey());
+            final Object feedKey = feed["id"];
+            feedKeys.putIfAbsent(feedKey, () => GlobalKey());
 
             return KeyedSubtree(
-              key: feedKeys[feed["id"]],
+              key: feedKeys[feedKey],
               child: _FeedCard(feed: feed),
             );
           },
@@ -388,6 +393,14 @@ class _FeedCard extends StatelessWidget {
     final profile = context.read<CoachProfileProvider>();
     final feedProvider = context.watch<CoachFeedProvider>();
 
+    // 🔁 Detect repost feed (ONCE)
+    final bool isRepostFeed = feed["feed"] != null;
+
+    // ✅ ALWAYS ASSIGNED — SAFE
+    final Map<String, dynamic> displayFeed = isRepostFeed
+        ? Map<String, dynamic>.from(feed["feed"] as Map)
+        : Map<String, dynamic>.from(feed as Map);
+
     final int index = feedProvider.feeds.indexWhere(
       (f) => f["id"] == feed["id"],
     );
@@ -399,9 +412,10 @@ class _FeedCard extends StatelessWidget {
         ? feedProvider.feeds[index]["shares_count"] ?? 0
         : 0;
 
-    final List images = feed["feed_image"] ?? [];
     final bool repostLoading =
-        feedProvider.feeds[index]["_repost_loading"] == true;
+        index != -1 && feedProvider.feeds[index]["_repost_loading"] == true;
+
+    final List images = displayFeed["feed_image"] ?? [];
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 28),
@@ -434,6 +448,26 @@ class _FeedCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 🔁 REPOST HEADER
+                if (isRepostFeed)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.repeat, size: 16, color: accentColor),
+                        const SizedBox(width: 6),
+                        Text(
+                          "${feed["reposted_by"]["first_name"]} ${feed["reposted_by"]["last_name"]} reposted this",
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 // 🔹 HEADER (PROFILE + NAME)
                 Row(
                   children: [
@@ -457,7 +491,7 @@ class _FeedCard extends StatelessWidget {
                     ),
                     PopupMenuButton(
                       icon: const Icon(Icons.more_vert, color: Colors.white54),
-                      color: Colors.transparent, // required for gradient
+                      color: Colors.transparent,
                       elevation: 0,
                       itemBuilder: (context) => [
                         PopupMenuItem(
@@ -476,16 +510,13 @@ class _FeedCard extends StatelessWidget {
                             child: const ListTile(
                               dense: true,
                               leading: Padding(
-                                padding: const EdgeInsets.only(
-                                  left: 6,
-                                ), // 👈 shift right
+                                padding: EdgeInsets.only(left: 6),
                                 child: Icon(
                                   Icons.edit,
                                   color: Colors.white,
                                   size: 18,
                                 ),
                               ),
-
                               title: Text(
                                 "Update",
                                 style: TextStyle(color: Colors.white),
@@ -513,16 +544,13 @@ class _FeedCard extends StatelessWidget {
                             child: const ListTile(
                               dense: true,
                               leading: Padding(
-                                padding: const EdgeInsets.only(
-                                  left: 6,
-                                ), // 👈 shift right
+                                padding: EdgeInsets.only(left: 6),
                                 child: Icon(
                                   Icons.delete,
                                   color: Colors.white,
                                   size: 18,
                                 ),
                               ),
-
                               title: Text(
                                 "Delete",
                                 style: TextStyle(color: Colors.white),
@@ -548,11 +576,11 @@ class _FeedCard extends StatelessWidget {
                   ),
 
                 // 🔹 DESCRIPTION
-                if ((feed["description"] ?? "").isNotEmpty)
+                if ((displayFeed["description"] ?? "").isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 10),
                     child: Text(
-                      feed["description"],
+                      displayFeed["description"],
                       style: const TextStyle(
                         color: Colors.white70,
                         height: 1.4,
@@ -562,17 +590,16 @@ class _FeedCard extends StatelessWidget {
 
                 const SizedBox(height: 12),
 
-                // 🔹 ACTIONS (LIKE / COMMENT / SCORE)
+                // 🔹 ACTIONS
                 Row(
                   children: [
                     _ActionButton(
-                      icon: (feed["is_liked"] ?? false)
+                      icon: (displayFeed["is_liked"] == true)
                           ? Icons.thumb_up
                           : Icons.thumb_up_alt_outlined,
-                      label: "${feed["likes_count"] ?? 0}",
-                      isActive: feed["is_liked"] ?? false,
+                      label: "${displayFeed["likes_count"] ?? 0}",
                       onTap: () {
-                        feedProvider.toggleLike(feed["id"]);
+                        feedProvider.toggleLike(displayFeed["id"]);
                       },
                     ),
 
@@ -585,15 +612,18 @@ class _FeedCard extends StatelessWidget {
                       label: "$repostCount",
                       isActive: isReposted,
                       onTap: repostLoading
-                          ? () {} // 🚫 disable tap
+                          ? () {}
                           : () {
-                              context.read<CoachFeedProvider>().toggleRepost(
-                                feed["id"],
-                              );
+                              final int actualFeedId = feed["feed"] != null
+                                  ? feed["feed"]["id"]
+                                  : feed["id"];
+
+                              feedProvider.toggleRepost(actualFeedId);
                             },
                     ),
 
                     const SizedBox(width: 18),
+
                     _ActionButton(
                       icon: Icons.chat_bubble_outline,
                       label: "Feedback",
@@ -606,10 +636,12 @@ class _FeedCard extends StatelessWidget {
                         );
                       },
                     ),
+
                     const Spacer(),
+
                     _ActionButton(
                       icon: Icons.share_outlined,
-                      label: "", // empty = no visible text
+                      label: "",
                       onTap: () => _shareFeed(context),
                     ),
                   ],
@@ -1126,4 +1158,227 @@ void _openImagePopup(
       );
     },
   );
+}
+
+class FeedSkeletonList extends StatelessWidget {
+  const FeedSkeletonList({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(children: List.generate(3, (_) => const _FeedSkeletonCard()));
+  }
+}
+
+class _FeedSkeletonCard extends StatelessWidget {
+  const _FeedSkeletonCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 28),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Timeline
+          Column(children: [_skeletonCircle(12), _skeletonLine(2, 160)]),
+          const SizedBox(width: 12),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _skeletonCircle(32),
+                    const SizedBox(width: 10),
+                    Expanded(child: _skeletonLine(14, 120)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _skeletonBox(height: 180),
+                const SizedBox(height: 12),
+                _skeletonLine(12, double.infinity),
+                const SizedBox(height: 6),
+                _skeletonLine(12, 220),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/* ---------- helpers ---------- */
+
+Widget _skeletonBox({double height = 14, double width = double.infinity}) {
+  return Container(
+    height: height,
+    width: width,
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.08),
+      borderRadius: BorderRadius.circular(14),
+    ),
+  );
+}
+
+Widget _skeletonLine(double height, double width) {
+  return _skeletonBox(height: height, width: width);
+}
+
+Widget _skeletonCircle(double size) {
+  return Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.08),
+      shape: BoxShape.circle,
+    ),
+  );
+}
+
+class EmptyFeedState extends StatelessWidget {
+  const EmptyFeedState({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: Container(
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: LinearGradient(
+            colors: [const Color(0xFF00312D), Colors.black.withOpacity(0.95)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: accentColor.withOpacity(0.35)),
+        ),
+        child: Column(
+          children: const [
+            Icon(Icons.insights_outlined, size: 42, color: accentColor),
+            SizedBox(height: 14),
+            Text(
+              "No posts yet",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 6),
+            Text(
+              "Start sharing your training updates,\nachievements, or moments on wheels.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70, height: 1.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ProfileHeaderSkeleton extends StatelessWidget {
+  const ProfileHeaderSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Avatar skeleton
+        Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withOpacity(0.08),
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Name skeleton
+        Container(
+          height: 18,
+          width: 160,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        // Role skeleton
+        Container(
+          height: 14,
+          width: 100,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class FeedComposerSkeleton extends StatelessWidget {
+  const FeedComposerSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+          colors: [const Color(0xFF00312D), Colors.black.withOpacity(0.95)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: accentColor.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          // Avatar skeleton
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.08),
+            ),
+          ),
+          const SizedBox(width: 14),
+
+          // Text skeleton
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _skeletonLine(14, 160),
+                const SizedBox(height: 6),
+                _skeletonLine(12, 120),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+          // Icon skeleton
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.white.withOpacity(0.08),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
