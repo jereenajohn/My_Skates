@@ -79,13 +79,24 @@ List _repostFeeds = [];
       final List data = decoded["data"] ?? [];
 
       _repostFeeds = data.map((item) {
-        return {
-          "id": "repost_${item["id"]}", // unique timeline ID
-          "created_at": item["created_at"],
-          "reposted_by": item["reposted_by"],
-          "feed": item["feed"], // 👈 original feed lives here
-        };
-      }).toList();
+  return {
+    "id": "repost_${item["id"]}",
+
+    // ✅ IMPORTANT: repost text
+    "text": item["text"],
+
+    "created_at": item["created_at"],
+    "reposted_by": item["reposted_by"],
+
+    // original feed
+    "feed": item["feed"],
+  };
+}).toList();
+
+print("✅ Fetched ${_repostFeeds.length} repost feeds");
+print("📦 Repost Feeds Data: $_repostFeeds");
+print("📦 User Feeds Data: $_userFeeds");
+
     }
   } catch (e) {
     print("❌ fetchFeeds ERROR: $e");
@@ -250,6 +261,47 @@ Future<List<Map<String, dynamic>>> fetchUserReposts(int userId) async {
     return [];
   }
 }
+
+
+Future<void> repostWithText({
+  required int feedId,
+  String? text,
+}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+  if (token == null) return;
+
+  // 1️⃣ Create repost
+  final res = await http.post(
+    Uri.parse("$api/api/myskates/feeds/repost/$feedId/"),
+    headers: {"Authorization": "Bearer $token"},
+  );
+
+  if (res.statusCode != 201 && res.statusCode != 200) return;
+
+  final decoded = jsonDecode(res.body);
+  final int repostId = decoded["data"]["id"];
+
+
+  if (text != null && text.isNotEmpty) {
+    await http.patch(
+      Uri.parse("$api/api/myskates/feeds/repost/$repostId/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({"text": text}),
+    );
+
+    print("✅ Repost text updated for repostId: $repostId");
+    print("📦 Text: $text");
+
+    print("📦 REPOST TEXT RESPONSE: ${res.body}");
+  }
+
+  await fetchFeeds();
+}
+
 
   /* -----------------------------------------------------------
    * CREATE / UPDATE / DELETE FEED

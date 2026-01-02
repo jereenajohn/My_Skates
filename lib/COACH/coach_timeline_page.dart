@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:my_skates/widgets/coach_repost_composer_sheet.dart';
 import 'package:my_skates/widgets/coachfeedcommentsheet.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -344,8 +345,8 @@ class _FeedList extends StatelessWidget {
 class _FeedCard extends StatelessWidget {
   final dynamic feed;
   const _FeedCard({required this.feed});
-  Future<void> _shareFeed(BuildContext context) async {
-    final int feedId = feed["id"];
+  Future<void> _shareFeed(BuildContext context, int actualFeedId) async {
+    final int feedId = actualFeedId;
 
     final String desc = (feed["description"] ?? "").toString().trim();
 
@@ -416,6 +417,9 @@ class _FeedCard extends StatelessWidget {
         index != -1 && feedProvider.feeds[index]["_repost_loading"] == true;
 
     final List images = displayFeed["feed_image"] ?? [];
+    final int actualFeedId = feed["feed"] != null
+        ? feed["feed"]["id"]
+        : feed["id"];
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 28),
@@ -465,6 +469,19 @@ class _FeedCard extends StatelessWidget {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+
+                if (isRepostFeed && (feed["text"] ?? "").toString().isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      feed["text"],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
 
@@ -559,7 +576,10 @@ class _FeedCard extends StatelessWidget {
                           ),
                           onTap: () {
                             Navigator.pop(context);
-                            feedProvider.deleteFeed(feed["id"]);
+
+                            if (!isRepostFeed) {
+                              feedProvider.deleteFeed(actualFeedId);
+                            }
                           },
                         ),
                       ],
@@ -599,7 +619,7 @@ class _FeedCard extends StatelessWidget {
                           : Icons.thumb_up_alt_outlined,
                       label: "${displayFeed["likes_count"] ?? 0}",
                       onTap: () {
-                        feedProvider.toggleLike(displayFeed["id"]);
+                        feedProvider.toggleLike(actualFeedId);
                       },
                     ),
 
@@ -614,11 +634,19 @@ class _FeedCard extends StatelessWidget {
                       onTap: repostLoading
                           ? () {}
                           : () {
-                              final int actualFeedId = feed["feed"] != null
-                                  ? feed["feed"]["id"]
-                                  : feed["id"];
+                              final feedProvider = context
+                                  .read<CoachFeedProvider>();
 
-                              feedProvider.toggleRepost(actualFeedId);
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => RepostComposerSheet(
+                                  feedId: actualFeedId,
+                                  feed: displayFeed,
+                                  feedProvider: feedProvider,
+                                ),
+                              );
                             },
                     ),
 
@@ -632,7 +660,8 @@ class _FeedCard extends StatelessWidget {
                           context: context,
                           isScrollControlled: true,
                           backgroundColor: Colors.transparent,
-                          builder: (_) => FeedCommentsSheet(feedId: feed["id"]),
+                          builder: (_) =>
+                              FeedCommentsSheet(feedId: actualFeedId),
                         );
                       },
                     ),
@@ -642,7 +671,7 @@ class _FeedCard extends StatelessWidget {
                     _ActionButton(
                       icon: Icons.share_outlined,
                       label: "",
-                      onTap: () => _shareFeed(context),
+                      onTap: () => _shareFeed(context, actualFeedId),
                     ),
                   ],
                 ),
