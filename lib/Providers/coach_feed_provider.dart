@@ -13,65 +13,87 @@ class CoachFeedProvider extends ChangeNotifier {
 
   /// GLOBAL FEEDS (shares_count source of truth)
   List _allFeeds = [];
+  /// REPOST FEEDS (SEPARATE TIMELINE ITEMS)
+List _repostFeeds = [];
+
 
   /// 🔑 SINGLE READ-ONLY LIST FOR UI
-  List get feeds {
-    final Map<int, dynamic> allFeedMap = {
-      for (final f in _allFeeds)
-        if (f["id"] != null) f["id"]: f,
-    };
+ List get feeds {
+  final List combined = [
+    ..._repostFeeds,
+    ..._userFeeds,
+  ];
 
-    return _userFeeds.map((f) {
-      final all = allFeedMap[f["id"]];
-      return {
-        ...f,
-        "shares_count": all?["shares_count"] ?? f["shares_count"] ?? 0,
-      };
-    }).toList();
-  }
+  combined.sort((a, b) {
+    final aTime = DateTime.parse(a["created_at"]);
+    final bTime = DateTime.parse(b["created_at"]);
+    return bTime.compareTo(aTime); // newest first
+  });
+
+  return combined;
+}
 
   /* -----------------------------------------------------------
    * FETCH FEEDS (MERGED)
    * --------------------------------------------------------- */
   Future<void> fetchFeeds() async {
-    loading = true;
-    notifyListeners();
+  loading = true;
+  notifyListeners();
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("access");
-      final id = prefs.getInt("id");
-      if (token == null || id == null) return;
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+    final id = prefs.getInt("id");
+    if (token == null || id == null) return;
 
-      final responses = await Future.wait([
-        http.get(
-          Uri.parse("$api/api/myskates/feeds/user/$id/"),
-          headers: {"Authorization": "Bearer $token"},
-        ),
-        http.get(
-          Uri.parse("$api/api/myskates/feeds/"),
-          headers: {"Authorization": "Bearer $token"},
-        ),
-      ]);
+    final responses = await Future.wait([
+      http.get(
+        Uri.parse("$api/api/myskates/feeds/user/$id/"),
+        headers: {"Authorization": "Bearer $token"},
+      ),
+      http.get(
+        Uri.parse("$api/api/myskates/feeds/"),
+        headers: {"Authorization": "Bearer $token"},
+      ),
+      http.get(
+        Uri.parse("$api/api/myskates/feeds/reposts/user/$id/"),
+        headers: {"Authorization": "Bearer $token"},
+      ),
+    ]);
 
-      // USER FEEDS
-      if (responses[0].statusCode == 200) {
-        final decoded = jsonDecode(responses[0].body);
-        _userFeeds = decoded is List ? decoded : decoded["data"] ?? [];
-      }
-
-      // ALL FEEDS (COUNTS)
-      if (responses[1].statusCode == 200) {
-        final decoded = jsonDecode(responses[1].body);
-        _allFeeds = decoded is List ? decoded : [];
-      }
-    } catch (e) {
-      print("❌ fetchFeeds ERROR: $e");
+    // USER FEEDS
+    if (responses[0].statusCode == 200) {
+      final decoded = jsonDecode(responses[0].body);
+      _userFeeds = decoded is List ? decoded : decoded["data"] ?? [];
     }
 
-    loading = false;
-    notifyListeners();
+    // GLOBAL FEEDS (COUNTS)
+    if (responses[1].statusCode == 200) {
+      final decoded = jsonDecode(responses[1].body);
+      _allFeeds = decoded is List ? decoded : [];
+    }
+
+    // ✅ REPOST FEEDS
+    if (responses[2].statusCode == 200) {
+      final decoded = jsonDecode(responses[2].body);
+      final List data = decoded["data"] ?? [];
+
+      _repostFeeds = data.map((item) {
+        return {
+          "id": "repost_${item["id"]}", // unique timeline ID
+          "created_at": item["created_at"],
+          "reposted_by": item["reposted_by"],
+          "feed": item["feed"], // 👈 original feed lives here
+        };
+      }).toList();
+    }
+  } catch (e) {
+    print("❌ fetchFeeds ERROR: $e");
   }
+
+  loading = false;
+  notifyListeners();
+}
 
   /* -----------------------------------------------------------
    * LIKE
@@ -186,6 +208,48 @@ class CoachFeedProvider extends ChangeNotifier {
 
     notifyListeners();
   }
+Future<List<Map<String, dynamic>>> fetchUserReposts(int userId) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+  if (token == null) return [];
+
+  try {
+    final res = await http.get(
+      Uri.parse("$api/api/myskates/feeds/reposts/user/$userId/"),
+      headers: {"Authorization": "Bearer $token"},
+    );
+
+    if (res.statusCode != 200) {
+      print("❌ Reposts fetch failed: ${res.body}");
+      return [];
+    }
+
+    final decoded = jsonDecode(res.body);
+    final List data = decoded["data"] ?? [];
+
+    return data.map<Map<String, dynamic>>((item) {
+      final Map<String, dynamic> repostedBy =
+          Map<String, dynamic>.from(item["reposted_by"] ?? {});
+
+      final Map<String, dynamic> originalFeed =
+          Map<String, dynamic>.from(item["feed"] ?? {});
+
+      return {
+        "id": "repost_${item["id"]}", // unique UI-safe ID
+        "is_repost": true,
+        "repost_id": item["id"],
+        "created_at": item["created_at"],
+        "reposted_by": repostedBy,
+
+        // ✅ FIXED
+        "repost_of": originalFeed,
+      };
+    }).toList();
+  } catch (e) {
+    print("❌ fetchUserReposts ERROR: $e");
+    return [];
+  }
+}
 
   /* -----------------------------------------------------------
    * CREATE / UPDATE / DELETE FEED
