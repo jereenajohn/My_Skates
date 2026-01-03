@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:my_skates/widgets/coach_repost_composer_sheet.dart';
@@ -6,6 +7,7 @@ import 'package:my_skates/widgets/coachfeedcommentsheet.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api.dart';
 import '../providers/coach_profile_provider.dart';
@@ -341,6 +343,11 @@ class _FeedList extends StatelessWidget {
   }
 }
 
+Future<int?> _myUserId() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getInt("id");
+}
+
 /* ───────────────────────── FEED CARD ───────────────────────── */
 class _FeedCard extends StatelessWidget {
   final dynamic feed;
@@ -421,262 +428,404 @@ class _FeedCard extends StatelessWidget {
         ? feed["feed"]["id"]
         : feed["id"];
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 28),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 🟢 TIMELINE DOT
-          Column(
+    return FutureBuilder<int?>(
+      future: _myUserId(),
+      builder: (context, snapshot) {
+        final int? myId = snapshot.data;
+        final bool isMyRepost =
+            isRepostFeed && feed["reposted_by"]?["id"] == myId;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 28),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: const BoxDecoration(
-                  color: accentColor,
-                  shape: BoxShape.circle,
-                ),
+              // 🟢 TIMELINE DOT
+              Column(
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: const BoxDecoration(
+                      color: accentColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  Container(
+                    width: 2,
+                    height: images.isNotEmpty ? 220 : 140,
+                    color: Colors.white12,
+                  ),
+                ],
               ),
-              Container(
-                width: 2,
-                height: images.isNotEmpty ? 220 : 140,
-                color: Colors.white12,
+
+              const SizedBox(width: 12),
+
+              // 🛼 FEED CONTENT
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 🔁 REPOST HEADER
+                    if (isRepostFeed)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.repeat,
+                              size: 16,
+                              color: accentColor,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              "${feed["reposted_by"]["first_name"]} ${feed["reposted_by"]["last_name"]} reposted this",
+                              style: const TextStyle(
+                                color: Colors.white60,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    if (isRepostFeed &&
+                        (feed["text"] ?? "").toString().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          feed["text"],
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+
+                    // 🔹 HEADER (PROFILE + NAME)
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundImage:
+                              (profile.image != null &&
+                                  profile.image!.isNotEmpty)
+                              ? NetworkImage("$api${profile.image}")
+                              : const AssetImage("lib/assets/img.jpg")
+                                    as ImageProvider,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            profile.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        PopupMenuButton(
+                          icon: const Icon(
+                            Icons.more_vert,
+                            color: Colors.white54,
+                          ),
+                          color: Colors.transparent,
+                          elevation: 0,
+                          itemBuilder: (context) {
+                            final List<PopupMenuEntry> items = [];
+
+                            // ─────────────────────────────
+                            // EDIT REPOST (ONLY MY REPOST)
+                            // ─────────────────────────────
+                            if (isRepostFeed &&
+                                feed["reposted_by"]?["id"] == myId) {
+                              items.add(
+                                PopupMenuItem(
+                                  padding: EdgeInsets.zero,
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Color(0xFF00312D),
+                                          Color(0xFF000000),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(10),
+                                        bottom: Radius.circular(10),
+                                      ),
+                                    ),
+                                    child: const ListTile(
+                                      dense: true,
+                                      leading: Padding(
+                                        padding: EdgeInsets.only(left: 6),
+                                        child: Icon(
+                                          Icons.edit,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                      ),
+                                      title: Text(
+                                        "Edit Repost",
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    // ⏳ Let the popup menu close first
+                                    Future.microtask(() {
+                                      showModalBottomSheet(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        backgroundColor: Colors.transparent,
+                                        builder: (_) => RepostComposerSheet(
+                                          feedId:
+                                              actualFeedId, // original feed id
+                                          feed:
+                                              displayFeed, // original feed (image + desc)
+                                          feedProvider:
+                                              feedProvider, // existing provider
+                                          isEdit: true,
+                                          repostId:
+                                              feed["repost_id"], // REAL repost id
+                                          initialText: feed["text"] ?? "",
+                                        ),
+                                      );
+                                    });
+                                  },
+                                ),
+                              );
+
+                              return items;
+                            }
+
+                            // ─────────────────────────────
+                            // ORIGINAL FEED OPTIONS
+                            // ─────────────────────────────
+                            if (!isRepostFeed) {
+                              // UPDATE
+                              items.add(
+                                PopupMenuItem(
+                                  padding: EdgeInsets.zero,
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Color(0xFF00312D),
+                                          Color(0xFF000000),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(10),
+                                      ),
+                                    ),
+                                    child: const ListTile(
+                                      dense: true,
+                                      leading: Padding(
+                                        padding: EdgeInsets.only(left: 6),
+                                        child: Icon(
+                                          Icons.edit,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                      ),
+                                      title: Text(
+                                        "Update",
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    _openEditSheet(context);
+                                  },
+                                ),
+                              );
+
+                              // DELETE
+                              items.add(
+                                PopupMenuItem(
+                                  padding: EdgeInsets.zero,
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Color(0xFF00312D),
+                                          Color(0xFF000000),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.vertical(
+                                        bottom: Radius.circular(10),
+                                      ),
+                                    ),
+                                    child: const ListTile(
+                                      dense: true,
+                                      leading: Padding(
+                                        padding: EdgeInsets.only(left: 6),
+                                        child: Icon(
+                                          Icons.delete,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                      ),
+                                      title: Text(
+                                        "Delete",
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    feedProvider.deleteFeed(feed["id"]);
+                                  },
+                                ),
+                              );
+                            }
+
+                            return items;
+                          },
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // 🔹 MEDIA
+                    if (images.isNotEmpty)
+                      _FeedMedia(
+                        images: images.map((e) => "${e["image"]}").toList(),
+                      ),
+
+                    // 🔹 DESCRIPTION
+                    if ((displayFeed["description"] ?? "").isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Text(
+                          displayFeed["description"],
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+
+                    const SizedBox(height: 12),
+
+                    // 🔹 ACTIONS
+                    Row(
+                      children: [
+                        _ActionButton(
+                          icon: (displayFeed["is_liked"] == true)
+                              ? Icons.thumb_up
+                              : Icons.thumb_up_alt_outlined,
+                          label: "${displayFeed["likes_count"] ?? 0}",
+                          onTap: () {
+                            feedProvider.toggleLike(actualFeedId);
+                          },
+                        ),
+
+                        const SizedBox(width: 18),
+
+                        _ActionButton(
+                          icon: repostLoading
+                              ? Icons.hourglass_top
+                              : (isMyRepost
+                                    ? Icons
+                                          .repeat // meaningful: this is YOUR repost
+                                    : (isReposted
+                                          ? Icons.repeat
+                                          : Icons.repeat_outlined)),
+
+                          label: isMyRepost ? "Reposted" : "$repostCount",
+
+                          isActive: isMyRepost || isReposted,
+
+                          onTap: repostLoading
+                              ? () {}
+                              : () async {
+                                  final provider = context
+                                      .read<CoachFeedProvider>();
+                                  final myId = await _myUserId();
+
+                                  // ─────────────────────────────
+                                  // CASE 1: THIS IS A REPOST FEED
+                                  // ─────────────────────────────
+                                  if (isRepostFeed) {
+                                    final repostedById =
+                                        feed["reposted_by"]?["id"];
+                                    final originalFeedId = displayFeed["id"];
+
+                                    if (repostedById == myId) {
+                                      await provider.toggleRepost(
+                                        originalFeedId,
+                                      );
+                                      return;
+                                    }
+
+                                    await provider.toggleRepost(originalFeedId);
+                                    return;
+                                  }
+
+                                  // ─────────────────────────────
+                                  // CASE 2: ORIGINAL FEED
+                                  // ─────────────────────────────
+                                  if (isReposted) {
+                                    await provider.toggleRepost(actualFeedId);
+                                    return;
+                                  }
+
+                                  showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.transparent,
+                                    builder: (_) => RepostComposerSheet(
+                                      feedId: actualFeedId,
+                                      feed: displayFeed,
+                                      feedProvider: provider,
+                                    ),
+                                  );
+                                },
+                        ),
+
+                        const SizedBox(width: 18),
+
+                        _ActionButton(
+                          icon: Icons.chat_bubble_outline,
+                          label: "Feedback",
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) =>
+                                  FeedCommentsSheet(feedId: actualFeedId),
+                            );
+                          },
+                        ),
+
+                        const Spacer(),
+
+                        _ActionButton(
+                          icon: Icons.share_outlined,
+                          label: "",
+                          onTap: () => _shareFeed(context, actualFeedId),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-
-          const SizedBox(width: 12),
-
-          // 🛼 FEED CONTENT
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 🔁 REPOST HEADER
-                if (isRepostFeed)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.repeat, size: 16, color: accentColor),
-                        const SizedBox(width: 6),
-                        Text(
-                          "${feed["reposted_by"]["first_name"]} ${feed["reposted_by"]["last_name"]} reposted this",
-                          style: const TextStyle(
-                            color: Colors.white60,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                if (isRepostFeed && (feed["text"] ?? "").toString().isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      feed["text"],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-
-                // 🔹 HEADER (PROFILE + NAME)
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundImage:
-                          (profile.image != null && profile.image!.isNotEmpty)
-                          ? NetworkImage("$api${profile.image}")
-                          : const AssetImage("lib/assets/img.jpg")
-                                as ImageProvider,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        profile.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    PopupMenuButton(
-                      icon: const Icon(Icons.more_vert, color: Colors.white54),
-                      color: Colors.transparent,
-                      elevation: 0,
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          padding: EdgeInsets.zero,
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Color(0xFF00312D), Color(0xFF000000)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.vertical(
-                                top: Radius.circular(10),
-                              ),
-                            ),
-                            child: const ListTile(
-                              dense: true,
-                              leading: Padding(
-                                padding: EdgeInsets.only(left: 6),
-                                child: Icon(
-                                  Icons.edit,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                              title: Text(
-                                "Update",
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ),
-                          ),
-                          onTap: () {
-                            Navigator.pop(context);
-                            _openEditSheet(context);
-                          },
-                        ),
-                        PopupMenuItem(
-                          padding: EdgeInsets.zero,
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Color(0xFF00312D), Color(0xFF000000)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.vertical(
-                                bottom: Radius.circular(10),
-                              ),
-                            ),
-                            child: const ListTile(
-                              dense: true,
-                              leading: Padding(
-                                padding: EdgeInsets.only(left: 6),
-                                child: Icon(
-                                  Icons.delete,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                              title: Text(
-                                "Delete",
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ),
-                          ),
-                          onTap: () {
-                            Navigator.pop(context);
-                            feedProvider.deleteFeed(feed["id"]);
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 10),
-
-                // 🔹 MEDIA
-                if (images.isNotEmpty)
-                  _FeedMedia(
-                    images: images.map((e) => "${e["image"]}").toList(),
-                  ),
-
-                // 🔹 DESCRIPTION
-                if ((displayFeed["description"] ?? "").isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Text(
-                      displayFeed["description"],
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-
-                const SizedBox(height: 12),
-
-                // 🔹 ACTIONS
-                Row(
-                  children: [
-                    _ActionButton(
-                      icon: (displayFeed["is_liked"] == true)
-                          ? Icons.thumb_up
-                          : Icons.thumb_up_alt_outlined,
-                      label: "${displayFeed["likes_count"] ?? 0}",
-                      onTap: () {
-                        feedProvider.toggleLike(actualFeedId);
-                      },
-                    ),
-
-                    const SizedBox(width: 18),
-
-                    _ActionButton(
-                      icon: repostLoading
-                          ? Icons.hourglass_top
-                          : (isReposted ? Icons.repeat : Icons.repeat_outlined),
-                      label: "$repostCount",
-                      isActive: isReposted,
-                      onTap: repostLoading
-                          ? () {}
-                          : () {
-                              final feedProvider = context
-                                  .read<CoachFeedProvider>();
-
-                              showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (_) => RepostComposerSheet(
-                                  feedId: actualFeedId,
-                                  feed: displayFeed,
-                                  feedProvider: feedProvider,
-                                ),
-                              );
-                            },
-                    ),
-
-                    const SizedBox(width: 18),
-
-                    _ActionButton(
-                      icon: Icons.chat_bubble_outline,
-                      label: "Feedback",
-                      onTap: () {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (_) =>
-                              FeedCommentsSheet(feedId: actualFeedId),
-                        );
-                      },
-                    ),
-
-                    const Spacer(),
-
-                    _ActionButton(
-                      icon: Icons.share_outlined,
-                      label: "",
-                      onTap: () => _shareFeed(context, actualFeedId),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
