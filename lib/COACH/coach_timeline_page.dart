@@ -576,10 +576,7 @@ class _FeedCard extends StatelessWidget {
                           ),
                           onTap: () {
                             Navigator.pop(context);
-
-                            if (!isRepostFeed) {
-                              feedProvider.deleteFeed(actualFeedId);
-                            }
+                            feedProvider.deleteFeed(feed["id"]);
                           },
                         ),
                       ],
