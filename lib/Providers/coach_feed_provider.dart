@@ -13,98 +13,95 @@ class CoachFeedProvider extends ChangeNotifier {
 
   /// GLOBAL FEEDS (shares_count source of truth)
   List _allFeeds = [];
-  /// REPOST FEEDS (SEPARATE TIMELINE ITEMS)
-List _repostFeeds = [];
 
+  /// REPOST FEEDS (SEPARATE TIMELINE ITEMS)
+  List _repostFeeds = [];
 
   /// 🔑 SINGLE READ-ONLY LIST FOR UI
- List get feeds {
-  final List combined = [
-    ..._repostFeeds,
-    ..._userFeeds,
-  ];
+  List get feeds {
+    final List combined = [..._repostFeeds, ..._userFeeds];
 
-  combined.sort((a, b) {
-    final aTime = DateTime.parse(a["created_at"]);
-    final bTime = DateTime.parse(b["created_at"]);
-    return bTime.compareTo(aTime); // newest first
-  });
+    combined.sort((a, b) {
+      final aTime = DateTime.parse(a["created_at"]);
+      final bTime = DateTime.parse(b["created_at"]);
+      return bTime.compareTo(aTime); // newest first
+    });
 
-  return combined;
-}
+    return combined;
+  }
 
   /* -----------------------------------------------------------
    * FETCH FEEDS (MERGED)
    * --------------------------------------------------------- */
   Future<void> fetchFeeds() async {
-  loading = true;
-  notifyListeners();
+    loading = true;
+    notifyListeners();
 
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-    final id = prefs.getInt("id");
-    if (token == null || id == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      final id = prefs.getInt("id");
+      if (token == null || id == null) return;
 
-    final responses = await Future.wait([
-      http.get(
-        Uri.parse("$api/api/myskates/feeds/user/$id/"),
-        headers: {"Authorization": "Bearer $token"},
-      ),
-      http.get(
-        Uri.parse("$api/api/myskates/feeds/"),
-        headers: {"Authorization": "Bearer $token"},
-      ),
-      http.get(
-        Uri.parse("$api/api/myskates/feeds/reposts/user/$id/"),
-        headers: {"Authorization": "Bearer $token"},
-      ),
-    ]);
+      final responses = await Future.wait([
+        http.get(
+          Uri.parse("$api/api/myskates/feeds/user/$id/"),
+          headers: {"Authorization": "Bearer $token"},
+        ),
+        http.get(
+          Uri.parse("$api/api/myskates/feeds/"),
+          headers: {"Authorization": "Bearer $token"},
+        ),
+        http.get(
+          Uri.parse("$api/api/myskates/feeds/reposts/user/$id/"),
+          headers: {"Authorization": "Bearer $token"},
+        ),
+      ]);
 
-    // USER FEEDS
-    if (responses[0].statusCode == 200) {
-      final decoded = jsonDecode(responses[0].body);
-      _userFeeds = decoded is List ? decoded : decoded["data"] ?? [];
+      // USER FEEDS
+      if (responses[0].statusCode == 200) {
+        final decoded = jsonDecode(responses[0].body);
+        _userFeeds = decoded is List ? decoded : decoded["data"] ?? [];
+      }
+
+      // GLOBAL FEEDS (COUNTS)
+      if (responses[1].statusCode == 200) {
+        final decoded = jsonDecode(responses[1].body);
+        _allFeeds = decoded is List ? decoded : [];
+      }
+
+      // ✅ REPOST FEEDS
+      if (responses[2].statusCode == 200) {
+        final decoded = jsonDecode(responses[2].body);
+        final List data = decoded["data"] ?? [];
+
+        _repostFeeds = data.map((item) {
+          return {
+"id": "repost_${item["id"]}",   // UI-safe ID (keep)
+"repost_id": item["id"],        // ✅ REAL repost ID (ADD THIS)
+
+            // ✅ IMPORTANT: repost text
+            "text": item["text"],
+
+            "created_at": item["created_at"],
+            "reposted_by": item["reposted_by"],
+
+            // original feed
+            "feed": item["feed"],
+          };
+        }).toList();
+
+        print("✅ Fetched ${_repostFeeds.length} repost feeds");
+        print("📦 Repost Feeds Data: $_repostFeeds");
+        print("📦 User Feeds Data: $_userFeeds");
+      }
+    } catch (e) {
+      print("❌ fetchFeeds ERROR: $e");
     }
 
-    // GLOBAL FEEDS (COUNTS)
-    if (responses[1].statusCode == 200) {
-      final decoded = jsonDecode(responses[1].body);
-      _allFeeds = decoded is List ? decoded : [];
-    }
-
-    // ✅ REPOST FEEDS
-    if (responses[2].statusCode == 200) {
-      final decoded = jsonDecode(responses[2].body);
-      final List data = decoded["data"] ?? [];
-
-      _repostFeeds = data.map((item) {
-  return {
-    "id": "repost_${item["id"]}",
-
-    // ✅ IMPORTANT: repost text
-    "text": item["text"],
-
-    "created_at": item["created_at"],
-    "reposted_by": item["reposted_by"],
-
-    // original feed
-    "feed": item["feed"],
-  };
-}).toList();
-
-print("✅ Fetched ${_repostFeeds.length} repost feeds");
-print("📦 Repost Feeds Data: $_repostFeeds");
-print("📦 User Feeds Data: $_userFeeds");
-
-    }
-  } catch (e) {
-    print("❌ fetchFeeds ERROR: $e");
+    loading = false;
+    notifyListeners();
   }
-
-  loading = false;
-  notifyListeners();
-}
 
   /* -----------------------------------------------------------
    * LIKE
@@ -134,6 +131,8 @@ print("📦 User Feeds Data: $_userFeeds");
         headers: {"Authorization": "Bearer $token"},
       );
 
+      print("👍 LIKE STATUS: ${res.statusCode}");
+      print("📦 LIKE BODY: ${res.body}");
       if (res.statusCode != 200) throw Exception();
     } catch (_) {
       _userFeeds[index]["is_liked"] = wasLiked;
@@ -219,138 +218,165 @@ print("📦 User Feeds Data: $_userFeeds");
 
     notifyListeners();
   }
-Future<List<Map<String, dynamic>>> fetchUserReposts(int userId) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-  if (token == null) return [];
 
-  try {
-    final res = await http.get(
-      Uri.parse("$api/api/myskates/feeds/reposts/user/$userId/"),
+  Future<List<Map<String, dynamic>>> fetchUserReposts(int userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+    if (token == null) return [];
+
+    try {
+      final res = await http.get(
+        Uri.parse("$api/api/myskates/feeds/reposts/user/$userId/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      if (res.statusCode != 200) {
+        print("❌ Reposts fetch failed: ${res.body}");
+        return [];
+      }
+
+      final decoded = jsonDecode(res.body);
+      final List data = decoded["data"] ?? [];
+
+      return data.map<Map<String, dynamic>>((item) {
+        final Map<String, dynamic> repostedBy = Map<String, dynamic>.from(
+          item["reposted_by"] ?? {},
+        );
+
+        final Map<String, dynamic> originalFeed = Map<String, dynamic>.from(
+          item["feed"] ?? {},
+        );
+
+        return {
+          "id": "repost_${item["id"]}", // unique UI-safe ID
+          "is_repost": true,
+          "repost_id": item["id"],
+          "created_at": item["created_at"],
+          "reposted_by": repostedBy,
+
+          // ✅ FIXED
+          "repost_of": originalFeed,
+        };
+      }).toList();
+    } catch (e) {
+      print("❌ fetchUserReposts ERROR: $e");
+      return [];
+    }
+  }
+
+  // Future<void> repostWithText({
+  //   required int feedId,
+  //   String? text,
+  // }) async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final token = prefs.getString("access");
+  //   if (token == null) return;
+
+  //   // 1️⃣ Create repost
+  //   final res = await http.post(
+  //     Uri.parse("$api/api/myskates/feeds/repost/$feedId/"),
+  //     headers: {"Authorization": "Bearer $token"},
+  //   );
+
+  //   if (res.statusCode != 201 && res.statusCode != 200) return;
+
+  //   final decoded = jsonDecode(res.body);
+  //   final int repostId = decoded["data"]["id"];
+
+  //   if (text != null && text.isNotEmpty) {
+  //     await http.patch(
+  //       Uri.parse("$api/api/myskates/feeds/repost/$repostId/"),
+  //       headers: {
+  //         "Authorization": "Bearer $token",
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: jsonEncode({"text": text}),
+  //     );
+
+  //     print("✅ Repost text updated for repostId: $repostId");
+  //     print("📦 Text: $text");
+
+  //     print("📦 REPOST TEXT RESPONSE: ${res.body}");
+  //   }
+
+  //   await fetchFeeds();
+  // }
+
+  Future<void> repostWithText({required int feedId, String? text}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+    if (token == null) return;
+
+    final res = await http.post(
+      Uri.parse("$api/api/myskates/feeds/repost/$feedId/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        if (text != null && text.trim().isNotEmpty) "text": text.trim(),
+      }),
+    );
+
+    print("🔁 REPOST POST STATUS: ${res.statusCode}");
+    print("📦 REPOST POST BODY: ${res.body}");
+
+    if (res.statusCode != 200 && res.statusCode != 201) return;
+
+    await fetchFeeds();
+  }
+
+  Future<void> removeRepost({
+    required int feedId,
+    required int repostId,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+    if (token == null) return;
+
+    final res = await http.delete(
+      Uri.parse("$api/api/myskates/feeds/repost/$repostId/"),
       headers: {"Authorization": "Bearer $token"},
     );
 
-    if (res.statusCode != 200) {
-      print("❌ Reposts fetch failed: ${res.body}");
-      return [];
-    }
+    print("🗑️ REMOVE REPOST STATUS: ${res.statusCode}");
+    print("📦 REMOVE REPOST BODY: ${res.body}");
 
-    final decoded = jsonDecode(res.body);
-    final List data = decoded["data"] ?? [];
+    if (res.statusCode != 200 && res.statusCode != 204) return;
 
-    return data.map<Map<String, dynamic>>((item) {
-      final Map<String, dynamic> repostedBy =
-          Map<String, dynamic>.from(item["reposted_by"] ?? {});
-
-      final Map<String, dynamic> originalFeed =
-          Map<String, dynamic>.from(item["feed"] ?? {});
-
-      return {
-        "id": "repost_${item["id"]}", // unique UI-safe ID
-        "is_repost": true,
-        "repost_id": item["id"],
-        "created_at": item["created_at"],
-        "reposted_by": repostedBy,
-
-        // ✅ FIXED
-        "repost_of": originalFeed,
-      };
-    }).toList();
-  } catch (e) {
-    print("❌ fetchUserReposts ERROR: $e");
-    return [];
+    await fetchFeeds();
   }
-}
 
 
-// Future<void> repostWithText({
-//   required int feedId,
-//   String? text,
-// }) async {
-//   final prefs = await SharedPreferences.getInstance();
-//   final token = prefs.getString("access");
-//   if (token == null) return;
-
-//   // 1️⃣ Create repost
-//   final res = await http.post(
-//     Uri.parse("$api/api/myskates/feeds/repost/$feedId/"),
-//     headers: {"Authorization": "Bearer $token"},
-//   );
-
-//   if (res.statusCode != 201 && res.statusCode != 200) return;
-
-//   final decoded = jsonDecode(res.body);
-//   final int repostId = decoded["data"]["id"];
-
-
-//   if (text != null && text.isNotEmpty) {
-//     await http.patch(
-//       Uri.parse("$api/api/myskates/feeds/repost/$repostId/"),
-//       headers: {
-//         "Authorization": "Bearer $token",
-//         "Content-Type": "application/json",
-//       },
-//       body: jsonEncode({"text": text}),
-//     );
-
-//     print("✅ Repost text updated for repostId: $repostId");
-//     print("📦 Text: $text");
-
-//     print("📦 REPOST TEXT RESPONSE: ${res.body}");
-//   }
-
-//   await fetchFeeds();
-// }
-
-Future<void> repostWithText({
-  required int feedId,
-  String? text,
+  Future<void> updateRepostText({
+  required int repostId,
+  required String text,
 }) async {
+  if (text.trim().isEmpty) return;
+
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString("access");
   if (token == null) return;
 
-  final res = await http.post(
-    Uri.parse("$api/api/myskates/feeds/repost/$feedId/"),
+  final res = await http.patch(
+    Uri.parse(
+      "$api/api/myskates/feeds/repost/text/$repostId/",
+    ),
     headers: {
       "Authorization": "Bearer $token",
       "Content-Type": "application/json",
     },
-    body: jsonEncode({
-      if (text != null && text.trim().isNotEmpty) "text": text.trim(),
-    }),
+    body: jsonEncode({"text": text.trim()}),
   );
 
-  print("🔁 REPOST POST STATUS: ${res.statusCode}");
-  print("📦 REPOST POST BODY: ${res.body}");
+  print("✏️ UPDATE REPOST TEXT STATUS: ${res.statusCode}");
+  print("📦 UPDATE REPOST TEXT BODY: ${res.body}");
 
-  if (res.statusCode != 200 && res.statusCode != 201) return;
+  if (res.statusCode != 200) return;
 
-  await fetchFeeds();
+  await fetchFeeds(); // authoritative refresh
 }
 
-
-
-Future<void> removeRepost({
-  required int feedId,
-  required int repostId,
-}) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-  if (token == null) return;
-
-  final res = await http.delete(
-    Uri.parse("$api/api/myskates/feeds/repost/$repostId/"),
-    headers: {"Authorization": "Bearer $token"},
-  );
-
-  print("🗑️ REMOVE REPOST STATUS: ${res.statusCode}");
-  print("📦 REMOVE REPOST BODY: ${res.body}");
-
-  if (res.statusCode != 200 && res.statusCode != 204) return;
-
-  await fetchFeeds();
-}
 
   /* -----------------------------------------------------------
    * CREATE / UPDATE / DELETE FEED
@@ -409,4 +435,6 @@ Future<void> removeRepost({
 
     await fetchFeeds();
   }
+
+  
 }
