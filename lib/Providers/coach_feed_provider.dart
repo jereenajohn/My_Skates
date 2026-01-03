@@ -144,7 +144,7 @@ print("📦 User Feeds Data: $_userFeeds");
   }
 
   /* -----------------------------------------------------------
-   * REPOST (NO COUNT MATH)
+   * REPOST (NO COUNT MATHHHH)
    * --------------------------------------------------------- */
   Future<void> toggleRepost(int feedId) async {
     print("🔁 toggleRepost called for feedId: $feedId");
@@ -325,6 +325,29 @@ Future<void> repostWithText({
   print("📦 REPOST POST BODY: ${res.body}");
 
   if (res.statusCode != 200 && res.statusCode != 201) return;
+
+  await fetchFeeds();
+}
+
+
+
+Future<void> removeRepost({
+  required int feedId,
+  required int repostId,
+}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+  if (token == null) return;
+
+  final res = await http.delete(
+    Uri.parse("$api/api/myskates/feeds/repost/$repostId/"),
+    headers: {"Authorization": "Bearer $token"},
+  );
+
+  print("🗑️ REMOVE REPOST STATUS: ${res.statusCode}");
+  print("📦 REMOVE REPOST BODY: ${res.body}");
+
+  if (res.statusCode != 200 && res.statusCode != 204) return;
 
   await fetchFeeds();
 }
