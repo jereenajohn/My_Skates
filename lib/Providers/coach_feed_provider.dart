@@ -76,18 +76,30 @@ class CoachFeedProvider extends ChangeNotifier {
         final List data = decoded["data"] ?? [];
 
         _repostFeeds = data.map((item) {
+          final originalFeed = _userFeeds.firstWhere(
+            (f) => f["id"] == item["feed_id"],
+            orElse: () => {},
+          );
+
           return {
-"id": "repost_${item["id"]}",   // UI-safe ID (keep)
-"repost_id": item["id"],        // ✅ REAL repost ID (ADD THIS)
-
-            // ✅ IMPORTANT: repost text
+            "id": "repost_${item["id"]}",
+            "repost_id": item["id"],
             "text": item["text"],
-
             "created_at": item["created_at"],
             "reposted_by": item["reposted_by"],
 
-            // original feed
-            "feed": item["feed"],
+            "feed": {
+              "id": item["feed_id"],
+              "description": item["feed_description"],
+              "likes_count": item["likes_count"],
+              "comments_count": item["comments_count"],
+              "shares_count": item["reposts_count"],
+              "is_liked": false,
+              "is_reposted": true,
+
+              // ✅ IMAGE RESTORED
+              "feed_image": originalFeed["feed_image"] ?? [],
+            },
           };
         }).toList();
 
@@ -111,19 +123,51 @@ class CoachFeedProvider extends ChangeNotifier {
     final token = prefs.getString("access");
     if (token == null) return;
 
-    final index = _userFeeds.indexWhere((f) => f["id"] == feedId);
-    if (index == -1) return;
+    bool? wasLiked;
+    int? originalCount;
 
-    final bool wasLiked = _userFeeds[index]["is_liked"] == true;
-    final int currentCount = _userFeeds[index]["likes_count"] ?? 0;
+    // 🔑 Detect state from SOURCE lists
+    for (final f in _userFeeds) {
+      if (f["id"] == feedId) {
+        wasLiked = f["is_liked"] == true;
+        originalCount = f["likes_count"] ?? 0;
+        break;
+      }
+    }
 
-    // Optimistic
-    _userFeeds[index]["is_liked"] = !wasLiked;
-    _userFeeds[index]["likes_count"] = wasLiked
-        ? currentCount - 1
-        : currentCount + 1;
+    // If not in user feeds, try repost feeds
+    if (wasLiked == null) {
+      for (final r in _repostFeeds) {
+        if (r["feed"]?["id"] == feedId) {
+          wasLiked = r["feed"]["is_liked"] == true;
+          originalCount = r["feed"]["likes_count"] ?? 0;
+          break;
+        }
+      }
+    }
 
-    notifyListeners();
+    if (wasLiked == null || originalCount == null) return;
+
+    final bool newLiked = !wasLiked;
+    final int delta = newLiked ? 1 : -1;
+
+    // 🚀 OPTIMISTIC UPDATE — USER FEEDS
+    for (final f in _userFeeds) {
+      if (f["id"] == feedId) {
+        f["is_liked"] = newLiked;
+        f["likes_count"] = (f["likes_count"] ?? 0) + delta;
+      }
+    }
+
+    // 🚀 OPTIMISTIC UPDATE — REPOST FEEDS (NESTED FEED)
+    for (final r in _repostFeeds) {
+      if (r["feed"]?["id"] == feedId) {
+        r["feed"]["is_liked"] = newLiked;
+        r["feed"]["likes_count"] = (r["feed"]["likes_count"] ?? 0) + delta;
+      }
+    }
+
+    notifyListeners(); // ✅ UI updates instantly everywhere
 
     try {
       final res = await http.post(
@@ -131,15 +175,25 @@ class CoachFeedProvider extends ChangeNotifier {
         headers: {"Authorization": "Bearer $token"},
       );
 
-      print("👍 LIKE STATUS: ${res.statusCode}");
-      print("📦 LIKE BODY: ${res.body}");
       if (res.statusCode != 200) throw Exception();
     } catch (_) {
-      _userFeeds[index]["is_liked"] = wasLiked;
-      _userFeeds[index]["likes_count"] = currentCount;
-    }
+      // 🔙 ROLLBACK
+      for (final f in _userFeeds) {
+        if (f["id"] == feedId) {
+          f["is_liked"] = wasLiked;
+          f["likes_count"] = originalCount;
+        }
+      }
 
-    notifyListeners();
+      for (final r in _repostFeeds) {
+        if (r["feed"]?["id"] == feedId) {
+          r["feed"]["is_liked"] = wasLiked;
+          r["feed"]["likes_count"] = originalCount;
+        }
+      }
+
+      notifyListeners();
+    }
   }
 
   /* -----------------------------------------------------------
@@ -347,36 +401,32 @@ class CoachFeedProvider extends ChangeNotifier {
     await fetchFeeds();
   }
 
-
   Future<void> updateRepostText({
-  required int repostId,
-  required String text,
-}) async {
-  if (text.trim().isEmpty) return;
+    required int repostId,
+    required String text,
+  }) async {
+    if (text.trim().isEmpty) return;
 
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-  if (token == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+    if (token == null) return;
 
-  final res = await http.patch(
-    Uri.parse(
-      "$api/api/myskates/feeds/repost/text/$repostId/",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    },
-    body: jsonEncode({"text": text.trim()}),
-  );
+    final res = await http.patch(
+      Uri.parse("$api/api/myskates/feeds/repost/text/$repostId/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({"text": text.trim()}),
+    );
 
-  print("✏️ UPDATE REPOST TEXT STATUS: ${res.statusCode}");
-  print("📦 UPDATE REPOST TEXT BODY: ${res.body}");
+    print("✏️ UPDATE REPOST TEXT STATUS: ${res.statusCode}");
+    print("📦 UPDATE REPOST TEXT BODY: ${res.body}");
 
-  if (res.statusCode != 200) return;
+    if (res.statusCode != 200) return;
 
-  await fetchFeeds(); // authoritative refresh
-}
-
+    await fetchFeeds(); // authoritative refresh
+  }
 
   /* -----------------------------------------------------------
    * CREATE / UPDATE / DELETE FEED
@@ -435,6 +485,4 @@ class CoachFeedProvider extends ChangeNotifier {
 
     await fetchFeeds();
   }
-
-  
 }
