@@ -408,6 +408,11 @@ class _FeedCard extends StatelessWidget {
     final Map<String, dynamic> displayFeed = isRepostFeed
         ? Map<String, dynamic>.from(feed["feed"] as Map)
         : Map<String, dynamic>.from(feed as Map);
+    // ✅ ALWAYS read counts from original feed
+    final int likeCount = displayFeed["likes_count"] ?? 0;
+    final int repostCount = displayFeed["shares_count"] ?? 0;
+    final int commentCount = displayFeed["comments_count"] ?? 0;
+    final bool isLiked = displayFeed["is_liked"] == true;
 
     final int index = feedProvider.feeds.indexWhere(
       (f) => f["id"] == feed["id"],
@@ -416,9 +421,9 @@ class _FeedCard extends StatelessWidget {
     final bool isReposted =
         index != -1 && feedProvider.feeds[index]["is_reposted"] == true;
 
-    final int repostCount = index != -1
-        ? feedProvider.feeds[index]["shares_count"] ?? 0
-        : 0;
+    // final int repostCount = index != -1
+    //     ? feedProvider.feeds[index]["shares_count"] ?? 0
+    //     : 0;
 
     final bool repostLoading =
         index != -1 && feedProvider.feeds[index]["_repost_loading"] == true;
@@ -726,8 +731,13 @@ class _FeedCard extends StatelessWidget {
                               ? Icons.thumb_up
                               : Icons.thumb_up_alt_outlined,
                           label: "${displayFeed["likes_count"] ?? 0}",
-                          onTap: () {
-                            feedProvider.toggleLike(actualFeedId);
+                          onTap: () async {
+                            final provider = context.read<CoachFeedProvider>();
+
+                            await provider.toggleLike(actualFeedId);
+
+                            // 🔴 THIS IS THE FIX
+                            await provider.fetchFeeds();
                           },
                         ),
 
