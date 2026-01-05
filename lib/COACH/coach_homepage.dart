@@ -482,12 +482,12 @@ void dispose() {
                       children: [
                         IconButton(
                           onPressed: () async {
-                            // await Navigator.push(
-                            //   context,
-                            //   MaterialPageRoute(
-                            //     builder: (_) => const CoachNotificationPage(),
-                            //   ),
-                            // );
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const CoachNotificationPage(),
+                              ),
+                            );
 
                             // 🔁 Refresh count when coming backkkk
                             fetchFollowRequestCount();
