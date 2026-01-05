@@ -15,6 +15,9 @@ class CoachNotificationPage extends StatefulWidget {
 class _CoachNotificationPageState extends State<CoachNotificationPage> {
   List<Map<String, dynamic>> requests = [];
   bool loading = true;
+  List<Map<String, dynamic>> notifications = [];
+bool notifLoading = true;
+
 
   @override
   void initState() {
@@ -25,7 +28,62 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
   Future<void> initLoad() async {
     await fetchRequests();
     await syncApprovedFollowBacks();
+     await fetchNotifications();   
   }
+String notificationText(Map<String, dynamic> n) {
+  final type = n["notification_type"];
+  final name =
+      "${n["actor_first_name"] ?? ""} ${n["actor_last_name"] ?? ""}".trim();
+
+  switch (type) {
+    case "follow_approved":
+      return "$name accepted your follow request";
+    case "follow_request":
+      return "$name requested to follow you";
+    case "repost":
+      return "$name reposted your post";
+    case "like":
+      return "$name liked your post";
+    case "comment":
+      return "$name commented on your post";
+    default:
+      return "$name sent a notification";
+  }
+}
+
+
+Future<void> fetchNotifications() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    final res = await http.get(
+      Uri.parse("$api/api/myskates/notifications/"),
+      headers: {"Authorization": "Bearer $token"},
+    );
+
+    if (res.statusCode == 200) {
+      final decoded = jsonDecode(res.body);
+      final List data = decoded["data"];
+
+      setState(() {
+        notifications = data.map<Map<String, dynamic>>((e) {
+          final m = Map<String, dynamic>.from(e);
+          m["created_at"] =
+              DateTime.tryParse(m["created_at"] ?? "") ??
+                  DateTime.now();
+          return m;
+        }).toList();
+
+        notifLoading = false;
+      });
+    } else {
+      notifLoading = false;
+    }
+  } catch (e) {
+    notifLoading = false;
+  }
+}
 
   Future<void> fetchRequests() async {
     try {
@@ -171,19 +229,57 @@ Future<void> syncApprovedFollowBacks() async {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text("Notifications"),
-        backgroundColor: Colors.black,
+  backgroundColor: Colors.black,
+  elevation: 0,
+  centerTitle: false,
+  title: const Text(
+    "Notifications",
+    style: TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.3,
+      color: Colors.white,
+    ),
+  ),
+  actions: [
+    IconButton(
+      onPressed: () {
+        // future: mark all read
+      },
+      icon: const Icon(
+        Icons.more_vert,
+        color: Colors.white70,
       ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              children: requests
-                  .map((e) => _notificationTile(
-                        Map<String, dynamic>.from(e),
-                      ))
-                  .toList(),
+    ),
+  ],
+),
+
+    body: notifLoading
+    ? const Center(child: CircularProgressIndicator())
+    : ListView(
+        children: [
+          if (notifications.isNotEmpty)
+            ...notifications.map(_notificationItem).toList(),
+
+          if (requests.isNotEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
+              child: Text(
+                "Follow Requests",
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                ),
+              ),
             ),
-    );
+
+          ...requests
+              .map((e) =>
+                  _notificationTile(Map<String, dynamic>.from(e)))
+              .toList(),
+        ],
+      ),
+    );  
   }
 
   Widget _notificationTile(Map<String, dynamic> r) {
@@ -237,6 +333,57 @@ Future<void> syncApprovedFollowBacks() async {
     );
   }
 
+
+  Widget _notificationItem(Map<String, dynamic> n) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: 24,
+          backgroundImage: n["actor_profile"] != null
+              ? NetworkImage(n["actor_profile"])
+              : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                notificationText(n),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _timeAgo(n["created_at"]),
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+String _timeAgo(DateTime date) {
+  final diff = DateTime.now().difference(date);
+
+  if (diff.inMinutes < 1) return "Just now";
+  if (diff.inMinutes < 60) return "${diff.inMinutes}m";
+  if (diff.inHours < 24) return "${diff.inHours}h";
+  if (diff.inDays < 7) return "${diff.inDays}d";
+  return "${date.day}/${date.month}/${date.year}";
+}
+
+
   String _statusText(String status) {
     switch (status) {
       case "pending":
@@ -257,6 +404,9 @@ Future<void> syncApprovedFollowBacks() async {
     return SizedBox(
       height: 32,
       child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF2EE6A6),
+        ),
         onPressed: loading ? null : onTap,
         child: loading
             ? const SizedBox(
@@ -265,7 +415,7 @@ Future<void> syncApprovedFollowBacks() async {
                 child: CircularProgressIndicator(
                     strokeWidth: 2, color: Colors.white),
               )
-            : Text(text, style: const TextStyle(fontSize: 12)),
+            : Text(text, style: const TextStyle(fontSize: 12, color: Colors.white)),
       ),
     );
   }
