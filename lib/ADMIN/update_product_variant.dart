@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/dashboard.dart';
+import 'package:my_skates/ADMIN/user_approved_products.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/api.dart';
@@ -10,14 +11,15 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 
-class AddProduct extends StatefulWidget {
-  const AddProduct({super.key});
+class UpdateProductVariant extends StatefulWidget {
+  var productId;
+  UpdateProductVariant({super.key,required this.productId});
 
   @override
-  State<AddProduct> createState() => _AddProductState();
+  State<UpdateProductVariant> createState() => _UpdateProductVariantState();
 }
 
-class _AddProductState extends State<AddProduct> {
+class _UpdateProductVariantState extends State<UpdateProductVariant> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   // Store IDs only
@@ -31,8 +33,9 @@ class _AddProductState extends State<AddProduct> {
   List<Map<String, dynamic>> allDistricts = [];
   List<Map<String, dynamic>> districtList = [];
 
-  File? profileImage;
-  String? profileNetworkImage;
+List<File> selectedImages = [];                 // newly picked images
+List<Map<String, dynamic>> existingImages = []; // network images from API
+
   final ImagePicker _picker = ImagePicker();
 
   DateTime? dob;
@@ -41,6 +44,8 @@ class _AddProductState extends State<AddProduct> {
   final TextEditingController titleCtrl = TextEditingController();
   final TextEditingController descriptionCtrl = TextEditingController();
    final TextEditingController priceCtrl = TextEditingController();
+   final TextEditingController stockCtrl = TextEditingController();
+   final TextEditingController discount = TextEditingController();
 
   @override
   void initState() {
@@ -49,12 +54,79 @@ class _AddProductState extends State<AddProduct> {
   }
   Future<void> loadAllData() async {
 
+    getproductDetails();
+
     await fetchcategory();
-    await fetchProfileData();
+   // await fetchProfileData();
     setState(() {});
   }
 
  
+ Future<void> deleteimage(var imageId) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+
+  final response = await http.delete(
+    Uri.parse(
+      "$api/api/myskates/product/variants/${widget.productId}/images/$imageId/",
+    ),
+    headers: {
+      "Authorization": "Bearer $token",
+      "Content-Type": "application/json",
+    },
+  );
+
+  if (response.statusCode == 200) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Image deleted")),
+    );
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Delete failed")),
+    );
+  }
+}
+
+ Future<void> getproductDetails() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    final res = await http.get(
+      Uri.parse("$api/api/myskates/product/variants/${widget.productId}/"),
+      headers: {"Authorization": "Bearer $token"},
+    );
+print("getproductDetails response: ${res.body}");
+    if (res.statusCode == 200) {
+      final json = jsonDecode(res.body);
+      final data = json["data"]; // ✅ IMPORTANT
+print("Product Details Data:::::::::::::::: $data");
+      setState(() {
+        titleCtrl.text = data["sku"] ?? "";
+        descriptionCtrl.text = data["description"] ?? "";
+        priceCtrl.text = data["price"]?.toString() ?? "";
+        stockCtrl.text = data["stock"]?.toString() ?? "";
+        discount.text = data["discount"]?.toString() ?? "";
+
+        selectedState = data["category"]?.toString();
+
+     
+      if (data["images"] != null && data["images"] is List) {
+      existingImages = data["images"].map<Map<String, dynamic>>((img) {
+       return {
+      "id": img["id"],                 // 👈 REQUIRED
+      "url": "$api${img["image"]}",    // 👈 DISPLAY
+    };
+  }).toList();
+}
+
+
+      });
+    }
+  } catch (e) {
+    debugPrint("Error in getproductDetails: $e");
+  }
+}
 
   Future<void> fetchcategory() async {
     try {
@@ -65,6 +137,7 @@ class _AddProductState extends State<AddProduct> {
         Uri.parse("$api/api/myskates/products/category/"),
         headers: {"Authorization": "Bearer $token"},
       );
+print("res.body:;;;;;;;;;;;;: ${res.body}");
       if (res.statusCode == 200) {
         List data = jsonDecode(res.body);
         categoryList =
@@ -98,15 +171,14 @@ class _AddProductState extends State<AddProduct> {
           dob = DateTime.tryParse(data["dob"]);
         }
 
-        if (data["profile"] != null) {
-          profileNetworkImage = "$api${data["profile"]}";
-        }
+        // if (data["profile"] != null) {
+        //   profileNetworkImage = "$api${data["profile"]}";
+        // }
       }
     } catch (e) {}
   }
 
   Future<void> submitProduct() async {
-    print("Submitting product...");
   try {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
@@ -119,18 +191,19 @@ class _AddProductState extends State<AddProduct> {
       return;
     }
 
-    if(profileImage == null){
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please select an image.")),
-      );
-      return;
-    }
+   if (existingImages.isEmpty && selectedImages.isEmpty) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text("Please upload at least one image")),
+  );
+  return;
+}
+
     
 
 
     var request = http.MultipartRequest(
-      "POST",
-      Uri.parse("$api/api/myskates/products/add/"),
+      "PUT",
+      Uri.parse("$api/api/myskates/product/variants/${widget.productId}/"),
     );
 
     request.headers["Authorization"] = "Bearer $token";
@@ -139,35 +212,39 @@ class _AddProductState extends State<AddProduct> {
     request.fields["user"] = userId.toString();
     request.fields["title"] = titleCtrl.text.trim();
     request.fields["description"] = descriptionCtrl.text.trim();
-    request.fields["base_price"] = priceCtrl.text.trim();
+    request.fields["price"] = priceCtrl.text.trim();
+    request.fields["discount"] = discount.text.trim();
+    request.fields["stock"] = stockCtrl.text.trim();
 
     if (selectedState != null) {
       request.fields["category"] = selectedState.toString();
     }
+    print("selectedImages LENGTH: ${selectedImages}");
 
-    // Add Image if selected
-    if (profileImage != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath("image", profileImage!.path),
-      );
-    }
+   for (final img in selectedImages) {
+  request.files.add(
+    await http.MultipartFile.fromPath(
+      "images", // ✅ MUST match Django: request.FILES.getlist("images")
+      img.path,
+    ),
+  );
+}
 
     // Send request
     var response = await request.send();
     var responseBody = await response.stream.bytesToString();
 
     print("STATUS: ${response.statusCode}");
-    print("BODYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY: $responseBody");
+    print("BODY:++++++++++++++++++++++++++++++++++++++++++++++++ $responseBody");
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Product added successfully!")),
       );
 
-      // Go back to home
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const AddProduct()),
+        MaterialPageRoute(builder: (context) =>  UserApprovedProducts()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -187,7 +264,10 @@ class _AddProductState extends State<AddProduct> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: const Color.fromARGB(255, 0, 0, 0),   // IMPORTANT
+      
+        backgroundColor: const Color.fromARGB(255, 0, 0, 0), 
+  resizeToAvoidBottomInset: true,
+    extendBody: true,  // IMPORTANT
   extendBodyBehindAppBar: true,  
       body: Container(
         decoration: const BoxDecoration(
@@ -197,8 +277,10 @@ class _AddProductState extends State<AddProduct> {
           ),
         ),
         child: SafeArea(
+           bottom: false, 
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             child: Form(
               key: _formKey,
               child: Column(
@@ -207,38 +289,7 @@ class _AddProductState extends State<AddProduct> {
   alignment: Alignment.topLeft,
   child: GestureDetector(
     onTap: () async{
-       final prefs = await SharedPreferences.getInstance();
-      final userType = prefs.getString("user_type");
-
-          if (userType == "admin") {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => DashboardPage()),
-              (route) => false,
-            );
-          } else if (userType == "student") {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const HomePage()),
-              (route) => false,
-            );
-          } 
-           else if (userType == "coach") {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const CoachHomepage()),
-              (route) => false,
-            );
-          }
-          else {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const HomePage()),
-              (route) => false,
-            );
-          }
-     
-     
+      Navigator.pop(context);
     },
     child: Container(
       height: 42,
@@ -259,58 +310,7 @@ class _AddProductState extends State<AddProduct> {
 
 SizedBox(height: 20),
 
-
-           GestureDetector(
-  onTap: () async {
-    final pick = await _picker.pickImage(source: ImageSource.gallery);
-    if (pick != null) {
-      setState(() {
-        profileImage = File(pick.path);
-      });
-    }
-  },
-  child: Container(
-    height: 180,
-    width: MediaQuery.of(context).size.width * 0.9,
-    decoration: BoxDecoration(
-      color: const Color.fromARGB(195, 30, 29, 29),
-      borderRadius: BorderRadius.circular(15),
-      border: Border.all(
-        color: const Color.fromARGB(172, 90, 90, 90),
-        width: 1,
-      ),
-    ),
-
-    // SHOW IMAGE IF SELECTED
-    child: profileImage == null
-        ? Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color.fromARGB(244, 55, 55, 55),
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: const Text(
-                "Upload Image",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          )
-        : ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: Image.file(
-              profileImage!,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-            ),
-          ),
-  ),
-),
-
+_imagePickerPreview(),
 
 
 
@@ -359,6 +359,8 @@ SizedBox(height: 20),
                   ),
 
                   _inputField("Price", priceCtrl),
+                  _inputField("Discount", discount),
+                  _inputField("Stock", stockCtrl),
 
                   const SizedBox(height: 20),
 
@@ -368,14 +370,14 @@ SizedBox(height: 20),
                       onPressed: () {
                         if (!_formKey.currentState!.validate()) return;
 
-                        if (dob == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Date of Birth is required"),
-                            ),
-                          );
-                          return;
-                        }
+                        // if (dob == null) {
+                        //   ScaffoldMessenger.of(context).showSnackBar(
+                        //     const SnackBar(
+                        //       content: Text("Date of Birth is required"),
+                        //     ),
+                        //   );
+                        //   return;
+                        // }
 
                        submitProduct();
                       },
@@ -602,4 +604,99 @@ SizedBox(height: 20),
       ),
     );
   }
+
+  Widget _imagePickerPreview() {
+  final totalImages = existingImages.length + selectedImages.length;
+
+  return GestureDetector(
+    onTap: () async {
+      final picked = await _picker.pickMultiImage(imageQuality: 80);
+      if (picked.isNotEmpty) {
+        setState(() {
+          selectedImages.addAll(picked.map((e) => File(e.path)));
+        });
+        print("Selected Images Count: ${selectedImages.length}");
+        print("Existing Images Count: ${existingImages}");
+        print("Total Images Count: $selectedImages");
+      }
+    },
+    child: Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(195, 30, 29, 29),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: totalImages == 0
+          ? const Center(
+              child: Text(
+                "Upload Images",
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            )
+          : GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: totalImages,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+              ),
+              itemBuilder: (_, index) {
+                final isNetwork = index < existingImages.length;
+
+                return Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: isNetwork
+                          ? Image.network(
+                              existingImages[index]["url"],
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                            )
+                          : Image.file(
+                              selectedImages[index - existingImages.length],
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                            ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: GestureDetector(
+                       onTap: () async {
+  if (isNetwork) {
+    final imageId = existingImages[index][  "id"];
+
+    await deleteimage(imageId);
+
+    setState(() {
+      existingImages.removeAt(index);
+    });
+  } else {
+    setState(() {
+      selectedImages.removeAt(index - existingImages.length);
+    });
+  }
+},
+
+                        child: const CircleAvatar(
+                          radius: 12,
+                          backgroundColor: Colors.black54,
+                          child: Icon(Icons.close, size: 14, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+    ),
+  );
+}
+
 }

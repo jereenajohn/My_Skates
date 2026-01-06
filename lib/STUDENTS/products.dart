@@ -65,6 +65,57 @@ print("DELETE RESPONSE BODY: ${response.body}");
     );
   }
 }
+
+
+ Future<void> 
+ addwishlist(
+  var id , BuildContext context) async {
+
+
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+  final userId = prefs.getInt("id");
+
+  try {
+    var response = await http.post(
+      Uri.parse('$api/api/myskates/products/<int:product_id>/wishlist/'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+      body: {
+        "user":userId,
+        'product':id.toString(),
+       
+      },
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 201) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color.fromARGB(255, 49, 212, 4),
+          content: Text('Success'),
+        ),
+      );
+
+
+      setState(() {
+        
+      });
+    }
+
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: Colors.red,
+        content: Text('An error occurred. Please try again.'),
+      ),
+    );
+  }
+}
+
 List<Map<String, dynamic>> banner = [];
 
   Future<void> getbanner() async {
@@ -263,23 +314,62 @@ print("response.body${response.body}");
                         // ---------------------------------------------
                         // TOP LEFT LOGO
                         // ---------------------------------------------
-                        Align(
-                          alignment: Alignment.topLeft,
-                          child: Container(
-                            height: 50,
-                            width: 68,
-                            decoration: BoxDecoration(
-                             
-                             
-                              
-                            ),
-                            child: Image.asset(
-                              
-                              "lib/assets/myskates.png", // YOUR LOGO HERE
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
+                       // ---------------------------------------------
+// TOP BAR : LOGO (LEFT) + CART ICON (RIGHT)
+// ---------------------------------------------
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    // LOGO
+    Container(
+      height: 50,
+      width: 68,
+      child: Image.asset(
+        "lib/assets/myskates.png",
+        fit: BoxFit.cover,
+      ),
+    ),
+
+    // CART ICON
+    IconButton(
+      onPressed: () {
+        // TODO: Navigate to Cart Page
+        // Navigator.push(context, MaterialPageRoute(builder: (_) => CartPage()));
+      },
+      icon: Stack(
+        children: [
+          const Icon(
+            Icons.shopping_cart_outlined,
+            color: Colors.white,
+            size: 26,
+          ),
+
+          // OPTIONAL BADGE (enable later)
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.redAccent,
+                shape: BoxShape.circle,
+              ),
+              child: const Text(
+                "2",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  ],
+),
+
 
                         const SizedBox(height: 18),
 
@@ -554,25 +644,54 @@ Widget _productCard(Map<String, dynamic> p) {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          height: 150,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Image.network(
-              p['image'],
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.broken_image,
-                color: Colors.grey,
-              ),
-            ),
+        Stack(
+  children: [
+    Container(
+      height: 150,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Image.network(
+          p['image'],
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Icon(
+            Icons.broken_image,
+            color: Colors.grey,
           ),
         ),
+      ),
+    ),
+
+    // ❤️ WISHLIST ICON
+    Positioned(
+      top: 8,
+      right: 8,
+      child: GestureDetector(
+        onTap: () {
+          addwishlist( p['id'], context);
+        
+        },
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.6),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.favorite_border,
+            color: Colors.white,
+            size: 18,
+          ),
+        ),
+      ),
+    ),
+  ],
+),
+
 
         const SizedBox(height: 10),
 

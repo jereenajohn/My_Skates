@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/ADMIN/user_approved_products.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/api.dart';
@@ -914,7 +915,12 @@ void dispose() {
           } else if (title == "Find Events") {
             // Navigate to Find Events page
           } else if (title == "Buy and Sell products") {
-            // Navigate to Buy and Sell products page
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const UserApprovedProducts(),
+              ),
+            );
           }
         },
         child: Text(

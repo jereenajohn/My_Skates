@@ -65,7 +65,7 @@ class _UpdateProductState extends State<UpdateProduct> {
       Uri.parse("$api/api/myskates/products/update/${widget.productId}/"),
       headers: {"Authorization": "Bearer $token"},
     );
-
+print("getproductDetails response: ${res.body}");
     if (res.statusCode == 200) {
       final json = jsonDecode(res.body);
       final data = json["data"]; // ✅ IMPORTANT
@@ -73,7 +73,7 @@ class _UpdateProductState extends State<UpdateProduct> {
       setState(() {
         titleCtrl.text = data["title"] ?? "";
         descriptionCtrl.text = data["description"] ?? "";
-        priceCtrl.text = data["price"]?.toString() ?? "";
+        priceCtrl.text = data["base_price"]?.toString() ?? "";
 
         selectedState = data["category"]?.toString();
 

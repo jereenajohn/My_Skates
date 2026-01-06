@@ -7,7 +7,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/api.dart';
+import 'package:my_skates/map.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:latlong2/latlong.dart';
 
 class RegisterationPage extends StatefulWidget {
   final String phone;
@@ -52,6 +54,22 @@ class _RegisterationPageState extends State<RegisterationPage> {
 
     print("REGISTER PHONE: ${widget.phone}");
   }
+Future<void> pickLocationFromMap() async {
+  final result = await Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const MapLocationPicker()),
+  );
+
+  if (result != null && result is LatLng) {
+    userLat = result.latitude;
+    userLong = result.longitude;
+
+    success("Location selected");
+    setState(() {});
+  } else {
+    error("Location not selected");
+  }
+}
 
   // -------------------------------------------------------------------------
   // LOCATION PICKER
@@ -525,27 +543,52 @@ class _RegisterationPageState extends State<RegisterationPage> {
   // -------------------------------------------------------------------------
   // STEP 3 : LOCATION
   // -------------------------------------------------------------------------
+  // Widget step3() {
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       const Text(
+  //         "Add your location",
+  //         style: TextStyle(color: Colors.white, fontSize: 22),
+  //       ),
+  //       const SizedBox(height: 30),
+
+  //       bigButton("Use Current Location", getCurrentLocation),
+  //       const SizedBox(height: 20),
+
+  //       if (userLat != null)
+  //         Text(
+  //           "Selected: $userLat , $userLong",
+  //           style: const TextStyle(color: Colors.white70),
+  //         ),
+  //     ],
+  //   );
+  // }
   Widget step3() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Add your location",
-          style: TextStyle(color: Colors.white, fontSize: 22),
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        "Add your location",
+        style: TextStyle(color: Colors.white, fontSize: 22),
+      ),
+      const SizedBox(height: 30),
+
+      bigButton("Use Current Location", getCurrentLocation),
+      const SizedBox(height: 15),
+
+      bigButton("Select Location from Map", pickLocationFromMap),
+      const SizedBox(height: 20),
+
+      if (userLat != null)
+        Text(
+          "Selected: $userLat , $userLong",
+          style: const TextStyle(color: Colors.white70),
         ),
-        const SizedBox(height: 30),
+    ],
+  );
+}
 
-        bigButton("Use Current Location", getCurrentLocation),
-        const SizedBox(height: 20),
-
-        if (userLat != null)
-          Text(
-            "Selected: $userLat , $userLong",
-            style: const TextStyle(color: Colors.white70),
-          ),
-      ],
-    );
-  }
 
   // -------------------------------------------------------------------------
   // REUSABLE WIDGETS

@@ -1,0 +1,539 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'dart:io';
+
+import 'package:my_skates/api.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+class AddValues extends StatefulWidget {
+  const AddValues({super.key});
+
+  @override
+  State<AddValues> createState() => _AddValuesState();
+}
+
+class _AddValuesState extends State<AddValues> {
+  String? selectedCountryName;
+  int? selectedCountryId;                 // ← will hold selected country id
+bool showForm = false;
+
+  TextEditingController statetext = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    getdistrict();
+    getstate();
+  }
+  bool isEditMode = false;
+int? editingStateId;
+Future<void> updatedistrict(
+  int id,
+  String newName,
+  int newStateId,
+  BuildContext context,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+
+  try {
+    var response = await http.put(
+      Uri.parse("$api/api/myskates/attributes/values/update/$id/"),
+      headers: {
+        "Authorization": "Bearer $token",
+      },
+      body: {
+        "name": newName,
+        "attributes": newStateId.toString(),
+      },
+    );
+
+    print("UPDATE status: ${response.statusCode}");
+    print("UPDATE body: ${response.body}");
+
+    if (response.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("State updated successfully"),
+          backgroundColor: Colors.green,
+        ),
+      );
+getdistrict();
+      // Reset form
+      setState(() {
+        isEditMode = false;
+        editingStateId = null;
+        statetext.clear();
+        selectedCountryId = null;
+        selectedCountryName = null;
+      });
+
+      getstate();
+    }
+  } catch (e) {
+    print(e);
+  }
+}
+
+List<Map<String, dynamic>> district = [];
+
+    Future<void> getdistrict() async {
+    try {
+       final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      var response = await http.get(
+        Uri.parse('$api/api/myskates/attributes/values/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+        
+      List<Map<String, dynamic>> statelist = [];
+      print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
+      print(response.statusCode);
+      if (response.statusCode == 200) {
+        final parsed = jsonDecode(response.body);
+        var productsData = parsed['data'];
+
+        
+ for (var productData in productsData) {
+          String imageUrl = "${productData['image']}";
+          statelist.add({
+            'id': productData['id'],
+            'name': productData['name'],
+            'attribute_name': productData['attribute_name'],
+
+            
+          });
+        
+        }
+        setState(() {
+          district = statelist;
+          print("valueeee:$district");
+                  
+
+          
+        });
+      }
+    } catch (error) {
+      
+    }
+  }
+
+
+ List<Map<String, dynamic>> stat = [];
+
+    Future<void> getstate() async {
+    try {
+       final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      var response = await http.get(
+        Uri.parse('$api/api/myskates/attributes/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+        
+        List<Map<String, dynamic>> statelist = [];
+print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
+      print(response.statusCode);
+      if (response.statusCode == 200) {
+        final parsed = jsonDecode(response.body);
+        var productsData = parsed['data'];
+
+        
+ for (var productData in productsData) {
+          String imageUrl = "${productData['image']}";
+          statelist.add({
+            'id': productData['id'],
+            'name': productData['name'],
+            
+          });
+        
+        }
+        setState(() {
+          stat = statelist;
+          print("statelistttttttttttttttttttt:$stat");
+                  
+
+          
+        });
+      }
+    } catch (error) {
+      
+    }
+  }
+ Future<void> addvalues(
+  String Name, int stateId, BuildContext context) async {
+
+  print("stateId: $stateId");
+
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+
+  try {
+    var response = await http.post(
+      Uri.parse('$api/api/myskates/attributes/values/'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+      body: {
+        "name": Name,
+        "attributes": stateId.toString(),   // FIXED
+      },
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 201) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color.fromARGB(255, 49, 212, 4),
+          content: Text('Success'),
+        ),
+      );
+
+      statetext.clear();
+
+      setState(() {
+        selectedCountryId = null;
+        selectedCountryName = null;
+      });
+    }
+getdistrict();
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: Colors.red,
+        content: Text('An error occurred. Please try again.'),
+      ),
+    );
+  }
+}
+
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+       appBar: AppBar(
+  backgroundColor: Colors.black,
+  elevation: 0,
+  leading: IconButton(
+    icon: const Icon(Icons.arrow_back, color: Colors.white),
+    onPressed: () => Navigator.pop(context),
+  ),
+  title: const Text(
+    "Values",
+    style: TextStyle(color: Colors.white, fontSize: 20),
+  ),
+  actions: [
+    IconButton(
+      icon: const Icon(Icons.add, color: Colors.white, size: 28),
+      onPressed: () {
+  setState(() {
+    if (showForm) {
+      // Hide form when clicked again
+      showForm = false;
+      isEditMode = false;
+      statetext.clear();
+      selectedCountryId = null;
+      selectedCountryName = null;
+    } else {
+      // Show form for adding new state
+      showForm = true;
+      isEditMode = false;
+      statetext.clear();
+      selectedCountryId = null;
+      selectedCountryName = null;
+    }
+  });
+},
+
+    ),
+  ],
+),
+
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (showForm) ...[
+  _label("Attribute"),
+  const SizedBox(height: 5),
+  _countryDropdown(),
+
+  const SizedBox(height: 5),
+
+  _label("Value Name"),
+  _inputField(),
+
+  const SizedBox(height: 20),
+
+  GestureDetector(
+   
+  onTap: () {
+  if (selectedCountryId == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please select a attribute"),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  if (statetext.text.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please enter value name"),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  // Prevent duplicate entries (ADD or UPDATE)
+  bool exists = district.any((d) =>
+      d['name'].toString().toLowerCase() == statetext.text.trim().toLowerCase() &&
+      d['country'] == selectedCountryName &&
+      (isEditMode ? d['id'] != editingStateId : true));
+
+  if (exists) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: Colors.red,
+        content: Text("District already exists"),
+      ),
+    );
+    return;
+  }
+
+  // Proceed ADD or UPDATE
+  if (isEditMode) {
+    updatedistrict(
+      editingStateId!,
+      statetext.text.trim(),
+      selectedCountryId!,
+      context,
+    );
+  } else {
+    addvalues(
+      statetext.text.trim(),
+      selectedCountryId!,
+      context,
+    );
+  }
+},
+
+    child: Container(
+      width: double.infinity,
+      height: 55,
+      decoration: BoxDecoration(
+        color: isEditMode ? Colors.orange : const Color(0xFF018074),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Center(
+        child: Text(
+          isEditMode ? "Update" : "Submit",
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    ),
+  ),
+
+],
+
+
+              const SizedBox(height: 30),
+
+// STATE LIST TITLE
+_label("Values List"),
+
+const SizedBox(height: 10),
+
+_stateListWidget(),
+
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // LABEL WIDGET
+  Widget _label(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+
+  // COUNTRY DROPDOWN WIDGET
+  Widget _countryDropdown() {
+    return Container(
+      height: 55,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+             isExpanded: true,  
+          value: selectedCountryId,
+          dropdownColor: const Color(0xFF1E1E1E),
+          hint: const Text(
+            "Select attribute",
+            style: TextStyle(color: Colors.white70),
+          ),
+          items: stat
+              .map(
+                (c) => DropdownMenuItem<int>(
+                  value: c['id'] as int,
+                  child: Text(
+                    c['name'],
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            setState(() {
+              selectedCountryId = value;
+              selectedCountryName = stat
+                  .firstWhere((c) => c['id'] == value)['name']
+                  .toString();
+            });
+          },
+        ),
+      ),
+    );
+  }
+Widget _stateListWidget() {
+  if (district.isEmpty) {
+    return const Text(
+      "No values available",
+      style: TextStyle(color: Colors.white70),
+    );
+  }
+
+  return ListView.builder(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    itemCount: district.length,
+    itemBuilder: (context, index) {
+      final item = district[index];
+
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // LEFT SIDE TEXTS
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        item['name'] ?? "-",
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(width: 6),
+                         Text(
+                    ", ${item['attribute_name']}",
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white70,
+                    ),
+                  ),
+                    ],
+                  ),
+                 
+                ],
+              ),
+            ),
+
+            // EDIT ICON
+            GestureDetector(
+             onTap: () {
+  setState(() {
+    showForm = true;     // <-- show form when editing
+    isEditMode = true;
+    editingStateId = item['id'];
+
+    statetext.text = item['name'];
+
+    selectedCountryId = stat
+        .firstWhere(
+          (c) => c['name'] == item['country'],
+          orElse: () => stat[0],
+        )['id'];
+
+    selectedCountryName = item['country'];
+  });
+},
+
+              child: const Icon(
+                Icons.edit,
+                color: Colors.orangeAccent,
+                size: 26,
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+  // UNIFORM INPUT FIELD
+  Widget _inputField({int maxLines = 1}) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      height: 55,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      alignment: Alignment.center,
+      child: TextField(
+        controller: statetext,
+        maxLines: 1,
+        style: const TextStyle(color: Colors.white),
+        decoration: const InputDecoration(
+          isCollapsed: true,
+          border: InputBorder.none,
+        ),
+      ),
+    );
+  }
+} 
