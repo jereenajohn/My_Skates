@@ -41,70 +41,157 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
         },
       );
 
-      if (res.statusCode == 200) {
-        final decoded = jsonDecode(res.body);
-        final List data = decoded["data"] ?? [];
-
-        setState(() {
-          notifications = data.map<Map<String, dynamic>>((e) {
-            final m = Map<String, dynamic>.from(e);
-
-            m["created_at"] =
-                DateTime.tryParse(m["created_at"]?.toString() ?? "") ??
-                DateTime.now();
-
-            m["is_read"] = m["is_read"] ?? false;
-            m["isLoading"] = false;
-
-            // 🔑 IMPORTANT UI STATE
-            if (m["notification_type"] == "follow_request" ||
-                m["notification_type"] == "started_following") {
-              m["status_ui"] = "requested";
-            } else {
-              m["status_ui"] = m["notification_type"];
-            }
-
-            return m;
-          }).toList();
-
-          loading = false;
-        });
-
-        await syncApprovedFollowBacks();
-      } else {
+      if (res.statusCode != 200) {
         setState(() => loading = false);
+        return;
       }
+
+      final decoded = jsonDecode(res.body);
+      final List data = decoded["data"] ?? [];
+
+      // ─────────────────────────────────────────────
+      // STEP 1: Normalize raw notifications
+      // ─────────────────────────────────────────────
+      final List<Map<String, dynamic>> temp = data.map<Map<String, dynamic>>((
+        e,
+      ) {
+        final m = Map<String, dynamic>.from(e);
+
+        m["created_at"] =
+            DateTime.tryParse(m["created_at"]?.toString() ?? "") ??
+            DateTime.now();
+
+        m["is_read"] = m["is_read"] ?? false;
+        m["isLoading"] = false;
+
+        switch (m["notification_type"]) {
+          case "follow_request":
+            m["status_ui"] = "request_pending";
+            break;
+
+          case "follow_approved":
+            m["status_ui"] = "approved";
+            break;
+
+          case "follow_back_request":
+            m["status_ui"] = "follow_back_pending";
+            break;
+
+          case "follow_back_accepted":
+            m["status_ui"] = "following";
+            break;
+
+          default:
+            m["status_ui"] = "none";
+        }
+
+        return m;
+      }).toList();
+
+      // ─────────────────────────────────────────────
+      // STEP 2: Detect actors who already reached
+      //         follow_back_request (pivot event)
+      // ─────────────────────────────────────────────
+      final Set<int> hadFollowBackRequest = {};
+
+      for (final n in temp) {
+        if (n["notification_type"] == "follow_back_request" ||
+            n["notification_type"] == "follow_back_accepted") {
+          hadFollowBackRequest.add(n["actor"]);
+        }
+      }
+
+      // ─────────────────────────────────────────────
+      // STEP 3: Deduplicate by ACTOR → STATE (not event)
+      // ─────────────────────────────────────────────
+      final Map<int, Map<String, dynamic>> byActor = {};
+
+      int priority(String type) {
+        switch (type) {
+          case "follow_back_request":
+            return 4; // needs final confirm
+          case "follow_approved":
+            return 3;
+          case "follow_request":
+            return 2;
+          case "follow_back_accepted":
+            return 1; // terminal
+          default:
+            return 0;
+        }
+      }
+
+      for (final n in temp) {
+        final int actorId = n["actor"];
+
+        // 🔒 CRITICAL RULE:
+        // If follow_back_request already happened,
+        // any later follow_approved MUST be terminal
+        if (n["notification_type"] == "follow_approved" &&
+            hadFollowBackRequest.contains(actorId)) {
+          n["notification_type"] = "follow_back_accepted";
+          n["status_ui"] = "following";
+        }
+
+        if (!byActor.containsKey(actorId)) {
+          byActor[actorId] = n;
+        } else {
+          final existing = byActor[actorId]!;
+
+          if (priority(n["notification_type"]) >
+              priority(existing["notification_type"])) {
+            byActor[actorId] = n;
+          }
+        }
+      }
+
+      // ─────────────────────────────────────────────
+      // STEP 4: Final list sorted by time
+      // ─────────────────────────────────────────────
+      notifications = byActor.values.toList()
+        ..sort(
+          (a, b) => (b["created_at"] as DateTime).compareTo(
+            a["created_at"] as DateTime,
+          ),
+        );
+
+      setState(() {
+        loading = false;
+      });
     } catch (e) {
       setState(() => loading = false);
     }
   }
 
-  // ================= SYNC MUTUAL FOLLOW =================
-  Future<void> syncApprovedFollowBacks() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-    if (token == null) return;
+  //   // ================= SYNC MUTUAL FOLLOW =================
+  //  Future<void> syncApprovedFollowBacks() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final token = prefs.getString("access");
+  //   if (token == null) return;
 
-    final res = await http.get(
-      Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
-      headers: {"Authorization": "Bearer $token"},
-    );
+  //   final res = await http.get(
+  //     Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
+  //     headers: {"Authorization": "Bearer $token"},
+  //   );
 
-    if (res.statusCode == 200) {
-      final List approved = jsonDecode(res.body);
-      final approvedIds = approved.map((e) => e["following"]).toSet();
+  //   if (res.statusCode == 200) {
+  //     final List approved = jsonDecode(res.body);
+  //     final approvedIds = approved.map((e) => e["following"]).toSet();
 
-      setState(() {
-        for (final n in notifications) {
-          if (n["status_ui"] == "requested" &&
-              approvedIds.contains(n["actor"])) {
-            n["status_ui"] = "following"; // mutual → hide buttons
-          }
-        }
-      });
-    }
-  }
+  //     setState(() {
+  //       for (final n in notifications) {
+  //         // ✅ ONLY when mutual
+  //         if (n["status_ui"] == "approved" &&
+  //             approvedIds.contains(n["actor"])) {
+  //           n["status_ui"] = "following";
+  //           n["notification_type"] = "follow_back_accepted";
+  //         }
+  //       }
+  //     });
+  //   }
+  // }
 
+  // ================= CONFIRM FOLLOW REQUEST =================
   Future<void> confirmFollowRequest(int index) async {
     final n = notifications[index];
     n["isLoading"] = true;
@@ -123,21 +210,23 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
       },
     );
 
-    print(res.statusCode);
-    print(res.body);
-
-  if (res.statusCode == 200) {
-  n["status_ui"] = "following";
-
-  // 🔥 Force UI text
-  n["notification_type"] = "started_following";
-}
-
+    if (res.statusCode == 200) {
+      if (n["notification_type"] == "follow_back_request") {
+        // ✅ FINAL STEP → MUTUAL FOLLOW
+        n["status_ui"] = "following";
+        n["notification_type"] = "follow_back_accepted";
+      } else {
+        // normal follow request approval
+        n["status_ui"] = "approved";
+        n["notification_type"] = "follow_approved";
+      }
+    }
 
     n["isLoading"] = false;
     setState(() {});
   }
 
+  // ================= IGNORE FOLLOW REQUEST =================
   Future<void> ignoreFollowRequest(int index) async {
     final n = notifications[index];
     n["isLoading"] = true;
@@ -163,7 +252,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     setState(() {});
   }
 
-  // ================= CONFIRM =================
+  // ================= FOLLOW BACK =================
   Future<void> confirmRequest(int index) async {
     final n = notifications[index];
     n["isLoading"] = true;
@@ -183,8 +272,9 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     );
 
     if (res.statusCode == 200) {
+      // ✅ IMMEDIATE MUTUAL FOLLOW
       n["status_ui"] = "following";
-      n["notification_type"] = "follow_approved";
+      n["notification_type"] = "follow_back_accepted";
     }
 
     n["isLoading"] = false;
@@ -227,12 +317,18 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
   }
 
   String notificationText(Map<String, dynamic> n) {
+    if (n["status_ui"] == "following") {
+      return "you are now following each other";
+    }
+
     switch (n["notification_type"]) {
       case "follow_request":
-        return "sent you a follow request";
-      case "started_following":
+        return "has sent you a follow request";
+
+      case "follow_back_request":
       case "follow_approved":
         return "accepted your follow request";
+
       default:
         return "sent you a notification";
     }
@@ -325,9 +421,10 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
                                 ],
                               ),
                             ),
-
-                            // 🔥 FOLLOW REQUEST → Confirm / Ignore
-                            if (n["notification_type"] == "follow_request")
+                            if (n["status_ui"] == "following")
+                              const SizedBox.shrink()
+                            // 🔵 FOLLOW REQUEST → Confirm / Ignore
+                            else if (n["status_ui"] == "request_pending")
                               Padding(
                                 padding: const EdgeInsets.only(top: 10),
                                 child: Row(
@@ -336,41 +433,42 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
                                       onPressed: n["isLoading"]
                                           ? null
                                           : () => confirmFollowRequest(index),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.blue,
-                                        shape: const StadiumBorder(),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                          vertical: 6,
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        "Confirm",
-                                        style: TextStyle(fontSize: 12),
-                                      ),
+                                      child: const Text("Confirm"),
                                     ),
                                     const SizedBox(width: 8),
                                     OutlinedButton(
                                       onPressed: n["isLoading"]
                                           ? null
                                           : () => ignoreFollowRequest(index),
-                                      style: OutlinedButton.styleFrom(
-                                        shape: const StadiumBorder(),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                          vertical: 6,
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        "Ignore",
-                                        style: TextStyle(fontSize: 12),
-                                      ),
+                                      child: const Text("Ignore"),
                                     ),
                                   ],
                                 ),
                               )
-                            // 🔥 STARTED FOLLOWING (not mutual) → Follow Back / Cancel
-                            else if (n["status_ui"] == "requested")
+                            // 🔵 FOLLOW BACK REQUEST → Confirm / Cancel
+                            else if (n["status_ui"] == "follow_back_pending")
+                              Padding(
+                                padding: const EdgeInsets.only(top: 10),
+                                child: Row(
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: n["isLoading"]
+                                          ? null
+                                          : () => confirmFollowRequest(index),
+                                      child: const Text("Confirm"),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    OutlinedButton(
+                                      onPressed: n["isLoading"]
+                                          ? null
+                                          : () => cancelRequest(index),
+                                      child: const Text("Cancel"),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            // 🟢 AFTER APPROVAL → Follow back / Cancel
+                            else if (n["status_ui"] == "approved")
                               Padding(
                                 padding: const EdgeInsets.only(top: 10),
                                 child: Row(
@@ -379,35 +477,14 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
                                       onPressed: n["isLoading"]
                                           ? null
                                           : () => confirmRequest(index),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.blue,
-                                        shape: const StadiumBorder(),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                          vertical: 6,
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        "Follow back",
-                                        style: TextStyle(fontSize: 12),
-                                      ),
+                                      child: const Text("Follow back"),
                                     ),
                                     const SizedBox(width: 8),
                                     OutlinedButton(
                                       onPressed: n["isLoading"]
                                           ? null
                                           : () => cancelRequest(index),
-                                      style: OutlinedButton.styleFrom(
-                                        shape: const StadiumBorder(),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                          vertical: 6,
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        "Cancel",
-                                        style: TextStyle(fontSize: 12),
-                                      ),
+                                      child: const Text("Cancel"),
                                     ),
                                   ],
                                 ),
