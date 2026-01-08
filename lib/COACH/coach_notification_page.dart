@@ -172,33 +172,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     }
   }
 
-  //   // ================= SYNC MUTUAL FOLLOW =================
-  //  Future<void> syncApprovedFollowBacks() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final token = prefs.getString("access");
-  //   if (token == null) return;
 
-  //   final res = await http.get(
-  //     Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
-  //     headers: {"Authorization": "Bearer $token"},
-  //   );
-
-  //   if (res.statusCode == 200) {
-  //     final List approved = jsonDecode(res.body);
-  //     final approvedIds = approved.map((e) => e["following"]).toSet();
-
-  //     setState(() {
-  //       for (final n in notifications) {
-  //         // ✅ ONLY when mutual
-  //         if (n["status_ui"] == "approved" &&
-  //             approvedIds.contains(n["actor"])) {
-  //           n["status_ui"] = "following";
-  //           n["notification_type"] = "follow_back_accepted";
-  //         }
-  //       }
-  //     });
-  //   }
-  // }
 
   // ================= CONFIRM FOLLOW REQUEST =================
   Future<void> confirmFollowRequest(int index) async {
