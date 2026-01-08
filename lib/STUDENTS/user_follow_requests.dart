@@ -124,6 +124,9 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
       },
     );
 
+    print(res.statusCode);
+    print(res.body);
+
     if (res.statusCode == 200 || res.statusCode == 201) {
       r["status_ui"] = "requested";
     }
@@ -148,6 +151,7 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
         "request_id": r["id"].toString(),
         "action": "rejected",
       },
+
     );
 
     if (res.statusCode == 200) {
