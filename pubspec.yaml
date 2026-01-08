@@ -58,6 +58,7 @@ dev_dependencies:
   flutter_svg: ^2.0.8
   url_launcher: ^6.3.0
   fl_chart: ^0.69.0 
+  pedometer: ^4.0.1
 
 
 

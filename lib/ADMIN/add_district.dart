@@ -69,8 +69,7 @@ Future<void> updatedistrict(
         selectedCountryName = null;
       });
 
-      getstate();
-    }
+ getdistrict();    }
   } catch (e) {
     print(e);
   }
@@ -404,7 +403,7 @@ _stateListWidget(),
           value: selectedCountryId,
           dropdownColor: const Color(0xFF1E1E1E),
           hint: const Text(
-            "Select Country",
+            "Select State",
             style: TextStyle(color: Colors.white70),
           ),
           items: stat

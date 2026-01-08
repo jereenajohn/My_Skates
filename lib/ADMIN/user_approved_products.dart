@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/add_product.dart';
+import 'package:my_skates/ADMIN/cart_view.dart';
 import 'package:my_skates/ADMIN/product_big%20_view.dart';
 import 'package:my_skates/ADMIN/products_by_user.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
@@ -438,7 +439,12 @@ _handleUpdateProduct();
         // 🛒 CART ICON
         IconButton(
           onPressed: () {
-            // TODO: Navigate to Cart Page
+            Navigator.push(
+              context,
+              slideRightToLeftRoute(
+                cart()
+              ),
+            );
           },
           icon: Stack(
             clipBehavior: Clip.none,
