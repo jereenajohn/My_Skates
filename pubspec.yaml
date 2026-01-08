@@ -58,7 +58,12 @@ dev_dependencies:
   flutter_svg: ^2.0.8
   url_launcher: ^6.3.0
   fl_chart: ^0.69.0 
-  pedometer: ^4.0.1
+  shimmer: ^3.0.0
+  video_player: ^2.8.2
+  chewie: ^1.7.4
+  provider: ^6.0.5
+  share_plus: ^7.2.1
+  app_links: ^3.5.0  pedometer: ^4.0.1
 
 
 

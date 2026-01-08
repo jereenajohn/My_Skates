@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/COACH/coach_menu_page.dart';
 import 'package:my_skates/ADMIN/live_tracking.dart';
 import 'package:my_skates/ADMIN/user_approved_products.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
@@ -444,7 +445,7 @@ void dispose() {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const CoachSettings(),
+                            builder: (_) => const CoachMenuPage(),
                           ),
                         );
                       },
@@ -483,12 +484,12 @@ void dispose() {
                       children: [
                         IconButton(
                           onPressed: () async {
-                            // await Navigator.push(
-                            //   context,
-                            //   MaterialPageRoute(
-                            //     builder: (_) => const CoachNotificationPage(),
-                            //   ),
-                            // );
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const CoachNotificationPage(),
+                              ),
+                            );
 
                             // 🔁 Refresh count when coming backkkk
                             fetchFollowRequestCount();
