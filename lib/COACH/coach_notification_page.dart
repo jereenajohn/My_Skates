@@ -33,6 +33,10 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
         return;
       }
 
+      // 🔐 STEP 0: FETCH MUTUAL FOLLOW (AUTHORITATIVE STATE)
+      final Set<int> mutualFollowIds = await fetchMutualFollowIds();
+
+      // 🔔 STEP 1: FETCH NOTIFICATIONS
       final res = await http.get(
         Uri.parse("$api/api/myskates/notifications/"),
         headers: {
@@ -50,7 +54,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
       final List data = decoded["data"] ?? [];
 
       // ─────────────────────────────────────────────
-      // STEP 1: Normalize raw notifications
+      // STEP 2: NORMALIZE NOTIFICATIONS
       // ─────────────────────────────────────────────
       final List<Map<String, dynamic>> temp = data.map<Map<String, dynamic>>((
         e,
@@ -89,8 +93,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
       }).toList();
 
       // ─────────────────────────────────────────────
-      // STEP 2: Detect actors who already reached
-      //         follow_back_request (pivot event)
+      // STEP 3: TRACK ACTORS WHO REACHED FOLLOW-BACK
       // ─────────────────────────────────────────────
       final Set<int> hadFollowBackRequest = {};
 
@@ -102,20 +105,20 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
       }
 
       // ─────────────────────────────────────────────
-      // STEP 3: Deduplicate by ACTOR → STATE (not event)
+      // STEP 4: DEDUPLICATE BY ACTOR (WITH HARD OVERRIDE)
       // ─────────────────────────────────────────────
       final Map<int, Map<String, dynamic>> byActor = {};
 
       int priority(String type) {
         switch (type) {
-          case "follow_back_request":
-            return 4; // needs final confirm
-          case "follow_approved":
-            return 3;
-          case "follow_request":
-            return 2;
           case "follow_back_accepted":
-            return 1; // terminal
+            return 4; // mutual
+          case "follow_back_request":
+            return 3; // needs confirm
+          case "follow_approved":
+            return 2; // one-way
+          case "follow_request":
+            return 1;
           default:
             return 0;
         }
@@ -124,20 +127,26 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
       for (final n in temp) {
         final int actorId = n["actor"];
 
-        // 🔒 CRITICAL RULE:
-        // If follow_back_request already happened,
-        // any later follow_approved MUST be terminal
-        if (n["notification_type"] == "follow_approved" &&
-            hadFollowBackRequest.contains(actorId)) {
-          n["notification_type"] = "follow_back_accepted";
-          n["status_ui"] = "following";
+        // 1️⃣ FOLLOW BACK REQUEST MUST SURVIVE
+        if (n["notification_type"] == "follow_back_request") {
+          n["status_ui"] = "follow_back_pending";
+          byActor[actorId] = n;
+          continue;
         }
 
+        // 2️⃣ MUTUAL FOLLOW IS TERMINAL (ONLY SOURCE OF TRUTH)
+        if (mutualFollowIds.contains(actorId)) {
+          n["notification_type"] = "follow_back_accepted";
+          n["status_ui"] = "following";
+          byActor[actorId] = n;
+          continue;
+        }
+
+        // 3️⃣ NORMAL DEDUPE
         if (!byActor.containsKey(actorId)) {
           byActor[actorId] = n;
         } else {
           final existing = byActor[actorId]!;
-
           if (priority(n["notification_type"]) >
               priority(existing["notification_type"])) {
             byActor[actorId] = n;
@@ -146,7 +155,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
       }
 
       // ─────────────────────────────────────────────
-      // STEP 4: Final list sorted by time
+      // STEP 5: FINAL SORT & ASSIGN
       // ─────────────────────────────────────────────
       notifications = byActor.values.toList()
         ..sort(
@@ -254,7 +263,6 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
 
   // ================= FOLLOW BACK =================
   Future<void> confirmRequest(int index) async {
-    print("Confirming follow back for index: $index");
     final n = notifications[index];
     n["isLoading"] = true;
     setState(() {});
@@ -266,14 +274,13 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     final res = await http.post(
       Uri.parse("$api/api/myskates/user/follow/request/"),
       headers: {"Authorization": "Bearer $token"},
-      body: {"following_id": n["actor"].toString(), "action": "approved"},
+      body: {"following_id": n["actor"].toString()},
     );
-    print("Response status: ${res.statusCode}");
-    print("Response body: ${res.body}");
+
     if (res.statusCode == 200) {
-      // ✅ IMMEDIATE MUTUAL FOLLOW
-      n["status_ui"] = "following";
-      n["notification_type"] = "follow_back_accepted";
+      // UI-only state (waiting)
+      n["status_ui"] = "follow_back_sent";
+      n["notification_type"] = "follow_back_request";
     }
 
     n["isLoading"] = false;
@@ -306,6 +313,27 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     setState(() {});
   }
 
+  Future<Set<int>> fetchMutualFollowIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+    if (token == null) return {};
+
+    final res = await http.get(
+      Uri.parse("$api/api/myskates/followers/user/mutual/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
+
+    if (res.statusCode != 200) return {};
+
+    final decoded = jsonDecode(res.body);
+    final List data = decoded["data"] ?? [];
+
+    return data.map<int>((e) => e["id"] as int).toSet();
+  }
+
   // ================= HELPERS =================
   String timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
@@ -318,6 +346,9 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
   String notificationText(Map<String, dynamic> n) {
     if (n["status_ui"] == "following") {
       return "you are now following each other";
+    }
+    if (n["status_ui"] == "follow_back_sent") {
+      return "you sent a follow request";
     }
 
     switch (n["notification_type"]) {
@@ -420,7 +451,8 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
                                 ],
                               ),
                             ),
-                            if (n["status_ui"] == "following")
+                            if (n["status_ui"] == "following" ||
+                                n["status_ui"] == "follow_back_sent")
                               const SizedBox.shrink()
                             // 🔵 FOLLOW REQUEST → Confirm / Ignore
                             else if (n["status_ui"] == "request_pending")
