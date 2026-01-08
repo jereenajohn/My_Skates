@@ -2,8 +2,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/add_product.dart';
+import 'package:my_skates/ADMIN/cart_view.dart';
+import 'package:my_skates/ADMIN/product_big%20_view.dart';
+import 'package:my_skates/ADMIN/products_by_user.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/update_product.dart';
+import 'package:my_skates/ADMIN/wishlist.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
@@ -19,7 +23,8 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
   List<Map<String, dynamic>> products = [];
 bool pageLoading = true;      // initial screen load
 bool productsLoading = false; // status switch loading
-String selectedStatus = "approved";
+int? selectedCategoryId;
+String selectedCategoryName = "";
 
 final List<Map<String, String>> statusTabs = [
   {"label": "Approved", "value": "approved"},
@@ -31,11 +36,11 @@ final List<Map<String, String>> statusTabs = [
 void initState() {
   super.initState();
   loadInitialData();
+  getProductCategories();
 }
 
 Future<void> loadInitialData() async {
   await getbanner();
-  await getproduct(selectedStatus);
   setState(() {
     pageLoading = false;
   });
@@ -52,8 +57,7 @@ Future<void> loadInitialData() async {
       "Content-Type": "application/json",
     },
   );
-print("DELETE RESPONSE STATUS: ${response.statusCode}");
-print("DELETE RESPONSE BODY: ${response.body}");
+
   if (response.statusCode == 200) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text("Product Deleted"), backgroundColor: Colors.green),
@@ -64,6 +68,145 @@ print("DELETE RESPONSE BODY: ${response.body}");
     );
   }
 }
+
+
+ Future<void> addwishlist(int id, BuildContext context) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+  final userId = prefs.getInt("id");
+
+  if (token == null || userId == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Login expired. Please login again.")),
+    );
+    return;
+  }
+
+  try {
+    final response = await http.post(
+      Uri.parse('$api/api/myskates/products/$id/wishlist/'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+      body: {
+        "user": userId.toString(),      // ✅ FIX
+        "product": id.toString(),       // ✅ FIX
+      },
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+  final decoded = jsonDecode(response.body);
+  final String message = decoded['message'] ?? "Added to wishlist";
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      content: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F2F2B),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.tealAccent.withOpacity(0.6)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.favorite, color: Colors.tealAccent),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message, // ✅ BACKEND MESSAGE
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      duration: const Duration(seconds: 2),
+    ),
+  );
+}
+else {
+    ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+    behavior: SnackBarBehavior.floating,
+    backgroundColor: Colors.transparent,
+    elevation: 0,
+    content: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A230F),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.orangeAccent.withOpacity(0.6)),
+      ),
+      child: Row(
+        children: const [
+          Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "Failed to add wishlist",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+    duration: const Duration(seconds: 2),
+  ),
+);
+
+    }
+  } catch (e) {
+    print('Error: $e');
+  ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+    behavior: SnackBarBehavior.floating,
+    backgroundColor: Colors.transparent,
+    elevation: 0,
+    content: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A230F),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.orangeAccent.withOpacity(0.6)),
+      ),
+      child: Row(
+        children: const [
+          Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "Failed to add wishlist",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+    duration: const Duration(seconds: 2),
+  ),
+);
+
+  }
+}
+
 List<Map<String, dynamic>> banner = [];
 
   Future<void> getbanner() async {
@@ -80,8 +223,6 @@ List<Map<String, dynamic>> banner = [];
       );
 
       List<Map<String, dynamic>> statelist = [];
-      print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
-      print(response.statusCode);
       if (response.statusCode == 200) {
         final parsed = jsonDecode(response.body);
         var productsData = parsed;
@@ -96,11 +237,99 @@ List<Map<String, dynamic>> banner = [];
         }
         setState(() {
           banner = statelist;
-          print("statelistttttttttttttttttttt:$banner");
         });
       }
     } catch (error) {}
   }
+  List<Map<String, dynamic>> categories = [];
+
+  // FETCH CATEGORY LIST
+  Future<void> getProductCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    try {
+      var response = await http.get(
+        Uri.parse("$api/api/myskates/products/category/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+
+
+      if (response.statusCode == 200) {
+        final parsed = jsonDecode(response.body);
+
+        List<Map<String, dynamic>> list = [];
+
+        for (var item in parsed) {
+          list.add({
+            "id": item["id"],
+            "name": item["name"],
+          });
+        }
+
+       setState(() {
+  categories = list;
+});
+
+// 🔹 AUTO SELECT FIRST CATEGORY
+if (categories.isNotEmpty) {
+  selectedCategoryId = categories.first['id'];
+  selectedCategoryName = categories.first['name'];
+  getProductsByCategory(selectedCategoryId!);
+}
+
+      }
+    } catch (e) {
+    }
+  }
+
+Future<void> getProductsByCategory(int categoryId) async {
+  setState(() {
+    productsLoading = true;
+  });
+
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+
+  try {
+    final response = await http.get(
+      Uri.parse('$api/api/myskates/products/by/category/$categoryId/'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    print('Category Response status: ${response.statusCode}');
+    print('Category Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final List<dynamic> dataList = jsonDecode(response.body);
+
+      products = dataList.map<Map<String, dynamic>>((c) {
+        return {
+          'id': c['id'],
+          'title': c['title'] ?? "",
+          'image': c['image'] != null ? '$api${c['image']}' : "",
+          'category_name': c['category_name'] ?? "",
+          'price': c['base_price']?.toString() ?? "0",
+          'is_wishlisted': c['is_in_wishlist'] ?? false, // ✅ IMPORTANT
+        };
+      }).toList();
+    }
+  } catch (e) {
+    print("Category fetch error: $e");
+  }
+
+  setState(() {
+    productsLoading = false;
+  });
+}
+
 Future<void> getproduct(String status) async {
   setState(() {
     productsLoading = true;
@@ -111,13 +340,12 @@ Future<void> getproduct(String status) async {
   final userId = prefs.getInt("id");
 
   final response = await http.get(
-    Uri.parse('$api/api/myskates/products/status/$status/$userId/'),
+    Uri.parse('$api/api/myskates/products/status/$status/'),
     headers: {
       'Authorization': 'Bearer $token',
       'Content-Type': 'application/json',
     },
   );
-
   if (response.statusCode == 200) {
     final List<dynamic> parsed = jsonDecode(response.body);
 
@@ -140,7 +368,7 @@ Future<void> getproduct(String status) async {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color.fromARGB(255, 0, 0, 0),
       body: Container(
        decoration: const BoxDecoration(
   gradient: LinearGradient(
@@ -174,28 +402,92 @@ Future<void> getproduct(String status) async {
                         // ---------------------------------------------
                         // TOP LEFT LOGO
                         // ---------------------------------------------
-                        Align(
-                          alignment: Alignment.topLeft,
-                          child: Container(
-                            height: 50,
-                            width: 68,
-                            decoration: BoxDecoration(
-                             
-                             
-                              
-                            ),
-                            child: Image.asset(
-                              
-                              "lib/assets/myskates.png", // YOUR LOGO HERE
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
+                       // ---------------------------------------------
+// TOP BAR : LOGO (LEFT) + CART ICON (RIGHT)
+// ---------------------------------------------
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    // LOGO
+    SizedBox(
+      height: 50,
+      width: 68,
+      child: Image.asset(
+        "lib/assets/myskates.png",
+        fit: BoxFit.cover,
+      ),
+    ),
+
+    // RIGHT ACTION ICONS (FAVORITE + CART)
+    Row(
+      children: [
+        // ❤️ FAVORITE ICON
+        IconButton(
+          onPressed: () {
+
+_handleUpdateProduct();
+          },
+          icon: const Icon(
+            Icons.favorite_border,
+            color: Colors.white,
+            size: 26,
+          ),
+        ),
+
+        const SizedBox(width: 4),
+
+        // 🛒 CART ICON
+        IconButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              slideRightToLeftRoute(
+                cart()
+              ),
+            );
+          },
+          icon: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(
+                Icons.shopping_cart_outlined,
+                color: Colors.white,
+                size: 26,
+              ),
+
+              // CART BADGE
+              Positioned(
+                right: -2,
+                top: -2,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.redAccent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Text(
+                    "2",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  ],
+),
+
+
 
                         const SizedBox(height: 18),
 
-                        // SEARCH + ADD PRODUCT
-                        Row(
+                            Row(
                           children: [
                             Expanded(
                               child: Container(
@@ -233,7 +525,7 @@ Future<void> getproduct(String status) async {
                                 Navigator.push(
                                   context,
                                   slideRightToLeftRoute(
-                                    AddProduct()
+                                    ProductsByUser()
                                   ),
                                 );
                               },
@@ -247,7 +539,7 @@ Future<void> getproduct(String status) async {
                                 ),
                                 child: const Center(
                                   child: Text(
-                                    "Add product",
+                                    "Products",
                                     style: TextStyle(
                                           fontFamily: 'Poppins',
                                          fontWeight: FontWeight.w400,
@@ -263,8 +555,9 @@ Future<void> getproduct(String status) async {
                         ),
 
                         const SizedBox(height: 15),
-
-                       Column(
+                        banner.isEmpty
+                        ? _bannerSkeleton()
+                        :Column(
                          children: [
                            // MAIN BANNER
                            Container(
@@ -371,11 +664,9 @@ Future<void> getproduct(String status) async {
 
                         const SizedBox(height: 15),
 Text(
-  selectedStatus == "approved"
-      ? "Approved Products"
-      : selectedStatus == "pending"
-          ? "Pending Products"
-          : "Disapproved Products",
+  selectedCategoryName.isEmpty
+      ? "Products"
+      : "$selectedCategoryName Products",
   style: const TextStyle(
     fontFamily: 'Poppins',
     color: Colors.white,
@@ -386,21 +677,23 @@ Text(
 
                       
 
-                       const SizedBox(height: 18),
-
+                   const SizedBox(height: 18),
+categories.isEmpty
+  ? _categorySkeleton()
+  :
 SingleChildScrollView(
   scrollDirection: Axis.horizontal,
   child: Row(
-    children: statusTabs.map((tab) {
-      final bool isSelected = selectedStatus == tab["value"];
+    children: categories.map((cat) {
+      final bool isSelected = selectedCategoryId == cat['id'];
 
       return GestureDetector(
         onTap: () {
           setState(() {
-  selectedStatus = tab["value"]!;
-});
-getproduct(selectedStatus);
-
+            selectedCategoryId = cat['id'];
+            selectedCategoryName = cat['name'];
+          });
+          getProductsByCategory(cat['id']);
         },
         child: Container(
           margin: const EdgeInsets.only(right: 10),
@@ -413,7 +706,7 @@ getproduct(selectedStatus);
             border: Border.all(color: Colors.white24),
           ),
           child: Text(
-            tab["label"]!,
+            cat['name'],
             style: TextStyle(
               fontFamily: 'Poppins',
               fontSize: 14,
@@ -426,34 +719,15 @@ getproduct(selectedStatus);
     }).toList(),
   ),
 ),
+
                         const SizedBox(height: 20),
 // ------------------------------------------------------------
 // PRODUCTS GRID SECTION (NO FULL PAGE REFRESH)
 // ------------------------------------------------------------
 if (productsLoading)
-  const Padding(
-    padding: EdgeInsets.only(top: 40),
-    child: Center(
-      child: CircularProgressIndicator(
-        color: Colors.tealAccent,
-        strokeWidth: 2.5,
-      ),
-    ),
-  )
+  _productGridSkeleton()
 else if (products.isEmpty)
-  Padding(
-    padding: const EdgeInsets.only(top: 40),
-    child: Center(
-      child: Text(
-        "No ${selectedStatus} products found",
-        style: TextStyle(
-          color: Colors.white70,
-          fontSize: 14,
-          fontFamily: 'Poppins',
-        ),
-      ),
-    ),
-  )
+  Center(child: Text("No products found"))
 else
 GridView.builder(
   shrinkWrap: true,
@@ -468,56 +742,7 @@ GridView.builder(
   itemBuilder: (context, index) {
     final p = products[index];
 
-    return Dismissible(
-      key: ValueKey(p['id']),
-      direction: DismissDirection.horizontal,
-
-      confirmDismiss: (direction) async {
-        // 👉 SWIPE RIGHT → UPDATE (NO UI)
-        if (direction == DismissDirection.startToEnd) {
-          _handleUpdateProduct(p);
-          return false; // do NOT dismiss
-        }
-
-        // 👈 SWIPE LEFT → DELETE (RED UI SAME AS BEFORE)
-        if (direction == DismissDirection.endToStart) {
-          return await _confirmDelete(context, p);
-        }
-
-        return false;
-      },
-
-      // ❌ REMOVE BLUE UPDATE BACKGROUND
-      background: const SizedBox.shrink(),
-
-      // 🔴 KEEP DELETE BACKGROUND EXACTLY SAME
-      secondaryBackground: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          color: Colors.redAccent.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Text(
-              "Delete",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Poppins',
-              ),
-            ),
-            SizedBox(width: 8),
-            Icon(Icons.delete, color: Colors.white),
-          ],
-        ),
-      ),
-
-      child: _productCard(p),
-    );
+    return _productCard(p);
   },
 ),
 
@@ -536,90 +761,138 @@ const SizedBox(height: 40),
     );
   }
 Widget _productCard(Map<String, dynamic> p) {
-  return Container(
-    decoration: BoxDecoration(
-      color: Colors.black.withOpacity(0.20),
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: Colors.white12),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          height: 150,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+  final bool isWishlisted = p['is_wishlisted'] == true;
+
+  return GestureDetector(
+    onTap: () {
+      Navigator.push(
+        context,
+        slideRightToLeftRoute(
+          big_view(productId: p['id']),
+        ),
+      );
+    },
+    child: Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.20),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            children: [
+              Container(
+                height: 150,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: Image.network(
+                    p['image'],
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.broken_image,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ),
+    
+              /// ❤️ WISHLIST ICON
+              Positioned(
+                top: 8,
+                right: 8,
+                child: GestureDetector(
+                  onTap: () async {
+                    await addwishlist(p['id'], context);
+    
+                    // Toggle locally (VERY IMPORTANT)
+                    setState(() {
+                      p['is_wishlisted'] = !isWishlisted;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isWishlisted
+                          ? Icons.favorite
+                          : Icons.favorite_border,
+                      color: isWishlisted
+                          ? Colors.tealAccent
+                          : Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Image.network(
-              p['image'],
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.broken_image,
-                color: Colors.grey,
+    
+          const SizedBox(height: 10),
+    
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Text(
+              p['title'],
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Poppins',
               ),
             ),
           ),
-        ),
-
-        const SizedBox(height: 10),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Text(
-            p['title'],
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              fontFamily: 'Poppins',
+    
+          const SizedBox(height: 4),
+    
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Text(
+              p['category_name'],
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
+                fontFamily: 'Poppins',
+              ),
             ),
           ),
-        ),
-
-        const SizedBox(height: 4),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Text(
-            p['category_name'],
-            style: const TextStyle(
-              color: Colors.grey,
-              fontSize: 12,
-              fontFamily: 'Poppins',
+    
+          const SizedBox(height: 4),
+    
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Text(
+              "₹${p['price']}",
+              style: const TextStyle(
+                color: Colors.tealAccent,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Poppins',
+              ),
             ),
           ),
-        ),
-
-        const SizedBox(height: 4),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Text(
-            "₹${p['price']}",
-            style: const TextStyle(
-              color: Colors.tealAccent,
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Poppins',
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }
-void _handleUpdateProduct(Map<String, dynamic> product) {
-  print("UPDATE ${product['id']}");
+
+void _handleUpdateProduct() {
  Navigator.push(
   context,
   slideRightToLeftRoute(
-    UpdateProduct(productId: product['id']),
+    Wishlist(),
   ),
 );
 
@@ -647,7 +920,6 @@ Future<bool> _confirmDelete(
             ),
             TextButton(
               onPressed: () {
-                print("DELETED ${product['id']}");
                 delete(product['id']);
                 Navigator.pop(context, true);
 
@@ -662,6 +934,113 @@ Future<bool> _confirmDelete(
         ),
       ) ??
       false;
+}
+Widget _productGridSkeleton() {
+  return GridView.builder(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    itemCount: 6,
+    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 2,
+      mainAxisExtent: 250,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+    ),
+    itemBuilder: (_, __) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.25),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // IMAGE SKELETON
+            Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade900,
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // TITLE LINE
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Container(
+                height: 14,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade800,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // CATEGORY LINE
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Container(
+                height: 12,
+                width: 80,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade800,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // PRICE LINE
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Container(
+                height: 14,
+                width: 60,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade700,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+Widget _categorySkeleton() {
+  return SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      children: List.generate(5, (index) {
+        return Container(
+          margin: const EdgeInsets.only(right: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade900,
+            borderRadius: BorderRadius.circular(30),
+          ),
+        );
+      }),
+    ),
+  );
+}
+Widget _bannerSkeleton() {
+  return Container(
+    height: 160,
+    decoration: BoxDecoration(
+      color: Colors.grey.shade900,
+      borderRadius: BorderRadius.circular(14),
+    ),
+  );
 }
 
 }

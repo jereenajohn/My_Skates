@@ -151,6 +151,9 @@ Future<void> updateCountry(int id, String name, String code) async {
           content: Text('Success'),
         ),
       );
+      getcountry();
+      countryCtrl.clear();
+      codeCtrl.clear();
     }
   } catch (e) {
     ScaffoldMessenger.of(context).showSnackBar(

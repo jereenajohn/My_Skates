@@ -52,13 +52,14 @@ Future<void> updateStateInSameForm(
     print("UPDATE status: ${response.statusCode}");
     print("UPDATE body: ${response.body}");
 
-    if (response.statusCode == 200) {
+    if (response.statusCode == 201 || response.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("State updated successfully"),
           backgroundColor: Colors.green,
         ),
       );
+      getstate();
 
       // Reset form
       setState(() {
@@ -69,7 +70,7 @@ Future<void> updateStateInSameForm(
         selectedCountryName = null;
       });
 
-      getstate();
+
     }
   } catch (e) {
     print(e);
@@ -187,7 +188,7 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
     print('Response status: ${response.statusCode}');
     print('Response body: ${response.body}');
 
-    if (response.statusCode == 201) {
+    if (response.statusCode == 201 || response.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Color.fromARGB(255, 49, 212, 4),
@@ -201,6 +202,7 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
         selectedCountryId = null;
         selectedCountryName = null;
       });
+      getstate();
     }
 
   } catch (e) {

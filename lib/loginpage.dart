@@ -16,6 +16,7 @@ class _LoginpageState extends State<Loginpage> {
   final TextEditingController phoneController = TextEditingController();
 
   Future<void> _postPhoneNumber() async {
+    print("Posting phone number...");
     final phone = phoneController.text.trim();
 
     // REQUIRED FIELD VALIDATION
@@ -55,6 +56,7 @@ class _LoginpageState extends State<Loginpage> {
       }
 
     } catch (e) {
+      print("Error occurred: $e");
       _showMessage("Network error. Please try again.");
     }
   }

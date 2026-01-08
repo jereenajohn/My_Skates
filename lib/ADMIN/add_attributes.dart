@@ -6,14 +6,14 @@ import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-class district extends StatefulWidget {
-  const district({super.key});
+class attributes extends StatefulWidget {
+  const attributes({super.key});
 
   @override
-  State<district> createState() => _districtState();
+  State<attributes> createState() => _attributesState();
 }
 
-class _districtState extends State<district> {
+class _attributesState extends State<attributes> {
   String? selectedCountryName;
   int? selectedCountryId;                 // ← will hold selected country id
 bool showForm = false;
@@ -23,15 +23,13 @@ bool showForm = false;
   @override
   void initState() {
     super.initState();
-    getdistrict();
     getstate();
   }
   bool isEditMode = false;
 int? editingStateId;
-Future<void> updatedistrict(
+Future<void> updateattributeInSameForm(
   int id,
   String newName,
-  int newStateId,
   BuildContext context,
 ) async {
   final prefs = await SharedPreferences.getInstance();
@@ -39,13 +37,12 @@ Future<void> updatedistrict(
 
   try {
     var response = await http.put(
-      Uri.parse("$api/api/myskates/district/view/$id/"),
+      Uri.parse("$api/api/myskates/attributes/update/$id/"),
       headers: {
         "Authorization": "Bearer $token",
       },
       body: {
         "name": newName,
-        "state_id": newStateId.toString(),
       },
     );
 
@@ -59,7 +56,7 @@ Future<void> updatedistrict(
           backgroundColor: Colors.green,
         ),
       );
-
+getstate();
       // Reset form
       setState(() {
         isEditMode = false;
@@ -69,61 +66,17 @@ Future<void> updatedistrict(
         selectedCountryName = null;
       });
 
- getdistrict();    }
+      getstate();
+    }
   } catch (e) {
     print(e);
   }
 }
 
-List<Map<String, dynamic>> district = [];
 
-    Future<void> getdistrict() async {
-    try {
-       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("access");
+  List<Map<String, dynamic>> country = [];
 
-      var response = await http.get(
-        Uri.parse('$api/api/myskates/district/'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
-        
-      List<Map<String, dynamic>> statelist = [];
-      print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
-      print(response.statusCode);
-      if (response.statusCode == 200) {
-        final parsed = jsonDecode(response.body);
-        var productsData = parsed;
-
-        
- for (var productData in productsData) {
-          String imageUrl = "${productData['image']}";
-          statelist.add({
-            'id': productData['id'],
-            'name': productData['name'],
-            'country_code': productData['country_code'],
-            'country': productData['country'],
-
-            
-          });
-        
-        }
-        setState(() {
-          district = statelist;
-          print("statelistttttttttttttttttttt:$district");
-                  
-
-          
-        });
-      }
-    } catch (error) {
-      
-    }
-  }
-
-
+ 
  List<Map<String, dynamic>> stat = [];
 
     Future<void> getstate() async {
@@ -132,7 +85,7 @@ List<Map<String, dynamic>> district = [];
       final token = prefs.getString("access");
 
       var response = await http.get(
-        Uri.parse('$api/api/myskates/state/'),
+        Uri.parse('$api/api/myskates/attributes/'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -144,18 +97,14 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
       print(response.statusCode);
       if (response.statusCode == 200) {
         final parsed = jsonDecode(response.body);
-        var productsData = parsed;
+        var productsData = parsed['data'];
 
         
  for (var productData in productsData) {
           String imageUrl = "${productData['image']}";
           statelist.add({
             'id': productData['id'],
-            'name': productData['name'],
-            'country_code': productData['country_code'],
-            'country': productData['country'],
-
-            
+            'name': productData['name'],   
           });
         
         }
@@ -171,23 +120,21 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
       
     }
   }
- Future<void> adddistrict(
-  String Name, int stateId, BuildContext context) async {
+ Future<void> addattribute(
+  String stateName,BuildContext context) async {
 
-  print("stateId: $stateId");
 
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString("access");
 
   try {
     var response = await http.post(
-      Uri.parse('$api/api/myskates/district/'),
+      Uri.parse('$api/api/myskates/attributes/'),
       headers: {
         'Authorization': 'Bearer $token',
       },
       body: {
-        "name": Name,
-        "state_id": stateId.toString(),   // FIXED
+        "name": stateName,
       },
     );
 
@@ -203,13 +150,13 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
       );
 
       statetext.clear();
-
+getstate();
       setState(() {
         selectedCountryId = null;
         selectedCountryName = null;
       });
     }
-getdistrict();
+
   } catch (e) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -232,7 +179,7 @@ getdistrict();
     onPressed: () => Navigator.pop(context),
   ),
   title: const Text(
-    "Districts",
+    "Attributes",
     style: TextStyle(color: Colors.white, fontSize: 20),
   ),
   actions: [
@@ -270,68 +217,58 @@ getdistrict();
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (showForm) ...[
-  _label("state"),
-  const SizedBox(height: 5),
-  _countryDropdown(),
 
   const SizedBox(height: 5),
 
-  _label("District"),
+  _label("Attribute Name"),
   _inputField(),
 
   const SizedBox(height: 20),
 
   GestureDetector(
-   
-  onTap: () {
-  if (selectedCountryId == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Please select a state"),
-        backgroundColor: Colors.red,
-      ),
-    );
-    return;
-  }
+   onTap: () {
+ 
 
   if (statetext.text.trim().isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("Please enter district name"),
+        content: Text("Please enter attribute name"),
         backgroundColor: Colors.red,
       ),
     );
     return;
   }
 
-  // Prevent duplicate entries (ADD or UPDATE)
-  bool exists = district.any((d) =>
-      d['name'].toString().toLowerCase() == statetext.text.trim().toLowerCase() &&
-      d['country'] == selectedCountryName &&
-      (isEditMode ? d['id'] != editingStateId : true));
+  // --------------------------
+  // DUPLICATE VALIDATION
+  // --------------------------
+  bool exists = stat.any((s) =>
+      s['name'].toString().toLowerCase() == statetext.text.trim().toLowerCase() &&
+      s['country'] == selectedCountryName &&
+      (isEditMode ? s['id'] != editingStateId : true));
 
   if (exists) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         backgroundColor: Colors.red,
-        content: Text("District already exists"),
+        content: Text("Attribute already exists in this country"),
       ),
     );
     return;
   }
+  // --------------------------
 
-  // Proceed ADD or UPDATE
+  // PROCESS ADD OR UPDATE
   if (isEditMode) {
-    updatedistrict(
+    updateattributeInSameForm(
       editingStateId!,
       statetext.text.trim(),
-      selectedCountryId!,
+     
       context,
     );
   } else {
-    adddistrict(
+    addattribute(
       statetext.text.trim(),
-      selectedCountryId!,
       context,
     );
   }
@@ -363,7 +300,7 @@ getdistrict();
               const SizedBox(height: 30),
 
 // STATE LIST TITLE
-_label("Districts"),
+_label("Attributes"),
 
 const SizedBox(height: 10),
 
@@ -388,51 +325,10 @@ _stateListWidget(),
     );
   }
 
-  // COUNTRY DROPDOWN WIDGET
-  Widget _countryDropdown() {
-    return Container(
-      height: 55,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int>(
-             isExpanded: true,  
-          value: selectedCountryId,
-          dropdownColor: const Color(0xFF1E1E1E),
-          hint: const Text(
-            "Select State",
-            style: TextStyle(color: Colors.white70),
-          ),
-          items: stat
-              .map(
-                (c) => DropdownMenuItem<int>(
-                  value: c['id'] as int,
-                  child: Text(
-                    c['name'],
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-              )
-              .toList(),
-          onChanged: (value) {
-            setState(() {
-              selectedCountryId = value;
-              selectedCountryName = stat
-                  .firstWhere((c) => c['id'] == value)['name']
-                  .toString();
-            });
-          },
-        ),
-      ),
-    );
-  }
 Widget _stateListWidget() {
-  if (district.isEmpty) {
+  if (stat.isEmpty) {
     return const Text(
-      "No district available",
+      "No attributes available",
       style: TextStyle(color: Colors.white70),
     );
   }
@@ -440,9 +336,9 @@ Widget _stateListWidget() {
   return ListView.builder(
     shrinkWrap: true,
     physics: const NeverScrollableScrollPhysics(),
-    itemCount: district.length,
+    itemCount: stat.length,
     itemBuilder: (context, index) {
-      final item = district[index];
+      final item = stat[index];
 
       return Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -469,14 +365,7 @@ Widget _stateListWidget() {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      SizedBox(width: 6),
-                         Text(
-                    ", ${item['country']}",
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.white70,
-                    ),
-                  ),
+                      
                     ],
                   ),
                  
@@ -494,10 +383,10 @@ Widget _stateListWidget() {
 
     statetext.text = item['name'];
 
-    selectedCountryId = stat
+    selectedCountryId = country
         .firstWhere(
           (c) => c['name'] == item['country'],
-          orElse: () => stat[0],
+          orElse: () => country[0],
         )['id'];
 
     selectedCountryName = item['country'];

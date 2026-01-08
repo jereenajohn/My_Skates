@@ -6,14 +6,14 @@ import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-class district extends StatefulWidget {
-  const district({super.key});
+class AddValues extends StatefulWidget {
+  const AddValues({super.key});
 
   @override
-  State<district> createState() => _districtState();
+  State<AddValues> createState() => _AddValuesState();
 }
 
-class _districtState extends State<district> {
+class _AddValuesState extends State<AddValues> {
   String? selectedCountryName;
   int? selectedCountryId;                 // ← will hold selected country id
 bool showForm = false;
@@ -39,13 +39,13 @@ Future<void> updatedistrict(
 
   try {
     var response = await http.put(
-      Uri.parse("$api/api/myskates/district/view/$id/"),
+      Uri.parse("$api/api/myskates/attributes/values/update/$id/"),
       headers: {
         "Authorization": "Bearer $token",
       },
       body: {
         "name": newName,
-        "state_id": newStateId.toString(),
+        "attributes": newStateId.toString(),
       },
     );
 
@@ -59,7 +59,7 @@ Future<void> updatedistrict(
           backgroundColor: Colors.green,
         ),
       );
-
+getdistrict();
       // Reset form
       setState(() {
         isEditMode = false;
@@ -69,7 +69,8 @@ Future<void> updatedistrict(
         selectedCountryName = null;
       });
 
- getdistrict();    }
+      getstate();
+    }
   } catch (e) {
     print(e);
   }
@@ -83,7 +84,7 @@ List<Map<String, dynamic>> district = [];
       final token = prefs.getString("access");
 
       var response = await http.get(
-        Uri.parse('$api/api/myskates/district/'),
+        Uri.parse('$api/api/myskates/attributes/values/'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -95,7 +96,7 @@ List<Map<String, dynamic>> district = [];
       print(response.statusCode);
       if (response.statusCode == 200) {
         final parsed = jsonDecode(response.body);
-        var productsData = parsed;
+        var productsData = parsed['data'];
 
         
  for (var productData in productsData) {
@@ -103,8 +104,7 @@ List<Map<String, dynamic>> district = [];
           statelist.add({
             'id': productData['id'],
             'name': productData['name'],
-            'country_code': productData['country_code'],
-            'country': productData['country'],
+            'attribute_name': productData['attribute_name'],
 
             
           });
@@ -112,7 +112,7 @@ List<Map<String, dynamic>> district = [];
         }
         setState(() {
           district = statelist;
-          print("statelistttttttttttttttttttt:$district");
+          print("valueeee:$district");
                   
 
           
@@ -132,7 +132,7 @@ List<Map<String, dynamic>> district = [];
       final token = prefs.getString("access");
 
       var response = await http.get(
-        Uri.parse('$api/api/myskates/state/'),
+        Uri.parse('$api/api/myskates/attributes/'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -144,7 +144,7 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
       print(response.statusCode);
       if (response.statusCode == 200) {
         final parsed = jsonDecode(response.body);
-        var productsData = parsed;
+        var productsData = parsed['data'];
 
         
  for (var productData in productsData) {
@@ -152,9 +152,6 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
           statelist.add({
             'id': productData['id'],
             'name': productData['name'],
-            'country_code': productData['country_code'],
-            'country': productData['country'],
-
             
           });
         
@@ -171,7 +168,7 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
       
     }
   }
- Future<void> adddistrict(
+ Future<void> addvalues(
   String Name, int stateId, BuildContext context) async {
 
   print("stateId: $stateId");
@@ -181,13 +178,13 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
 
   try {
     var response = await http.post(
-      Uri.parse('$api/api/myskates/district/'),
+      Uri.parse('$api/api/myskates/attributes/values/'),
       headers: {
         'Authorization': 'Bearer $token',
       },
       body: {
         "name": Name,
-        "state_id": stateId.toString(),   // FIXED
+        "attributes": stateId.toString(),   // FIXED
       },
     );
 
@@ -232,7 +229,7 @@ getdistrict();
     onPressed: () => Navigator.pop(context),
   ),
   title: const Text(
-    "Districts",
+    "Values",
     style: TextStyle(color: Colors.white, fontSize: 20),
   ),
   actions: [
@@ -270,13 +267,13 @@ getdistrict();
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (showForm) ...[
-  _label("state"),
+  _label("Attribute"),
   const SizedBox(height: 5),
   _countryDropdown(),
 
   const SizedBox(height: 5),
 
-  _label("District"),
+  _label("Value Name"),
   _inputField(),
 
   const SizedBox(height: 20),
@@ -287,7 +284,7 @@ getdistrict();
   if (selectedCountryId == null) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("Please select a state"),
+        content: Text("Please select a attribute"),
         backgroundColor: Colors.red,
       ),
     );
@@ -297,7 +294,7 @@ getdistrict();
   if (statetext.text.trim().isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("Please enter district name"),
+        content: Text("Please enter value name"),
         backgroundColor: Colors.red,
       ),
     );
@@ -329,7 +326,7 @@ getdistrict();
       context,
     );
   } else {
-    adddistrict(
+    addvalues(
       statetext.text.trim(),
       selectedCountryId!,
       context,
@@ -363,7 +360,7 @@ getdistrict();
               const SizedBox(height: 30),
 
 // STATE LIST TITLE
-_label("Districts"),
+_label("Values List"),
 
 const SizedBox(height: 10),
 
@@ -403,7 +400,7 @@ _stateListWidget(),
           value: selectedCountryId,
           dropdownColor: const Color(0xFF1E1E1E),
           hint: const Text(
-            "Select State",
+            "Select attribute",
             style: TextStyle(color: Colors.white70),
           ),
           items: stat
@@ -432,7 +429,7 @@ _stateListWidget(),
 Widget _stateListWidget() {
   if (district.isEmpty) {
     return const Text(
-      "No district available",
+      "No values available",
       style: TextStyle(color: Colors.white70),
     );
   }
@@ -471,7 +468,7 @@ Widget _stateListWidget() {
                       ),
                       SizedBox(width: 6),
                          Text(
-                    ", ${item['country']}",
+                    ", ${item['attribute_name']}",
                     style: const TextStyle(
                       fontSize: 13,
                       color: Colors.white70,

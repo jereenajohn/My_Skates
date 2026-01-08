@@ -48,36 +48,42 @@ Future<String> getAddressFromLatLng(String? lat, String? lng) async {
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString("access");
 
-  var response = await http.get(
-    Uri.parse('$api/api/myskates/products/status/${status}/'),
+  final response = await http.get(
+    Uri.parse('$api/api/myskates/products/status/view/$status/'),
     headers: {
       'Authorization': 'Bearer $token',
       'Content-Type': 'application/json',
     },
   );
-print("COACH STATUS: ${response.statusCode}");
-print("COACH BODYyyy: ${response.body}");
+
+  print("COACH STATUS: ${response.statusCode}");
+  print("COACH BODY: ${response.body}");
+
   if (response.statusCode == 200) {
-    List<dynamic> parsed = jsonDecode(response.body);
+    final decoded = jsonDecode(response.body);
+
+    // ✅ SAFETY CHECK
+    final List<dynamic> parsed = decoded['data'] ?? [];
 
     coach = [];
 
-    for (var c in parsed) {
-
+    for (final c in parsed) {
       coach.add({
         'id': c['id'],
-        'title': "${c['title']}",
+        'title': c['title'] ?? "",
         'image': c['image'] != null ? '$api${c['image']}' : "",
-        "category_name":c['category_name'] != null ? c['category_name'] : "",
-        "price":c['price'] != null ? c['price'].toString() : "",
-        "description":c['description'] != null ? c['description'] : "",
-        "user":c['user'] != null ? c['user'].toString() : "",
+        'category_name': c['category_name'] ?? "",
+        'price': c['base_price']?.toString() ?? "",
+        'description': c['description'] ?? "",
+        'user': c['user']?.toString() ?? "",
+        'variants': c['variants'] ?? [], // keep for later use
       });
     }
 
     setState(() {});
   }
 }
+
 
   @override
   Widget build(BuildContext context) {

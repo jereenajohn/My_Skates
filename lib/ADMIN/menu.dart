@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/ADMIN/add_attributes.dart';
 import 'package:my_skates/ADMIN/add_category.dart';
 import 'package:my_skates/ADMIN/add_country.dart';
 import 'package:my_skates/ADMIN/add_district.dart';
 import 'package:my_skates/ADMIN/add_product_banner.dart';
 import 'package:my_skates/ADMIN/add_state.dart';
+import 'package:my_skates/ADMIN/add_values.dart';
 import 'package:my_skates/COACH/add_club.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -152,6 +154,25 @@ Future<void> logoutUser() async {
                   );
                 },
                 child: _menuTile(icon: Icons.history, text: "Category")),
+              _divider(),
+               GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const attributes()),
+                  );
+                },
+                child: _menuTile(icon: Icons.history, text: "Attributes")),
+                              _divider(),
+
+                GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AddValues()),
+                  );
+                },
+                child: _menuTile(icon: Icons.history, text: "values")),
               _divider(),
               GestureDetector(
                 onTap: () {

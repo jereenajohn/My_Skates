@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/ADMIN/add_address.dart';
+import 'package:my_skates/ADMIN/view_address.dart';
 import 'package:my_skates/COACH/add_club.dart';
 import 'package:my_skates/COACH/coach_add_events.dart';
 import 'package:my_skates/COACH/coach_follow_request.dart';
@@ -160,6 +162,17 @@ class _CoachSettingsState extends State<CoachSettings> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const AddClub()),
+                  );
+                },
+              ),
+                 _divider(),
+               _menuTile(
+                icon: Icons.home,
+                text: "Add address",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ViewAddress()),
                   );
                 },
               ),
