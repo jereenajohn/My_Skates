@@ -63,7 +63,8 @@ dev_dependencies:
   chewie: ^1.7.4
   provider: ^6.0.5
   share_plus: ^7.2.1
-  app_links: ^3.5.0  pedometer: ^4.0.1
+  app_links: ^3.5.0  
+  pedometer: ^4.0.1
 
 
 
