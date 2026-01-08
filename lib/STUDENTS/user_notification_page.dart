@@ -4,15 +4,15 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 
-class CoachNotificationPage extends StatefulWidget {
-  const CoachNotificationPage({super.key});
+class StudentNotificationPage extends StatefulWidget {
+  const StudentNotificationPage({super.key});
 
   @override
-  State<CoachNotificationPage> createState() =>
-      _CoachNotificationPageState();
+  State<StudentNotificationPage> createState() =>
+      _StudentNotificationPageState();
 }
 
-class _CoachNotificationPageState extends State<CoachNotificationPage> {
+class _StudentNotificationPageState extends State<StudentNotificationPage> {
   List<Map<String, dynamic>> requests = [];
   bool loading = true;
 
@@ -27,6 +27,9 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     await syncApprovedFollowBacks();
   }
 
+  // ------------------------------------------------------------
+  // FETCH REQUESTS
+  // ------------------------------------------------------------
   Future<void> fetchRequests() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -60,6 +63,9 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     }
   }
 
+  // ------------------------------------------------------------
+  // CONFIRM REQUEST
+  // ------------------------------------------------------------
   Future<void> confirmRequest(int index) async {
     final r = requests[index];
     r["isLoading"] = true;
@@ -100,6 +106,9 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     setState(() {});
   }
 
+  // ------------------------------------------------------------
+  // FOLLOW BACK
+  // ------------------------------------------------------------
   Future<void> followBack(int index) async {
     final r = requests[index];
     r["isLoading"] = true;
@@ -115,57 +124,61 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     );
 
     if (res.statusCode == 200 || res.statusCode == 201) {
-      final data = jsonDecode(res.body);
-      r["status_ui"] =
-          data["status"] == "approved" ? "mutual" : "requested";
+      r["status_ui"] = "requested";
     }
 
     r["isLoading"] = false;
     setState(() {});
   }
-Future<void> syncApprovedFollowBacks() async {
-  print("===== SYNC APPROVED FOLLOW BACKS =====");
 
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-  print("TOKEN: $token");
+  // ------------------------------------------------------------
+  // SYNC FOLLOW BACK
+  // ------------------------------------------------------------
+  Future<void> syncApprovedFollowBacks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
 
-  final res = await http.get(
-    Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
-    headers: {"Authorization": "Bearer $token"},
-  );
+    final res = await http.get(
+      Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
+      headers: {"Authorization": "Bearer $token"},
+    );
 
-  print("SYNC STATUS CODE: ${res.statusCode}");
-  print("SYNC RESPONSE BODY: ${res.body}");
+    if (res.statusCode != 200) return;
 
-  if (res.statusCode == 200) {
     final List approved = jsonDecode(res.body);
     final approvedIds =
         approved.map((e) => e["following"]).toSet();
 
-    print("APPROVED FOLLOWING IDS: $approvedIds");
-
-    setState(() { 
+    setState(() {
       for (final r in requests) {
-        print(
-            "CHECKING REQUEST → ${r["follower_name"]} | STATUS: ${r["status_ui"]}");
-
         if (r["status_ui"] == "requested" &&
             approvedIds.contains(r["follower"])) {
           r["status_ui"] = "following";
-          print(
-              "STATUS UPDATED → following FOR ${r["follower_name"]}");
         }
       }
     });
-  } else {
-    print("SYNC FAILED");
   }
 
-  print("===== SYNC END =====");
-}
+  // ------------------------------------------------------------
+  // GROUPING
+  // ------------------------------------------------------------
+  List<Map<String, dynamic>> todayList() {
+    return requests.where((r) {
+      final d = r["created_at"] as DateTime;
+      return d.difference(DateTime.now()).inDays == 0;
+    }).toList();
+  }
 
+  List<Map<String, dynamic>> weekList() {
+    return requests.where((r) {
+      final d = r["created_at"] as DateTime;
+      return d.difference(DateTime.now()).inDays < 7;
+    }).toList();
+  }
 
+  // ------------------------------------------------------------
+  // UI
+  // ------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -177,19 +190,39 @@ Future<void> syncApprovedFollowBacks() async {
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              children: requests
-                  .map((e) => _notificationTile(
-                        Map<String, dynamic>.from(e),
-                      ))
-                  .toList(),
+              children: [
+                if (todayList().isNotEmpty)
+                  _section("Today", todayList()),
+                if (weekList().isNotEmpty)
+                  _section("This Week", weekList()),
+              ],
             ),
     );
   }
 
-  Widget _notificationTile(Map<String, dynamic> r) {
-    final index =
-        requests.indexWhere((e) => e["id"] == r["id"]);
+  Widget _section(String title, List<Map<String, dynamic>> data) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Text(
+            title,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold),
+          ),
+        ),
+        ...data.map((e) => _notificationTile(
+              Map<String, dynamic>.from(e),
+            )),
+      ],
+    );
+  }
 
+  Widget _notificationTile(Map<String, dynamic> r) {
     return Padding(
       padding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -215,23 +248,19 @@ Future<void> syncApprovedFollowBacks() async {
                     style:
                         const TextStyle(color: Colors.white70),
                   ),
+                  if (r["status_ui"] == "mutual")
+                    const WidgetSpan(
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 6),
+                        child: Icon(Icons.all_inclusive,
+                            size: 14, color: Colors.green),
+                      ),
+                    ),
                 ],
               ),
             ),
           ),
-          if (r["status_ui"] == "pending")
-            _primaryBtn("Confirm",
-                () => confirmRequest(index),
-                loading: r["isLoading"])
-          else if (r["status_ui"] == "follow_back")
-            _primaryBtn("Follow back",
-                () => followBack(index),
-                loading: r["isLoading"])
-          else
-            _outlineBtn(
-                r["status_ui"] == "mutual"
-                    ? "Following"
-                    : "Requested"),
+          _actionButton(r),
         ],
       ),
     );
@@ -252,12 +281,40 @@ Future<void> syncApprovedFollowBacks() async {
     }
   }
 
+  Widget _actionButton(Map<String, dynamic> r) {
+    final index =
+        requests.indexWhere((e) => e["id"] == r["id"]);
+
+    if (r["status_ui"] == "pending") {
+      return _primaryBtn(
+        "Confirm",
+        () => confirmRequest(index),
+        loading: r["isLoading"],
+      );
+    }
+
+    if (r["status_ui"] == "follow_back") {
+      return _primaryBtn(
+        "Follow back",
+        () => followBack(index),
+        loading: r["isLoading"],
+      );
+    }
+
+    return _outlineBtn(
+      r["status_ui"] == "mutual" ? "Following" : "Requested",
+    );
+  }
+
   Widget _primaryBtn(String text, VoidCallback onTap,
       {bool loading = false}) {
     return SizedBox(
       height: 32,
       child: ElevatedButton(
         onPressed: loading ? null : onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blueAccent,
+        ),
         child: loading
             ? const SizedBox(
                 height: 14,
