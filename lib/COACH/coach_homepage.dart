@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/ADMIN/live_tracking.dart';
 import 'package:my_skates/ADMIN/user_approved_products.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
@@ -909,7 +910,14 @@ void dispose() {
               ),
             );
           } else if (title == "Connect Students") {
-            // Navigate to Connect Students page
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ActivityTrackerPage(),
+              ),
+            );
+
           } else if (title == "Find Clubs") {
             // Navigate to Find Clubs page
           } else if (title == "Find Events") {
