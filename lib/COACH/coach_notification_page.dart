@@ -237,7 +237,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     if (token == null) return;
 
     final res = await http.post(
-      Uri.parse("$api/api/myskates/user/follow/approve/"),
+      Uri.parse("$api/api/myskates/user/follow/cancel/"),
       headers: {"Authorization": "Bearer $token"},
       body: {
         "request_id": n["follow_request_id"].toString(),
@@ -254,6 +254,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
 
   // ================= FOLLOW BACK =================
   Future<void> confirmRequest(int index) async {
+    print("Confirming follow back for index: $index");
     final n = notifications[index];
     n["isLoading"] = true;
     setState(() {});
@@ -263,14 +264,12 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     if (token == null) return;
 
     final res = await http.post(
-      Uri.parse("$api/api/myskates/user/follow/approve/"),
+      Uri.parse("$api/api/myskates/user/follow/request/"),
       headers: {"Authorization": "Bearer $token"},
-      body: {
-        "request_id": n["follow_request_id"].toString(),
-        "action": "approved",
-      },
+      body: {"following_id": n["actor"].toString(), "action": "approved"},
     );
-
+    print("Response status: ${res.statusCode}");
+    print("Response body: ${res.body}");
     if (res.statusCode == 200) {
       // ✅ IMMEDIATE MUTUAL FOLLOW
       n["status_ui"] = "following";
@@ -292,7 +291,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     if (token == null) return;
 
     final res = await http.post(
-      Uri.parse("$api/api/myskates/user/follow/approve/"),
+      Uri.parse("$api/api/myskates/user/follow/cancel/"),
       headers: {"Authorization": "Bearer $token"},
       body: {
         "request_id": n["follow_request_id"].toString(),
