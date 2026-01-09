@@ -340,17 +340,17 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
     if (image != null && image.isNotEmpty) {
       return CircleAvatar(radius: 22, backgroundImage: NetworkImage(image));
     }
-      return CircleAvatar(
-  radius: 22,
-  backgroundColor: Colors.tealAccent.withOpacity(0.2),
-  child: Text(
-    name.isNotEmpty ? name[0].toUpperCase() : "?",
-    style: const TextStyle(
-      fontWeight: FontWeight.bold,
-      color: Colors.white,
-    ),
-  ),
-);
+    return CircleAvatar(
+      radius: 22,
+      backgroundColor: Colors.tealAccent.withOpacity(0.2),
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : "?",
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+    );
   }
 
   // ================= UI =================
@@ -414,8 +414,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                     text: name,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-
+                                      color: Colors.white,
                                     ),
                                   ),
                                   TextSpan(text: " ${notificationText(n)} "),
@@ -439,7 +438,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                 child: Row(
                                   children: [
                                     ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
+                                      style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             Colors.tealAccent.shade700,
                                         foregroundColor: Colors.white,
@@ -460,7 +459,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                     ),
                                     const SizedBox(width: 8),
                                     OutlinedButton(
-                                        style: ElevatedButton.styleFrom(
+                                      style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             Colors.tealAccent.shade700,
                                         foregroundColor: Colors.white,
@@ -489,7 +488,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                 child: Row(
                                   children: [
                                     ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
+                                      style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             Colors.tealAccent.shade700,
                                         foregroundColor: Colors.white,
@@ -510,7 +509,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                     ),
                                     const SizedBox(width: 8),
                                     OutlinedButton(
-                                        style: ElevatedButton.styleFrom(
+                                      style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             Colors.tealAccent.shade700,
                                         foregroundColor: Colors.white,
@@ -539,7 +538,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                 child: Row(
                                   children: [
                                     ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
+                                      style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             Colors.tealAccent.shade700,
                                         foregroundColor: Colors.white,
@@ -560,7 +559,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                     ),
                                     const SizedBox(width: 8),
                                     OutlinedButton(
-                                        style: ElevatedButton.styleFrom(
+                                      style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             Colors.tealAccent.shade700,
                                         foregroundColor: Colors.white,

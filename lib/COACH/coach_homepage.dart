@@ -30,6 +30,8 @@ class _CoachHomepageState extends State<CoachHomepage> {
   List<Map<String, dynamic>> students = [];
   bool studentsLoading = true;
   bool studentsNoData = false;
+  List clubs = [];
+  bool noData = false;
 
   // FOLLOW STATUS (same as user homepage)
   List<int> myFollowing = [];
@@ -50,20 +52,20 @@ class _CoachHomepageState extends State<CoachHomepage> {
     fetchcoachDetails();
     getbanner();
     fetchFollowRequestCount();
+    fetchClubs();
 
     loadEverything();
-     _timer = Timer.periodic(
-    const Duration(seconds: 15),
-    (_) => fetchFollowRequestCount(),
-  );
+    _timer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => fetchFollowRequestCount(),
+    );
   }
 
-  
-@override
-void dispose() {
-  _timer.cancel();
-  super.dispose();
-}
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
 
   Future<void> loadEverything() async {
     await fetchFollowStatus();
@@ -176,6 +178,35 @@ void dispose() {
       setState(() {
         coachesNoData = true;
         coachesLoading = false;
+      });
+    }
+  }
+
+  Future<void> fetchClubs() async {
+    String? token = await getToken();
+
+    try {
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/club/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is List) {
+          setState(() {
+            clubs = decoded;
+            noData = decoded.isEmpty;
+          });
+        }
+      } else {
+        setState(() {
+          noData = true;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        noData = true;
       });
     }
   }
@@ -658,6 +689,7 @@ void dispose() {
 
                     const SizedBox(height: 25),
 
+                    // CLUBS
                     const Text(
                       "Recommended Clubs near you",
                       style: TextStyle(
@@ -666,30 +698,15 @@ void dispose() {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-
                     const SizedBox(height: 10),
-
                     SizedBox(
-                      height: 160,
-                      child: SingleChildScrollView(
+                      height: MediaQuery.of(context).size.height * 0.28,
+                      child: ListView.builder(
                         scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            buildClubCard(
-                              "Spark roller skating",
-                              "lib/assets/images.png",
-                            ),
-                            const SizedBox(width: 12),
-                            buildClubCard(
-                              "Kimberley skating",
-                              "lib/assets/imagess.png",
-                            ),
-                            const SizedBox(width: 12),
-                            buildClubCard(
-                              "City Skate Club",
-                              "lib/assets/images.png",
-                            ),
-                          ],
+                        itemCount: clubs.length,
+                        itemBuilder: (_, i) => Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: buildClubCardFromApi(clubs[i]),
                         ),
                       ),
                     ),
@@ -911,14 +928,12 @@ void dispose() {
               ),
             );
           } else if (title == "Connect Students") {
-
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => const ActivityTrackerPage(),
               ),
             );
-
           } else if (title == "Find Clubs") {
             // Navigate to Find Clubs page
           } else if (title == "Find Events") {
@@ -939,6 +954,54 @@ void dispose() {
       ),
     );
   }
+}
+
+// CLUB CARD
+Widget buildClubCardFromApi(Map club) {
+  String title = club["club_name"] ?? "Club";
+  String? img = club["image"];
+  String imageUrl = (img != null && img.isNotEmpty) ? "$api$img" : "";
+
+  return Container(
+    width: 160,
+    height: 100,
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Colors.white10,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: 30,
+          backgroundImage: imageUrl.isNotEmpty
+              ? NetworkImage(imageUrl)
+              : const AssetImage("lib/assets/images.png") as ImageProvider,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+        ),
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.teal,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Text(
+            "Follow",
+            style: TextStyle(color: Colors.white, fontSize: 13),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 // --------------------------- CLUB CARD ----------------------------
