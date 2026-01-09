@@ -340,28 +340,32 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
     if (image != null && image.isNotEmpty) {
       return CircleAvatar(radius: 22, backgroundImage: NetworkImage(image));
     }
-    return CircleAvatar(
-      radius: 22,
-      backgroundColor: Colors.grey.shade300,
-      child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : "?",
-        style: const TextStyle(fontWeight: FontWeight.bold),
-      ),
-    );
+      return CircleAvatar(
+  radius: 22,
+  backgroundColor: Colors.tealAccent.withOpacity(0.2),
+  child: Text(
+    name.isNotEmpty ? name[0].toUpperCase() : "?",
+    style: const TextStyle(
+      fontWeight: FontWeight.bold,
+      color: Colors.white,
+    ),
+  ),
+);
   }
 
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.black,
       appBar: AppBar(
+        backgroundColor: Colors.black,
+
         elevation: 0,
         title: const Text(
           "Notifications",
-          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.black),
+          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
         ),
-        backgroundColor: Colors.white,
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -386,8 +390,8 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: n["is_read"] == false
-                        ? const Color(0xFFF5F8FF)
-                        : Colors.white,
+                        ? const Color.fromARGB(255, 0, 0, 0)
+                        : const Color.fromARGB(255, 0, 0, 0),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -402,7 +406,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                             RichText(
                               text: TextSpan(
                                 style: const TextStyle(
-                                  color: Colors.black,
+                                  color: Colors.white,
                                   fontSize: 14,
                                 ),
                                 children: [
@@ -410,6 +414,8 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                     text: name,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+
                                     ),
                                   ),
                                   TextSpan(text: " ${notificationText(n)} "),
@@ -433,6 +439,20 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                 child: Row(
                                   children: [
                                     ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            Colors.tealAccent.shade700,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 18,
+                                          vertical: 10,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
                                       onPressed: n["isLoading"]
                                           ? null
                                           : () => confirmFollowRequest(index),
@@ -440,6 +460,20 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                     ),
                                     const SizedBox(width: 8),
                                     OutlinedButton(
+                                        style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            Colors.tealAccent.shade700,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 18,
+                                          vertical: 10,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
                                       onPressed: n["isLoading"]
                                           ? null
                                           : () => ignoreFollowRequest(index),
@@ -455,6 +489,20 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                 child: Row(
                                   children: [
                                     ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            Colors.tealAccent.shade700,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 18,
+                                          vertical: 10,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
                                       onPressed: n["isLoading"]
                                           ? null
                                           : () => confirmFollowRequest(index),
@@ -462,6 +510,20 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                     ),
                                     const SizedBox(width: 8),
                                     OutlinedButton(
+                                        style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            Colors.tealAccent.shade700,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 18,
+                                          vertical: 10,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
                                       onPressed: n["isLoading"]
                                           ? null
                                           : () => cancelRequest(index),
@@ -477,6 +539,20 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                 child: Row(
                                   children: [
                                     ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            Colors.tealAccent.shade700,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 18,
+                                          vertical: 10,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
                                       onPressed: n["isLoading"]
                                           ? null
                                           : () => confirmRequest(index),
@@ -484,6 +560,20 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                     ),
                                     const SizedBox(width: 8),
                                     OutlinedButton(
+                                        style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            Colors.tealAccent.shade700,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 18,
+                                          vertical: 10,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
                                       onPressed: n["isLoading"]
                                           ? null
                                           : () => cancelRequest(index),
