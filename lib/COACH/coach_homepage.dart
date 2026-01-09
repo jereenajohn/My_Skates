@@ -831,6 +831,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
 
                           return buildEventCardWithImages(
                             clubName: event["club_name"] ?? "Skating Club",
+                            clubImage: event["club_image"] ?? "",
                             location: event["note"] ?? "",
                             title: event["title"] ?? "",
                             image1: image1,
@@ -1272,6 +1273,8 @@ String formatDateTimeToAmPm(String date, String time) {
 // --------------------------- EVENT CARD 2 ---------------------------
 Widget buildEventCardWithImages({
   required String clubName,
+  required String clubImage,
+
   required String location,
   required String title,
   required String image1,
@@ -1295,10 +1298,17 @@ Widget buildEventCardWithImages({
       children: [
         Row(
           children: [
-            const CircleAvatar(
+            CircleAvatar(
               radius: 22,
-              backgroundImage: AssetImage("lib/assets/imagess.png"),
+              backgroundImage: clubImage.isNotEmpty
+                  ? NetworkImage("$api$clubImage")
+                  : null,
+              backgroundColor: Colors.black26,
+              child: clubImage.isEmpty
+                  ? const Icon(Icons.groups, color: Colors.white54, size: 18)
+                  : null,
             ),
+
             const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
