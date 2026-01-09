@@ -172,8 +172,6 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     }
   }
 
-
-
   // ================= CONFIRM FOLLOW REQUEST =================
   Future<void> confirmFollowRequest(int index) async {
     final n = notifications[index];
@@ -227,7 +225,8 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
         "action": "rejected",
       },
     );
-
+    print(res.statusCode);
+    print(res.body);
     if (res.statusCode == 200) {
       notifications.removeAt(index);
     }
@@ -279,6 +278,9 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
         "action": "rejected",
       },
     );
+
+    print(res.statusCode);
+    print(res.body);
 
     if (res.statusCode == 200) {
       notifications.removeAt(index);
