@@ -43,6 +43,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
   bool coachesLoading = true;
   bool coachesNoData = false;
   int followRequestCount = 0;
+  List<Map<String, dynamic>> events = [];
+  bool eventsLoading = true;
+  bool eventsNoData = false;
 
   late final Timer _timer;
 
@@ -53,12 +56,29 @@ class _CoachHomepageState extends State<CoachHomepage> {
     getbanner();
     fetchFollowRequestCount();
     fetchClubs();
+    loadEvents();
+    getAllEvents();
 
     loadEverything();
     _timer = Timer.periodic(
       const Duration(seconds: 15),
       (_) => fetchFollowRequestCount(),
     );
+  }
+
+  Future<void> loadEvents() async {
+    try {
+      final data = await getAllEvents();
+      setState(() {
+        events = data;
+        eventsNoData = events.isEmpty;
+        eventsLoading = false;
+      });
+    } catch (e) {
+      eventsLoading = false;
+      eventsNoData = true;
+      setState(() {});
+    }
   }
 
   @override
@@ -208,6 +228,49 @@ class _CoachHomepageState extends State<CoachHomepage> {
       setState(() {
         noData = true;
       });
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAllEvents() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    if (token == null) {
+      throw Exception("Authentication token missing");
+    }
+
+    final response = await http.get(
+      Uri.parse("$api/api/myskates/events/add/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
+
+    debugPrint("EVENT LIST STATUS: ${response.statusCode}");
+    debugPrint("EVENT LIST BODY: ${response.body}");
+
+    if (response.statusCode == 200) {
+      final List decoded = jsonDecode(response.body);
+
+      return decoded.map<Map<String, dynamic>>((e) {
+        return {
+          "id": e["id"],
+          "title": e["title"],
+          "description": e["description"],
+          "note": e["note"],
+          "from_date": e["from_date"],
+          "to_date": e["to_date"],
+          "from_time": e["from_time"],
+          "to_time": e["to_time"],
+          "club_name": e["club_name"],
+          "club_image": e["club_image"],
+          "images": e["images"], // List of event images
+          "created_at": e["created_at"],
+        };
+      }).toList();
+    } else {
+      throw Exception("Failed to load events");
     }
   }
 
@@ -731,19 +794,58 @@ class _CoachHomepageState extends State<CoachHomepage> {
 
                     const SizedBox(height: 12),
 
-                    buildEventCardWithImages(
-                      clubName: "Strathmore Skating Club",
-                      date: "November 18, 2025",
-                      location: "Kaloor, Kochi",
-                      title: "MG Road Speed Hunters Event",
-                      image1: "lib/assets/skate.jpg",
-                      image2: "lib/assets/skating.png",
-                      description:
-                          "Strathmore skating club conducting skating event on 30th Nov. Join with us!",
-                      icon: Icons.favorite_border,
+                    const Text(
+                      "Upcoming Events",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
 
-                    const SizedBox(height: 25),
+                    const SizedBox(height: 12),
+
+                    if (eventsLoading)
+                      const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      )
+                    else if (eventsNoData)
+                      const Center(
+                        child: Text(
+                          "No events found",
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      )
+                    else
+                      Column(
+                        children: events.map((event) {
+                          final images = event["images"] as List? ?? [];
+
+                          String image1 = images.isNotEmpty
+                              ? "$api${images[0]['image']}"
+                              : "lib/assets/skating1.jpg";
+
+                          String image2 = images.length > 1
+                              ? "$api${images[1]['image']}"
+                              : image1;
+
+                          return buildEventCardWithImages(
+                            clubName: event["club_name"] ?? "Skating Club",
+                            location: event["note"] ?? "",
+                            title: event["title"] ?? "",
+                            image1: image1,
+                            image2: image2,
+                            description: event["description"] ?? "",
+                            fromDate: event["from_date"] ?? "",
+                            toDate: event["to_date"] ?? "",
+                            fromTime: event["from_time"] ?? "",
+                            toTime: event["to_time"] ?? "",
+                            icon: Icons.thumb_up_alt_outlined,
+                          );
+                        }).toList(),
+                      ),
+
+                    const SizedBox(height: 12),
 
                     // COACHES
                     const Text(
@@ -846,18 +948,6 @@ class _CoachHomepageState extends State<CoachHomepage> {
                     ),
 
                     const SizedBox(height: 12),
-
-                    buildEventCardWithImages(
-                      clubName: "Strathmore Skating Club",
-                      date: "November 18, 2025",
-                      location: "Kaloor, Kochi",
-                      title: "MG Road Speed Hunters Event",
-                      image1: "lib/assets/skating1.jpg",
-                      image2: "lib/assets/skating2.jpg",
-                      description:
-                          "Strathmore skating club conducting skating event on 30th Nov. Join with us!",
-                      icon: Icons.favorite_border,
-                    ),
                   ],
                 ),
               ),
@@ -1122,16 +1212,76 @@ Widget buildEventCard({
   );
 }
 
+void showImagePopup(BuildContext context, String imageUrl) {
+  showDialog(
+    context: context,
+    barrierColor: Colors.black.withOpacity(0.9),
+    builder: (_) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: InteractiveViewer(
+                minScale: 0.8,
+                maxScale: 4.0,
+                child: Center(
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.broken_image,
+                      color: Colors.white54,
+                      size: 60,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            Positioned(
+              top: 40,
+              right: 20,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+String formatDateTimeToAmPm(String date, String time) {
+  if (date.isEmpty || time.isEmpty) return "";
+
+  final dt = DateTime.parse("$date $time");
+  int hour = dt.hour;
+  final minute = dt.minute.toString().padLeft(2, '0');
+
+  final period = hour >= 12 ? "PM" : "AM";
+  hour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+
+  return "$hour:$minute $period";
+}
+
 // --------------------------- EVENT CARD 2 ---------------------------
 Widget buildEventCardWithImages({
   required String clubName,
-  required String date,
   required String location,
   required String title,
   required String image1,
   required String image2,
   required String description,
   required IconData icon,
+  required String fromDate,
+  required String toDate,
+  required String fromTime,
+  required String toTime,
 }) {
   return Container(
     padding: const EdgeInsets.all(14),
@@ -1157,10 +1307,7 @@ Widget buildEventCardWithImages({
                   clubName,
                   style: const TextStyle(color: Colors.white, fontSize: 15),
                 ),
-                Text(
-                  date,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
-                ),
+
                 Text(
                   location,
                   style: const TextStyle(color: Colors.white54, fontSize: 12),
@@ -1188,20 +1335,80 @@ Widget buildEventCardWithImages({
             Expanded(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.asset(image1, height: 110, fit: BoxFit.cover),
+                child: Builder(
+                  builder: (innerContext) => GestureDetector(
+                    onTap: () => showImagePopup(innerContext, image1),
+                    child: Image.network(
+                      image1,
+                      height: 110,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        height: 110,
+                        color: Colors.black26,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.broken_image,
+                          color: Colors.white54,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.asset(image2, height: 110, fit: BoxFit.cover),
+                child: Builder(
+                  builder: (innerContext) => GestureDetector(
+                    onTap: () => showImagePopup(innerContext, image2),
+                    child: Image.network(
+                      image2,
+                      height: 110,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        height: 110,
+                        color: Colors.black26,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.broken_image,
+                          color: Colors.white54,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
         ),
 
         const SizedBox(height: 10),
+
+        Row(
+          children: [
+            const Icon(
+              Icons.calendar_today,
+              size: 10,
+              color: Colors.tealAccent,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              "$fromDate - $toDate",
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+            const SizedBox(width: 12),
+            const Icon(Icons.access_time, size: 10, color: Colors.tealAccent),
+            const SizedBox(width: 6),
+            Text(
+              "${formatDateTimeToAmPm(fromDate, fromTime)} - "
+              "${formatDateTimeToAmPm(toDate, toTime)}",
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
 
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1211,13 +1418,13 @@ Widget buildEventCardWithImages({
             Expanded(
               child: Text(
                 description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Colors.white70, fontSize: 13),
               ),
             ),
           ],
         ),
-
-        const SizedBox(height: 10),
 
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
