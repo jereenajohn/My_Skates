@@ -148,7 +148,9 @@ class _AddClubState extends State<AddClub> {
           ),
         );
       }
-
+      print("REQUEST FIELDS: ${request.fields}");
+      print("REQUEST FILES: ${request.files.length}");
+      print(pickedImage);
       print("Sending request...");
       var response = await request.send();
 
