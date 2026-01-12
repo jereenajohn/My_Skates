@@ -5,14 +5,14 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 
-class CoachNotificationPage extends StatefulWidget {
-  const CoachNotificationPage({super.key});
+class UserNotificationPage extends StatefulWidget {
+  const UserNotificationPage({super.key});
 
   @override
-  State<CoachNotificationPage> createState() => _CoachNotificationPageState();
+  State<UserNotificationPage> createState() => _UserNotificationPageState();
 }
 
-class _CoachNotificationPageState extends State<CoachNotificationPage> {
+class _UserNotificationPageState extends State<UserNotificationPage> {
   List<Map<String, dynamic>> notifications = [];
   bool loading = true;
 
@@ -225,8 +225,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
         "action": "rejected",
       },
     );
-    print(res.statusCode);
-    print(res.body);
+
     if (res.statusCode == 200) {
       notifications.removeAt(index);
     }
@@ -278,9 +277,6 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
         "action": "rejected",
       },
     );
-
-    print(res.statusCode);
-    print(res.body);
 
     if (res.statusCode == 200) {
       notifications.removeAt(index);
@@ -344,18 +340,17 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     if (image != null && image.isNotEmpty) {
       return CircleAvatar(radius: 22, backgroundImage: NetworkImage(image));
     }
-   return CircleAvatar(
-  radius: 22,
-  backgroundColor: Colors.tealAccent.withOpacity(0.2),
-  child: Text(
-    name.isNotEmpty ? name[0].toUpperCase() : "?",
-    style: const TextStyle(
-      fontWeight: FontWeight.bold,
-      color: Colors.white,
-    ),
-  ),
-);
-
+    return CircleAvatar(
+      radius: 22,
+      backgroundColor: Colors.tealAccent.withOpacity(0.2),
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : "?",
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+    );
   }
 
   // ================= UI =================
@@ -365,6 +360,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
+
         elevation: 0,
         title: const Text(
           "Notifications",
@@ -394,8 +390,8 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: n["is_read"] == false
-                        ? const Color.fromARGB(255, 0, 0, 0) // unread
-                        : const Color(0xFF0F0F0F), // read
+                        ? const Color.fromARGB(255, 0, 0, 0)
+                        : const Color.fromARGB(255, 0, 0, 0),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -563,7 +559,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
                                     ),
                                     const SizedBox(width: 8),
                                     OutlinedButton(
-                                        style: ElevatedButton.styleFrom(
+                                      style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             Colors.tealAccent.shade700,
                                         foregroundColor: Colors.white,

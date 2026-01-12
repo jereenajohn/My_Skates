@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/COACH/coach_details_page.dart';
 import 'package:my_skates/STUDENTS/products.dart';
+import 'package:my_skates/STUDENTS/user_menu_page.dart';
+import 'package:my_skates/STUDENTS/user_notification%20page.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
@@ -68,6 +70,21 @@ class _HomePageState extends State<HomePage> {
     setState(() {});
   }
 
+  Future<void> loadEvents() async {
+    try {
+      final data = await getAllEvents();
+      setState(() {
+        events = data;
+        eventsNoData = events.isEmpty;
+        eventsLoading = false;
+      });
+    } catch (e) {
+      eventsLoading = false;
+      eventsNoData = true;
+      setState(() {});
+    }
+  }
+
   // Future<void> initLoad() async {
   //   await fetchFollowStatus();
   //   await fetchCoaches();
@@ -93,6 +110,49 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         followRequestCount = data.length;
       });
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAllEvents() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    if (token == null) {
+      throw Exception("Authentication token missing");
+    }
+
+    final response = await http.get(
+      Uri.parse("$api/api/myskates/events/add/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
+
+    debugPrint("EVENT LIST STATUS: ${response.statusCode}");
+    debugPrint("EVENT LIST BODY: ${response.body}");
+
+    if (response.statusCode == 200) {
+      final List decoded = jsonDecode(response.body);
+
+      return decoded.map<Map<String, dynamic>>((e) {
+        return {
+          "id": e["id"],
+          "title": e["title"],
+          "description": e["description"],
+          "note": e["note"],
+          "from_date": e["from_date"],
+          "to_date": e["to_date"],
+          "from_time": e["from_time"],
+          "to_time": e["to_time"],
+          "club_name": e["club_name"],
+          "club_image": e["club_image"],
+          "images": e["images"], // List of event images
+          "created_at": e["created_at"],
+        };
+      }).toList();
+    } else {
+      throw Exception("Failed to load events");
     }
   }
 
@@ -446,7 +506,7 @@ class _HomePageState extends State<HomePage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const UserSettings(),
+                            builder: (_) => const UserMenuPage(),
                           ),
                         );
                       },
@@ -485,12 +545,12 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         IconButton(
                           onPressed: () async {
-                            // await Navigator.push(
-                            //   context,
-                            //   MaterialPageRoute(
-                            //     builder: (_) => const StudentNotificationPage(),
-                            //   ),
-                            // );
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const UserNotificationPage(),
+                              ),
+                            );
 
                             // 🔁 Refresh count when coming back
                             fetchFollowRequestCount();
@@ -663,9 +723,7 @@ class _HomePageState extends State<HomePage> {
                       "Buy and Sell products",
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const UserProducts(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const UserProducts()),
                       ),
                     ),
 
@@ -704,78 +762,51 @@ class _HomePageState extends State<HomePage> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+
                     const SizedBox(height: 12),
-                    eventsLoading
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
-                          )
-                        : eventsNoData
-                        ? const Text(
-                            "No events found",
-                            style: TextStyle(color: Colors.white70),
-                          )
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: events.length,
-                            itemBuilder: (_, i) {
-                              final e = events[i];
 
-                              List<dynamic> gallery = e["images"] ?? [];
+                    if (eventsLoading)
+                      const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      )
+                    else if (eventsNoData)
+                      const Center(
+                        child: Text(
+                          "No events found",
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      )
+                    else
+                      Column(
+                        children: events.map((event) {
+                          final images = event["images"] as List? ?? [];
 
-                              String mainImage = e["image"] ?? "";
+                          String image1 = images.isNotEmpty
+                              ? "$api${images[0]['image']}"
+                              : "lib/assets/skating1.jpg";
 
-                              String clubName = e["club_name"] ?? "Club";
+                          String image2 = images.length > 1
+                              ? "$api${images[1]['image']}"
+                              : image1;
 
-                              String fromDate = e["from_date"] ?? "";
-                              String toDate = e["to_date"] ?? "";
-                              String fromTime = e["from_time"] ?? "";
-                              String description = e["description"] ?? "";
-                              String title = e["title"] ?? "";
+                          return buildEventCardWithImages(
+                            clubName: event["club_name"] ?? "Skating Club",
+                            clubImage: event["club_image"] ?? "",
+                            location: event["note"] ?? "",
+                            title: event["title"] ?? "",
+                            image1: image1,
+                            image2: image2,
+                            description: event["description"] ?? "",
+                            fromDate: event["from_date"] ?? "",
+                            toDate: event["to_date"] ?? "",
+                            fromTime: event["from_time"] ?? "",
+                            toTime: event["to_time"] ?? "",
+                            icon: Icons.thumb_up_alt_outlined,
+                          );
+                        }).toList(),
+                      ),
 
-                              String dateLabel = "$fromDate → $toDate";
-
-                              String timeLeft = getTimeLeft(fromDate, fromTime);
-
-                              List<String> imageList = [];
-
-                              if (mainImage.isNotEmpty) {
-                                imageList.add("$api$mainImage");
-                              }
-
-                              for (var g in gallery) {
-                                if (g != null &&
-                                    g["image"] != null &&
-                                    g["image"].toString().isNotEmpty) {
-                                  imageList.add("$api${g["image"]}");
-                                }
-                              }
-
-                              if (imageList.isEmpty) {
-                                return buildEventCard(
-                                  clubName: clubName,
-                                  date: dateLabel,
-                                  location: "",
-                                  title: title,
-                                  timeLeft: timeLeft,
-                                  icon: Icons.favorite_border,
-                                );
-                              }
-
-                              return buildEventCardWithDynamicImages(
-                                clubName: clubName,
-                                date: dateLabel,
-                                location: "",
-                                title: title,
-                                images: imageList,
-                                description: description,
-                                context: context,
-                              );
-                            },
-                          ),
-                    const SizedBox(height: 25),
+                    const SizedBox(height: 12),
 
                     // COACHES
                     const Text(
@@ -897,6 +928,197 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+}
+
+String formatDateTimeToAmPm(String date, String time) {
+  if (date.isEmpty || time.isEmpty) return "";
+
+  final dt = DateTime.parse("$date $time");
+  int hour = dt.hour;
+  final minute = dt.minute.toString().padLeft(2, '0');
+
+  final period = hour >= 12 ? "PM" : "AM";
+  hour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+
+  return "$hour:$minute $period";
+}
+
+// --------------------------- EVENT CARD 2 ---------------------------
+Widget buildEventCardWithImages({
+  required String clubName,
+  required String clubImage,
+
+  required String location,
+  required String title,
+  required String image1,
+  required String image2,
+  required String description,
+  required IconData icon,
+  required String fromDate,
+  required String toDate,
+  required String fromTime,
+  required String toTime,
+}) {
+  return Container(
+    padding: const EdgeInsets.all(14),
+    margin: const EdgeInsets.only(bottom: 12),
+    decoration: BoxDecoration(
+      color: Colors.white10,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundImage: clubImage.isNotEmpty
+                  ? NetworkImage("$api$clubImage")
+                  : null,
+              backgroundColor: Colors.black26,
+              child: clubImage.isEmpty
+                  ? const Icon(Icons.groups, color: Colors.white54, size: 18)
+                  : null,
+            ),
+
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  clubName,
+                  style: const TextStyle(color: Colors.white, fontSize: 15),
+                ),
+
+                Text(
+                  location,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+              ],
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 10),
+
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        Row(
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Builder(
+                  builder: (innerContext) => GestureDetector(
+                    onTap: () => showImagePopup(innerContext, image1),
+                    child: Image.network(
+                      image1,
+                      height: 110,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        height: 110,
+                        color: Colors.black26,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.broken_image,
+                          color: Colors.white54,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Builder(
+                  builder: (innerContext) => GestureDetector(
+                    onTap: () => showImagePopup(innerContext, image2),
+                    child: Image.network(
+                      image2,
+                      height: 110,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        height: 110,
+                        color: Colors.black26,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.broken_image,
+                          color: Colors.white54,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 10),
+
+        Row(
+          children: [
+            const Icon(
+              Icons.calendar_today,
+              size: 10,
+              color: Colors.tealAccent,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              "$fromDate - $toDate",
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+            const SizedBox(width: 12),
+            const Icon(Icons.access_time, size: 10, color: Colors.tealAccent),
+            const SizedBox(width: 6),
+            Text(
+              "${formatDateTimeToAmPm(fromDate, fromTime)} - "
+              "${formatDateTimeToAmPm(toDate, toTime)}",
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.info, color: Colors.amberAccent, size: 18),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: const [
+            Icon(Icons.thumb_up_alt_outlined, color: Colors.white70, size: 22),
+            SizedBox(width: 14),
+          ],
+        ),
+      ],
+    ),
+  );
 }
 
 // CLUB CARD
@@ -1025,20 +1247,48 @@ Widget buildEventCard({
 }
 
 // POPUP FUNCTION
+
 void showImagePopup(BuildContext context, String imageUrl) {
   showDialog(
     context: context,
-    builder: (_) => Dialog(
-      backgroundColor: Colors.black87,
-      insetPadding: const EdgeInsets.all(12),
-      child: GestureDetector(
-        onTap: () => Navigator.of(context).pop(),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.network(imageUrl, fit: BoxFit.contain),
+    barrierColor: Colors.black.withOpacity(0.9),
+    builder: (_) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: InteractiveViewer(
+                minScale: 0.8,
+                maxScale: 4.0,
+                child: Center(
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.broken_image,
+                      color: Colors.white54,
+                      size: 60,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            Positioned(
+              top: 40,
+              right: 20,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
         ),
-      ),
-    ),
+      );
+    },
   );
 }
 
