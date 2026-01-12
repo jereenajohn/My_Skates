@@ -68,6 +68,32 @@ print("Address fetch response: ${res.body}");
     }
   }
 
+Future<void> deleteAddress(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    setState(() => addressLoading = true);
+
+    try {
+      final res = await http.delete(
+        Uri.parse("$api/api/myskates/user/addresses/$id/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      if (res.statusCode == 204) {
+        // Successfully deleted
+        fetchAddresses(); // Refresh the address list
+      } else {
+        setState(() => addressLoading = false);
+      }
+    } catch (e) {
+      debugPrint("Address delete error: $e");
+      setState(() => addressLoading = false);
+    }
+  }
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
@@ -229,7 +255,9 @@ print("Address fetch response: ${res.body}");
           Row(
             children: [
               _actionText("Delete", Colors.redAccent, () {
-                // Delete API
+
+
+                
               }),
               const SizedBox(width: 24),
               _actionText("Edit", Colors.tealAccent, () {
