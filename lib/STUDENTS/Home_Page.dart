@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/COACH/coach_details_page.dart';
 import 'package:my_skates/STUDENTS/products.dart';
 import 'package:my_skates/STUDENTS/user_menu_page.dart';
@@ -547,9 +548,11 @@ class _HomePageState extends State<HomePage> {
                           onPressed: () async {
                             await Navigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (_) => const UserNotificationPage(),
-                              ),
+
+                              // MaterialPageRoute(
+                              //   builder: (_) => const UserNotificationPage(),
+                              // ),
+                              slideRightToLeftRoute(UserNotificationPage()),
                             );
 
                             // 🔁 Refresh count when coming back
@@ -687,9 +690,12 @@ class _HomePageState extends State<HomePage> {
                       "Connect Coaches",
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const UserConnectCoaches(),
-                        ),
+                        // MaterialPageRoute(
+                        //   builder: (_) => const UserConnectCoaches(),
+                        // ),
+
+                      slideRightToLeftRoute(UserConnectCoaches()),
+
                       ),
                     ),
                     buildButton(
