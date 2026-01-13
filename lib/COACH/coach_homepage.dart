@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/COACH/coach_menu_page.dart';
 import 'package:my_skates/ADMIN/live_tracking.dart';
 import 'package:my_skates/ADMIN/user_approved_products.dart';
@@ -46,6 +47,8 @@ class _CoachHomepageState extends State<CoachHomepage> {
   List<Map<String, dynamic>> events = [];
   bool eventsLoading = true;
   bool eventsNoData = false;
+    bool loading = true;
+
 
   late final Timer _timer;
 
@@ -103,6 +106,89 @@ class _CoachHomepageState extends State<CoachHomepage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getInt("id");
   }
+
+  //   Future<void> fetchFeeds() async {
+  //   loading = true;
+  //   notifyListeners();
+
+  //   try {
+  //     final prefs = await SharedPreferences.getInstance();
+  //     final token = prefs.getString("access");
+  //     final id = prefs.getInt("id");
+  //     if (token == null || id == null) return;
+
+  //     final responses = await Future.wait([
+  //       http.get(
+  //         Uri.parse("$api/api/myskates/feeds/user/$id/"),
+  //         headers: {"Authorization": "Bearer $token"},
+  //       ),
+  //       http.get(
+  //         Uri.parse("$api/api/myskates/feeds/"),
+  //         headers: {"Authorization": "Bearer $token"},
+  //       ),
+  //       http.get(
+  //         Uri.parse("$api/api/myskates/feeds/reposts/user/$id/"),
+  //         headers: {"Authorization": "Bearer $token"},
+  //       ),
+  //     ]);
+
+  //     // USER FEEDS
+  //     if (responses[0].statusCode == 200) {
+  //       final decoded = jsonDecode(responses[0].body);
+  //       _userFeeds = decoded is List ? decoded : decoded["data"] ?? [];
+  //     }
+
+  //     // GLOBAL FEEDS (COUNTS)
+  //     if (responses[1].statusCode == 200) {
+  //       final decoded = jsonDecode(responses[1].body);
+  //       _allFeeds = decoded is List ? decoded : [];
+  //     }
+
+  //     // ✅ REPOST FEEDS
+  //     if (responses[2].statusCode == 200) {
+  //       final decoded = jsonDecode(responses[2].body);
+  //       final List data = decoded["data"] ?? [];
+
+  //       _repostFeeds = data.map((item) {
+  //         final originalFeed = _userFeeds.firstWhere(
+  //           (f) => f["id"] == item["feed_id"],
+  //           orElse: () => {},
+  //         );
+
+  //         return {
+  //           "id": "repost_${item["id"]}",
+  //           "repost_id": item["id"],
+  //           "text": item["text"],
+  //           "created_at": item["created_at"],
+  //           "reposted_by": item["reposted_by"],
+
+  //           "feed": {
+  //             "id": item["feed_id"],
+  //             "description": item["feed_description"],
+  //             "likes_count": item["likes_count"],
+  //             "comments_count": item["comments_count"],
+  //             "shares_count": item["reposts_count"],
+  //             "is_liked": false,
+  //             "is_reposted": true,
+
+  //             // ✅ IMAGE RESTORED
+  //             "feed_image": originalFeed["feed_image"] ?? [],
+  //           },
+  //         };
+  //       }).toList();
+
+  //       print("✅ Fetched ${_repostFeeds.length} repost feeds");
+  //       print("📦 Repost Feeds Data: $_repostFeeds");
+  //       print("📦 User Feeds Data: $_userFeeds");
+  //     }
+  //   } catch (e) {
+  //     print("❌ fetchFeeds ERROR: $e");
+  //   }
+
+  //   loading = false;
+  //   notifyListeners();
+  // }
+
 
   Future<void> fetchFollowRequestCount() async {
     final prefs = await SharedPreferences.getInstance();
@@ -580,9 +666,10 @@ class _CoachHomepageState extends State<CoachHomepage> {
                           onPressed: () async {
                             await Navigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (_) => const CoachNotificationPage(),
-                              ),
+                              // MaterialPageRoute(
+                              //   builder: (_) => const CoachNotificationPage(),
+                              // ),
+                              slideRightToLeftRoute(CoachNotificationPage()),
                             );
 
                             // 🔁 Refresh count when coming backkkk
