@@ -1861,3 +1861,27 @@ Widget _feedTile(Map post) {
     ),
   );
 }
+class SkeletonBox extends StatelessWidget {
+  final double height;
+  final double width;
+  final BorderRadius borderRadius;
+
+  const SkeletonBox({
+    super.key,
+    required this.height,
+    this.width = double.infinity,
+    this.borderRadius = const BorderRadius.all(Radius.circular(12)),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: borderRadius,
+      ),
+    );
+  }
+}

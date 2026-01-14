@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/add_address.dart';
+import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/view_address.dart';
 import 'package:my_skates/COACH/add_club.dart';
 import 'package:my_skates/COACH/coach_add_events.dart';
@@ -159,10 +160,15 @@ class _CoachSettingsState extends State<CoachSettings> {
                 icon: Icons.home,
                 text: "Add Club",
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AddClub()),
-                  );
+                 
+
+                   Navigator.push(
+                                  context,
+                                  slideRightToLeftRoute(
+                                    AddClub()
+                                  ),
+                                );
+                  
                 },
               ),
                  _divider(),
@@ -170,10 +176,15 @@ class _CoachSettingsState extends State<CoachSettings> {
                 icon: Icons.home,
                 text: "Add address",
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ViewAddress()),
-                  );
+                  
+
+
+                   Navigator.push(
+                                  context,
+                                  slideRightToLeftRoute(
+                                    ViewAddress()
+                                  ),
+                                );
                 },
               ),
               _divider(),
@@ -181,10 +192,13 @@ class _CoachSettingsState extends State<CoachSettings> {
                 icon: Icons.home,
                 text: "View Club",
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ViewClubs()),
-                  );
+
+                   Navigator.push(
+                                  context,
+                                  slideRightToLeftRoute(
+                                    ViewClubs()
+                                  ),
+                                );
                 },
               ),
               _divider(),

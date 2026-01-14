@@ -2,15 +2,19 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/ADMIN/coach_product_view.dart';
+import 'package:my_skates/COACH/club_list.dart';
+import 'package:my_skates/COACH/coach_add_events.dart';
 import 'package:my_skates/COACH/coach_menu_page.dart';
 import 'package:my_skates/ADMIN/live_tracking.dart';
-import 'package:my_skates/ADMIN/user_approved_products.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
+import 'package:my_skates/STUDENTS/student_list.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 import 'package:my_skates/STUDENTS/user_settings.dart';
+import 'package:my_skates/bottomnavigation.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
@@ -23,6 +27,8 @@ class CoachHomepage extends StatefulWidget {
 }
 
 class _CoachHomepageState extends State<CoachHomepage> {
+
+  int _currentIndex = 0;
   String studentName = "";
   String studentRole = "";
   String? studentImage;
@@ -86,6 +92,53 @@ class _CoachHomepageState extends State<CoachHomepage> {
     _timer.cancel();
     super.dispose();
   }
+void _onBottomNavTap(int index) {
+  if (index == _currentIndex) return;
+
+  setState(() => _currentIndex = index);
+
+  switch (index) {
+    case 0:
+      // Home (already here)
+      break;
+
+    case 1:
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const UserApprovedProducts(),
+        ),
+      );
+      break;
+
+    case 2:
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const CoachNotificationPage(),
+        ),
+      );
+      break;
+
+    case 3:
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const UserConnectCoaches(),
+        ),
+      );
+      break;
+
+    case 4:
+      // Navigator.push(
+      //   context,
+      //   MaterialPageRoute(
+      //     builder: (_) => const CoachAddEvents(),
+      //   ),
+      // );
+      break;
+  }
+}
 
   Future<void> loadEverything() async {
     await fetchFollowStatus();
@@ -957,43 +1010,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
         ),
       ),
 
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-          child: BottomNavigationBar(
-            backgroundColor: Colors.black,
-            selectedItemColor: const Color(0xFF00AFA5),
-            unselectedItemColor: Colors.white70,
-            showSelectedLabels: false,
-            showUnselectedLabels: false,
-            type: BottomNavigationBarType.fixed,
-            currentIndex: 0,
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.shopping_bag),
-                label: '',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.chat_bubble_rounded),
-                label: '',
-              ),
-              BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
-              BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
-            ],
-          ),
-        ),
-      ),
+       bottomNavigationBar: const AppBottomNav(
+      currentIndex: 0, // Home tab
+    ),
     );
   }
 
@@ -1022,11 +1041,16 @@ class _CoachHomepageState extends State<CoachHomepage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const ActivityTrackerPage(),
+                builder: (context) => const StudentList(),
               ),
             );
           } else if (title == "Find Clubs") {
-            // Navigate to Find Clubs page
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ClubGridPage(),
+              ),
+            );
           } else if (title == "Find Events") {
             // Navigate to Find Events page
           } else if (title == "Buy and Sell products") {
