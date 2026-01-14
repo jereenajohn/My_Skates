@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
+import 'package:my_skates/ADMIN/view_all_events.dart';
+import 'package:my_skates/COACH/club_list.dart';
 import 'package:my_skates/COACH/coach_details_page.dart';
+import 'package:my_skates/STUDENTS/bottomnavigation_student.dart';
 import 'package:my_skates/STUDENTS/products.dart';
+import 'package:my_skates/STUDENTS/student_list.dart';
 import 'package:my_skates/STUDENTS/user_menu_page.dart';
 import 'package:my_skates/STUDENTS/user_notification%20page.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 import 'package:my_skates/STUDENTS/user_settings.dart';
+import 'package:my_skates/bottomnavigation.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
@@ -688,49 +693,21 @@ class _HomePageState extends State<HomePage> {
                     // BUTTONS
                     buildButton(
                       "Connect Coaches",
-                      onTap: () => Navigator.push(
-                        context,
-                        // MaterialPageRoute(
-                        //   builder: (_) => const UserConnectCoaches(),
-                        // ),
-
-                      slideRightToLeftRoute(UserConnectCoaches()),
-
-                      ),
                     ),
                     buildButton(
                       "Connect Students",
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const UserConnectCoaches(),
-                        ),
-                      ),
                     ),
                     buildButton(
                       "Find Clubs",
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const UserConnectCoaches(),
-                        ),
-                      ),
+                      
                     ),
                     buildButton(
                       "Find Events",
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const UserConnectCoaches(),
-                        ),
-                      ),
+                     
                     ),
                     buildButton(
                       "Buy and Sell products",
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const UserProducts()),
-                      ),
+                      
                     ),
 
                     const SizedBox(height: 25),
@@ -910,6 +887,9 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
+       bottomNavigationBar: const AppBottomNav_student(
+      currentIndex: 0, // Home tab
+    ),
     );
   }
 
@@ -926,7 +906,44 @@ class _HomePageState extends State<HomePage> {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        onPressed: onTap,
+        onPressed: () {
+          if (title == "Connect Coaches") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const UserConnectCoaches(),
+              ),
+            );
+          } else if (title == "Connect Students") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const StudentList(),
+              ),
+            );
+          } else if (title == "Find Clubs") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ClubGridPage(),
+              ),
+            );
+          } else if (title == "Find Events") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Events(),
+              ),
+            );
+          } else if (title == "Buy and Sell products") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const UserProducts(),
+              ),
+            );
+          }
+        },
         child: Text(
           title,
           style: const TextStyle(fontSize: 16, color: Colors.white),

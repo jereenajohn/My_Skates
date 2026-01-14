@@ -9,14 +9,14 @@ import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 
-class CoachEvents extends StatefulWidget {
-  const CoachEvents({super.key});
+class Events extends StatefulWidget {
+  const Events({super.key});
 
   @override
-  State<CoachEvents> createState() => _CoachEventsState();
+  State<Events> createState() => _EventsState();
 }
 
-class _CoachEventsState extends State<CoachEvents> {
+class _EventsState extends State<Events> {
   Map<String, dynamic>? clubDetails;
   List<dynamic> clubEvents = [];
 
@@ -207,7 +207,7 @@ class _CoachEventsState extends State<CoachEvents> {
       if (token == null || userId == null) return;
 print("urlllllllllllllllllllllllllllllll$api/api/myskates/events/add/by/user/");
       final url = Uri.parse(
-        "$api/api/myskates/events/add/by/user/",
+        "$api/api/myskates/events/add/",
       );
 
       final response = await http.get(
@@ -706,34 +706,7 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
             : Column(
                 children: [
                   
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white24),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.swipe, color: Colors.teal, size: 20),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              "Swipe right to update an event, swipe left to delete.",
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+               
                   Expanded(
                     child: clubEvents.isEmpty
                         ? const Center(
@@ -746,9 +719,14 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
                             padding: EdgeInsets.zero,
                             itemCount: clubEvents.length,
                             itemBuilder: (context, index) {
-                              return _fancySwipeEventTile(
-                                Map<String, dynamic>.from(clubEvents[index]),
-                              );
+                              final event = Map<String, dynamic>.from(clubEvents[index]);
+
+return buildEventCard(
+  event,
+  buildImageUrl(event["club_image"]),
+  event["club_name"] ?? "",
+);
+
                             },
                           ),
                   ),
@@ -784,121 +762,15 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
     }
   }
 
-  Widget _fancySwipeEventTile(Map<String, dynamic> event) {
-    return Dismissible(
-      key: Key(event["id"].toString()),
-      direction: DismissDirection.horizontal,
-      background: Container(
-        padding: const EdgeInsets.only(left: 20),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF00AFA5), Colors.black],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-        ),
-        alignment: Alignment.centerLeft,
-        child: const Row(
-          children: [
-            Icon(Icons.edit, color: Colors.white, size: 28),
-            SizedBox(width: 10),
-            Text("Update", style: TextStyle(color: Colors.white, fontSize: 16)),
-          ],
-        ),
-      ),
-      secondaryBackground: Container(
-        padding: const EdgeInsets.only(right: 20),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.red, Colors.black],
-            begin: Alignment.centerRight,
-            end: Alignment.centerLeft,
-          ),
-        ),
-        alignment: Alignment.centerRight,
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Icon(Icons.delete, color: Colors.white, size: 28),
-            SizedBox(width: 10),
-            Text("Delete", style: TextStyle(color: Colors.white, fontSize: 16)),
-          ],
-        ),
-      ),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          _openUpdateEventDialog(event);
-          return false;
-        } else {
-          bool? confirm = await showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                backgroundColor: const Color.fromARGB(255, 0, 0, 0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                title: const Text(
-                  "Delete Event?",
-                  style: TextStyle(color: Colors.white, fontSize: 15),
-                ),
-                content: const Text(
-                  "Are you sure you want to delete this event?",
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-                actions: [
-                  TextButton(
-                    child: const Text(
-                      "Cancel",
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                    onPressed: () => Navigator.of(context).pop(false),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                    ),
-                    child: const Text(
-                      "Delete",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    onPressed: () => Navigator.of(context).pop(true),
-                  ),
-                ],
-              );
-            },
-          );
-
-          if (confirm == true) {
-            await _deleteEvent(event["id"]);
-            return false;
-          } else {
-            return false;
-          }
-        }
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutBack,
-        child: Transform.scale(
-          scale: 1.00,
-          child: buildEventCard(
-  event,
-  buildImageUrl(event["club_image"]),
-  event["club_name"] ?? "",
-)
-
-        ),
-      ),
-    );
-  }
 
   Widget buildEventCard(
     Map<String, dynamic> event,
     String clubLogo,
     String clubName,
   ) {
+
+    print("clubLogo::::::::::::: $clubLogo");
+    print("clubName::::::::::::: $clubName");
     final String bannerImagePath = event["image"] ?? "";
     final List<dynamic> gallery = event["images"] ?? [];
     final List<dynamic> firstTwoImages = gallery.take(2).toList();
