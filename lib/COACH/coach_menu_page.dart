@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/COACH/coach_timeline_page.dart';
+import 'package:my_skates/COACH/training_session_page.dart';
 import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -28,7 +29,6 @@ class _CoachMenuPageState extends State<CoachMenuPage>
   List<Map<String, dynamic>> students = [];
   bool studentsLoading = true;
   bool studentsNoData = false;
-
 
   @override
   void initState() {
@@ -339,11 +339,13 @@ class _CoachMenuPageState extends State<CoachMenuPage>
             title: "Athletes",
             subtitle: "Active Skaters",
             icon: Icons.groups,
+            onTap: () {},
           ),
           _SportCard(
             title: "Performance",
             subtitle: "Speed & Rankings",
             icon: Icons.trending_up,
+            onTap: () {},
           ),
         ),
         const SizedBox(height: 14),
@@ -352,11 +354,20 @@ class _CoachMenuPageState extends State<CoachMenuPage>
             title: "Training Plans",
             subtitle: "Schedules & Drills",
             icon: Icons.schedule,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CreateTrainingSessionPage(),
+                ),
+              );
+            },
           ),
+
           _SportCard(
             title: "Events",
             subtitle: "Competitions",
-            icon: Icons.event,
+            icon: Icons.event, onTap: () {  },
           ),
         ),
         const SizedBox(height: 14),
@@ -467,6 +478,7 @@ class _SportCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
+  final VoidCallback? onTap;
 
   static const Color accentColor = Color(0xFF2EE6A6);
 
@@ -474,13 +486,14 @@ class _SportCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.icon,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(18),
-      onTap: () {},
+      onTap: onTap,
       child: Container(
         height: 120,
         padding: const EdgeInsets.all(16),
@@ -517,3 +530,4 @@ class _SportCard extends StatelessWidget {
     );
   }
 }
+
