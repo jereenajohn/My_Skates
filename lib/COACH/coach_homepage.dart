@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/coach_product_view.dart';
+import 'package:my_skates/ADMIN/view_all_events.dart';
 import 'package:my_skates/COACH/club_list.dart';
 import 'package:my_skates/COACH/coach_add_events.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
@@ -10,6 +11,7 @@ import 'package:my_skates/COACH/coach_menu_page.dart';
 import 'package:my_skates/ADMIN/live_tracking.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
+import 'package:my_skates/STUDENTS/products.dart';
 import 'package:my_skates/STUDENTS/student_list.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
@@ -1139,7 +1141,12 @@ void _onBottomNavTap(int index) {
               ),
             );
           } else if (title == "Find Events") {
-            // Navigate to Find Events page
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Events(),
+              ),
+            );
           } else if (title == "Buy and Sell products") {
             Navigator.push(
               context,
