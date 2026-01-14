@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'package:intl/intl.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -42,11 +44,51 @@ class _CreateTrainingSessionPageState extends State<CreateTrainingSessionPage> {
 
   @override
   void initState() {
-
     super.initState();
   }
 
+  String formatDisplayDate(String date) {
+    final parsed = DateTime.parse(date);
+    return DateFormat('dd-MM-yyyy').format(parsed);
+  }
 
+  String formatDisplayTime(String time) {
+    final parsed = DateFormat("HH:mm:ss").parse(time);
+    return DateFormat("hh:mm a").format(parsed);
+  }
+
+  Future<List<TrainingSession>> fetchTrainingSessions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    if (token == null) {
+      throw Exception("Authentication token not found");
+    }
+
+    final response = await http.get(
+      Uri.parse("$api/api/myskates/training/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = json.decode(response.body);
+
+      if (decoded['status'] == true) {
+        return (decoded['data'] as List)
+            .map((e) => TrainingSession.fromJson(e))
+            .toList();
+      } else {
+        throw Exception("API returned status false");
+      }
+    } else {
+      throw Exception(
+        "Failed to fetch training sessions (${response.statusCode})",
+      );
+    }
+  }
 
   // ───────────────────────── BUILD ─────────────────────────
   @override
@@ -185,11 +227,146 @@ class _CreateTrainingSessionPageState extends State<CreateTrainingSessionPage> {
 
                   const SizedBox(height: 30),
                   _submitButton(),
+
+                  const SizedBox(height: 30),
+                  _sectionTitle("Existing Training Sessions"),
+                  _trainingSessionList(),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _trainingSessionList() {
+    return FutureBuilder<List<TrainingSession>>(
+      future: fetchTrainingSessions(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Center(child: CircularProgressIndicator(color: accentColor)),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              "Failed to load training sessions",
+              style: TextStyle(color: Colors.redAccent),
+            ),
+          );
+        }
+
+        final sessions = snapshot.data ?? [];
+
+        if (sessions.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              "No training sessions created yet",
+              style: TextStyle(color: Colors.white70),
+            ),
+          );
+        }
+
+        return Column(children: sessions.map(_trainingSessionCard).toList());
+      },
+    );
+  }
+
+  Widget _imagePlaceholder() {
+    return Container(
+      width: 70,
+      height: 70,
+      color: Colors.black45,
+      child: const Icon(Icons.image, color: Colors.white38),
+    );
+  }
+
+  Widget _trainingSessionCard(TrainingSession session) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: _glassBox(),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // IMAGE
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: session.imageUrl != null
+                ? Image.network(
+                    "$api${session.imageUrl}",
+                    width: 70,
+                    height: 70,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) {
+                      return _imagePlaceholder();
+                    },
+                  )
+                : _imagePlaceholder(),
+          ),
+
+          const SizedBox(width: 12),
+
+          // DETAILS
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  session.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  session.location,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 14,
+                      color: accentColor,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      "${formatDisplayDate(session.startDate)} → ${formatDisplayDate(session.endDate)}",
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.schedule, size: 14, color: accentColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      "${formatDisplayTime(session.startTime)} - ${formatDisplayTime(session.endTime)}",
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -520,6 +697,47 @@ class _CreateTrainingSessionPageState extends State<CreateTrainingSessionPage> {
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
+    );
+  }
+}
+
+class TrainingSession {
+  final String title;
+  final String location;
+  final String startDate;
+  final String endDate;
+  final String startTime;
+  final String endTime;
+  final String? imageUrl;
+
+  TrainingSession({
+    required this.title,
+    required this.location,
+    required this.startDate,
+    required this.endDate,
+    required this.startTime,
+    required this.endTime,
+    this.imageUrl,
+  });
+
+  factory TrainingSession.fromJson(Map<String, dynamic> json) {
+    String? image;
+
+    // ✅ SAFELY extract first image from images array
+    if (json['images'] != null &&
+        json['images'] is List &&
+        json['images'].isNotEmpty) {
+      image = json['images'][0]['image'];
+    }
+
+    return TrainingSession(
+      title: json['title'] ?? '',
+      location: json['location'] ?? '',
+      startDate: json['start_date'] ?? '',
+      endDate: json['end_date'] ?? '',
+      startTime: json['start_time'] ?? '',
+      endTime: json['end_time'] ?? '',
+      imageUrl: image,
     );
   }
 }
