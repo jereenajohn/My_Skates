@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -12,6 +13,7 @@ import 'package:my_skates/ADMIN/live_tracking.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/STUDENTS/products.dart';
+import 'package:my_skates/COACH/training_session_page.dart';
 import 'package:my_skates/STUDENTS/student_list.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
@@ -21,6 +23,7 @@ import 'package:my_skates/bottomnavigation.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
+import 'package:intl/intl.dart';
 
 class CoachHomepage extends StatefulWidget {
   const CoachHomepage({super.key});
@@ -30,7 +33,6 @@ class CoachHomepage extends StatefulWidget {
 }
 
 class _CoachHomepageState extends State<CoachHomepage> {
-
   int _currentIndex = 0;
   String studentName = "";
   String studentRole = "";
@@ -41,6 +43,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
   bool studentsNoData = false;
   List clubs = [];
   bool noData = false;
+  List<TrainingSession> trainingSessions = [];
+  bool trainingLoading = true;
+  bool trainingNoData = false;
 
   // FOLLOW STATUS (same as user homepage)
   List<int> myFollowing = [];
@@ -55,8 +60,8 @@ class _CoachHomepageState extends State<CoachHomepage> {
   List<Map<String, dynamic>> events = [];
   bool eventsLoading = true;
   bool eventsNoData = false;
-    bool loading = true;
-
+  bool loading = true;
+  // List<Map<String, dynamic>> trainingSessions = [];
 
   late final Timer _timer;
 
@@ -97,53 +102,48 @@ class _CoachHomepageState extends State<CoachHomepage> {
     _timer.cancel();
     super.dispose();
   }
-void _onBottomNavTap(int index) {
-  if (index == _currentIndex) return;
 
-  setState(() => _currentIndex = index);
+  void _onBottomNavTap(int index) {
+    if (index == _currentIndex) return;
 
-  switch (index) {
-    case 0:
-      // Home (already here)
-      break;
+    setState(() => _currentIndex = index);
 
-    case 1:
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const UserApprovedProducts(),
-        ),
-      );
-      break;
+    switch (index) {
+      case 0:
+        // Home (already here)
+        break;
 
-    case 2:
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const CoachNotificationPage(),
-        ),
-      );
-      break;
+      case 1:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const UserApprovedProducts()),
+        );
+        break;
 
-    case 3:
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const UserConnectCoaches(),
-        ),
-      );
-      break;
+      case 2:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CoachNotificationPage()),
+        );
+        break;
 
-    case 4:
-      // Navigator.push(
-      //   context,
-      //   MaterialPageRoute(
-      //     builder: (_) => const CoachAddEvents(),
-      //   ),
-      // );
-      break;
+      case 3:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const UserConnectCoaches()),
+        );
+        break;
+
+      case 4:
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(
+        //     builder: (_) => const CoachAddEvents(),
+        //   ),
+        // );
+        break;
+    }
   }
-}
 
   Future<void> loadEverything() async {
     await fetchFollowStatus();
@@ -161,6 +161,64 @@ void _onBottomNavTap(int index) {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getInt("id");
   }
+
+  String formatDisplayDate(String date) {
+    final parsed = DateTime.parse(date);
+    return DateFormat('dd-MM-yyyy').format(parsed);
+  }
+
+  String formatDisplayTime(String time) {
+    final parsed = DateFormat("HH:mm:ss").parse(time);
+    return DateFormat("hh:mm a").format(parsed);
+  }
+
+  // Future<void> getTrainingSessions() async {
+  //       final prefs = await SharedPreferences.getInstance();
+
+  //     final token = prefs.getString("access");
+  //   if (token == null) {
+  //       throw Exception("Authentication token not found");
+  //     }
+  //   try {
+  //     final response = await http.get(
+  //       Uri.parse('$api/api/myskates/training/'),
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'Authorization': 'Bearer $token',
+  //       },
+  //     );
+
+  //     List<Map<String, dynamic>> trainingList = [];
+
+  //     if (response.statusCode == 200) {
+  //       final parsed = jsonDecode(response.body);
+  //       var data = parsed['data'];
+
+  //       for (var item in data) {
+  //         trainingList.add({
+  //           'id': item['id'],
+  //           'title': item['title'],
+  //           'note': item['note'],
+  //           'start_date': item['start_date'],
+  //           'end_date': item['end_date'],
+  //           'start_time': item['start_time'],
+  //           'end_time': item['end_time'],
+  //           'location': item['location'],
+  //           'latitude': item['latitude'],
+  //           'longitude': item['longitude'],
+  //           'images': item['images'], // list 그대로
+  //           'created_at': item['created_at'],
+  //           'updated_at': item['updated_at'],
+  //         });
+  //       }
+  //       setState(() {
+  //         trainingSessions = trainingList;
+  //       });
+  //     }
+  //   } catch (e) {
+  //     debugPrint("Training fetch error: $e");
+  //   }
+  // }
 
   //   Future<void> fetchFeeds() async {
   //   loading = true;
@@ -243,7 +301,6 @@ void _onBottomNavTap(int index) {
   //   loading = false;
   //   notifyListeners();
   // }
-
 
   Future<void> fetchFollowRequestCount() async {
     final prefs = await SharedPreferences.getInstance();
@@ -965,19 +1022,21 @@ void _onBottomNavTap(int index) {
 
                           String image1 = images.isNotEmpty
                               ? "$api${images[0]['image']}"
-                              : "lib/assets/skating1.jpg";
+                              : "";
 
                           String image2 = images.length > 1
                               ? "$api${images[1]['image']}"
-                              : image1;
+                              : "";
 
                           return buildEventCardWithImages(
+                            context: context, 
                             clubName: event["club_name"] ?? "Skating Club",
                             clubImage: event["club_image"] ?? "",
                             location: event["note"] ?? "",
                             title: event["title"] ?? "",
                             image1: image1,
                             image2: image2,
+                            imageCount: images.length,
                             description: event["description"] ?? "",
                             fromDate: event["from_date"] ?? "",
                             toDate: event["to_date"] ?? "",
@@ -1099,9 +1158,9 @@ void _onBottomNavTap(int index) {
         ),
       ),
 
-       bottomNavigationBar: const AppBottomNav(
-      currentIndex: 0, // Home tab
-    ),
+      bottomNavigationBar: const AppBottomNav(
+        currentIndex: 0, // Home tab
+      ),
     );
   }
 
@@ -1129,16 +1188,12 @@ void _onBottomNavTap(int index) {
           } else if (title == "Connect Students") {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => const StudentList(),
-              ),
+              MaterialPageRoute(builder: (context) => const StudentList()),
             );
           } else if (title == "Find Clubs") {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => const ClubGridPage(),
-              ),
+              MaterialPageRoute(builder: (context) => const ClubGridPage()),
             );
           } else if (title == "Find Events") {
             Navigator.push(
@@ -1390,9 +1445,10 @@ String formatDateTimeToAmPm(String date, String time) {
 
 // --------------------------- EVENT CARD 2 ---------------------------
 Widget buildEventCardWithImages({
+   required BuildContext context,
   required String clubName,
   required String clubImage,
-
+  required int imageCount,
   required String location,
   required String title,
   required String image1,
@@ -1457,60 +1513,59 @@ Widget buildEventCardWithImages({
         ),
 
         const SizedBox(height: 10),
-
-        Row(
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Builder(
-                  builder: (innerContext) => GestureDetector(
-                    onTap: () => showImagePopup(innerContext, image1),
-                    child: Image.network(
-                      image1,
-                      height: 110,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        height: 110,
-                        color: Colors.black26,
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.broken_image,
-                          color: Colors.white54,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Builder(
-                  builder: (innerContext) => GestureDetector(
-                    onTap: () => showImagePopup(innerContext, image2),
-                    child: Image.network(
-                      image2,
-                      height: 110,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        height: 110,
-                        color: Colors.black26,
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.broken_image,
-                          color: Colors.white54,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+// ---------------- IMAGES ----------------
+if (imageCount == 1)
+  ClipRRect(
+    borderRadius: BorderRadius.circular(12),
+    child: GestureDetector(
+      onTap: () => showImagePopup(context, image1),
+      child: Image.network(
+        image1,
+        height: 180,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          height: 180,
+          color: Colors.black26,
+          alignment: Alignment.center,
+          child: const Icon(Icons.broken_image, color: Colors.white54),
         ),
+      ),
+    ),
+  )
+else if (imageCount >= 2)
+  Row(
+    children: [
+      Expanded(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: GestureDetector(
+            onTap: () => showImagePopup(context, image1),
+            child: Image.network(
+              image1,
+              height: 110,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: GestureDetector(
+            onTap: () => showImagePopup(context, image2),
+            child: Image.network(
+              image2,
+              height: 110,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+      ),
+    ],
+  ),
+
 
         const SizedBox(height: 10),
 
