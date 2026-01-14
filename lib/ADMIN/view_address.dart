@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/add_address.dart';
+import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/update_address.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
@@ -68,6 +69,33 @@ print("Address fetch response: ${res.body}");
     }
   }
 
+Future<void> deleteAddress(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    setState(() => addressLoading = true);
+
+    try {
+      final res = await http.delete(
+        Uri.parse("$api/api/myskates/user/addresses/$id/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+print("Address delete response: ${res.statusCode}");
+print("Address delete response body: ${res.body}");
+      if (res.statusCode == 200) {
+        
+        fetchAddresses(); // Refresh the address list
+      } else {
+        setState(() => addressLoading = false);
+      }
+    } catch (e) {
+      debugPrint("Address delete error: $e");
+      setState(() => addressLoading = false);
+    }
+  }
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
@@ -90,7 +118,12 @@ print("Address fetch response: ${res.body}");
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context)=>AddAddress()));
+               Navigator.push(
+                                  context,
+                                  slideRightToLeftRoute(
+                                    AddAddress()
+                                  ),
+                                );
             },
             child: const Text(
               "+ Add Address",
@@ -229,19 +262,14 @@ print("Address fetch response: ${res.body}");
           Row(
             children: [
               _actionText("Delete", Colors.redAccent, () {
-                // Delete API
+                deleteAddress(addr["id"]);  
               }),
               const SizedBox(width: 24),
               _actionText("Edit", Colors.tealAccent, () {
                 Navigator.push(context, MaterialPageRoute(builder: (context)=>UpdateAddress(id:addr["id"])));
                 // Edit navigation
               }),
-              if (!isDefault) ...[
-                const SizedBox(width: 24),
-                _actionText("Mark default", Colors.tealAccent, () {
-                  // Mark default API
-                }),
-              ],
+             
             ],
           )
         ],
