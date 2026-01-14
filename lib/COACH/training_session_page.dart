@@ -36,6 +36,9 @@ class _CreateTrainingSessionPageState extends State<CreateTrainingSessionPage> {
   DateTime? endDate;
   TimeOfDay? startTime;
   TimeOfDay? endTime;
+bool isEditMode = false;
+int? editingSessionId;
+
 
   File? sessionImage;
   final ImagePicker _picker = ImagePicker();
