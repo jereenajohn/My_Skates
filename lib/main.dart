@@ -29,13 +29,14 @@ class MyApp extends StatelessWidget {
     final token = prefs.getString("access");
     final userType = prefs.getString("user_type");
 
+print("User Type from prefs: $userType");
     if (token != null && token.isNotEmpty) {
       if (userType == "admin") {
         return DashboardPage();
       } else if (userType == "coach") {
         return CoachHomepage();
       } else {
-        return HomePage();
+        return const HomePage();
       }
     }
 
