@@ -69,6 +69,7 @@ class _HomePageState extends State<HomePage> {
     refreshUserProfile().then((_) => fetchStudentDetails());
     getbanner();
     getTrainingSessions();
+    fetchRegisteredTrainings();
 
     loadEverything(); // Single initialization
   }
@@ -555,6 +556,114 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Set<int> registeredTrainingIds = {};
+  Future<void> registerTraining(int trainingId) async {
+    final token = await getToken();
+
+    try {
+      final response = await http.post(
+        Uri.parse('$api/api/myskates/training/register/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({"training_id": trainingId}),
+      );
+
+      print("REGISTER TRAINING STATUS: ${response.statusCode}");
+      print("REGISTER TRAINING BODY: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        setState(() {
+          registeredTrainingIds.add(trainingId); // ✅ DISABLE BUTTON
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Training registered successfully"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      print("REGISTER TRAINING ERROR: $e");
+    }
+  }
+
+  Future<void> fetchRegisteredTrainings() async {
+    final token = await getToken();
+
+    try {
+      final response = await http.get(
+        Uri.parse('$api/api/myskates/training/register/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print("REGISTERED TRAININGS STATUS: ${response.statusCode}");
+      print("REGISTERED TRAININGS BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final parsed = jsonDecode(response.body);
+
+        final List data = parsed['data'] ?? [];
+
+        setState(() {
+          registeredTrainingIds = data
+              .map<int>((e) => e['training'] as int)
+              .toSet();
+        });
+      }
+    } catch (e) {
+      print("FETCH REGISTERED TRAININGS ERROR: $e");
+    }
+  }
+
+  Future<void> confirmRegister(int trainingId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            "Confirm Registration",
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            "Do you want to register for this training session?",
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text(
+                "Cancel",
+                style: TextStyle(color: Colors.white54),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00AFA5),
+              ),
+              child: const Text("Register"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await registerTraining(trainingId);
+    }
+  }
+
   // UI BUILD
   @override
   Widget build(BuildContext context) {
@@ -814,6 +923,7 @@ class _HomePageState extends State<HomePage> {
                               : "";
 
                           return buildTrainingSessionRow(
+                            trainingId: session['id'],
                             title: session['title'] ?? "",
                             note: session['note'] ?? "",
                             location: session['location'] ?? "",
@@ -822,6 +932,14 @@ class _HomePageState extends State<HomePage> {
                             startTime: session['start_time'] ?? "",
                             endTime: session['end_time'] ?? "",
                             imageUrl: imageUrl,
+                            isRegistered: registeredTrainingIds.contains(
+                              session['id'],
+                            ),
+                            onRegister: () {
+                              confirmRegister(
+                                session['id'],
+                              ); // ✅ POPUP + REGISTER
+                            },
                           );
                         }).toList(),
                       ),
@@ -1887,6 +2005,9 @@ Widget buildTrainingSessionRow({
   required String startTime,
   required String endTime,
   required String imageUrl,
+  VoidCallback? onRegister, // 👈 NEW
+  required bool isRegistered,
+  required trainingId,
 }) {
   return Container(
     margin: const EdgeInsets.only(bottom: 12),
@@ -1995,6 +2116,48 @@ Widget buildTrainingSessionRow({
                     style: const TextStyle(color: Colors.white70, fontSize: 11),
                   ),
                 ],
+              ),
+
+              const SizedBox(height: 10),
+
+              // ✅ REGISTER BUTTON
+              Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  height: 34,
+                  child: isRegistered
+                      ? OutlinedButton(
+                          onPressed: null, // ✅ DISABLED
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.green),
+                          ),
+                          child: const Text(
+                            "Registered",
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                      : ElevatedButton(
+                          onPressed: onRegister,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00AFA5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            "Register",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                ),
               ),
             ],
           ),
