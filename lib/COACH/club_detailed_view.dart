@@ -29,6 +29,8 @@ class _ClubViewState extends State<ClubView> {
     fetchClubDetails();
     fetchClubEvents();
     // fetchFeed();
+
+    print("Club ID: ${widget.clubid}");
   }
 
   Future<String?> getToken() async {
@@ -475,6 +477,22 @@ class _ClubViewState extends State<ClubView> {
     }
   }
 
+  String safeString(dynamic v) {
+  if (v == null) return "";
+  return v.toString();
+}
+
+String safeDate(dynamic v) {
+  if (v == null || v.toString().isEmpty) return "-";
+  return formatDate(v.toString());
+}
+
+String safeTime(dynamic v) {
+  if (v == null || v.toString().isEmpty) return "-";
+  return formatTime(v.toString());
+}
+
+
 Widget _eventTile(Map event) {
   // -----------------------------------------------------
   // BUILD IMAGE LIST (main image + gallery images)
@@ -482,18 +500,20 @@ Widget _eventTile(Map event) {
   List<String> images = [];
 
   // Add main image if exists
-  if (event["image"] != null && event["image"].toString().isNotEmpty) {
-    images.add(event["image"]);
-  }
+ final mainImage = safeString(event["image"]);
+if (mainImage.isNotEmpty) {
+  images.add(mainImage);
+}
+
 
   // Add gallery images
-  if (event["images"] != null) {
-    for (var g in event["images"]) {
-      if (g["image"] != null && g["image"].toString().isNotEmpty) {
-        images.add(g["image"]);
-      }
-    }
+if (event["images"] is List) {
+  for (var g in event["images"]) {
+    final img = safeString(g["image"]);
+    if (img.isNotEmpty) images.add(img);
   }
+}
+
 
   // Convert to full URLs
   images = images.map((path) {
@@ -603,25 +623,25 @@ Widget _eventTile(Map event) {
         // -----------------------------------------------------
         // TITLE
         // -----------------------------------------------------
-        Text(
-          event["title"] ?? "",
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+     Text(
+  safeString(event["title"]),
+  style: const TextStyle(
+    color: Colors.white,
+    fontSize: 18,
+    fontWeight: FontWeight.bold,
+  ),
+),
 
         const SizedBox(height: 6),
 
         // -----------------------------------------------------
         // DESCRIPTION
         // -----------------------------------------------------
-        Text(
-          event["description"] ?? "",
-          style: const TextStyle(color: Colors.white70, fontSize: 14),
-        ),
-
+       Text(
+  safeString(event["description"]),
+  style: const TextStyle(color: Colors.white70, fontSize: 14),
+)
+,
         const SizedBox(height: 10),
 
         // -----------------------------------------------------
@@ -631,10 +651,11 @@ Widget _eventTile(Map event) {
           children: [
             const Icon(Icons.calendar_today, size: 16, color: Color(0xFF00AFA5)),
             const SizedBox(width: 5),
-            Text(
-              "${formatDate(event["from_date"])} → ${formatDate(event["to_date"])}",
-              style: const TextStyle(color: Colors.white70),
-            ),
+          Text(
+  "${safeDate(event["from_date"])} → ${safeDate(event["to_date"])}",
+  style: const TextStyle(color: Colors.white70),
+)
+
           ],
         ),
 
@@ -650,10 +671,11 @@ Widget _eventTile(Map event) {
               children: [
                 const Icon(Icons.access_time, size: 16, color: Color(0xFF00AFA5)),
                 const SizedBox(width: 5),
-                Text(
-                  "${formatTime(event["from_time"])} → ${formatTime(event["to_time"])}",
-                  style: const TextStyle(color: Colors.white70),
-                ),
+               Text(
+  "${safeTime(event["from_time"])} → ${safeTime(event["to_time"])}",
+  style: const TextStyle(color: Colors.white70),
+)
+
               ],
             ),
 
