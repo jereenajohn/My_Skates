@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/add_product.dart';
+import 'package:my_skates/ADMIN/cart_view.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/products_by_user.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
@@ -29,6 +30,99 @@ String selectedCategoryName = "";
 void initState() {
   super.initState();
   loadInitialData();
+}
+
+Future<void> addToCart(int variantId) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+print("Adding variant ID $variantId to cart");
+  try {
+    final response = await http.post(
+      Uri.parse('$api/api/myskates/cart/item/add/'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        "variant_id": variantId,
+        "quantity": 1,
+      }),
+    );
+
+    debugPrint('Add to cart response status: ${response.statusCode}');
+    debugPrint('Add to cart response body: ${response.body}');
+
+    final decoded = jsonDecode(response.body);
+    final String message =
+        decoded["message"] ?? "Unable to add to cart";
+
+    // ✅ SUCCESS
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      _showSnackBar(
+        icon: Icons.shopping_cart,
+        color: Colors.tealAccent,
+        background: const Color(0xFF0F2F2B),
+        message: message,
+      );
+    }
+    // ❌ ERROR FROM BACKEND (400 / 403 / 409 etc.)
+    else {
+      _showSnackBar(
+        icon: Icons.warning_amber_rounded,
+        color: Colors.orangeAccent,
+        background: const Color(0xFF2A230F),
+        message: message, // 🔥 "Only 0 in stock"
+      );
+    }
+  } catch (e) {
+    debugPrint("Add to cart error: $e");
+
+    _showSnackBar(
+      icon: Icons.error_outline,
+      color: Colors.redAccent,
+      background: const Color(0xFF2A0F0F),
+      message: "Something went wrong. Please try again.",
+    );
+  }
+}
+void _showSnackBar({
+  required IconData icon,
+  required Color color,
+  required Color background,
+  required String message,
+}) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      content: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withOpacity(0.6)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      duration: const Duration(seconds: 2),
+    ),
+  );
 }
 
 Future<void> loadInitialData() async {
@@ -323,7 +417,12 @@ Future<void> getProducts() async {
 
         IconButton(
           onPressed: () {
-            // TODO: Navigate to Cart
+              Navigator.push(
+                context,
+                slideRightToLeftRoute(
+                  cart()
+                ),
+              );
           },
           icon: Stack(
             clipBehavior: Clip.none,
@@ -539,7 +638,15 @@ Padding(
     child: ElevatedButton(
       onPressed: () {
         print("Show variants for product ID: ${p['id']}");
-        showVariantBottomSheet(context, p);
+        if(p['variants']==null || p['variants'].isEmpty){
+          addToCart(p['id']);
+          
+        }
+        else{
+
+                  showVariantBottomSheet(context, p);
+
+        }
       },
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.tealAccent,
@@ -748,6 +855,7 @@ Widget _productGridSkeleton() {
 }
 
 void showVariantBottomSheet(BuildContext context, Map<String, dynamic> product) {
+  print("Showing variants for product ID: ${product}");
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -809,7 +917,7 @@ void showVariantBottomSheet(BuildContext context, Map<String, dynamic> product) 
                   return GestureDetector(
                     onTap: () {
                       Navigator.pop(context);
-                      // addToCart(...)
+                      addToCart(v['id']);
                     },
                     child: Container(
                       width: 165,
@@ -864,13 +972,23 @@ void showVariantBottomSheet(BuildContext context, Map<String, dynamic> product) 
                                 const SizedBox(height: 6),
 
                                 /// PRICE
-                                Text(
-                                  "₹${v['price']}",
-                                  style: const TextStyle(
-                                    color: Colors.tealAccent,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                Row(
+                                  children: [
+                                    Text(
+                                      "₹${v['price']}",
+                                      style: const TextStyle(
+                                        color: Colors.tealAccent,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Spacer(),
+                                    Icon(
+                                      Icons.shopping_cart,
+                                      color: Colors.tealAccent,
+                                      size: 16,
+                                    )
+                                  ],
                                 ),
                               ],
                             ),
