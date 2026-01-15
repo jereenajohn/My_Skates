@@ -27,6 +27,9 @@ class _CreateTrainingSessionPageState extends State<CreateTrainingSessionPage> {
   final titleCtrl = TextEditingController();
   final typedLocationCtrl = TextEditingController(); // MANUAL LOCATION
   final notesCtrl = TextEditingController();
+  String? existingImageUrl; // existing backend image
+  bool isEditMode = false;
+  int? editingSessionId;
 
   String? mapAddress;
   double? latitude;
@@ -36,12 +39,8 @@ class _CreateTrainingSessionPageState extends State<CreateTrainingSessionPage> {
   DateTime? endDate;
   TimeOfDay? startTime;
   TimeOfDay? endTime;
-bool isEditMode = false;
-int? editingSessionId;
-
 
   File? sessionImage;
-  final ImagePicker _picker = ImagePicker();
 
   bool submitting = false;
 
@@ -58,6 +57,20 @@ int? editingSessionId;
   String formatDisplayTime(String time) {
     final parsed = DateFormat("HH:mm:ss").parse(time);
     return DateFormat("hh:mm a").format(parsed);
+  }
+
+  void _attachFields(http.MultipartRequest request) {
+    request.fields.addAll({
+      "title": titleCtrl.text.trim(),
+      "location": typedLocationCtrl.text.trim(),
+      "latitude": latitude?.toString() ?? "",
+      "longitude": longitude?.toString() ?? "",
+      "note": notesCtrl.text.trim(),
+      "start_date": formatDate(startDate!),
+      "end_date": formatDate(endDate!),
+      "start_time": formatTime(startTime!),
+      "end_time": formatTime(endTime!),
+    });
   }
 
   Future<List<TrainingSession>> fetchTrainingSessions() async {
@@ -290,81 +303,239 @@ int? editingSessionId;
     );
   }
 
+  TimeOfDay _parseTime(String time) {
+    final parsed = DateFormat("HH:mm:ss").parse(time);
+    return TimeOfDay(hour: parsed.hour, minute: parsed.minute);
+  }
+
+  void _confirmDelete(TrainingSession session) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.black,
+        title: const Text(
+          "Delete Training Session",
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          "Are you sure you want to permanently delete this session?",
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            child: const Text(
+              "Cancel",
+              style: TextStyle(color: Colors.white54),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text("Delete"),
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteTrainingSession(session.id);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteTrainingSession(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    final response = await http.delete(
+      Uri.parse("$api/api/myskates/training/$id/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Training session deleted"),
+          backgroundColor: Colors.green,
+        ),
+      );
+      setState(() {}); // refresh list
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Failed to delete session"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  void _editTrainingSession(TrainingSession session) {
+    setState(() {
+      isEditMode = true;
+      editingSessionId = session.id;
+
+      // TEXT FIELDS
+      titleCtrl.text = session.title;
+      typedLocationCtrl.text = session.location;
+      notesCtrl.text = session.note ?? "";
+
+      // DATES
+      startDate = DateTime.parse(session.startDate);
+      endDate = DateTime.parse(session.endDate);
+
+      // TIMES
+      startTime = _parseTime(session.startTime);
+      endTime = _parseTime(session.endTime);
+
+      // IMAGE
+      existingImageUrl = session.imageUrl;
+      sessionImage = null; // reset picked image
+
+      // MAP LOCATION
+      latitude = session.latitude;
+      longitude = session.longitude;
+      mapAddress = session.location;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Editing training session"),
+        backgroundColor: Colors.blueGrey,
+      ),
+    );
+  }
+
   Widget _trainingSessionCard(TrainingSession session) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
       decoration: _glassBox(),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          // IMAGE
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: session.imageUrl != null
-                ? Image.network(
-                    "$api${session.imageUrl}",
-                    width: 70,
-                    height: 70,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) {
-                      return _imagePlaceholder();
-                    },
-                  )
-                : _imagePlaceholder(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // IMAGE
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: session.imageUrl != null
+                    ? Image.network(
+                        "$api${session.imageUrl}",
+                        width: 70,
+                        height: 70,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) {
+                          return _imagePlaceholder();
+                        },
+                      )
+                    : _imagePlaceholder(),
+              ),
+
+              const SizedBox(width: 12),
+
+              // DETAILS
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      session.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      session.location,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.calendar_today,
+                          size: 14,
+                          color: accentColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          "${formatDisplayDate(session.startDate)} → ${formatDisplayDate(session.endDate)}",
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.schedule,
+                          size: 14,
+                          color: accentColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          "${formatDisplayTime(session.startTime)} - ${formatDisplayTime(session.endTime)}",
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
 
-          const SizedBox(width: 12),
-
-          // DETAILS
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  session.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+          // ───── 3 DOT MENU (BOTTOM RIGHT) ─────
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: PopupMenuButton<String>(
+              icon: const Icon(
+                Icons.more_vert,
+                color: Colors.white70,
+                size: 22,
+              ),
+              onSelected: (value) {
+                if (value == "edit") {
+                  _editTrainingSession(session);
+                } else if (value == "delete") {
+                  _confirmDelete(session);
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: "edit",
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit, size: 18),
+                      SizedBox(width: 10),
+                      Text("Edit"),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  session.location,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_today,
-                      size: 14,
-                      color: accentColor,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      "${formatDisplayDate(session.startDate)} → ${formatDisplayDate(session.endDate)}",
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.schedule, size: 14, color: accentColor),
-                    const SizedBox(width: 6),
-                    Text(
-                      "${formatDisplayTime(session.startTime)} - ${formatDisplayTime(session.endTime)}",
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                const PopupMenuItem(
+                  value: "delete",
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete, size: 18, color: Colors.redAccent),
+                      SizedBox(width: 10),
+                      Text("Delete", style: TextStyle(color: Colors.redAccent)),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -521,35 +692,38 @@ int? editingSessionId;
         child: Row(
           children: [
             const SizedBox(width: 16),
-            sessionImage != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.file(
+
+            // IMAGE PRIORITY:
+            // 1. Newly picked image
+            // 2. Existing backend image
+            // 3. Placeholder
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: sessionImage != null
+                  ? Image.file(
                       sessionImage!,
                       width: 80,
                       height: 80,
                       fit: BoxFit.cover,
-                    ),
-                  )
-                : Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.black45,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: const Icon(
-                      Icons.image,
-                      color: Colors.white54,
-                      size: 32,
-                    ),
-                  ),
+                    )
+                  : existingImageUrl != null
+                  ? Image.network(
+                      "$api$existingImageUrl",
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                    )
+                  : _imagePlaceholder(),
+            ),
+
             const SizedBox(width: 16),
-            const Expanded(
+            Expanded(
               child: Text(
-                "Upload Training Image",
-                style: TextStyle(color: Colors.white70),
+                isEditMode
+                    ? "Tap to change training image"
+                    : "Upload Training Image",
+                style: const TextStyle(color: Colors.white70),
               ),
             ),
             const Icon(Icons.upload, color: accentColor),
@@ -558,6 +732,98 @@ int? editingSessionId;
         ),
       ),
     );
+  }
+
+  void _resetForm() {
+    setState(() {
+      isEditMode = false;
+      editingSessionId = null;
+
+      titleCtrl.clear();
+      typedLocationCtrl.clear();
+      notesCtrl.clear();
+
+      startDate = null;
+      endDate = null;
+      startTime = null;
+      endTime = null;
+
+      latitude = null;
+      longitude = null;
+      mapAddress = null;
+
+      sessionImage = null;
+      existingImageUrl = null;
+    });
+  }
+
+  void _onSuccess(String msg) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.green));
+    setState(() {});
+  }
+
+  void _onFailure(String body) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(body.isNotEmpty ? body : "Operation failed"),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+  }
+
+  Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    if (token == null) {
+      _showError("Session expired");
+      return null;
+    }
+    return token;
+  }
+
+  Future<void> _updateTrainingSession() async {
+    if (!_validateForm()) return;
+
+    if (editingSessionId == null) {
+      _showError("Invalid training session");
+      return;
+    }
+
+    final token = await _getToken();
+    if (token == null) return;
+
+    setState(() => submitting = true);
+
+    final request = http.MultipartRequest(
+      "PUT",
+      Uri.parse("$api/api/myskates/training/$editingSessionId/"),
+    );
+
+    request.headers["Authorization"] = "Bearer $token";
+
+    _attachFields(request);
+
+    // Image is optional in update
+    if (sessionImage != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath("images", sessionImage!.path),
+      );
+    }
+
+    final response = await request.send();
+    final body = await response.stream.bytesToString();
+
+    setState(() => submitting = false);
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      _onSuccess("Training session updated");
+      _resetForm();
+    } else {
+      _onFailure(body);
+    }
   }
 
   Widget _submitButton() {
@@ -572,12 +838,21 @@ int? editingSessionId;
             borderRadius: BorderRadius.circular(14),
           ),
         ),
-        onPressed: submitting ? null : _submit,
+        onPressed: submitting
+            ? null
+            : isEditMode
+            ? _updateTrainingSession
+            : _createTrainingSession,
         child: submitting
             ? const CircularProgressIndicator(color: Colors.black)
-            : const Text(
-                "Create Training Session",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            : Text(
+                isEditMode
+                    ? "Update Training Session"
+                    : "Create Training Session",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
       ),
     );
@@ -612,23 +887,11 @@ int? editingSessionId;
     return "$hour:$minute";
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _createTrainingSession() async {
+    if (!_validateForm()) return;
 
-    if (startDate == null ||
-        endDate == null ||
-        startTime == null ||
-        endTime == null) {
-      _showError("Please complete all required fields");
-      return;
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-    if (token == null) {
-      _showError("Session expired");
-      return;
-    }
+    final token = await _getToken();
+    if (token == null) return;
 
     setState(() => submitting = true);
 
@@ -639,19 +902,7 @@ int? editingSessionId;
 
     request.headers["Authorization"] = "Bearer $token";
 
-    request.fields.addAll({
-      "title": titleCtrl.text.trim(),
-      "location": typedLocationCtrl.text.trim(),
-      "latitude": latitude?.toString() ?? "",
-      "longitude": longitude?.toString() ?? "",
-      "note": notesCtrl.text.trim(),
-
-      // ✅ FIXED FORMATS
-      "start_date": formatDate(startDate!),
-      "end_date": formatDate(endDate!),
-      "start_time": formatTime(startTime!),
-      "end_time": formatTime(endTime!),
-    });
+    _attachFields(request);
 
     if (sessionImage != null) {
       request.files.add(
@@ -659,42 +910,29 @@ int? editingSessionId;
       );
     }
 
-    final streamedResponse = await request.send();
-    final responseBody = await streamedResponse.stream.bytesToString();
+    final response = await request.send();
+    final body = await response.stream.bytesToString();
 
     setState(() => submitting = false);
 
-    // ✅ PRINT FULL RESPONSE (VERY IMPORTANT FOR DEBUG)
-    debugPrint("TRAINING CREATE STATUS: ${streamedResponse.statusCode}");
-    debugPrint("TRAINING CREATE BODY: $responseBody");
-
-    if (streamedResponse.statusCode == 200 ||
-        streamedResponse.statusCode == 201) {
-      // ✅ SUCCESS MESSAGE
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Training session created successfully"),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      // Small delay so snackbar is visible before pop
-      Future.delayed(const Duration(milliseconds: 600), () {
-        Navigator.pop(context, true);
-      });
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      _onSuccess("Training session created");
     } else {
-      // ❌ FAILURE MESSAGE
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            responseBody.isNotEmpty
-                ? responseBody
-                : "Failed to create training session",
-          ),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      _onFailure(body);
     }
+  }
+
+  bool _validateForm() {
+    if (!_formKey.currentState!.validate()) return false;
+
+    if (startDate == null ||
+        endDate == null ||
+        startTime == null ||
+        endTime == null) {
+      _showError("Please complete all required fields");
+      return false;
+    }
+    return true;
   }
 
   void _showError(String msg) {
@@ -705,28 +943,35 @@ int? editingSessionId;
 }
 
 class TrainingSession {
+  final int id;
   final String title;
   final String location;
   final String startDate;
   final String endDate;
   final String startTime;
   final String endTime;
+  final String? note;
   final String? imageUrl;
+  final double? latitude;
+  final double? longitude;
 
   TrainingSession({
+    required this.id,
     required this.title,
     required this.location,
     required this.startDate,
     required this.endDate,
     required this.startTime,
     required this.endTime,
+    this.note,
     this.imageUrl,
+    this.latitude,
+    this.longitude,
   });
 
   factory TrainingSession.fromJson(Map<String, dynamic> json) {
     String? image;
 
-    // ✅ SAFELY extract first image from images array
     if (json['images'] != null &&
         json['images'] is List &&
         json['images'].isNotEmpty) {
@@ -734,13 +979,21 @@ class TrainingSession {
     }
 
     return TrainingSession(
+      id: json['id'],
       title: json['title'] ?? '',
       location: json['location'] ?? '',
       startDate: json['start_date'] ?? '',
       endDate: json['end_date'] ?? '',
       startTime: json['start_time'] ?? '',
       endTime: json['end_time'] ?? '',
+      note: json['note'],
       imageUrl: image,
+      latitude: json['latitude'] != null
+          ? double.tryParse(json['latitude'].toString())
+          : null,
+      longitude: json['longitude'] != null
+          ? double.tryParse(json['longitude'].toString())
+          : null,
     );
   }
 }
