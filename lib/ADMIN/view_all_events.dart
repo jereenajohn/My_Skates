@@ -44,7 +44,6 @@ class _EventsState extends State<Events> {
     return prefs.getInt("id");
   }
 
-
   // ---------------------------------------------------------------------------
   // DELETE EVENT
   // ---------------------------------------------------------------------------
@@ -70,14 +69,14 @@ class _EventsState extends State<Events> {
         );
         fetchClubEvents();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed: ${response.body}")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Failed: ${response.body}")));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
@@ -110,9 +109,9 @@ class _EventsState extends State<Events> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error deleting image: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error deleting image: $e")));
     }
   }
 
@@ -136,9 +135,9 @@ class _EventsState extends State<Events> {
       final token = prefs.getString("access");
 
       if (token == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("User not logged in")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("User not logged in")));
         return;
       }
 
@@ -162,8 +161,9 @@ class _EventsState extends State<Events> {
         "to_time": toTime,
       });
 
-      final limitedImages =
-          newImages.length > 2 ? newImages.sublist(0, 2) : newImages;
+      final limitedImages = newImages.length > 2
+          ? newImages.sublist(0, 2)
+          : newImages;
 
       for (var img in limitedImages) {
         request.files.add(
@@ -188,14 +188,14 @@ class _EventsState extends State<Events> {
         );
         fetchClubEvents();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed: $respStr")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Failed: $respStr")));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
@@ -205,17 +205,17 @@ class _EventsState extends State<Events> {
       final userId = await getUserId();
 
       if (token == null || userId == null) return;
-print("urlllllllllllllllllllllllllllllll$api/api/myskates/events/add/by/user/");
-      final url = Uri.parse(
-        "$api/api/myskates/events/add/",
+      print(
+        "urlllllllllllllllllllllllllllllll$api/api/myskates/events/add/by/user/",
       );
+      final url = Uri.parse("$api/api/myskates/events/add/");
 
       final response = await http.get(
         url,
         headers: {"Authorization": "Bearer $token"},
       );
-print("response.body::::::::::::: ${response.body}");
-print("response.statusCode::::::::::::: ${response.statusCode}");
+      print("response.body::::::::::::: ${response.body}");
+      print("response.statusCode::::::::::::: ${response.statusCode}");
       if (response.statusCode == 200) {
         setState(() {
           clubEvents = jsonDecode(response.body);
@@ -233,24 +233,32 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
   // UPDATE EVENT DIALOG
   // ---------------------------------------------------------------------------
   void _openUpdateEventDialog(Map<String, dynamic> event) {
-    final TextEditingController titleCtrl =
-        TextEditingController(text: event["title"] ?? "");
-    final TextEditingController noteCtrl =
-        TextEditingController(text: event["note"] ?? "");
-    final TextEditingController descCtrl =
-        TextEditingController(text: event["description"] ?? "");
-    final TextEditingController fromDateCtrl =
-        TextEditingController(text: event["from_date"] ?? "");
-    final TextEditingController toDateCtrl =
-        TextEditingController(text: event["to_date"] ?? "");
-    final TextEditingController fromTimeCtrl =
-        TextEditingController(text: event["from_time"] ?? "");
-    final TextEditingController toTimeCtrl =
-        TextEditingController(text: event["to_time"] ?? "");
+    final TextEditingController titleCtrl = TextEditingController(
+      text: event["title"] ?? "",
+    );
+    final TextEditingController noteCtrl = TextEditingController(
+      text: event["note"] ?? "",
+    );
+    final TextEditingController descCtrl = TextEditingController(
+      text: event["description"] ?? "",
+    );
+    final TextEditingController fromDateCtrl = TextEditingController(
+      text: event["from_date"] ?? "",
+    );
+    final TextEditingController toDateCtrl = TextEditingController(
+      text: event["to_date"] ?? "",
+    );
+    final TextEditingController fromTimeCtrl = TextEditingController(
+      text: event["from_time"] ?? "",
+    );
+    final TextEditingController toTimeCtrl = TextEditingController(
+      text: event["to_time"] ?? "",
+    );
 
     // Existing images from API
-    final List<dynamic> existingImages =
-        List<dynamic>.from(event["images"] ?? []);
+    final List<dynamic> existingImages = List<dynamic>.from(
+      event["images"] ?? [],
+    );
     List<int> imagesToDelete = [];
 
     // New images picked in this dialog
@@ -392,10 +400,10 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
                           itemCount: existingImages.length,
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 8,
-                            crossAxisSpacing: 8,
-                          ),
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 8,
+                                crossAxisSpacing: 8,
+                              ),
                           itemBuilder: (context, index) {
                             final img = existingImages[index];
 
@@ -467,10 +475,10 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
                           itemCount: pickedImages.length,
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 8,
-                            crossAxisSpacing: 8,
-                          ),
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 8,
+                                crossAxisSpacing: 8,
+                              ),
                           itemBuilder: (context, index) {
                             return Stack(
                               children: [
@@ -559,8 +567,6 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
       },
     );
   }
-
-  
 
   // ---------------------------------------------------------------------------
   // FIELD WIDGETS
@@ -686,9 +692,7 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
       onWillPop: () async {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (_) => const CoachHomepage(),
-          ),
+          MaterialPageRoute(builder: (_) => const CoachHomepage()),
         );
         return false; // ⛔ prevent app close
       },
@@ -705,8 +709,6 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
             ? const Center(child: CircularProgressIndicator(color: Colors.teal))
             : Column(
                 children: [
-                  
-               
                   Expanded(
                     child: clubEvents.isEmpty
                         ? const Center(
@@ -719,22 +721,23 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
                             padding: EdgeInsets.zero,
                             itemCount: clubEvents.length,
                             itemBuilder: (context, index) {
-                              final event = Map<String, dynamic>.from(clubEvents[index]);
+                              final event = Map<String, dynamic>.from(
+                                clubEvents[index],
+                              );
 
-return buildEventCard(
-  event,
-  buildImageUrl(event["club_image"]),
-  event["club_name"] ?? "",
-);
-
+                              return buildEventCard(
+                                event,
+                                buildImageUrl(event["club_image"]),
+                                event["club_name"] ?? "",
+                              );
                             },
                           ),
                   ),
                 ],
               ),
         bottomNavigationBar: const AppBottomNav(
-      currentIndex: 4, // Home tab
-    ),
+          currentIndex: 4, // Home tab
+        ),
       ),
     );
   }
@@ -762,13 +765,11 @@ return buildEventCard(
     }
   }
 
-
   Widget buildEventCard(
     Map<String, dynamic> event,
     String clubLogo,
     String clubName,
   ) {
-
     print("clubLogo::::::::::::: $clubLogo");
     print("clubName::::::::::::: $clubName");
     final String bannerImagePath = event["image"] ?? "";
@@ -792,8 +793,9 @@ return buildEventCard(
             children: [
               CircleAvatar(
                 radius: 22,
-                backgroundImage:
-                    clubLogo.isNotEmpty ? NetworkImage(clubLogo) : null,
+                backgroundImage: clubLogo.isNotEmpty
+                    ? NetworkImage(clubLogo)
+                    : null,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -811,8 +813,7 @@ return buildEventCard(
           const SizedBox(height: 10),
           Row(
             children: [
-              const Icon(Icons.calendar_month,
-                  color: Colors.white70, size: 18),
+              const Icon(Icons.calendar_month, color: Colors.white70, size: 18),
               const SizedBox(width: 6),
               Text(
                 "$fromDate • $fromTime  →  $toDate • $toTime",

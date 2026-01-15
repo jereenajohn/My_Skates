@@ -43,7 +43,6 @@ class _CoachHomepageState extends State<CoachHomepage> {
   bool studentsNoData = false;
   List clubs = [];
   bool noData = false;
-  List<TrainingSession> trainingSessions = [];
   bool trainingLoading = true;
   bool trainingNoData = false;
 
@@ -74,6 +73,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
     fetchClubs();
     loadEvents();
     getAllEvents();
+    getTrainingSessions();
 
     loadEverything();
     _timer = Timer.periodic(
@@ -162,145 +162,66 @@ class _CoachHomepageState extends State<CoachHomepage> {
     return prefs.getInt("id");
   }
 
-  String formatDisplayDate(String date) {
-    final parsed = DateTime.parse(date);
-    return DateFormat('dd-MM-yyyy').format(parsed);
+  List<Map<String, dynamic>> trainingSessions = [];
+
+  Future<void> getTrainingSessions() async {
+    final token = await getToken();
+
+    try {
+      final response = await http.get(
+        Uri.parse('$api/api/myskates/training/view/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print("Training Sessions STATUS: ${response.statusCode}");
+      print("Training Sessions BODY: ${response.body}");
+      List<Map<String, dynamic>> trainingList = [];
+
+      if (response.statusCode == 200) {
+        final parsed = jsonDecode(response.body);
+        var data = parsed['data'];
+
+        for (var item in data) {
+          trainingList.add({
+            'id': item['id'],
+            'title': item['title'],
+            'note': item['note'],
+            'start_date': item['start_date'],
+            'end_date': item['end_date'],
+            'start_time': item['start_time'],
+            'end_time': item['end_time'],
+            'location': item['location'],
+            'latitude': item['latitude'],
+            'longitude': item['longitude'],
+            'images': item['images'],
+            'created_at': item['created_at'],
+            'updated_at': item['updated_at'],
+          });
+        }
+        print("Training Sessions Fetched: $trainingList");
+
+        setState(() {
+          trainingSessions = trainingList;
+          trainingLoading = false;
+          trainingNoData = trainingList.isEmpty;
+        });
+      } else {
+        setState(() {
+          trainingLoading = false;
+          trainingNoData = true;
+        });
+      }
+    } catch (e) {
+      print("Training session error: $e");
+      setState(() {
+        trainingLoading = false;
+        trainingNoData = true;
+      });
+    }
   }
-
-  String formatDisplayTime(String time) {
-    final parsed = DateFormat("HH:mm:ss").parse(time);
-    return DateFormat("hh:mm a").format(parsed);
-  }
-
-  // Future<void> getTrainingSessions() async {
-  //       final prefs = await SharedPreferences.getInstance();
-
-  //     final token = prefs.getString("access");
-  //   if (token == null) {
-  //       throw Exception("Authentication token not found");
-  //     }
-  //   try {
-  //     final response = await http.get(
-  //       Uri.parse('$api/api/myskates/training/'),
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //         'Authorization': 'Bearer $token',
-  //       },
-  //     );
-
-  //     List<Map<String, dynamic>> trainingList = [];
-
-  //     if (response.statusCode == 200) {
-  //       final parsed = jsonDecode(response.body);
-  //       var data = parsed['data'];
-
-  //       for (var item in data) {
-  //         trainingList.add({
-  //           'id': item['id'],
-  //           'title': item['title'],
-  //           'note': item['note'],
-  //           'start_date': item['start_date'],
-  //           'end_date': item['end_date'],
-  //           'start_time': item['start_time'],
-  //           'end_time': item['end_time'],
-  //           'location': item['location'],
-  //           'latitude': item['latitude'],
-  //           'longitude': item['longitude'],
-  //           'images': item['images'], // list 그대로
-  //           'created_at': item['created_at'],
-  //           'updated_at': item['updated_at'],
-  //         });
-  //       }
-  //       setState(() {
-  //         trainingSessions = trainingList;
-  //       });
-  //     }
-  //   } catch (e) {
-  //     debugPrint("Training fetch error: $e");
-  //   }
-  // }
-
-  //   Future<void> fetchFeeds() async {
-  //   loading = true;
-  //   notifyListeners();
-
-  //   try {
-  //     final prefs = await SharedPreferences.getInstance();
-  //     final token = prefs.getString("access");
-  //     final id = prefs.getInt("id");
-  //     if (token == null || id == null) return;
-
-  //     final responses = await Future.wait([
-  //       http.get(
-  //         Uri.parse("$api/api/myskates/feeds/user/$id/"),
-  //         headers: {"Authorization": "Bearer $token"},
-  //       ),
-  //       http.get(
-  //         Uri.parse("$api/api/myskates/feeds/"),
-  //         headers: {"Authorization": "Bearer $token"},
-  //       ),
-  //       http.get(
-  //         Uri.parse("$api/api/myskates/feeds/reposts/user/$id/"),
-  //         headers: {"Authorization": "Bearer $token"},
-  //       ),
-  //     ]);
-
-  //     // USER FEEDS
-  //     if (responses[0].statusCode == 200) {
-  //       final decoded = jsonDecode(responses[0].body);
-  //       _userFeeds = decoded is List ? decoded : decoded["data"] ?? [];
-  //     }
-
-  //     // GLOBAL FEEDS (COUNTS)
-  //     if (responses[1].statusCode == 200) {
-  //       final decoded = jsonDecode(responses[1].body);
-  //       _allFeeds = decoded is List ? decoded : [];
-  //     }
-
-  //     // ✅ REPOST FEEDS
-  //     if (responses[2].statusCode == 200) {
-  //       final decoded = jsonDecode(responses[2].body);
-  //       final List data = decoded["data"] ?? [];
-
-  //       _repostFeeds = data.map((item) {
-  //         final originalFeed = _userFeeds.firstWhere(
-  //           (f) => f["id"] == item["feed_id"],
-  //           orElse: () => {},
-  //         );
-
-  //         return {
-  //           "id": "repost_${item["id"]}",
-  //           "repost_id": item["id"],
-  //           "text": item["text"],
-  //           "created_at": item["created_at"],
-  //           "reposted_by": item["reposted_by"],
-
-  //           "feed": {
-  //             "id": item["feed_id"],
-  //             "description": item["feed_description"],
-  //             "likes_count": item["likes_count"],
-  //             "comments_count": item["comments_count"],
-  //             "shares_count": item["reposts_count"],
-  //             "is_liked": false,
-  //             "is_reposted": true,
-
-  //             // ✅ IMAGE RESTORED
-  //             "feed_image": originalFeed["feed_image"] ?? [],
-  //           },
-  //         };
-  //       }).toList();
-
-  //       print("✅ Fetched ${_repostFeeds.length} repost feeds");
-  //       print("📦 Repost Feeds Data: $_repostFeeds");
-  //       print("📦 User Feeds Data: $_userFeeds");
-  //     }
-  //   } catch (e) {
-  //     print("❌ fetchFeeds ERROR: $e");
-  //   }
-
-  //   loading = false;
-  //   notifyListeners();
-  // }
 
   Future<void> fetchFollowRequestCount() async {
     final prefs = await SharedPreferences.getInstance();
@@ -976,20 +897,42 @@ class _CoachHomepageState extends State<CoachHomepage> {
                     const SizedBox(height: 25),
 
                     const Text(
-                      "Inspired to push your limits every day.",
+                      "Upcoming Training Sessions",
                       style: TextStyle(color: Colors.white, fontSize: 14),
                     ),
 
                     const SizedBox(height: 15),
 
-                    buildEventCard(
-                      clubName: "Langham Skating Club",
-                      date: "November 13, 2025",
-                      location: "Ponnurunni nagar - Kaloor",
-                      title: "Morning training session",
-                      timeLeft: "In 12m",
-                      icon: Icons.thumb_up_alt,
-                    ),
+                    if (trainingLoading)
+                      const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      )
+                    else if (trainingNoData)
+                      const Text(
+                        "No training sessions available",
+                        style: TextStyle(color: Colors.white70),
+                      )
+                    else
+                      Column(
+                        children: trainingSessions.map((session) {
+                          final images = session['images'] as List? ?? [];
+
+                          String imageUrl = images.isNotEmpty
+                              ? "$api${images[0]['image']}"
+                              : "";
+
+                          return buildTrainingSessionRow(
+                            title: session['title'] ?? "",
+                            note: session['note'] ?? "",
+                            location: session['location'] ?? "",
+                            startDate: session['start_date'] ?? "",
+                            endDate: session['end_date'] ?? "",
+                            startTime: session['start_time'] ?? "",
+                            endTime: session['end_time'] ?? "",
+                            imageUrl: imageUrl,
+                          );
+                        }).toList(),
+                      ),
 
                     const SizedBox(height: 12),
 
@@ -1029,7 +972,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                               : "";
 
                           return buildEventCardWithImages(
-                            context: context, 
+                            context: context,
                             clubName: event["club_name"] ?? "Skating Club",
                             clubImage: event["club_image"] ?? "",
                             location: event["note"] ?? "",
@@ -1138,17 +1081,6 @@ class _CoachHomepageState extends State<CoachHomepage> {
                             ),
                     ),
 
-                    SizedBox(height: 20),
-
-                    buildEventCard(
-                      clubName: "Langham Skating Club",
-                      date: "November 13, 2025",
-                      location: "Ponnurunni nagar - Kaloor",
-                      title: "Morning training session",
-                      timeLeft: "In 12m",
-                      icon: Icons.thumb_up_alt,
-                    ),
-
                     const SizedBox(height: 12),
                   ],
                 ),
@@ -1198,9 +1130,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
           } else if (title == "Find Events") {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => const Events(),
-              ),
+              MaterialPageRoute(builder: (context) => const Events()),
             );
           } else if (title == "Buy and Sell products") {
             Navigator.push(
@@ -1445,7 +1375,7 @@ String formatDateTimeToAmPm(String date, String time) {
 
 // --------------------------- EVENT CARD 2 ---------------------------
 Widget buildEventCardWithImages({
-   required BuildContext context,
+  required BuildContext context,
   required String clubName,
   required String clubImage,
   required int imageCount,
@@ -1513,59 +1443,58 @@ Widget buildEventCardWithImages({
         ),
 
         const SizedBox(height: 10),
-// ---------------- IMAGES ----------------
-if (imageCount == 1)
-  ClipRRect(
-    borderRadius: BorderRadius.circular(12),
-    child: GestureDetector(
-      onTap: () => showImagePopup(context, image1),
-      child: Image.network(
-        image1,
-        height: 180,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          height: 180,
-          color: Colors.black26,
-          alignment: Alignment.center,
-          child: const Icon(Icons.broken_image, color: Colors.white54),
-        ),
-      ),
-    ),
-  )
-else if (imageCount >= 2)
-  Row(
-    children: [
-      Expanded(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: GestureDetector(
-            onTap: () => showImagePopup(context, image1),
-            child: Image.network(
-              image1,
-              height: 110,
-              fit: BoxFit.cover,
+        // ---------------- IMAGES ----------------
+        if (imageCount == 1)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: GestureDetector(
+              onTap: () => showImagePopup(context, image1),
+              child: Image.network(
+                image1,
+                height: 180,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 180,
+                  color: Colors.black26,
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.broken_image, color: Colors.white54),
+                ),
+              ),
             ),
+          )
+        else if (imageCount >= 2)
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: GestureDetector(
+                    onTap: () => showImagePopup(context, image1),
+                    child: Image.network(
+                      image1,
+                      height: 110,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: GestureDetector(
+                    onTap: () => showImagePopup(context, image2),
+                    child: Image.network(
+                      image2,
+                      height: 110,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-      ),
-      const SizedBox(width: 8),
-      Expanded(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: GestureDetector(
-            onTap: () => showImagePopup(context, image2),
-            child: Image.network(
-              image2,
-              height: 110,
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-      ),
-    ],
-  ),
-
 
         const SizedBox(height: 10),
 
@@ -2087,4 +2016,150 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
       child: const Text("Follow", style: TextStyle(color: Colors.white)),
     );
   }
+}
+
+String formatDisplayDate(String date) {
+  final parsed = DateTime.parse(date);
+  return DateFormat('dd-MM-yyyy').format(parsed);
+}
+
+String formatDisplayTime(String time) {
+  final parsed = DateFormat("HH:mm:ss").parse(time);
+  return DateFormat("hh:mm a").format(parsed);
+}
+
+Widget _imagePlaceholder() {
+  return Container(
+    width: 90,
+    height: 90,
+    color: Colors.black26,
+    alignment: Alignment.center,
+    child: const Icon(Icons.image, color: Colors.white38, size: 28),
+  );
+}
+
+Widget buildTrainingSessionRow({
+  required String title,
+  required String note,
+  required String location,
+  required String startDate,
+  required String endDate,
+  required String startTime,
+  required String endTime,
+  required String imageUrl,
+}) {
+  return Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: Colors.white10,
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // LEFT IMAGE
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: imageUrl.isNotEmpty
+              ? Image.network(
+                  imageUrl,
+                  width: 90,
+                  height: 90,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                )
+              : _imagePlaceholder(),
+        ),
+
+        const SizedBox(width: 12),
+
+        // RIGHT CONTENT
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+
+              const SizedBox(height: 4),
+
+              Text(
+                note,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+
+              const SizedBox(height: 6),
+
+              Row(
+                children: [
+                  const Icon(
+                    Icons.location_on,
+                    size: 13,
+                    color: Colors.tealAccent,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      location,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 6),
+
+              Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 12,
+                    color: Colors.tealAccent,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    "${formatDisplayDate(startDate)} - ${formatDisplayDate(endDate)}",
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 4),
+
+              Row(
+                children: [
+                  const Icon(
+                    Icons.access_time,
+                    size: 12,
+                    color: Colors.tealAccent,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    "${formatDisplayTime(startTime)} - ${formatDisplayTime(endTime)}",
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
