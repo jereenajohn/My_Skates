@@ -1,5 +1,10 @@
 import 'dart:async';
+import 'package:my_skates/COACH/coach_home_feedcard.dart';
+import 'package:my_skates/Providers/coach_homepage_feed_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
+
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -871,6 +876,23 @@ class _CoachHomepageState extends State<CoachHomepage> {
                     buildButton("Buy and Sell products"),
 
                     const SizedBox(height: 25),
+
+                    ChangeNotifierProvider(
+                      create: (_) => HomeFeedProvider()..fetchHomeFeeds(),
+                      child: Consumer<HomeFeedProvider>(
+                        builder: (_, p, __) {
+                          if (p.loading) {
+                            return const CircularProgressIndicator();
+                          }
+
+                          return Column(
+                            children: p.feeds.map((feed) {
+                              return HomeFeedCard(feed: feed);
+                            }).toList(),
+                          );
+                        },
+                      ),
+                    ),
 
                     // CLUBS
                     const Text(
