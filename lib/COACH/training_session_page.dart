@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/COACH/coach_view_training_registered_details.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 import 'package:latlong2/latlong.dart'; // <-- REQUIRED
@@ -409,138 +410,151 @@ class _CreateTrainingSessionPageState extends State<CreateTrainingSessionPage> {
   }
 
   Widget _trainingSessionCard(TrainingSession session) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(14),
-      decoration: _glassBox(),
-      child: Stack(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // IMAGE
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: session.imageUrl != null
-                    ? Image.network(
-                        "$api${session.imageUrl}",
-                        width: 70,
-                        height: 70,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) {
-                          return _imagePlaceholder();
-                        },
-                      )
-                    : _imagePlaceholder(),
-              ),
-
-              const SizedBox(width: 12),
-
-              // DETAILS
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      session.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      session.location,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.calendar_today,
-                          size: 14,
-                          color: accentColor,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          "${formatDisplayDate(session.startDate)} → ${formatDisplayDate(session.endDate)}",
-                          style: const TextStyle(
-                            color: Colors.white60,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.schedule,
-                          size: 14,
-                          color: accentColor,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          "${formatDisplayTime(session.startTime)} - ${formatDisplayTime(session.endTime)}",
-                          style: const TextStyle(
-                            color: Colors.white60,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CoachViewTrainingRegisteredDetails(
+              sessionId: session.id.toString(),
+              sessionTitle: session.title,
+            ),
           ),
-
-          // ───── 3 DOT MENU (BOTTOM RIGHT) ─────
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: PopupMenuButton<String>(
-              icon: const Icon(
-                Icons.more_vert,
-                color: Colors.white70,
-                size: 22,
-              ),
-              onSelected: (value) {
-                if (value == "edit") {
-                  _editTrainingSession(session);
-                } else if (value == "delete") {
-                  _confirmDelete(session);
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: "edit",
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit, size: 18),
-                      SizedBox(width: 10),
-                      Text("Edit"),
-                    ],
-                  ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(14),
+        decoration: _glassBox(),
+        child: Stack(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // IMAGE
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: session.imageUrl != null
+                      ? Image.network(
+                          "$api${session.imageUrl}",
+                          width: 70,
+                          height: 70,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) {
+                            return _imagePlaceholder();
+                          },
+                        )
+                      : _imagePlaceholder(),
                 ),
-                const PopupMenuItem(
-                  value: "delete",
-                  child: Row(
+      
+                const SizedBox(width: 12),
+      
+                // DETAILS
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.delete, size: 18, color: Colors.redAccent),
-                      SizedBox(width: 10),
-                      Text("Delete", style: TextStyle(color: Colors.redAccent)),
+                      Text(
+                        session.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        session.location,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today,
+                            size: 14,
+                            color: accentColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            "${formatDisplayDate(session.startDate)} → ${formatDisplayDate(session.endDate)}",
+                            style: const TextStyle(
+                              color: Colors.white60,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.schedule,
+                            size: 14,
+                            color: accentColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            "${formatDisplayTime(session.startTime)} - ${formatDisplayTime(session.endTime)}",
+                            style: const TextStyle(
+                              color: Colors.white60,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+      
+            // ───── 3 DOT MENU (BOTTOM RIGHT) ─────
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: PopupMenuButton<String>(
+                icon: const Icon(
+                  Icons.more_vert,
+                  color: Colors.white70,
+                  size: 22,
+                ),
+                onSelected: (value) {
+                  if (value == "edit") {
+                    _editTrainingSession(session);
+                  } else if (value == "delete") {
+                    _confirmDelete(session);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: "edit",
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, size: 18),
+                        SizedBox(width: 10),
+                        Text("Edit"),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: "delete",
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, size: 18, color: Colors.redAccent),
+                        SizedBox(width: 10),
+                        Text("Delete", style: TextStyle(color: Colors.redAccent)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
