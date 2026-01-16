@@ -19,10 +19,10 @@ class _ProfilePageState extends State<ProfilePage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   // Store IDs only
-  String? gender;            // "male", "female", "other"
-  String? selectedCountry;   // ID
-  String? selectedState;     // ID
-  String? selectedDistrict;  // ID
+  String? gender; // "male", "female", "other"
+  String? selectedCountry; // ID
+  String? selectedState; // ID
+  String? selectedDistrict; // ID
 
   List<Map<String, dynamic>> countryList = [];
   List<Map<String, dynamic>> stateList = [];
@@ -92,10 +92,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
     // Filter districts based on selected state ID
     if (selectedState != null) {
-      String stateName = stateList
-          .firstWhere((s) => s["id"].toString() == selectedState)["name"];
+      String stateName = stateList.firstWhere(
+        (s) => s["id"].toString() == selectedState,
+      )["name"];
 
-      districtList = allDistricts.where((d) => d["state"] == stateName).toList();
+      districtList = allDistricts
+          .where((d) => d["state"] == stateName)
+          .toList();
     }
 
     setState(() {});
@@ -115,8 +118,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (res.statusCode == 200) {
         List data = jsonDecode(res.body);
-        countryList =
-            data.map((e) => {"id": e["id"], "name": e["name"]}).toList();
+        countryList = data
+            .map((e) => {"id": e["id"], "name": e["name"]})
+            .toList();
       }
     } catch (e) {}
   }
@@ -133,8 +137,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (res.statusCode == 200) {
         List data = jsonDecode(res.body);
-        stateList =
-            data.map((e) => {"id": e["id"], "name": e["name"]}).toList();
+        stateList = data
+            .map((e) => {"id": e["id"], "name": e["name"]})
+            .toList();
       }
     } catch (e) {}
   }
@@ -248,10 +253,14 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         );
 
-Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
       } else {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(result)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(result)));
       }
     } catch (e) {}
   }
@@ -294,11 +303,14 @@ Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()))
                       backgroundImage: profileImage != null
                           ? FileImage(profileImage!)
                           : (profileNetworkImage != null
-                              ? NetworkImage(profileNetworkImage!)
-                              : null) as ImageProvider<Object>?,
-                      child: profileImage == null &&
-                              profileNetworkImage == null
-                          ? const Text("Upload", style: TextStyle(color: Colors.white))
+                                    ? NetworkImage(profileNetworkImage!)
+                                    : null)
+                                as ImageProvider<Object>?,
+                      child: profileImage == null && profileNetworkImage == null
+                          ? const Text(
+                              "Upload",
+                              style: TextStyle(color: Colors.white),
+                            )
                           : null,
                     ),
                   ),
@@ -344,11 +356,7 @@ Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()))
                   Row(
                     children: [
                       Expanded(
-                        child: _inputField(
-                          "Zip Code",
-                          zipCtrl,
-                          isNumber: true,
-                        ),
+                        child: _inputField("Zip Code", zipCtrl, isNumber: true),
                       ),
                       const SizedBox(width: 15),
                       Expanded(
@@ -375,13 +383,15 @@ Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()))
                           onChange: (v) {
                             selectedState = v;
 
-                            districtList = allDistricts.where(
-                              (d) =>
-                                  d["state"] ==
-                                  stateList.firstWhere(
-                                    (s) => s["id"].toString() == v,
-                                  )["name"],
-                            ).toList();
+                            districtList = allDistricts
+                                .where(
+                                  (d) =>
+                                      d["state"] ==
+                                      stateList.firstWhere(
+                                        (s) => s["id"].toString() == v,
+                                      )["name"],
+                                )
+                                .toList();
 
                             selectedDistrict = null;
                             setState(() {});
@@ -511,10 +521,7 @@ Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()))
         borderRadius: BorderRadius.circular(20),
         borderSide: const BorderSide(color: Colors.redAccent),
       ),
-      errorStyle: const TextStyle(
-        color: Colors.redAccent,
-        fontSize: 12,
-      ),
+      errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 12),
     );
   }
 
@@ -524,10 +531,16 @@ Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()))
     required List<Map<String, dynamic>> items,
     required Function(String?) onChange,
   }) {
+    // ✅ SAFETY CHECK (THIS FIXES THE CRASH)
+    final String? safeValue =
+        (value != null && items.any((e) => e["id"].toString() == value))
+        ? value
+        : null;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: DropdownButtonFormField<String>(
-        value: value,
+        value: safeValue, // ✅ USE SAFE VALUE
         decoration: _dec(label),
         dropdownColor: Colors.black,
         style: const TextStyle(color: Colors.white),
@@ -538,8 +551,7 @@ Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()))
           );
         }).toList(),
         onChanged: onChange,
-        validator: (v) =>
-            v == null || v.isEmpty ? "$label is required" : null,
+        validator: (v) => v == null || v.isEmpty ? "$label is required" : null,
       ),
     );
   }
@@ -554,14 +566,12 @@ Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()))
             initialDate: DateTime(2005),
             firstDate: DateTime(1950),
             lastDate: DateTime.now(),
-            builder: (c, child) =>
-                Theme(data: ThemeData.dark(), child: child!),
+            builder: (c, child) => Theme(data: ThemeData.dark(), child: child!),
           );
           if (picked != null) setState(() => dob = picked);
         },
         child: FormField(
-          validator: (_) =>
-              dob == null ? "Date of Birth is required" : null,
+          validator: (_) => dob == null ? "Date of Birth is required" : null,
           builder: (state) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -580,7 +590,9 @@ Navigator.push(context, MaterialPageRoute(builder: (context)=>const HomePage()))
                   child: Text(
                     state.errorText!,
                     style: const TextStyle(
-                        color: Colors.redAccent, fontSize: 12),
+                      color: Colors.redAccent,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
             ],
