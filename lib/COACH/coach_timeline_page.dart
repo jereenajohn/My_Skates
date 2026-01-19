@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:my_skates/COACH/coach_view_achievements_page.dart';
 import 'package:my_skates/widgets/coach_repost_composer_sheet.dart';
 import 'package:my_skates/widgets/coachfeedcommentsheet.dart';
 import 'package:provider/provider.dart';
@@ -13,6 +14,7 @@ import '../api.dart';
 import '../providers/coach_profile_provider.dart';
 import 'package:my_skates/providers/coach_feed_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:my_skates/coach/add_coach_achievements.dart';
 
 const Color accentColor = Color(0xFF2EE6A6);
 
@@ -27,6 +29,11 @@ class CoachTimelinePage extends StatefulWidget {
 
 class _CoachTimelinePageState extends State<CoachTimelinePage> {
   final Map<Object, GlobalKey> _feedKeys = {};
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +69,225 @@ class _CoachTimelinePageState extends State<CoachTimelinePage> {
     });
   }
 }
+
+class CoachAchievementsSection extends StatelessWidget {
+  const CoachAchievementsSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: fetchAchievements(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final achievements = snapshot.data!;
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      "Achievements",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  // ➕ ADD
+                  IconButton(
+                    icon: const Icon(Icons.add, color: accentColor, size: 22),
+                    tooltip: "Add Achievement",
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AddCoachAchievements(),
+                        ),
+                      );
+                    },
+                  ),
+                  // ✏️ EDIT
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: accentColor, size: 20),
+                    tooltip: "Edit Achievements",
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CoachViewAchievementsPage(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00312D), Colors.black],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(color: accentColor.withOpacity(0.35)),
+                ),
+                child: Column(
+                  children: List.generate(achievements.length, (index) {
+                    final a = achievements[index];
+                    return Column(
+                      children: [
+                        _AchievementListTile(achievement: a),
+                        if (index != achievements.length - 1)
+                          Divider(
+                            color: Colors.white.withOpacity(0.08),
+                            height: 1,
+                          ),
+                      ],
+                    );
+                  }),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AchievementListTile extends StatelessWidget {
+  final Map<String, dynamic> achievement;
+
+  const _AchievementListTile({required this.achievement});
+
+  @override
+  Widget build(BuildContext context) {
+    final image = achievement["image"];
+    final title = achievement["title"] ?? "";
+    final org = achievement["organization"] ?? "";
+    final duration = achievement["date"] ?? "";
+    final location = achievement["location"] ?? "";
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 🔹 LEFT: LOGO / IMAGE
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: Colors.white.withOpacity(0.08),
+              image: image != null
+                  ? DecorationImage(
+                      image: NetworkImage("$api$image"),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: image == null
+                ? const Icon(Icons.emoji_events, color: accentColor, size: 22)
+                : null,
+          ),
+
+          const SizedBox(width: 14),
+
+          // 🔹 RIGHT: DETAILS
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // TITLE
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                if (org.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      org,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 4),
+
+                // DATE
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 13,
+                      color: Colors.white54,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      duration,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+
+                if (location.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on,
+                          size: 13,
+                          color: Colors.white54,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            location,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /* ───────────────────────── MAIN VIEW ───────────────────────── */
 
 class _CoachTimelineView extends StatelessWidget {
@@ -98,9 +324,18 @@ class _CoachTimelineView extends StatelessWidget {
                   const SizedBox(height: 40),
                   const _ProfileHeader(),
                   const SizedBox(height: 20),
+                  const SizedBox(height: 20),
+
+                  // 🏆 ACHIEVEMENTS (NEW)
+                  const CoachAchievementsSection(),
+
+                  const SizedBox(height: 24),
+
+                  // ✍️ POST COMPOSER
                   isPageLoading
                       ? const FeedComposerSkeleton()
                       : const _FeedComposer(),
+
                   const SizedBox(height: 20),
 
                   // ✅ this is dynamic, so the list cannot be const
@@ -346,6 +581,31 @@ class _FeedList extends StatelessWidget {
 Future<int?> _myUserId() async {
   final prefs = await SharedPreferences.getInstance();
   return prefs.getInt("id");
+}
+
+Future<List<Map<String, dynamic>>> fetchAchievements() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    final res = await http.get(
+      Uri.parse("$api/api/myskates/achievements/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
+
+    print(res.body);
+
+    if (res.statusCode == 200) {
+      final List data = jsonDecode(res.body);
+      return data.cast<Map<String, dynamic>>();
+    }
+  } catch (e) {
+    debugPrint("FETCH ACHIEVEMENTS ERROR: $e");
+  }
+  return [];
 }
 
 /* ───────────────────────── FEED CARD ───────────────────────── */
