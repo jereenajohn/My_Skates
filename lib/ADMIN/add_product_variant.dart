@@ -24,13 +24,14 @@ class _variantState extends State<variant> {
 
 
 List<Map<String, dynamic>> filteredValues = [];
+/// attributeId -> list of valueIds
 Map<String, List<String>> selectedAttributes = {};
 
 Map<String, List<Map<String, dynamic>>> groupedValues = {};
 String? selectedAttributeId;
 bool loadingVariants = true;
 bool loadingAttributes = true;
-List<String> selectedValueIds = []; 
+List<String> selectedValueIds = []; // values for selected attribute
 String? activeAttributeId;
 List<String> tempSelectedValueIds = [];
 
@@ -101,7 +102,7 @@ Future<void> getVariants() async {
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
 
-      final List data = decoded['data']; 
+      final List data = decoded['data']; // ✅ IMPORTANT
 
       List<Map<String, dynamic>> temp = [];
 
@@ -260,6 +261,7 @@ Future<void> submitProduct() async {
       return;
     }
 
+    // 🔹 BUILD ATTRIBUTES PAYLOAD (attribute_id → [value_ids])
     final Map<String, List<int>> attributesPayload = {};
 
     selectedAttributes.forEach((attrId, valueIds) {
@@ -269,6 +271,7 @@ Future<void> submitProduct() async {
       }
     });
 
+    // ❌ PAYLOAD EMPTY AFTER BUILD
     if (attributesPayload.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -290,8 +293,10 @@ Future<void> submitProduct() async {
 
     request.headers["Authorization"] = "Bearer $token";
 
+    // 🔑 REQUIRED BY BACKEND
     request.fields["attributes"] = jsonEncode(attributesPayload);
 
+    // 🔍 DEBUG
     print("---- REQUEST FIELDS ----");
     request.fields.forEach((key, value) {
       print("$key : $value");
@@ -336,7 +341,7 @@ Future<void> submitProduct() async {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: const Color.fromARGB(255, 0, 0, 0),  
+        backgroundColor: const Color.fromARGB(255, 0, 0, 0),   // IMPORTANT
   extendBodyBehindAppBar: true,  
       body: Container(
         decoration: const BoxDecoration(
@@ -362,7 +367,7 @@ Future<void> submitProduct() async {
       height: 42,
       width: 42,
       decoration: BoxDecoration(
-        color: const Color.fromARGB(255, 134, 134, 134).withOpacity(0.15), 
+        color: const Color.fromARGB(255, 134, 134, 134).withOpacity(0.15),   // soft transparent circle
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white24),
       ),
@@ -478,7 +483,7 @@ if (loadingVariants) ...[
     confirmDismiss: (_) async {
       _handleUpdateProduct(variant);
   
-      return false; 
+      return false; // ❗ prevent actual dismiss
     },
 
     child: _variantCard(variant),
