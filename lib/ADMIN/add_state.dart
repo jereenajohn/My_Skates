@@ -15,7 +15,7 @@ class state extends StatefulWidget {
 
 class _stateState extends State<state> {
   String? selectedCountryName;
-  int? selectedCountryId;                
+  int? selectedCountryId;                 // ← will hold selected country id
 bool showForm = false;
 
   TextEditingController statetext = TextEditingController();
@@ -181,7 +181,7 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
       },
       body: {
         "name": stateName,
-        "country_id": countryId.toString(), 
+        "country_id": countryId.toString(),   // FIXED
       },
     );
 
