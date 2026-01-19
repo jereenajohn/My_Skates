@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/STUDENTS/add_student_achievements.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart'; // <-- Navigation Target Example
 import 'package:my_skates/STUDENTS/user_follow_requests.dart';
@@ -157,6 +158,20 @@ class _UserSettingsState extends State<UserSettings> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const UserViewEvents()),
+                  );
+                },
+              ),
+              _divider(),
+
+                _menuTile(
+                icon: Icons.home,
+                text: "Add Achievements",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AddstudentAchievements(),
+                    ),
                   );
                 },
               ),
