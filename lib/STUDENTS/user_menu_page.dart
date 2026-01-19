@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/COACH/coach_timeline_page.dart';
 import 'package:my_skates/STUDENTS/user_settings.dart';
+import 'package:my_skates/STUDENTS/user_timeline_page.dart';
 import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -262,7 +263,7 @@ class _UserMenuPageState extends State<UserMenuPage>
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => CoachTimelinePage(
+            builder: (_) => UserTimelinePage(
               // name: studentName,
               // role: studentRole,
               // image: studentImage,
