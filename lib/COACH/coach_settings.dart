@@ -9,6 +9,7 @@ import 'package:my_skates/COACH/coach_followers_list.dart';
 import 'package:my_skates/COACH/coach_following_list.dart';
 import 'package:my_skates/COACH/coach_profile.dart';
 import 'package:my_skates/COACH/view_clubs.dart';
+import 'package:my_skates/coach/add_coach_achievements.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart'; // <-- Navigation Target Example
 import 'package:shared_preferences/shared_preferences.dart';
@@ -158,90 +159,85 @@ class _CoachSettingsState extends State<CoachSettings> {
               _divider(),
               _menuTile(
                 icon: Icons.home,
-                text: "Add Club",
+                text: "Add Achievements",
                 onTap: () {
-                 
-
-                   Navigator.push(
-                                  context,
-                                  slideRightToLeftRoute(
-                                    AddClub()
-                                  ),
-                                );
-                  
+                  Navigator.push(
+                    context,
+                    slideRightToLeftRoute(AddCoachAchievements()),
+                  );
                 },
               ),
-                 _divider(),
-               _menuTile(
+              _divider(),
+
+              _menuTile(
+                icon: Icons.home,
+                text: "Add Club",
+                onTap: () {
+                  Navigator.push(context, slideRightToLeftRoute(AddClub()));
+                },
+              ),
+              _divider(),
+              _menuTile(
                 icon: Icons.home,
                 text: "Add address",
                 onTap: () {
-                  
-
-
-                   Navigator.push(
-                                  context,
-                                  slideRightToLeftRoute(
-                                    ViewAddress()
-                                  ),
-                                );
+                  Navigator.push(context, slideRightToLeftRoute(ViewAddress()));
                 },
               ),
               _divider(),
-               _menuTile(
+              _menuTile(
                 icon: Icons.home,
                 text: "View Club",
                 onTap: () {
-
-                   Navigator.push(
-                                  context,
-                                  slideRightToLeftRoute(
-                                    ViewClubs()
-                                  ),
-                                );
+                  Navigator.push(context, slideRightToLeftRoute(ViewClubs()));
                 },
               ),
               _divider(),
-               _menuTile(
+              _menuTile(
                 icon: Icons.home,
                 text: "Follow Requests",
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const CoachFollowRequest()),
+                    MaterialPageRoute(
+                      builder: (_) => const CoachFollowRequest(),
+                    ),
                   );
                 },
               ),
               _divider(),
 
-                _menuTile(
+              _menuTile(
                 icon: Icons.home,
                 text: "Followers",
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const CoachFollowersList()),
+                    MaterialPageRoute(
+                      builder: (_) => const CoachFollowersList(),
+                    ),
                   );
                 },
               ),
               _divider(),
 
-   _menuTile(
+              _menuTile(
                 icon: Icons.home,
                 text: "Following",
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const CoachFollowingList()),
+                    MaterialPageRoute(
+                      builder: (_) => const CoachFollowingList(),
+                    ),
                   );
                 },
               ),
               _divider(),
 
-
               _menuTile(icon: Icons.show_chart_outlined, text: "Your activity"),
               _divider(),
-              
+
               _menuTile(
                 icon: Icons.notifications_outlined,
                 text: "Notifications",
