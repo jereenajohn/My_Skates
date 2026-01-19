@@ -81,6 +81,52 @@ class _cartState extends State<cart> {
       addressLoading = false;
     }
   }
+}
+Future ordercreate()async{
+  
+
+}
+
+Future<void> _removeFromCart(dynamic item) async {
+ final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+
+  try {
+    final response = await http.delete(
+      Uri.parse('$api/api/myskates/cart/item/${item["id"]}/'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      setState(() {
+        cartItems.removeWhere((cartItem) => cartItem["id"] == item["id"]);
+      });
+    } else {
+      debugPrint("Failed to delete cart item: ${response.body}");
+    }
+  } catch (e) {
+    debugPrint("Remove cart error: $e");
+  }
+}
+
+updatecart(int cartItemId, int quantity) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+
+  try {
+    final response = await http.patch(
+      Uri.parse('$api/api/myskates/cart/item/$cartItemId/'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'quantity': quantity,
+      }),
+    );
 
   updatecart(int cartItemId, int quantity) async {
     final prefs = await SharedPreferences.getInstance();
@@ -373,6 +419,20 @@ class _cartState extends State<cart> {
                     ),
                   ],
                 ),
+                  ),
+                  // InkWell(
+                  //   borderRadius: BorderRadius.circular(30),
+                  //   onTap: () {},
+                  //   child: const Padding(
+                  //     padding: EdgeInsets.all(6),
+                  //     child: Icon(
+                  //       Icons.favorite_border,
+                  //       color: Colors.white,
+                  //       size: 22,
+                  //     ),
+                  //   ),
+                  // ),
+                ],
               ),
 
               Expanded(
@@ -399,6 +459,37 @@ class _cartState extends State<cart> {
               ),
             ],
           ),
+           Expanded(
+  child: ListView.builder(
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 140),
+    itemCount: cartItems.length + 3, // address + order summary
+    itemBuilder: (context, index) {
+  // 1️⃣ Address section (TOP)
+  if (index == 0) {
+    return _buildAddressSection();
+  }
+
+  // 2️⃣ Cart items
+  if (index >= 1 && index <= cartItems.length) {
+    final item = cartItems[index - 1];
+    final variant = item["variant"];
+    return _buildCartItem(item, variant);
+  }
+
+  // 3️⃣ Payment Method (AFTER PRODUCTS)
+  if (index == cartItems.length + 1) {
+    return _buildPaymentMethodSection();
+  }
+
+  // 4️⃣ Order Summary (LAST)
+  return _buildOrderSummary();
+},
+
+  ),
+),
+
+
+          ],
         ),
       ),
     );
@@ -409,6 +500,119 @@ class _cartState extends State<cart> {
     final double discount = double.tryParse(discountTotal) ?? 0;
     final double platformFee = 29.0;
     final double deliveryFee = 99.0;
+String selectedPayment = "cod"; // default COD
+Widget _buildPaymentMethodSection() {
+  return Container(
+    margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: const Color(0xFF121212),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: Colors.white.withOpacity(0.08)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Payment Method",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'Poppins',
+          ),
+        ),
+        const SizedBox(height: 13),
+
+        _paymentTile(
+          value: "cod",
+          title: "Cash on Delivery",
+          subtitle: "Pay when your order arrives",
+          icon: Icons.payments_outlined,
+        ),
+
+        const SizedBox(height: 10),
+
+        _paymentTile(
+          value: "online",
+          title: "Online Payment",
+          subtitle: "UPI / Card / Netbanking",
+          icon: Icons.credit_card,
+        ),
+      ],
+    ),
+  );
+}
+Widget _paymentTile({
+  required String value,
+  required String title,
+  required String subtitle,
+  required IconData icon,
+}) {
+  final bool selected = selectedPayment == value;
+
+  return InkWell(
+    borderRadius: BorderRadius.circular(13),
+    onTap: () {
+      setState(() {
+        selectedPayment = value;
+      });
+    },
+    child: Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: selected ? Colors.tealAccent : Colors.white24,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.tealAccent),
+          const SizedBox(width: 12),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Icon(
+            selected
+                ? Icons.radio_button_checked
+                : Icons.radio_button_off,
+            color: Colors.tealAccent,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+
+Widget _buildOrderSummary() {
+  final double bagTotal = double.tryParse(subtotal) ?? 0;
+  final double discount = double.tryParse(discountTotal) ?? 0;
+  final double platformFee = 29.0;
+  final double deliveryFee = 99.0;
 
     final double payable = bagTotal - discount + platformFee; // delivery free
 
@@ -663,6 +867,45 @@ class _cartState extends State<cart> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+            // RIGHT ACTIONS
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // DELETE ICON
+                GestureDetector(
+                  onTap: () => _confirmDelete(item),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.delete_outline,
+                      size: 20,
+                      color: Colors.redAccent,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // QTY BOX
+                GestureDetector(
+                  onTap: () => _showQtyPopup(item),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.tealAccent),
+                    ),
+                    child: Text(
+                      "Qty ${item["quantity"]}",
+                      style: const TextStyle(
+                        color: Colors.tealAccent,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -689,6 +932,47 @@ class _cartState extends State<cart> {
                 ),
               ),
               const SizedBox(width: 12),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
+        child: Divider(
+          color: Colors.white.withOpacity(0.08),
+          height: 1,
+          thickness: 1,
+        ),
+      ),
+    ],
+  );
+}
+void _confirmDelete(dynamic item) {
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      backgroundColor: Colors.black,
+      title: const Text(
+        "Remove item?",
+        style: TextStyle(color: Colors.white),
+      ),
+      content: const Text(
+        "This item will be removed from your cart.",
+        style: TextStyle(color: Colors.white70),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Cancel", style: TextStyle(color: Colors.white60)),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+            _removeFromCart(item); // API / state logic
+          },
+          child:
+              const Text("Remove", style: TextStyle(color: Colors.redAccent)),
+        ),
+      ],
+    ),
+  );
+}
 
               // DETAILS
               Expanded(
@@ -1009,6 +1293,22 @@ class _cartState extends State<cart> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                   elevation: 0,
+          // PROCEED BUTTON
+          SizedBox(
+            height: 48,
+            child: ElevatedButton(
+              onPressed: cartItems.isEmpty
+                  ? null
+                  : () {
+                     
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.tealAccent,
+                foregroundColor: Colors.black,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 28),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Text(
                   "Proceed",
