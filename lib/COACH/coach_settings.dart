@@ -3,6 +3,7 @@ import 'package:my_skates/ADMIN/add_address.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/view_address.dart';
 import 'package:my_skates/COACH/add_club.dart';
+import 'package:my_skates/COACH/add_coach_achievements.dart';
 import 'package:my_skates/COACH/coach_add_events.dart';
 import 'package:my_skates/COACH/coach_follow_request.dart';
 import 'package:my_skates/COACH/coach_followers_list.dart';
@@ -71,7 +72,7 @@ class _CoachSettingsState extends State<CoachSettings> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F), // Dark IG-style background
+      backgroundColor: const Color(0xFF0F0F0F),
 
       appBar: AppBar(
         backgroundColor: const Color(0xFF0F0F0F),
@@ -156,92 +157,85 @@ class _CoachSettingsState extends State<CoachSettings> {
               const SizedBox(height: 12),
               _menuTile(icon: Icons.phone, text: "Change Phone Number"),
               _divider(),
+
+               _menuTile(
+                icon: Icons.home,
+                text: "Add Achievements",
+                onTap: () {
+                  Navigator.push(context, slideRightToLeftRoute(AddCoachAchievements()));
+                },
+              ),
+              _divider(),
+
               _menuTile(
                 icon: Icons.home,
                 text: "Add Club",
                 onTap: () {
-                 
-
-                   Navigator.push(
-                                  context,
-                                  slideRightToLeftRoute(
-                                    AddClub()
-                                  ),
-                                );
-                  
+                  Navigator.push(context, slideRightToLeftRoute(AddClub()));
                 },
               ),
-                 _divider(),
-               _menuTile(
+              _divider(),
+              _menuTile(
                 icon: Icons.home,
                 text: "Add address",
                 onTap: () {
-                  
-
-
-                   Navigator.push(
-                                  context,
-                                  slideRightToLeftRoute(
-                                    ViewAddress()
-                                  ),
-                                );
+                  Navigator.push(context, slideRightToLeftRoute(ViewAddress()));
                 },
               ),
               _divider(),
-               _menuTile(
+              _menuTile(
                 icon: Icons.home,
                 text: "View Club",
                 onTap: () {
-
-                   Navigator.push(
-                                  context,
-                                  slideRightToLeftRoute(
-                                    ViewClubs()
-                                  ),
-                                );
+                  Navigator.push(context, slideRightToLeftRoute(ViewClubs()));
                 },
               ),
               _divider(),
-               _menuTile(
+              _menuTile(
                 icon: Icons.home,
                 text: "Follow Requests",
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const CoachFollowRequest()),
+                    MaterialPageRoute(
+                      builder: (_) => const CoachFollowRequest(),
+                    ),
                   );
                 },
               ),
               _divider(),
 
-                _menuTile(
+              _menuTile(
                 icon: Icons.home,
                 text: "Followers",
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const CoachFollowersList()),
+                    MaterialPageRoute(
+                      builder: (_) => const CoachFollowersList(),
+                    ),
                   );
                 },
               ),
               _divider(),
 
-   _menuTile(
+              _menuTile(
                 icon: Icons.home,
                 text: "Following",
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const CoachFollowingList()),
+                    MaterialPageRoute(
+                      builder: (_) => const CoachFollowingList(),
+                    ),
                   );
                 },
               ),
               _divider(),
 
-
               _menuTile(icon: Icons.show_chart_outlined, text: "Your activity"),
               _divider(),
-              
+
               _menuTile(
                 icon: Icons.notifications_outlined,
                 text: "Notifications",

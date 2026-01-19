@@ -15,7 +15,7 @@ class AddValues extends StatefulWidget {
 
 class _AddValuesState extends State<AddValues> {
   String? selectedCountryName;
-  int? selectedCountryId;                 // ← will hold selected country id
+  int? selectedCountryId;               
 bool showForm = false;
 
   TextEditingController statetext = TextEditingController();
@@ -184,7 +184,7 @@ print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
       },
       body: {
         "name": Name,
-        "attributes": stateId.toString(),   // FIXED
+        "attributes": stateId.toString(),  
       },
     );
 

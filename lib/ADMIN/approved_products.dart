@@ -62,7 +62,6 @@ Future<String> getAddressFromLatLng(String? lat, String? lng) async {
   if (response.statusCode == 200) {
     final decoded = jsonDecode(response.body);
 
-    // ✅ SAFETY CHECK
     final List<dynamic> parsed = decoded['data'] ?? [];
 
     coach = [];
@@ -76,7 +75,7 @@ Future<String> getAddressFromLatLng(String? lat, String? lng) async {
         'price': c['base_price']?.toString() ?? "",
         'description': c['description'] ?? "",
         'user': c['user']?.toString() ?? "",
-        'variants': c['variants'] ?? [], // keep for later use
+        'variants': c['variants'] ?? [], 
       });
     }
 
