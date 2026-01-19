@@ -101,6 +101,9 @@ class HomeFeedProvider extends ChangeNotifier {
       headers: {"Authorization": "Bearer $token"},
     );
 
+    print("============${res.statusCode}");
+    print("=============>>${res.body}");
+
     if (res.statusCode == 200) {
       final decoded = jsonDecode(res.body);
       feeds = decoded is List ? decoded : decoded["data"] ?? [];
