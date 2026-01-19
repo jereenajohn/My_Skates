@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/Providers/coach_feed_provider.dart';
+import 'package:my_skates/widgets/coach_repost_composer_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:my_skates/Providers/coach_homepage_feed_provider.dart';
 import 'package:my_skates/api.dart';
@@ -153,15 +155,21 @@ class HomeFeedCard extends StatelessWidget {
           icon: const Icon(Icons.mode_comment_outlined, color: Colors.white70),
         ),
 
-        IconButton(
-          onPressed: () {
-            context.read<HomeFeedProvider>().repostFeed(
-              context: context,
-              feedId: feedId,
-            );
-          },
-          icon: const Icon(Icons.repeat, color: Color(0xFF2EE6A6)),
-        ),
+        // IconButton(
+        //   onPressed: () {
+        //     showModalBottomSheet(
+        //       context: context,
+        //       isScrollControlled: true,
+        //       backgroundColor: Colors.transparent,
+        //       builder: (_) => RepostComposerSheet(
+        //         feedId: feedId,
+        //         feed: feed,
+        //         feedProvider: context.read<CoachFeedProvider>(), // ✅ FIX
+        //       ),
+        //     );
+        //   },
+        //   icon: const Icon(Icons.repeat, color: Color(0xFF2EE6A6)),
+        // ),
       ],
     );
   }
