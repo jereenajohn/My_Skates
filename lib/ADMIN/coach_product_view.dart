@@ -739,7 +739,7 @@ Future<void> getproduct(String status) async {
       if (productsLoading)
         _productGridSkeleton()
       else if (products.isEmpty)
-        Center(child: Text("No products found"))
+        Center(child: Text("No products found",style: TextStyle(color: const Color.fromARGB(255, 167, 167, 167)),))
       else
       GridView.builder(
         shrinkWrap: true,
