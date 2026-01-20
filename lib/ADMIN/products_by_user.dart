@@ -112,7 +112,7 @@ Future<void> getproduct(String status) async {
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString("access");
   final userId = prefs.getInt("id");
-print("USER ID IN PRODUCT STATUS: $userId");
+print("USER ID IN PRODUCT STATUS:::::::::::::::::::::; $userId");
   final response = await http.get(
     Uri.parse(
       '$api/api/myskates/products/status/$userId/user/$status/',
