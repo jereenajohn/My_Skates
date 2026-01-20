@@ -11,6 +11,7 @@ import 'package:my_skates/ADMIN/wishlist.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/bottomnavigation.dart';
 import 'package:my_skates/ADMIN/dashboard.dart';
+import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
@@ -373,10 +374,22 @@ Future<void> getproduct(String status) async {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
+    final prefs = await SharedPreferences.getInstance();
+    final userType = prefs.getString("user_type")?.toLowerCase().trim() ?? "";
+    
+    Widget dashboardPage;
+    if (userType == "coach") {
+      dashboardPage = const CoachHomepage();
+    } else if (userType == "student") {
+      dashboardPage = const HomePage();
+    } else {
+      dashboardPage = const DashboardPage();
+    }
+    
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => const DashboardPage(),
+        builder: (_) => dashboardPage,
       ),
     );
     return false; // ⛔ prevent app close

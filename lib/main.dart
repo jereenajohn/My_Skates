@@ -30,11 +30,12 @@ class MyApp extends StatelessWidget {
 
     print("User Type from prefs: $userType");
     if (token != null && token.isNotEmpty) {
-      if (userType == "admin") {
+      final normalizedUserType = userType?.toLowerCase().trim();
+      if (normalizedUserType == "admin") {
         return DashboardPage();
-      } else if (userType == "coach") {
-        return CoachHomepage();
-      } else if (userType == "student") {
+      } else if (normalizedUserType == "coach") {
+        return const CoachHomepage();
+      } else if (normalizedUserType == "student") {
         return const HomePage();
       }
     }
