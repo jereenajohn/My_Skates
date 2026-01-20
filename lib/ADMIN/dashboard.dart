@@ -311,10 +311,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
               const SizedBox(height: 25),
 
-              buildButton("Connect Coaches"),
-              buildButton("Connect Students"),
-              buildButton("Find Clubs"),
-              buildButton("Find Events"),
+              buildButton("Approve Coaches"),
+              // buildButton("Connect Students"),
+              buildButton("Add Products"),
+              buildButton("Approve Products"),
               buildButton("Buy and Sell products"),
 
               const SizedBox(height: 25),
@@ -521,7 +521,7 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ),
         onPressed: () {
-          if (title == "Connect Coaches") {
+          if (title == "Approve Coaches") {
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -533,11 +533,11 @@ class _DashboardPageState extends State<DashboardPage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AddProduct(),
+                builder: (context) => const  UserApprovedProducts(),
               ),
             );
           }
-          if(title =="Find Events"){
+          if(title =="Approve Products"){
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -545,11 +545,11 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             );
           }
-          if(title =="Find Clubs"){
+          if(title =="Add Products"){
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const UserApprovedProducts(),
+                builder: (context) => const AddProduct(),
               ),
             );
           }

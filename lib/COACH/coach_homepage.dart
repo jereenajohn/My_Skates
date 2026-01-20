@@ -877,22 +877,22 @@ class _CoachHomepageState extends State<CoachHomepage> {
 
                     const SizedBox(height: 25),
 
-                    ChangeNotifierProvider(
-                      create: (_) => HomeFeedProvider()..fetchHomeFeeds(),
-                      child: Consumer<HomeFeedProvider>(
-                        builder: (_, p, __) {
-                          if (p.loading) {
-                            return const CircularProgressIndicator();
-                          }
+                    // ChangeNotifierProvider(
+                    //   create: (_) => HomeFeedProvider()..fetchHomeFeeds(),
+                    //   child: Consumer<HomeFeedProvider>(
+                    //     builder: (_, p, __) {
+                    //       if (p.loading) {
+                    //         return const CircularProgressIndicator();
+                    //       }
 
-                          return Column(
-                            children: p.feeds.map((feed) {
-                              return HomeFeedCard(feed: feed);
-                            }).toList(),
-                          );
-                        },
-                      ),
-                    ),
+                    //       return Column(
+                    //         children: p.feeds.map((feed) {
+                    //           return HomeFeedCard(feed: feed);
+                    //         }).toList(),
+                    //       );
+                    //     },
+                    //   ),
+                    // ),
 
                     // CLUBS
                     const Text(
