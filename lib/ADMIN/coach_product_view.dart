@@ -10,6 +10,7 @@ import 'package:my_skates/ADMIN/update_product.dart';
 import 'package:my_skates/ADMIN/wishlist.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/bottomnavigation.dart';
+import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
@@ -81,6 +82,7 @@ Future<void> loadInitialData() async {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Login expired. Please login again.")),
     );
+
     return;
   }
 
@@ -374,7 +376,7 @@ Future<void> getproduct(String status) async {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => const CoachHomepage(),
+        builder: (_) => const DashboardPage(),
       ),
     );
     return false; // ⛔ prevent app close

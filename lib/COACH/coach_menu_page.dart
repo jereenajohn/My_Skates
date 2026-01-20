@@ -1,9 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:my_skates/COACH/club_list.dart';
+import 'package:my_skates/COACH/coach_followers_list.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/COACH/coach_timeline_page.dart';
 import 'package:my_skates/COACH/training_session_page.dart';
+import 'package:my_skates/COACH/view_clubs.dart';
 import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -29,6 +32,12 @@ class _CoachMenuPageState extends State<CoachMenuPage>
   List<Map<String, dynamic>> students = [];
   bool studentsLoading = true;
   bool studentsNoData = false;
+  bool loading = true;
+  bool noData = false;
+  List<Map<String, dynamic>> followers = [];
+  List<Map<String, dynamic>> following = [];
+  int get followersCount => followers.length;
+  int get followingCount => following.length;
 
   @override
   void initState() {
@@ -48,6 +57,8 @@ class _CoachMenuPageState extends State<CoachMenuPage>
 
     _controller.forward();
     fetchcoachDetails();
+    fetchCoachFollowers();
+    fetchFollowing();
   }
 
   @override
@@ -64,6 +75,91 @@ class _CoachMenuPageState extends State<CoachMenuPage>
   Future<int?> getUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getInt("id");
+  }
+
+  Future<void> fetchCoachFollowers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/user/followers/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      print("COACH FOLLOWERS STATUS: ${response.statusCode}");
+      print("COACH FOLLOWERS BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final List raw = decoded["data"] ?? [];
+
+        /// 🔹 Normalize API response here
+        final List<Map<String, dynamic>> normalized = raw
+            .map((e) {
+              return {
+                "id": e["follower__id"],
+                "first_name": e["follower__first_name"],
+                "last_name": e["follower__last_name"],
+                "profile": e["follower__profile"],
+                "user_type": e["follower__user_type"],
+              };
+            })
+            .where((e) => e["id"] != null)
+            .toList();
+
+        setState(() {
+          followers = normalized;
+          noData = followers.isEmpty;
+          loading = false;
+        });
+      } else {
+        setState(() {
+          noData = true;
+          loading = false;
+        });
+      }
+    } catch (e) {
+      print("COACH FOLLOWERS ERROR: $e");
+      setState(() {
+        noData = true;
+        loading = false;
+      });
+    }
+  }
+
+  Future<void> fetchFollowing() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final res = await http.get(
+        Uri.parse("$api/api/myskates/user/following/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      print("===== FETCH FOLLOWING =====");
+      print("STATUS: ${res.statusCode}");
+      print("BODY: ${res.body}");
+      print("==========================");
+
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body); // Map<String, dynamic>
+        final List raw = decoded["data"] ?? [];
+
+        setState(() {
+          following = raw
+              .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+              .toList();
+          loading = false;
+        });
+      } else {
+        loading = false;
+      }
+    } catch (e) {
+      print("FOLLOWING ERROR: $e");
+      loading = false;
+    }
   }
 
   Future<void> fetchcoachDetails() async {
@@ -261,51 +357,122 @@ class _CoachMenuPageState extends State<CoachMenuPage>
         int? userId = await getUserId();
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => CoachTimelinePage(
-              // name: studentName,
-              // role: studentRole,
-              // image: studentImage,
-              // coachId: userId,
-            ),
-          ),
+          MaterialPageRoute(builder: (_) => CoachTimelinePage()),
         );
       },
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundImage:
-                (studentImage != null &&
-                    studentImage!.isNotEmpty &&
-                    studentImage != "/media/profile_images/none.jpeg")
-                ? NetworkImage("$api$studentImage")
-                : const AssetImage("lib/assets/img.jpg") as ImageProvider,
-          ),
-          const SizedBox(width: 14),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isLoading
-                    ? "Loading..."
-                    : (studentName.isNotEmpty ? studentName : "Coach"),
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 8),
+        child: Row(
+          children: [
+            // PROFILE IMAGE
+            CircleAvatar(
+              radius: 28,
+              backgroundImage:
+                  (studentImage != null &&
+                      studentImage!.isNotEmpty &&
+                      studentImage != "/media/profile_images/none.jpeg")
+                  ? NetworkImage("$api$studentImage")
+                  : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+            ),
+        
+            const SizedBox(width: 14),
+        
+            // RIGHT CONTENT
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // NAME + ROLE INLINE
+                  Row(
+        
+                    children: [
+                      Flexible(
+                        child: Text(
+                          isLoading
+                              ? "Loading..."
+                              : (studentName.isNotEmpty ? studentName : "Coach"),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        studentRole.isNotEmpty
+                            ? _formatRole(studentRole)
+                            : "Coach",
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+        
+                  const SizedBox(height: 10),
+        
+                  // FOLLOWERS / FOLLOWING
+                  Column(
+                    children: [
+                      // COUNTS ROW
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _countText(followersCount),
+                          const SizedBox(width: 48),
+                          _countText(followingCount),
+                        ],
+                      ),
+        
+                      const SizedBox(height: 2),
+        
+                      // LABELS ROW
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _labelText("Followers"),
+                          const SizedBox(width: 48),
+                          _labelText("Following"),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                studentRole.isNotEmpty
-                    ? _formatRole(studentRole)
-                    : "Certified Skating Coach",
-                style: const TextStyle(fontSize: 13, color: Colors.white70),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _countText(int count) {
+    return SizedBox(
+      width: 60, // 👈 ensures perfect centering
+      child: Text(
+        count.toString(),
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+
+  Widget _labelText(String label) {
+    return SizedBox(
+      width: 60, // 👈 MUST MATCH count width
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: Colors.white54, fontSize: 11),
       ),
     );
   }
@@ -339,7 +506,14 @@ class _CoachMenuPageState extends State<CoachMenuPage>
             title: "Athletes",
             subtitle: "Active Skaters",
             icon: Icons.groups,
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CoachFollowersList(),
+                ),
+              );
+            },
           ),
           _SportCard(
             title: "Performance",
@@ -365,9 +539,18 @@ class _CoachMenuPageState extends State<CoachMenuPage>
           ),
 
           _SportCard(
-            title: "Events",
+            title: "Clubs",
             subtitle: "Competitions",
-            icon: Icons.event, onTap: () {  },
+            icon: Icons.event,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ViewClubs(),
+                ),
+              );
+              
+            },
           ),
         ),
         const SizedBox(height: 14),
@@ -530,4 +713,3 @@ class _SportCard extends StatelessWidget {
     );
   }
 }
-

@@ -10,8 +10,7 @@ import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:app_links/app_links.dart';
 
 // 🔑 REQUIRED FOR DEEP LINKS (PRODUCTION)
-final GlobalKey<NavigatorState> navigatorKey =
-    GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,13 +28,13 @@ class MyApp extends StatelessWidget {
     final token = prefs.getString("access");
     final userType = prefs.getString("user_type");
 
-print("User Type from prefs: $userType");
+    print("User Type from prefs: $userType");
     if (token != null && token.isNotEmpty) {
       if (userType == "admin") {
         return DashboardPage();
       } else if (userType == "coach") {
         return CoachHomepage();
-      } else {
+      } else if (userType == "student") {
         return const HomePage();
       }
     }
@@ -100,20 +99,16 @@ class _DeepLinkWrapperState extends State<_DeepLinkWrapper> {
     });
   }
 
- void _handleLink(Uri uri) {
-  if (uri.pathSegments.length == 2 &&
-      uri.pathSegments.first == "feed") {
-    final feedId = int.tryParse(uri.pathSegments[1]);
-    if (feedId != null) {
-      navigatorKey.currentState?.push(
-        MaterialPageRoute(
-          builder: (_) => CoachTimelinePage(feedId: feedId),
-        ),
-      );
+  void _handleLink(Uri uri) {
+    if (uri.pathSegments.length == 2 && uri.pathSegments.first == "feed") {
+      final feedId = int.tryParse(uri.pathSegments[1]);
+      if (feedId != null) {
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(builder: (_) => CoachTimelinePage(feedId: feedId)),
+        );
+      }
     }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
