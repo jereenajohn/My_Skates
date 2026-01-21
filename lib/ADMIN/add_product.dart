@@ -37,10 +37,17 @@ class _AddProductState extends State<AddProduct> {
 
   DateTime? dob;
 
-  
+  String? productType;
+final TextEditingController stockCtrl = TextEditingController();
+final TextEditingController discount = TextEditingController();
+
   final TextEditingController titleCtrl = TextEditingController();
   final TextEditingController descriptionCtrl = TextEditingController();
    final TextEditingController priceCtrl = TextEditingController();
+final List<Map<String, String>> productTypeList = [
+  {"id": "single", "name": "Single Product"},
+  {"id": "variant", "name": "Has Variants"},
+];
 
   @override
   void initState() {
@@ -112,6 +119,9 @@ class _AddProductState extends State<AddProduct> {
     final token = prefs.getString("access");
     final userId = prefs.getInt("id");
 
+    print("useriddddddddddddddddddddddddddd$userId");
+
+
     if (token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Login expired. Please login again.")),
@@ -134,6 +144,15 @@ class _AddProductState extends State<AddProduct> {
     );
 
     request.headers["Authorization"] = "Bearer $token";
+request.fields["product_type"] = productType!;
+
+if (productType == "single") {
+  request.fields["stock"] = stockCtrl.text.trim();
+}
+if (productType == "single") {
+  request.fields["discount"] = discount.text.trim();
+}
+
 
     // Add normal text fields
     request.fields["user"] = userId.toString();
@@ -357,6 +376,33 @@ SizedBox(height: 20),
                     
                     ],
                   ),
+_dropdownField(
+  label: "Product Type",
+  value: productType,
+  items: productTypeList,
+  onChange: (v) {
+    setState(() {
+      productType = v;
+      if (productType != "single") {
+        stockCtrl.clear(); // reset stock if not single
+      }
+    });
+  },
+),
+if (productType == "single")
+  _inputField(
+    "Stock",
+    stockCtrl,
+    isNumber: true,
+  ),
+  if (productType == "single")
+  _inputField(
+    "Discount",
+    discount,
+    isNumber: true,
+  ),
+  
+
 
                   _inputField("Price", priceCtrl),
 
@@ -376,6 +422,29 @@ SizedBox(height: 20),
                           );
                           return;
                         }
+
+                        if (productType == null) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text("Product Type is required")),
+  );
+  return;
+}
+
+if (productType == "single" && stockCtrl.text.trim().isEmpty) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text("Stock is required for single product")),
+  );
+  return;
+}
+if (productType == "single" && discount.text.trim().isEmpty) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text("discount is required for single product")),
+  );
+  return;
+}
+
+
+
 
                        submitProduct();
                       },
