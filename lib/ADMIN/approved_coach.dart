@@ -73,6 +73,9 @@ Future<void> getcoach() async {
         'location': finalLocation,
         'profile': c['profile'] != null ? '$api${c['profile']}' : "",
         'image': c['image'] != null ? '$api${c['image']}' : "",
+        'document': c['document'] != null ? '$api${c['document']}' : "",
+
+
       });
     }
 
@@ -176,9 +179,9 @@ Future<void> getcoach() async {
           // RIGHT-SIDE IMAGE (SMALLER LIKE YOUR FIRST SCREENSHOT)
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: c['image'].isNotEmpty
+            child: c['document'].isNotEmpty
                 ? Image.network(
-                    c['image'],
+                    c['document'],
                     width: 60,      // FIXED EXACT SIZE
                     height: 60,
                     fit: BoxFit.cover,
