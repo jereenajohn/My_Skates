@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/coach_product_view.dart';
@@ -869,8 +868,8 @@ class _CoachHomepageState extends State<CoachHomepage> {
 
                     const SizedBox(height: 25),
 
-                    buildButton("Connect Coaches"),
-                    buildButton("Connect Students"),
+                    buildButton("Find Coaches"),
+                    buildButton("Find Skaters"),
                     buildButton("Find Clubs"),
                     buildButton("Find Events"),
                     buildButton("Buy and Sell products"),
@@ -893,6 +892,8 @@ class _CoachHomepageState extends State<CoachHomepage> {
                     //     },
                     //   ),
                     // ),
+
+                    // SizedBox(height: 20),
 
                     // CLUBS
                     const Text(
