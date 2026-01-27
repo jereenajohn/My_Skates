@@ -24,6 +24,8 @@ class CoachProfileProvider extends ChangeNotifier {
         headers: {"Authorization": "Bearer $token"},
       );
 
+      print("${res.statusCode}");
+      print("==============>>>>>${res.body}");
       if (res.statusCode != 200) return;
 
       final List data = jsonDecode(res.body);

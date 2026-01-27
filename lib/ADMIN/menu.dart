@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/add_attributes.dart';
+import 'package:my_skates/ADMIN/add_banner.dart';
 import 'package:my_skates/ADMIN/add_category.dart';
 import 'package:my_skates/ADMIN/add_country.dart';
 import 'package:my_skates/ADMIN/add_district.dart';
@@ -189,13 +190,28 @@ class _MenuPageState extends State<MenuPage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
+                      builder: (context) => const AddBanner(),
+                    ),
+                  );
+                },
+                child: _menuTile(
+                  icon: Icons.notifications_outlined,
+                  text: "Add Banners",
+                ),
+              ),
+              _divider(),
+               GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
                       builder: (context) => const AddproductBanner(),
                     ),
                   );
                 },
                 child: _menuTile(
                   icon: Icons.notifications_outlined,
-                  text: "Product Banner",
+                  text: "Product Banners",
                 ),
               ),
               _divider(),

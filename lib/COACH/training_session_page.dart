@@ -446,9 +446,9 @@ class _CreateTrainingSessionPageState extends State<CreateTrainingSessionPage> {
                         )
                       : _imagePlaceholder(),
                 ),
-      
+
                 const SizedBox(width: 12),
-      
+
                 // DETAILS
                 Expanded(
                   child: Column(
@@ -511,7 +511,7 @@ class _CreateTrainingSessionPageState extends State<CreateTrainingSessionPage> {
                 ),
               ],
             ),
-      
+
             // ───── 3 DOT MENU (BOTTOM RIGHT) ─────
             Positioned(
               bottom: 0,
@@ -546,7 +546,10 @@ class _CreateTrainingSessionPageState extends State<CreateTrainingSessionPage> {
                       children: [
                         Icon(Icons.delete, size: 18, color: Colors.redAccent),
                         SizedBox(width: 10),
-                        Text("Delete", style: TextStyle(color: Colors.redAccent)),
+                        Text(
+                          "Delete",
+                          style: TextStyle(color: Colors.redAccent),
+                        ),
                       ],
                     ),
                   ),
