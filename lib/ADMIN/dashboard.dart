@@ -159,13 +159,13 @@ class _DashboardPageState extends State<DashboardPage> {
                   const Spacer(),
 
                   // NOTIFICATION BUTTON
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(
-                      Icons.notifications_active,
-                      color: Colors.tealAccent,
-                    ),
-                  ),
+                  // IconButton(
+                  //   onPressed: () {},
+                  //   icon: const Icon(
+                  //     Icons.notifications_active,
+                  //     color: Colors.tealAccent,
+                  //   ),
+                  // ),
 
                   // MENU BUTTON
                   IconButton(

@@ -220,7 +220,7 @@ List<Map<String, dynamic>> banner = [];
       final token = prefs.getString("access");
 
       var response = await http.get(
-        Uri.parse('$api/api/myskates/banner/'),
+        Uri.parse('$api/api/myskates/product/banner/'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

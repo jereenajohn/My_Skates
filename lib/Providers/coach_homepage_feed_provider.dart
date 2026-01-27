@@ -38,6 +38,7 @@ class HomeFeedProvider extends ChangeNotifier {
             (feeds[index]["likes_count"] ?? 0) + (currentlyLiked ? 1 : -1);
         notifyListeners();
       }
+      
     } catch (_) {
       // rollback
       feeds[index]["is_liked"] = currentlyLiked;
