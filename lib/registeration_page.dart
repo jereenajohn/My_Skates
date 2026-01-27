@@ -39,6 +39,8 @@ class _RegisterationPageState extends State<RegisterationPage> {
   final TextEditingController standardCtrl = TextEditingController();
   final TextEditingController instituteCtrl = TextEditingController();
   final TextEditingController experience = TextEditingController();
+  List<Map<String, dynamic>> skatersTypes = [];
+  Map<String, dynamic>? selectedSkaterType;
 
   String? selectedGender;
   double? userLat;
@@ -53,23 +55,96 @@ class _RegisterationPageState extends State<RegisterationPage> {
     whatsappCtrl.text = widget.phone;
 
     print("REGISTER PHONE: ${widget.phone}");
+    GetSkatersType();
   }
-Future<void> pickLocationFromMap() async {
-  final result = await Navigator.push(
-    context,
-    MaterialPageRoute(builder: (_) => const MapLocationPicker()),
-  );
 
-  if (result != null && result is LatLng) {
-    userLat = result.latitude;
-    userLong = result.longitude;
+  Future<void> GetSkatersType() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
 
-    success("Location selected");
-    setState(() {});
-  } else {
-    error("Location not selected");
+    try {
+      var response = await http.get(
+        Uri.parse("$api/api/myskates/skate/types/add/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final parsed = jsonDecode(response.body);
+
+        List<Map<String, dynamic>> list = [];
+        for (var item in parsed) {
+          list.add({"id": item["id"], "name": item["type"]});
+        }
+
+        setState(() {
+          skatersTypes = list;
+        });
+      }
+    } catch (e) {
+      print("ERROR: $e");
+    }
   }
-}
+
+  Widget skaterTypeDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Skater Type", style: TextStyle(color: Colors.white)),
+        const SizedBox(height: 8),
+        Container(
+          height: 55,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            border: Border.all(color: Color(0xFF00D8CC)),
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<Map<String, dynamic>>(
+              isExpanded: true,
+              dropdownColor: Colors.black87,
+              hint: const Text(
+                "Select Skater Type",
+                style: TextStyle(color: Colors.white70),
+              ),
+              value: selectedSkaterType,
+              items: skatersTypes.map((item) {
+                return DropdownMenuItem<Map<String, dynamic>>(
+                  value: item,
+                  child: Text(
+                    item["name"],
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                );
+              }).toList(),
+              onChanged: (val) {
+                setState(() => selectedSkaterType = val);
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> pickLocationFromMap() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const MapLocationPicker()),
+    );
+
+    if (result != null && result is LatLng) {
+      userLat = result.latitude;
+      userLong = result.longitude;
+
+      success("Location selected");
+      setState(() {});
+    } else {
+      error("Location not selected");
+    }
+  }
 
   // -------------------------------------------------------------------------
   // LOCATION PICKER
@@ -161,7 +236,8 @@ Future<void> pickLocationFromMap() async {
         standardCtrl.text.isEmpty ||
         instituteCtrl.text.isEmpty ||
         zipCodeCtrl.text.isEmpty ||
-        instaCtrl.text.isEmpty) {
+        instaCtrl.text.isEmpty ||
+        selectedSkaterType == null) {
       error("Please fill all student fields");
       return false;
     }
@@ -232,6 +308,7 @@ Future<void> pickLocationFromMap() async {
       if (selectedRole == "student") {
         request.fields["standard"] = standardCtrl.text.trim();
         request.fields["institution"] = instituteCtrl.text.trim();
+        request.fields["skate_type"] = selectedSkaterType!["id"].toString();
       }
 
       if (selectedRole == "coach" && selectedDocumentFile != null) {
@@ -451,6 +528,10 @@ Future<void> pickLocationFromMap() async {
           dobPicker(),
           const SizedBox(height: 15),
 
+          const SizedBox(height: 15),
+          skaterTypeDropdown(),
+          const SizedBox(height: 15),
+
           input("Standard", standardCtrl),
           const SizedBox(height: 15),
 
@@ -565,30 +646,29 @@ Future<void> pickLocationFromMap() async {
   //   );
   // }
   Widget step3() {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text(
-        "Add your location",
-        style: TextStyle(color: Colors.white, fontSize: 22),
-      ),
-      const SizedBox(height: 30),
-
-      bigButton("Use Current Location", getCurrentLocation),
-      const SizedBox(height: 15),
-
-      bigButton("Select Location from Map", pickLocationFromMap),
-      const SizedBox(height: 20),
-
-      if (userLat != null)
-        Text(
-          "Selected: $userLat , $userLong",
-          style: const TextStyle(color: Colors.white70),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Add your location",
+          style: TextStyle(color: Colors.white, fontSize: 22),
         ),
-    ],
-  );
-}
+        const SizedBox(height: 30),
 
+        bigButton("Use Current Location", getCurrentLocation),
+        const SizedBox(height: 15),
+
+        bigButton("Select Location from Map", pickLocationFromMap),
+        const SizedBox(height: 20),
+
+        if (userLat != null)
+          Text(
+            "Selected: $userLat , $userLong",
+            style: const TextStyle(color: Colors.white70),
+          ),
+      ],
+    );
+  }
 
   // -------------------------------------------------------------------------
   // REUSABLE WIDGETS
