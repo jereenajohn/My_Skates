@@ -5,6 +5,7 @@ import 'package:my_skates/ADMIN/add_category.dart';
 import 'package:my_skates/ADMIN/add_country.dart';
 import 'package:my_skates/ADMIN/add_district.dart';
 import 'package:my_skates/ADMIN/add_product_banner.dart';
+import 'package:my_skates/ADMIN/add_skaters_type.dart';
 import 'package:my_skates/ADMIN/add_state.dart';
 import 'package:my_skates/ADMIN/add_values.dart';
 import 'package:my_skates/COACH/add_club.dart';
@@ -147,6 +148,17 @@ class _MenuPageState extends State<MenuPage> {
                 onTap: () {
                   Navigator.push(
                     context,
+                    MaterialPageRoute(builder: (context) => const AddSkatersType()),
+                  );
+                },
+                child: _menuTile(icon: Icons.bookmark_outline, text: "Skaters Type"),
+              ),
+              _divider(),
+
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
                     MaterialPageRoute(
                       builder: (context) => const AddCategory(),
                     ),
@@ -189,9 +201,7 @@ class _MenuPageState extends State<MenuPage> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const AddBanner(),
-                    ),
+                    MaterialPageRoute(builder: (context) => const AddBanner()),
                   );
                 },
                 child: _menuTile(
@@ -200,7 +210,7 @@ class _MenuPageState extends State<MenuPage> {
                 ),
               ),
               _divider(),
-               GestureDetector(
+              GestureDetector(
                 onTap: () {
                   Navigator.push(
                     context,
