@@ -1133,14 +1133,14 @@ class _CoachHomepageState extends State<CoachHomepage> {
           ),
         ),
         onPressed: () {
-          if (title == "Connect Coaches") {
+          if (title == "Find Coaches") {
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => const UserConnectCoaches(),
               ),
             );
-          } else if (title == "Connect Students") {
+          } else if (title == "Find Skaters") {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const StudentList()),
