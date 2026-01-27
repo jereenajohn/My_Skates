@@ -47,14 +47,11 @@ class _LoginpageState extends State<Loginpage> {
 
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => OtpPage(phoneNumber: phone),
-          ),
+          MaterialPageRoute(builder: (_) => OtpPage(phoneNumber: phone)),
         );
       } else {
         _showMessage("OTP send failed");
       }
-
     } catch (e) {
       print("Error occurred: $e");
       _showMessage("Network error. Please try again.");
@@ -75,8 +72,6 @@ class _LoginpageState extends State<Loginpage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        
-        
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
@@ -169,7 +164,7 @@ class _LoginpageState extends State<Loginpage> {
                     child: ElevatedButton(
                       onPressed: _postPhoneNumber, // <<< FIXED
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00D8CC),
+                        backgroundColor: const Color.fromARGB(255, 0, 216, 204),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
