@@ -143,7 +143,7 @@ class _CoachClubRequestsState extends State<CoachClubRequests> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text("Club Join Requests"),
+        title: const Text("Club Join Requests", style: TextStyle(fontSize: 14)),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
@@ -275,7 +275,7 @@ class _CoachClubRequestsState extends State<CoachClubRequests> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00AFA5),
                 ),
-                child: const Text("Approve"),
+                child: const Text("Approve",style: TextStyle(color: Colors.white),),
               ),
             ],
           ),
