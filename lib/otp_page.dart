@@ -42,7 +42,7 @@ class _OtpPageState extends State<OtpPage> {
 
       print("Response status: ${response.statusCode}");
       print("Response body: ${response.body}");
-  
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
@@ -55,7 +55,6 @@ class _OtpPageState extends State<OtpPage> {
         await prefs.setString("user_type", data["user"]["user_type"] ?? "");
         await prefs.setString("name", data["user"]["name"] ?? "");
         await prefs.setString("phone", widget.phoneNumber);
-
 
         print("SAVED TOKEN: ${data["access"]}");
         print("SAVED USER ID: ${data["user"]["id"]}");
@@ -82,8 +81,6 @@ class _OtpPageState extends State<OtpPage> {
           );
 
           // Navigator.push(context, MaterialPageRoute(builder: (context)=>WaitingPage()));
-
-          
         } else {
           // CHECK USER TYPE & NAVIGATE
           if (userType == "admin") {
@@ -98,15 +95,13 @@ class _OtpPageState extends State<OtpPage> {
               MaterialPageRoute(builder: (context) => const HomePage()),
               (route) => false,
             );
-          } 
-           else if (userType == "coach") {
+          } else if (userType == "coach") {
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (context) => const CoachHomepage()),
               (route) => false,
             );
-          }
-          else {
+          } else {
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (context) => const HomePage()),

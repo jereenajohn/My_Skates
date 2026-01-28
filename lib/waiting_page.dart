@@ -26,7 +26,6 @@ class _WaitingPageState extends State<WaitingPage> {
               //     fit: BoxFit.contain,
               //   ),
               // ),
-
               const SizedBox(height: 30),
 
               // GLOWING TITLE TEXT
@@ -37,12 +36,7 @@ class _WaitingPageState extends State<WaitingPage> {
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      blurRadius: 18,
-                      color: Colors.blueAccent,
-                    ),
-                  ],
+                  shadows: [Shadow(blurRadius: 18, color: Colors.blueAccent)],
                 ),
               ),
 

@@ -19,13 +19,11 @@ class _LoginpageState extends State<Loginpage> {
     print("Posting phone number...");
     final phone = phoneController.text.trim();
 
-    // REQUIRED FIELD VALIDATION
     if (phone.isEmpty) {
       _showMessage("Please enter your mobile number");
       return;
     }
 
-    // 10 DIGIT VALIDATION
     if (phone.length != 10) {
       _showMessage("Phone number must be 10 digits");
       return;
@@ -41,7 +39,6 @@ class _LoginpageState extends State<Loginpage> {
       print("Response status: ${response.statusCode}");
       print("Response body: ${response.body}");
 
-      // SUCCESS CASE (STATUS 200 or 201 depending on your API)
       if (response.statusCode == 200 || response.statusCode == 201) {
         _showMessage("OTP sent successfully ${response.body}");
 
@@ -58,7 +55,6 @@ class _LoginpageState extends State<Loginpage> {
     }
   }
 
-  // COMMON SNACKBAR FUNCTION
   void _showMessage(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -162,7 +158,7 @@ class _LoginpageState extends State<Loginpage> {
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed: _postPhoneNumber, // <<< FIXED
+                      onPressed: _postPhoneNumber,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color.fromARGB(255, 0, 216, 204),
                         shape: RoundedRectangleBorder(
