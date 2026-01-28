@@ -51,27 +51,26 @@ class _ActivityTrackerPageState extends State<ActivityTrackerPage> {
       tracking = true;
     });
 
-    _positionStream = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.best,
-        distanceFilter: 5,
-      ),
-    ).listen((position) {
-      if (lastPosition != null) {
-        totalDistance += Geolocator.distanceBetween(
-          lastPosition!.latitude,
-          lastPosition!.longitude,
-          position.latitude,
-          position.longitude,
-        );
+    _positionStream =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.best,
+            distanceFilter: 5,
+          ),
+        ).listen((position) {
+          if (lastPosition != null) {
+            totalDistance += Geolocator.distanceBetween(
+              lastPosition!.latitude,
+              lastPosition!.longitude,
+              position.latitude,
+              position.longitude,
+            );
 
-        distanceSpots.add(
-          FlSpot(timeSeconds / 60, totalDistance / 1000),
-        );
-      }
-      lastPosition = position;
-      setState(() {});
-    });
+            distanceSpots.add(FlSpot(timeSeconds / 60, totalDistance / 1000));
+          }
+          lastPosition = position;
+          setState(() {});
+        });
   }
 
   void stopTracking() {
@@ -95,8 +94,7 @@ class _ActivityTrackerPageState extends State<ActivityTrackerPage> {
   double get avgSpeedKmph =>
       timeSeconds == 0 ? 0 : distanceKm / (timeSeconds / 3600);
 
-  double get caloriesBurned =>
-      metValue * userWeightKg * (timeSeconds / 3600);
+  double get caloriesBurned => metValue * userWeightKg * (timeSeconds / 3600);
 
   double get powerWatts =>
       timeSeconds == 0 ? 0 : (caloriesBurned * 4184) / timeSeconds;
@@ -117,23 +115,24 @@ class _ActivityTrackerPageState extends State<ActivityTrackerPage> {
         color: const Color.fromARGB(255, 190, 188, 188),
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(
-            color: Colors.tealAccent.withOpacity(.15),
-            blurRadius: 10,
-          )
+          BoxShadow(color: Colors.tealAccent.withOpacity(.15), blurRadius: 10),
         ],
       ),
       child: Column(
         children: [
-          Text(title,
-              style: const TextStyle(
-                  color: Colors.tealAccent,
-                  fontSize: 11,
-                  letterSpacing: 1)),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.tealAccent,
+              fontSize: 11,
+              letterSpacing: 1,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 22, fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
           Text(unit, style: const TextStyle(color: Colors.white70)),
         ],
       ),
@@ -156,19 +155,19 @@ class _ActivityTrackerPageState extends State<ActivityTrackerPage> {
               sideTitles: SideTitles(
                 showTitles: true,
                 reservedSize: 36,
-                getTitlesWidget: (value, _) =>
-                    Text("${value.toStringAsFixed(1)} km",
-                        style:
-                            const TextStyle(color: Colors.white70, fontSize: 10)),
+                getTitlesWidget: (value, _) => Text(
+                  "${value.toStringAsFixed(1)} km",
+                  style: const TextStyle(color: Colors.white70, fontSize: 10),
+                ),
               ),
             ),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                getTitlesWidget: (value, _) =>
-                    Text("${value.toInt()} min",
-                        style:
-                            const TextStyle(color: Colors.white70, fontSize: 10)),
+                getTitlesWidget: (value, _) => Text(
+                  "${value.toInt()} min",
+                  style: const TextStyle(color: Colors.white70, fontSize: 10),
+                ),
               ),
             ),
             rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -215,16 +214,11 @@ class _ActivityTrackerPageState extends State<ActivityTrackerPage> {
               mainAxisSpacing: 12,
               childAspectRatio: 1.35,
               children: [
-                statCard("DISTANCE",
-                    distanceKm.toStringAsFixed(2), "km"),
-                statCard("TIME",
-                    formatTime(timeSeconds), ""),
-                statCard("AVG SPEED",
-                    avgSpeedKmph.toStringAsFixed(1), "km/h"),
-                statCard("CALORIES",
-                    caloriesBurned.toStringAsFixed(0), "kcal"),
-                statCard("POWER",
-                    powerWatts.toStringAsFixed(0), "W"),
+                statCard("DISTANCE", distanceKm.toStringAsFixed(2), "km"),
+                statCard("TIME", formatTime(timeSeconds), ""),
+                statCard("AVG SPEED", avgSpeedKmph.toStringAsFixed(1), "km/h"),
+                statCard("CALORIES", caloriesBurned.toStringAsFixed(0), "kcal"),
+                statCard("POWER", powerWatts.toStringAsFixed(0), "W"),
               ],
             ),
             const Spacer(),
@@ -232,8 +226,9 @@ class _ActivityTrackerPageState extends State<ActivityTrackerPage> {
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      tracking ? Colors.redAccent : Colors.tealAccent,
+                  backgroundColor: tracking
+                      ? Colors.redAccent
+                      : Colors.tealAccent,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -243,7 +238,9 @@ class _ActivityTrackerPageState extends State<ActivityTrackerPage> {
                 child: Text(
                   tracking ? "STOP ACTIVITY" : "START ACTIVITY",
                   style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),

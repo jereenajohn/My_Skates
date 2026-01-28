@@ -218,7 +218,7 @@ class _ProductsByUserState extends State<ProductsByUser> {
                             width: 68,
                             decoration: BoxDecoration(),
                             child: Image.asset(
-                              "lib/assets/myskates.png", // YOUR LOGO HERE
+                              "lib/assets/myskates.png", 
                               fit: BoxFit.cover,
                             ),
                           ),
@@ -395,14 +395,14 @@ class _ProductsByUserState extends State<ProductsByUser> {
                                 direction: DismissDirection.horizontal,
 
                                 confirmDismiss: (direction) async {
-                                  // 👉 SWIPE RIGHT → UPDATE (NO UI)
+                                  // SWIPE RIGHT → UPDATE (NO UI)
                                   if (direction ==
                                       DismissDirection.startToEnd) {
                                     _handleUpdateProduct(p);
                                     return false; // do NOT dismiss
                                   }
 
-                                  // 👈 SWIPE LEFT → DELETE (RED UI SAME AS BEFORE)
+                                  //  SWIPE LEFT → DELETE (RED UI SAME AS BEFORE)
                                   if (direction ==
                                       DismissDirection.endToStart) {
                                     addvariant(p);
@@ -412,10 +412,10 @@ class _ProductsByUserState extends State<ProductsByUser> {
                                   return false;
                                 },
 
-                                // ❌ REMOVE BLUE UPDATE BACKGROUND
+                                // REMOVE BLUE UPDATE BACKGROUND
                                 background: const SizedBox.shrink(),
 
-                                // 🔴 KEEP DELETE BACKGROUND EXACTLY SAME
+                                //  KEEP DELETE BACKGROUND EXACTLY SAME
                                 secondaryBackground: Container(
                                   alignment: Alignment.centerRight,
                                   padding: const EdgeInsets.only(right: 20),

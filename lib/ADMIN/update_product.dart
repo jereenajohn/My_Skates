@@ -162,7 +162,6 @@ class _UpdateProductState extends State<UpdateProduct> {
 
       request.headers["Authorization"] = "Bearer $token";
 
-      // Add normal text fields
       request.fields["user"] = userId.toString();
       request.fields["title"] = titleCtrl.text.trim();
       request.fields["description"] = descriptionCtrl.text.trim();
@@ -172,14 +171,12 @@ class _UpdateProductState extends State<UpdateProduct> {
         request.fields["category"] = selectedState.toString();
       }
 
-      // Add Image if selected
       if (profileImage != null) {
         request.files.add(
           await http.MultipartFile.fromPath("image", profileImage!.path),
         );
       }
 
-      // Send request
       var response = await request.send();
       var responseBody = await response.stream.bytesToString();
 
@@ -215,7 +212,7 @@ class _UpdateProductState extends State<UpdateProduct> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 0, 0, 0),
       resizeToAvoidBottomInset: true,
-      extendBody: true, // IMPORTANT
+      extendBody: true, 
       extendBodyBehindAppBar: true,
       body: Container(
         decoration: const BoxDecoration(
@@ -541,7 +538,7 @@ class _UpdateProductState extends State<UpdateProduct> {
 
   Widget _dropdownField({
     required String label,
-    required String? value, // ID
+    required String? value, 
     required List<Map<String, dynamic>> items,
     required Function(String?) onChange,
   }) {

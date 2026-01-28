@@ -47,7 +47,6 @@ class _big_viewState extends State<big_view> {
       final decoded = jsonDecode(response.body);
       final String message = decoded["message"] ?? "Unable to add to cart";
 
-      // ✅ SUCCESS
       if (response.statusCode == 200 || response.statusCode == 201) {
         _showSnackBar(
           icon: Icons.shopping_cart,
@@ -55,14 +54,12 @@ class _big_viewState extends State<big_view> {
           background: const Color(0xFF0F2F2B),
           message: message,
         );
-      }
-      // ❌ ERROR FROM BACKEND (400 / 403 / 409 etc.)
-      else {
+      } else {
         _showSnackBar(
           icon: Icons.warning_amber_rounded,
           color: Colors.orangeAccent,
           background: const Color(0xFF2A230F),
-          message: message, // 🔥 "Only 0 in stock"
+          message: message, // "Only 0 in stock"
         );
       }
     } catch (e) {
@@ -133,10 +130,7 @@ class _big_viewState extends State<big_view> {
       final response = await http.post(
         Uri.parse('$api/api/myskates/products/$id/wishlist/'),
         headers: {'Authorization': 'Bearer $token'},
-        body: {
-          "user": userId.toString(), // ✅ FIX
-          "product": id.toString(), // ✅ FIX
-        },
+        body: {"user": userId.toString(), "product": id.toString()},
       );
 
       print('Response status: ${response.statusCode}');
@@ -164,7 +158,7 @@ class _big_viewState extends State<big_view> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      message, // ✅ BACKEND MESSAGE
+                      message,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
@@ -265,8 +259,7 @@ class _big_viewState extends State<big_view> {
         final json = jsonDecode(res.body);
         setState(() {
           product = json["data"];
-          isInWishlist =
-              product!["is_in_wishlist"] == true; // ✅ bind backend flag
+          isInWishlist = product!["is_in_wishlist"] == true;
           loading = false;
         });
       }
@@ -294,10 +287,9 @@ class _big_viewState extends State<big_view> {
         actions: [
           Row(
             children: [
-              // ❤️ FAVORITE ICON
               IconButton(
                 onPressed: () {
-                  _handleUpdateProduct(); // your existing handler
+                  _handleUpdateProduct();
                 },
                 icon: const Icon(
                   Icons.favorite_border,
@@ -308,11 +300,12 @@ class _big_viewState extends State<big_view> {
 
               const SizedBox(width: 4),
 
-              // 🛒 CART ICON WITH BADGE
               IconButton(
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const cart()));
-                  // TODO: Navigate to Cart Page
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const cart()),
+                  );
                 },
                 icon: Stack(
                   clipBehavior: Clip.none,
@@ -323,7 +316,7 @@ class _big_viewState extends State<big_view> {
                       size: 26,
                     ),
 
-                    // 🔴 CART BADGE
+                    // CART BADGE
                     Positioned(
                       right: -2,
                       top: -2,
@@ -432,10 +425,7 @@ class _big_viewState extends State<big_view> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF00312D), // green at top-left
-              Color(0xFF000000), // fades to black
-            ],
+            colors: [Color(0xFF00312D), Color(0xFF000000)],
             stops: [0.0, 0.35],
           ),
         ),
@@ -463,7 +453,7 @@ class _big_viewState extends State<big_view> {
                             right: 16,
                             child: Column(
                               children: [
-                                // ❤️ WISHLIST ICON
+                                // WISHLIST ICON
                                 GestureDetector(
                                   onTap: () async {
                                     await addwishlist(product!['id'], context);
@@ -493,7 +483,7 @@ class _big_viewState extends State<big_view> {
 
                                 const SizedBox(height: 10),
 
-                                // 🔗 SHARE ICON
+                                // SHARE ICON
                                 GestureDetector(
                                   onTap: () {
                                     // TODO: add share logic later
@@ -631,7 +621,7 @@ class _big_viewState extends State<big_view> {
                                 itemBuilder: (context, index) {
                                   final variant = variants[index];
 
-                                  // 🔹 Collect attribute values as text
+                                  // Collect attribute values as text
                                   final List<String> values = [];
                                   if (variant["attributes"] != null) {
                                     for (var attr in variant["attributes"]) {

@@ -162,7 +162,6 @@ class _AddBannerState extends State<AddBanner> {
 
       request.fields.addAll({"title": bannerNameCtrl.text.trim()});
 
-      // Upload image if selected
       if (pickedImage != null) {
         request.files.add(
           await http.MultipartFile.fromPath("image", pickedImage!.path),
@@ -195,7 +194,7 @@ class _AddBannerState extends State<AddBanner> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Failed: $responseBody"),
-            backgroundColor: Colors.red, // ERROR RED
+            backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -337,16 +336,15 @@ class _AddBannerState extends State<AddBanner> {
 
                 const SizedBox(height: 18),
 
-                // CREATE CLUB BUTTON
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
                       if (validateForm()) {
                         if (editingBannerId == null) {
-                          submitClub(); // CREATE MODE
+                          submitClub();
                         } else {
-                          updateBanner(); // UPDATE MODE
+                          updateBanner();
                         }
                       }
                     },

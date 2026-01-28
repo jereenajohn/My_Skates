@@ -179,13 +179,13 @@ class _ApprovedCoachState extends State<ApprovedCoach> {
 
                     const SizedBox(width: 10),
 
-                    // RIGHT-SIDE IMAGE (SMALLER LIKE YOUR FIRST SCREENSHOT)
+                    // RIGHT-SIDE IMAGE
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: c['document'].isNotEmpty
                           ? Image.network(
                               c['document'],
-                              width: 60, // FIXED EXACT SIZE
+                              width: 60,
                               height: 60,
                               fit: BoxFit.cover,
                             )

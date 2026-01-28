@@ -13,7 +13,7 @@ import 'package:flutter/services.dart';
 
 class UpdateProductVariant extends StatefulWidget {
   var productId;
-  UpdateProductVariant({super.key,required this.productId});
+  UpdateProductVariant({super.key, required this.productId});
 
   @override
   State<UpdateProductVariant> createState() => _UpdateProductVariantState();
@@ -22,111 +22,105 @@ class UpdateProductVariant extends StatefulWidget {
 class _UpdateProductVariantState extends State<UpdateProductVariant> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  // Store IDs only
-  String? gender;            // "male", "female", "other"
-  String? selectedCountry;   // ID
-  String? selectedState;     // ID
-  String? selectedDistrict;  // ID
+  String? gender;
+  String? selectedCountry;
+  String? selectedState; 
+  String? selectedDistrict; 
 
   List<Map<String, dynamic>> countryList = [];
   List<Map<String, dynamic>> categoryList = [];
   List<Map<String, dynamic>> allDistricts = [];
   List<Map<String, dynamic>> districtList = [];
 
-List<File> selectedImages = [];                 // newly picked images
-List<Map<String, dynamic>> existingImages = []; // network images from API
+  List<File> selectedImages = []; 
+  List<Map<String, dynamic>> existingImages = []; 
 
   final ImagePicker _picker = ImagePicker();
 
   DateTime? dob;
 
-  
   final TextEditingController titleCtrl = TextEditingController();
   final TextEditingController descriptionCtrl = TextEditingController();
-   final TextEditingController priceCtrl = TextEditingController();
-   final TextEditingController stockCtrl = TextEditingController();
-   final TextEditingController discount = TextEditingController();
+  final TextEditingController priceCtrl = TextEditingController();
+  final TextEditingController stockCtrl = TextEditingController();
+  final TextEditingController discount = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     loadAllData();
   }
-  Future<void> loadAllData() async {
 
+  Future<void> loadAllData() async {
     getproductDetails();
 
     await fetchcategory();
-   // await fetchProfileData();
+    // await fetchProfileData();
     setState(() {});
   }
 
- 
- Future<void> deleteimage(var imageId) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-
-  final response = await http.delete(
-    Uri.parse(
-      "$api/api/myskates/product/variants/${widget.productId}/images/$imageId/",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    },
-  );
-
-  if (response.statusCode == 200) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Image deleted")),
-    );
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Delete failed")),
-    );
-  }
-}
-
- Future<void> getproductDetails() async {
-  try {
+  Future<void> deleteimage(var imageId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
 
-    final res = await http.get(
-      Uri.parse("$api/api/myskates/product/variants/${widget.productId}/"),
-      headers: {"Authorization": "Bearer $token"},
+    final response = await http.delete(
+      Uri.parse(
+        "$api/api/myskates/product/variants/${widget.productId}/images/$imageId/",
+      ),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
     );
-print("getproductDetails response: ${res.body}");
-    if (res.statusCode == 200) {
-      final json = jsonDecode(res.body);
-      final data = json["data"]; // ✅ IMPORTANT
-print("Product Details Data:::::::::::::::: $data");
-      setState(() {
-        titleCtrl.text = data["sku"] ?? "";
-        descriptionCtrl.text = data["description"] ?? "";
-        priceCtrl.text = data["price"]?.toString() ?? "";
-        stockCtrl.text = data["stock"]?.toString() ?? "";
-        discount.text = data["discount"]?.toString() ?? "";
 
-        selectedState = data["category"]?.toString();
-
-     
-      if (data["images"] != null && data["images"] is List) {
-      existingImages = data["images"].map<Map<String, dynamic>>((img) {
-       return {
-      "id": img["id"],                 // 👈 REQUIRED
-      "url": "$api${img["image"]}",    // 👈 DISPLAY
-    };
-  }).toList();
-}
-
-
-      });
+    if (response.statusCode == 200) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Image deleted")));
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Delete failed")));
     }
-  } catch (e) {
-    debugPrint("Error in getproductDetails: $e");
   }
-}
+
+  Future<void> getproductDetails() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final res = await http.get(
+        Uri.parse("$api/api/myskates/product/variants/${widget.productId}/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+      print("getproductDetails response: ${res.body}");
+      if (res.statusCode == 200) {
+        final json = jsonDecode(res.body);
+        final data = json["data"]; 
+        print("Product Details Data:::::::::::::::: $data");
+        setState(() {
+          titleCtrl.text = data["sku"] ?? "";
+          descriptionCtrl.text = data["description"] ?? "";
+          priceCtrl.text = data["price"]?.toString() ?? "";
+          stockCtrl.text = data["stock"]?.toString() ?? "";
+          discount.text = data["discount"]?.toString() ?? "";
+
+          selectedState = data["category"]?.toString();
+
+          if (data["images"] != null && data["images"] is List) {
+            existingImages = data["images"].map<Map<String, dynamic>>((img) {
+              return {
+                "id": img["id"], // REQUIRED
+                "url": "$api${img["image"]}", //  DISPLAY
+              };
+            }).toList();
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Error in getproductDetails: $e");
+    }
+  }
 
   Future<void> fetchcategory() async {
     try {
@@ -137,11 +131,12 @@ print("Product Details Data:::::::::::::::: $data");
         Uri.parse("$api/api/myskates/products/category/"),
         headers: {"Authorization": "Bearer $token"},
       );
-print("res.body:;;;;;;;;;;;;: ${res.body}");
+      print("res.body:;;;;;;;;;;;;: ${res.body}");
       if (res.statusCode == 200) {
         List data = jsonDecode(res.body);
-        categoryList =
-            data.map((e) => {"id": e["id"], "name": e["name"]}).toList();
+        categoryList = data
+            .map((e) => {"id": e["id"], "name": e["name"]})
+            .toList();
       }
     } catch (e) {}
   }
@@ -160,9 +155,7 @@ print("res.body:;;;;;;;;;;;;: ${res.body}");
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
 
-      
-       
-        gender = data["gender"]?.toString(); // ex: "Male"
+        gender = data["gender"]?.toString(); 
         selectedCountry = data["country"]?.toString();
         selectedState = data["state"]?.toString();
         selectedDistrict = data["district"]?.toString();
@@ -179,96 +172,93 @@ print("res.body:;;;;;;;;;;;;: ${res.body}");
   }
 
   Future<void> submitProduct() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-    final userId = prefs.getInt("id");
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      final userId = prefs.getInt("id");
 
-    if (token == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Login expired. Please login again.")),
-      );
-      return;
-    }
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Login expired. Please login again.")),
+        );
+        return;
+      }
 
-   if (existingImages.isEmpty && selectedImages.isEmpty) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text("Please upload at least one image")),
-  );
-  return;
-}
+      if (existingImages.isEmpty && selectedImages.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please upload at least one image")),
+        );
+        return;
+      }
 
-    
-
-
-    var request = http.MultipartRequest(
-      "PUT",
-      Uri.parse("$api/api/myskates/product/variants/${widget.productId}/"),
-    );
-
-    request.headers["Authorization"] = "Bearer $token";
-
-    // Add normal text fields
-    request.fields["user"] = userId.toString();
-    request.fields["title"] = titleCtrl.text.trim();
-    request.fields["description"] = descriptionCtrl.text.trim();
-    request.fields["price"] = priceCtrl.text.trim();
-    request.fields["discount"] = discount.text.trim();
-    request.fields["stock"] = stockCtrl.text.trim();
-
-    if (selectedState != null) {
-      request.fields["category"] = selectedState.toString();
-    }
-    print("selectedImages LENGTH: ${selectedImages}");
-
-   for (final img in selectedImages) {
-  request.files.add(
-    await http.MultipartFile.fromPath(
-      "images", // ✅ MUST match Django: request.FILES.getlist("images")
-      img.path,
-    ),
-  );
-}
-
-    // Send request
-    var response = await request.send();
-    var responseBody = await response.stream.bytesToString();
-
-    print("STATUS: ${response.statusCode}");
-    print("BODY:++++++++++++++++++++++++++++++++++++++++++++++++ $responseBody");
-
-    if (response.statusCode == 201 || response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Product added successfully!")),
+      var request = http.MultipartRequest(
+        "PUT",
+        Uri.parse("$api/api/myskates/product/variants/${widget.productId}/"),
       );
 
-      Navigator.pushReplacement(
+      request.headers["Authorization"] = "Bearer $token";
+
+      // Add normal text fields
+      request.fields["user"] = userId.toString();
+      request.fields["title"] = titleCtrl.text.trim();
+      request.fields["description"] = descriptionCtrl.text.trim();
+      request.fields["price"] = priceCtrl.text.trim();
+      request.fields["discount"] = discount.text.trim();
+      request.fields["stock"] = stockCtrl.text.trim();
+
+      if (selectedState != null) {
+        request.fields["category"] = selectedState.toString();
+      }
+      print("selectedImages LENGTH: ${selectedImages}");
+
+      for (final img in selectedImages) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            "images", 
+            img.path,
+          ),
+        );
+      }
+
+      var response = await request.send();
+      var responseBody = await response.stream.bytesToString();
+
+      print("STATUS: ${response.statusCode}");
+      print(
+        "BODY:++++++++++++++++++++++++++++++++++++++++++++++++ $responseBody",
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Product added successfully!")),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => UserApprovedProducts()),
+        );
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Failed: $responseBody")));
+      }
+    } catch (e) {
+      print("Error in submitProduct: $e");
+      ScaffoldMessenger.of(
         context,
-        MaterialPageRoute(builder: (context) =>  UserApprovedProducts()),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed: $responseBody")),
-      );
+      ).showSnackBar(const SnackBar(content: Text("Something went wrong")));
     }
-  } catch (e) {
-    print("Error in submitProduct: $e");
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Something went wrong")),
-    );
   }
-}
 
   // ---------------- UI ----------------
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      
-        backgroundColor: const Color.fromARGB(255, 0, 0, 0), 
-  resizeToAvoidBottomInset: true,
-    extendBody: true,  // IMPORTANT
-  extendBodyBehindAppBar: true,  
+      backgroundColor: const Color.fromARGB(255, 0, 0, 0),
+      resizeToAvoidBottomInset: true,
+      extendBody: true, // IMPORTANT
+      extendBodyBehindAppBar: true,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -277,59 +267,57 @@ print("res.body:;;;;;;;;;;;;: ${res.body}");
           ),
         ),
         child: SafeArea(
-           bottom: false, 
+          bottom: false,
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             child: Form(
               key: _formKey,
               child: Column(
                 children: [
                   Align(
-  alignment: Alignment.topLeft,
-  child: GestureDetector(
-    onTap: () async{
-      Navigator.pop(context);
-    },
-    child: Container(
-      height: 42,
-      width: 42,
-      decoration: BoxDecoration(
-        color: const Color.fromARGB(255, 134, 134, 134).withOpacity(0.15),   // soft transparent circle
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white24),
-      ),
-      child: const Icon(
-        Icons.keyboard_arrow_left_rounded,
-        color: Color.fromARGB(255, 78, 78, 78),
-        size: 28,
-      ),
-    ),
-  ),
-),
+                    alignment: Alignment.topLeft,
+                    child: GestureDetector(
+                      onTap: () async {
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        height: 42,
+                        width: 42,
+                        decoration: BoxDecoration(
+                          color: const Color.fromARGB(
+                            255,
+                            134,
+                            134,
+                            134,
+                          ).withOpacity(0.15), // soft transparent circle
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        child: const Icon(
+                          Icons.keyboard_arrow_left_rounded,
+                          color: Color.fromARGB(255, 78, 78, 78),
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                  ),
 
-SizedBox(height: 20),
+                  SizedBox(height: 20),
 
-_imagePickerPreview(),
-
-
+                  _imagePickerPreview(),
 
                   const SizedBox(height: 30),
 
-                
                   _inputField("Title", titleCtrl),
                   _inputFieldmax(
                     "Description",
-                    
+
                     descriptionCtrl,
-                    maxLines: 4,     // description style
-  maxLength: 100,
-  isNumber: false,
+                    maxLines: 4, // description style
+                    maxLength: 100,
+                    isNumber: false,
                   ),
-
-                
-
-                 
 
                   Row(
                     children: [
@@ -341,20 +329,21 @@ _imagePickerPreview(),
                           onChange: (v) {
                             selectedState = v;
 
-                            districtList = allDistricts.where(
-                              (d) =>
-                                  d["state"] ==
-                                  categoryList.firstWhere(
-                                    (s) => s["id"].toString() == v,
-                                  )["name"],
-                            ).toList();
+                            districtList = allDistricts
+                                .where(
+                                  (d) =>
+                                      d["state"] ==
+                                      categoryList.firstWhere(
+                                        (s) => s["id"].toString() == v,
+                                      )["name"],
+                                )
+                                .toList();
 
                             selectedDistrict = null;
                             setState(() {});
                           },
                         ),
                       ),
-                    
                     ],
                   ),
 
@@ -379,7 +368,7 @@ _imagePickerPreview(),
                         //   return;
                         // }
 
-                       submitProduct();
+                        submitProduct();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal,
@@ -425,7 +414,9 @@ _imagePickerPreview(),
         ],
         style: TextStyle(color: readOnly ? Colors.white70 : Colors.white),
         decoration: _dec(label).copyWith(
-          fillColor: readOnly ? const Color.fromARGB(172, 30, 29, 29) : const Color(0xFF1E1E1E),
+          fillColor: readOnly
+              ? const Color.fromARGB(172, 30, 29, 29)
+              : const Color(0xFF1E1E1E),
         ),
         validator: (v) {
           final value = v?.trim() ?? "";
@@ -446,62 +437,60 @@ _imagePickerPreview(),
   }
 
   Widget _inputFieldmax(
-  String label,
-  TextEditingController controller, {
-  bool readOnly = false,
-  bool isNumber = false,
-  int? maxLength,
-  int maxLines = 1,      // NEW: multiline support
-}) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 20),
-    child: TextFormField(
-      controller: controller,
-      readOnly: readOnly,
-      autovalidateMode: AutovalidateMode.onUserInteraction,
+    String label,
+    TextEditingController controller, {
+    bool readOnly = false,
+    bool isNumber = false,
+    int? maxLength,
+    int maxLines = 1, // NEW: multiline support
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: TextFormField(
+        controller: controller,
+        readOnly: readOnly,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
 
-      // If multiline → always use multiline keyboard
-      keyboardType: maxLines > 1
-          ? TextInputType.multiline
-          : (isNumber ? TextInputType.number : TextInputType.text),
+        // If multiline → always use multiline keyboard
+        keyboardType: maxLines > 1
+            ? TextInputType.multiline
+            : (isNumber ? TextInputType.number : TextInputType.text),
 
-      maxLines: maxLines,     // NEW
+        maxLines: maxLines, // NEW
 
-      inputFormatters: [
-        if (isNumber && maxLines == 1) FilteringTextInputFormatter.digitsOnly,
-        if (maxLength != null) LengthLimitingTextInputFormatter(maxLength),
-      ],
+        inputFormatters: [
+          if (isNumber && maxLines == 1) FilteringTextInputFormatter.digitsOnly,
+          if (maxLength != null) LengthLimitingTextInputFormatter(maxLength),
+        ],
 
-      style: TextStyle(color: readOnly ? Colors.white70 : Colors.white),
+        style: TextStyle(color: readOnly ? Colors.white70 : Colors.white),
 
-      decoration: _dec(label).copyWith(
-        fillColor: readOnly
-            ? const Color.fromARGB(172, 30, 29, 29)
-            : const Color(0xFF1E1E1E),
+        decoration: _dec(label).copyWith(
+          fillColor: readOnly
+              ? const Color.fromARGB(172, 30, 29, 29)
+              : const Color(0xFF1E1E1E),
+        ),
+
+        validator: (v) {
+          final value = v?.trim() ?? "";
+
+          if (value.isEmpty) return "$label is required";
+
+          if (label == "Email") {
+            final regex = RegExp(r"^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}$");
+            if (!regex.hasMatch(value)) return "Enter valid email";
+          }
+
+          // Only validate phone length if the field is SINGLE LINE
+          if (label == "Alt Phone" && maxLines == 1 && value.length != 10) {
+            return "Alt Phone must be 10 digits";
+          }
+
+          return null;
+        },
       ),
-
-      validator: (v) {
-        final value = v?.trim() ?? "";
-
-        if (value.isEmpty) return "$label is required";
-
-        if (label == "Email") {
-          final regex =
-              RegExp(r"^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}$");
-          if (!regex.hasMatch(value)) return "Enter valid email";
-        }
-
-        // Only validate phone length if the field is SINGLE LINE
-        if (label == "Alt Phone" && maxLines == 1 && value.length != 10) {
-          return "Alt Phone must be 10 digits";
-        }
-
-        return null;
-      },
-    ),
-  );
-}
-
+    );
+  }
 
   InputDecoration _dec(String label) {
     return InputDecoration(
@@ -526,16 +515,13 @@ _imagePickerPreview(),
         borderRadius: BorderRadius.circular(20),
         borderSide: const BorderSide(color: Colors.redAccent),
       ),
-      errorStyle: const TextStyle(
-        color: Colors.redAccent,
-        fontSize: 12,
-      ),
+      errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 12),
     );
   }
 
   Widget _dropdownField({
     required String label,
-    required String? value, // ID
+    required String? value, 
     required List<Map<String, dynamic>> items,
     required Function(String?) onChange,
   }) {
@@ -553,8 +539,7 @@ _imagePickerPreview(),
           );
         }).toList(),
         onChanged: onChange,
-        validator: (v) =>
-            v == null || v.isEmpty ? "$label is required" : null,
+        validator: (v) => v == null || v.isEmpty ? "$label is required" : null,
       ),
     );
   }
@@ -569,14 +554,12 @@ _imagePickerPreview(),
             initialDate: DateTime(2005),
             firstDate: DateTime(1950),
             lastDate: DateTime.now(),
-            builder: (c, child) =>
-                Theme(data: ThemeData.dark(), child: child!),
+            builder: (c, child) => Theme(data: ThemeData.dark(), child: child!),
           );
           if (picked != null) setState(() => dob = picked);
         },
         child: FormField(
-          validator: (_) =>
-              dob == null ? "Date of Birth is required" : null,
+          validator: (_) => dob == null ? "Date of Birth is required" : null,
           builder: (state) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -595,7 +578,9 @@ _imagePickerPreview(),
                   child: Text(
                     state.errorText!,
                     style: const TextStyle(
-                        color: Colors.redAccent, fontSize: 12),
+                      color: Colors.redAccent,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
             ],
@@ -606,97 +591,102 @@ _imagePickerPreview(),
   }
 
   Widget _imagePickerPreview() {
-  final totalImages = existingImages.length + selectedImages.length;
+    final totalImages = existingImages.length + selectedImages.length;
 
-  return GestureDetector(
-    onTap: () async {
-      final picked = await _picker.pickMultiImage(imageQuality: 80);
-      if (picked.isNotEmpty) {
-        setState(() {
-          selectedImages.addAll(picked.map((e) => File(e.path)));
-        });
-        print("Selected Images Count: ${selectedImages.length}");
-        print("Existing Images Count: ${existingImages}");
-        print("Total Images Count: $selectedImages");
-      }
-    },
-    child: Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: const Color.fromARGB(195, 30, 29, 29),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white24),
-      ),
-      child: totalImages == 0
-          ? const Center(
-              child: Text(
-                "Upload Images",
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
-            )
-          : GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: totalImages,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
-              itemBuilder: (_, index) {
-                final isNetwork = index < existingImages.length;
+    return GestureDetector(
+      onTap: () async {
+        final picked = await _picker.pickMultiImage(imageQuality: 80);
+        if (picked.isNotEmpty) {
+          setState(() {
+            selectedImages.addAll(picked.map((e) => File(e.path)));
+          });
+          print("Selected Images Count: ${selectedImages.length}");
+          print("Existing Images Count: ${existingImages}");
+          print("Total Images Count: $selectedImages");
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color.fromARGB(195, 30, 29, 29),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: totalImages == 0
+            ? const Center(
+                child: Text(
+                  "Upload Images",
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              )
+            : GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: totalImages,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemBuilder: (_, index) {
+                  final isNetwork = index < existingImages.length;
 
-                return Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: isNetwork
-                          ? Image.network(
-                              existingImages[index]["url"],
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
-                            )
-                          : Image.file(
-                              selectedImages[index - existingImages.length],
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
+                  return Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: isNetwork
+                            ? Image.network(
+                                existingImages[index]["url"],
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              )
+                            : Image.file(
+                                selectedImages[index - existingImages.length],
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              ),
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: GestureDetector(
+                          onTap: () async {
+                            if (isNetwork) {
+                              final imageId = existingImages[index]["id"];
+
+                              await deleteimage(imageId);
+
+                              setState(() {
+                                existingImages.removeAt(index);
+                              });
+                            } else {
+                              setState(() {
+                                selectedImages.removeAt(
+                                  index - existingImages.length,
+                                );
+                              });
+                            }
+                          },
+
+                          child: const CircleAvatar(
+                            radius: 12,
+                            backgroundColor: Colors.black54,
+                            child: Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Colors.white,
                             ),
-                    ),
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: GestureDetector(
-                       onTap: () async {
-  if (isNetwork) {
-    final imageId = existingImages[index][  "id"];
-
-    await deleteimage(imageId);
-
-    setState(() {
-      existingImages.removeAt(index);
-    });
-  } else {
-    setState(() {
-      selectedImages.removeAt(index - existingImages.length);
-    });
-  }
-},
-
-                        child: const CircleAvatar(
-                          radius: 12,
-                          backgroundColor: Colors.black54,
-                          child: Icon(Icons.close, size: 14, color: Colors.white),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                );
-              },
-            ),
-    ),
-  );
-}
-
+                    ],
+                  );
+                },
+              ),
+      ),
+    );
+  }
 }

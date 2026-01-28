@@ -6,17 +6,16 @@ Route slideRightToLeftRoute(Widget page) {
     reverseTransitionDuration: const Duration(milliseconds: 300),
     pageBuilder: (context, animation, secondaryAnimation) => page,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      const begin = Offset(-1.0, 0.0); // 👈 from LEFT → RIGHT screen direction
+      const begin = Offset(-1.0, 0.0); // from LEFT → RIGHT screen direction
       const end = Offset.zero;
       const curve = Curves.easeInOut;
 
-      final tween = Tween(begin: begin, end: end)
-          .chain(CurveTween(curve: curve));
+      final tween = Tween(
+        begin: begin,
+        end: end,
+      ).chain(CurveTween(curve: curve));
 
-      return SlideTransition(
-        position: animation.drive(tween),
-        child: child,
-      );
+      return SlideTransition(position: animation.drive(tween), child: child);
     },
   );
 }

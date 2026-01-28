@@ -331,7 +331,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
               const SizedBox(height: 10),
 
-              // ⭐ HORIZONTAL CLUB SCROLL
+              // HORIZONTAL CLUB SCROLL
               SizedBox(
                 height: 160,
                 child: SingleChildScrollView(
@@ -348,10 +348,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         "lib/assets/imagess.png",
                       ),
                       const SizedBox(width: 12),
-                      buildClubCard(
-                        "City Skate Club",
-                        "lib/assets/images.png",
-                      ), // example extra
+                      buildClubCard("City Skate Club", "lib/assets/images.png"),
                     ],
                   ),
                 ),
@@ -404,7 +401,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
               const SizedBox(height: 15),
 
-              // ⭐ HORIZONTAL COACH SCROLL
+              // HORIZONTAL COACH SCROLL
               SizedBox(
                 height: 230,
                 child: SingleChildScrollView(
@@ -529,15 +526,15 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             );
           }
-          if(title =="Buy and Sell products"){
+          if (title == "Buy and Sell products") {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const  UserApprovedProducts(),
+                builder: (context) => const UserApprovedProducts(),
               ),
             );
           }
-          if(title =="Approve Products"){
+          if (title == "Approve Products") {
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -545,12 +542,10 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             );
           }
-          if(title =="Add Products"){
+          if (title == "Add Products") {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => const AddProduct(),
-              ),
+              MaterialPageRoute(builder: (context) => const AddProduct()),
             );
           }
         },
