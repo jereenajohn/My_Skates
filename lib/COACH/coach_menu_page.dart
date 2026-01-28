@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:my_skates/COACH/club_list.dart';
+import 'package:my_skates/COACH/coach_clubs_to_approve_request.dart';
 import 'package:my_skates/COACH/coach_followers_list.dart';
+import 'package:my_skates/COACH/coach_club_requests.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/COACH/coach_timeline_page.dart';
 import 'package:my_skates/COACH/training_session_page.dart';
@@ -374,9 +376,9 @@ class _CoachMenuPageState extends State<CoachMenuPage>
                   ? NetworkImage("$api$studentImage")
                   : const AssetImage("lib/assets/img.jpg") as ImageProvider,
             ),
-        
+
             const SizedBox(width: 14),
-        
+
             // RIGHT CONTENT
             Expanded(
               child: Column(
@@ -384,13 +386,14 @@ class _CoachMenuPageState extends State<CoachMenuPage>
                 children: [
                   // NAME + ROLE INLINE
                   Row(
-        
                     children: [
                       Flexible(
                         child: Text(
                           isLoading
                               ? "Loading..."
-                              : (studentName.isNotEmpty ? studentName : "Coach"),
+                              : (studentName.isNotEmpty
+                                    ? studentName
+                                    : "Coach"),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -413,9 +416,9 @@ class _CoachMenuPageState extends State<CoachMenuPage>
                       ),
                     ],
                   ),
-        
+
                   const SizedBox(height: 10),
-        
+
                   // FOLLOWERS / FOLLOWING
                   Column(
                     children: [
@@ -428,9 +431,9 @@ class _CoachMenuPageState extends State<CoachMenuPage>
                           _countText(followingCount),
                         ],
                       ),
-        
+
                       const SizedBox(height: 2),
-        
+
                       // LABELS ROW
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -480,12 +483,18 @@ class _CoachMenuPageState extends State<CoachMenuPage>
   // ───────────────── QUICK ACTION ─────────────────
   Widget _quickActionCard() {
     return _pressableCard(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CoachClubsToApproveRequest()),
+        );
+      },
       child: Row(
         children: const [
-          Icon(Icons.event_available, color: accentColor, size: 28),
+          Icon(Icons.request_page, color: accentColor, size: 28),
           SizedBox(width: 12),
           Text(
-            "Create Training / Event",
+            "Club Requests",
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
@@ -509,9 +518,7 @@ class _CoachMenuPageState extends State<CoachMenuPage>
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const CoachFollowersList(),
-                ),
+                MaterialPageRoute(builder: (_) => const CoachFollowersList()),
               );
             },
           ),
@@ -545,11 +552,8 @@ class _CoachMenuPageState extends State<CoachMenuPage>
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const ViewClubs(),
-                ),
+                MaterialPageRoute(builder: (_) => const ViewClubs()),
               );
-              
             },
           ),
         ),
