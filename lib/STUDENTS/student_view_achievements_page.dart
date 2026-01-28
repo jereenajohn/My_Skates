@@ -139,7 +139,7 @@ class _StudentViewAchievementsPageState extends State<StudentViewAchievementsPag
           IconButton(
             icon: const Icon(
               Icons.add_circle_outline,
-              color: Color(0xFF2EE6A6), // accent color
+              color: Color(0xFF2EE6A6),
               size: 24,
             ),
             tooltip: "Add Achievement",
@@ -149,7 +149,7 @@ class _StudentViewAchievementsPageState extends State<StudentViewAchievementsPag
                 MaterialPageRoute(builder: (_) => const AddstudentAchievements()),
               );
 
-              /// 🔄 Refresh list after add
+              ///  Refresh list after add
               if (added == true) {
                 setState(() {
                   achievementsFuture = fetchAchievements();

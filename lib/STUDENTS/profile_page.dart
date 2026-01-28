@@ -18,11 +18,10 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  // Store IDs only
-  String? gender; // "male", "female", "other"
-  String? selectedCountry; // ID
-  String? selectedState; // ID
-  String? selectedDistrict; // ID
+  String? gender;
+  String? selectedCountry;
+  String? selectedState;
+  String? selectedDistrict; 
 
   List<Map<String, dynamic>> countryList = [];
   List<Map<String, dynamic>> stateList = [];
@@ -56,11 +55,9 @@ class _ProfilePageState extends State<ProfilePage> {
     mapExistingIDs();
   }
 
-  // Convert backend NAME → ID
   void mapExistingIDs() {
-    // Gender fix (backend sends "Male")
     if (gender != null) {
-      gender = gender!.toLowerCase(); // Male → male
+      gender = gender!.toLowerCase(); 
     }
 
     // Country
@@ -186,7 +183,7 @@ class _ProfilePageState extends State<ProfilePage> {
         zipCtrl.text = data["zip_code"]?.toString() ?? "";
         instaCtrl.text = data["instagram"] ?? "";
 
-        gender = data["gender"]?.toString(); // ex: "Male"
+        gender = data["gender"]?.toString(); 
         selectedCountry = data["country"]?.toString();
         selectedState = data["state"]?.toString();
         selectedDistrict = data["district"]?.toString();
@@ -223,7 +220,7 @@ class _ProfilePageState extends State<ProfilePage> {
         "phone": phoneCtrl.text.trim(),
         "email": emailCtrl.text.trim(),
         "alt_phone": altPhoneCtrl.text.trim(),
-        "gender": gender ?? "", // sends ID like "male"
+        "gender": gender ?? "",
         "age": ageCtrl.text.trim(),
         "zip_code": zipCtrl.text.trim(),
         "instagram": instaCtrl.text.trim(),
@@ -527,11 +524,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _dropdownField({
     required String label,
-    required String? value, // ID
+    required String? value, 
     required List<Map<String, dynamic>> items,
     required Function(String?) onChange,
   }) {
-    // ✅ SAFETY CHECK (THIS FIXES THE CRASH)
+    //  SAFETY CHECK (THIS FIXES THE CRASH)
     final String? safeValue =
         (value != null && items.any((e) => e["id"].toString() == value))
         ? value
@@ -540,7 +537,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: DropdownButtonFormField<String>(
-        value: safeValue, // ✅ USE SAFE VALUE
+        value: safeValue, // USE SAFE VALUE
         decoration: _dec(label),
         dropdownColor: Colors.black,
         style: const TextStyle(color: Colors.white),

@@ -187,7 +187,7 @@ class _HomePageState extends State<HomePage> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         setState(() {
-          joinedClubs.add(clubId); // ✅ UPDATE UI
+          joinedClubs.add(clubId); //  UPDATE UI
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -220,7 +220,7 @@ class _HomePageState extends State<HomePage> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         setState(() {
-          joinedClubs.remove(clubId); // ✅ UPDATE UI
+          joinedClubs.remove(clubId); //  UPDATE UI
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -245,7 +245,7 @@ class _HomePageState extends State<HomePage> {
     final bool wasLiked = events[index]["is_liked"] == true;
     final int currentLikes = events[index]["likes_count"] ?? 0;
 
-    // 🔥 Optimistic UI update
+    //  Optimistic UI update
     setState(() {
       events[index]["is_liked"] = !wasLiked;
       events[index]["likes_count"] = wasLiked
@@ -262,7 +262,7 @@ class _HomePageState extends State<HomePage> {
         },
       );
 
-      // ❌ Revert if API fails
+      //  Revert if API fails
       if (response.statusCode != 200 && response.statusCode != 201) {
         setState(() {
           events[index]["is_liked"] = wasLiked;
@@ -270,7 +270,7 @@ class _HomePageState extends State<HomePage> {
         });
       }
     } catch (e) {
-      // ❌ Revert on exception
+      //  Revert on exception
       setState(() {
         events[index]["is_liked"] = wasLiked;
         events[index]["likes_count"] = currentLikes;
@@ -313,7 +313,7 @@ class _HomePageState extends State<HomePage> {
         if (decoded is List) {
           setState(() {
             students = decoded
-                .where((s) => s["id"] != loggedInUserId) // ✅ FILTER SELF
+                .where((s) => s["id"] != loggedInUserId) // FILTER SELF
                 .toList();
 
             studentsNoData = students.isEmpty;
@@ -582,8 +582,8 @@ class _HomePageState extends State<HomePage> {
           "club_name": e["club_name"],
           "club_image": e["club_image"],
           "images": e["images"] ?? [],
-          "likes_count": e["likes_count"] ?? 0, // ✅ REQUIRED
-          "is_liked": e["is_liked"] ?? false, // ✅ REQUIRED
+          "likes_count": e["likes_count"] ?? 0, 
+          "is_liked": e["is_liked"] ?? false,
           "created_at": e["created_at"],
         };
       }).toList();

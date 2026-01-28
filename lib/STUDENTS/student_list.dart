@@ -50,7 +50,7 @@ class _StudentListState extends State<StudentList> {
                 final bool isFollowing = student["is_following"] == true;
                 final String? followStatus = student["follow_status"];
 
-                // ✅ SHOW ONLY IF NOT FOLLOWED AND NOT PENDING
+                //  SHOW ONLY IF NOT FOLLOWED AND NOT PENDING
                 return !isFollowing && followStatus != "pending";
               })
               .toList();
@@ -81,7 +81,7 @@ class _StudentListState extends State<StudentList> {
     print("Follow request response: ${response.statusCode} - ${response.body}");
     if (response.statusCode == 200 || response.statusCode == 201) {
       setState(() {
-        students.removeAt(index); // ✅ instantly hide student
+        students.removeAt(index); //  instantly hide student
         noData = students.isEmpty;
       });
     }
