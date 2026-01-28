@@ -388,7 +388,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
           "to_time": e["to_time"],
           "club_name": e["club_name"],
           "club_image": e["club_image"],
-          "images": e["images"], // List of event images
+          "images": e["images"],
+          "likes_count": e["likes_count"] ?? 0,
+          "is_liked": e["is_liked"] ?? false,
           "created_at": e["created_at"],
         };
       }).toList();
@@ -433,6 +435,49 @@ class _CoachHomepageState extends State<CoachHomepage> {
       studentsNoData = true;
       studentsLoading = false;
       setState(() {});
+    }
+  }
+
+  Future<void> toggleEventLike(int eventId) async {
+    final index = events.indexWhere((e) => e["id"] == eventId);
+    if (index == -1) return;
+
+    final bool wasLiked = events[index]["is_liked"] == true;
+    final int currentLikes = events[index]["likes_count"] ?? 0;
+
+    // 🔥 Optimistic UI update
+    setState(() {
+      events[index]["is_liked"] = !wasLiked;
+      events[index]["likes_count"] = wasLiked
+          ? currentLikes - 1
+          : currentLikes + 1;
+    });
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    try {
+      final response = await http.post(
+        Uri.parse("$api/api/myskates/events/$eventId/like/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      // ❌ Revert if API fails
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        setState(() {
+          events[index]["is_liked"] = wasLiked;
+          events[index]["likes_count"] = currentLikes;
+        });
+      }
+    } catch (e) {
+      // ❌ Revert on exception
+      setState(() {
+        events[index]["is_liked"] = wasLiked;
+        events[index]["likes_count"] = currentLikes;
+      });
     }
   }
 
@@ -1009,6 +1054,10 @@ class _CoachHomepageState extends State<CoachHomepage> {
                             fromTime: event["from_time"] ?? "",
                             toTime: event["to_time"] ?? "",
                             icon: Icons.thumb_up_alt_outlined,
+                            eventId: event["id"],
+                            onLike: toggleEventLike,
+                            likesCount: event["likes_count"] ?? 0,
+                            isLiked: event["is_liked"] ?? false,
                           );
                         }).toList(),
                       ),
@@ -1412,6 +1461,11 @@ Widget buildEventCardWithImages({
   required String toDate,
   required String fromTime,
   required String toTime,
+  required int eventId,
+  required int likesCount,
+  required bool isLiked,
+
+  required Function(int) onLike,
 }) {
   return Container(
     padding: const EdgeInsets.all(14),
@@ -1563,9 +1617,21 @@ Widget buildEventCardWithImages({
 
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
-          children: const [
-            Icon(Icons.thumb_up_alt_outlined, color: Colors.white70, size: 22),
-            SizedBox(width: 14),
+          children: [
+            Text(
+              likesCount.toString(),
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.thumb_up_alt,
+                color: isLiked ? Colors.blueAccent : Colors.white70,
+                size: 22,
+              ),
+              onPressed: () {
+                onLike(eventId);
+              },
+            ),
           ],
         ),
       ],
