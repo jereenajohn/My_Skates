@@ -92,8 +92,8 @@ class _UserProductssState extends State<UserProducts> {
         Uri.parse('$api/api/myskates/products/$id/wishlist/'),
         headers: {'Authorization': 'Bearer $token'},
         body: {
-          "user": userId.toString(), // ✅ FIX
-          "product": id.toString(), // ✅ FIX
+          "user": userId.toString(),
+          "product": id.toString(), 
         },
       );
 
@@ -122,7 +122,7 @@ class _UserProductssState extends State<UserProducts> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      message, // ✅ BACKEND MESSAGE
+                      message, 
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
@@ -244,7 +244,6 @@ class _UserProductssState extends State<UserProducts> {
 
   List<Map<String, dynamic>> categories = [];
 
-  // FETCH CATEGORY LIST
   Future<void> getProductCategories() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
@@ -271,7 +270,7 @@ class _UserProductssState extends State<UserProducts> {
           categories = list;
         });
 
-        // 🔹 AUTO SELECT FIRST CATEGORY
+        // AUTO SELECT FIRST CATEGORY
         if (categories.isNotEmpty) {
           selectedCategoryId = categories.first['id'];
           selectedCategoryName = categories.first['name'];
@@ -311,7 +310,7 @@ class _UserProductssState extends State<UserProducts> {
             'image': c['image'] != null ? '$api${c['image']}' : "",
             'category_name': c['category_name'] ?? "",
             'price': c['base_price']?.toString() ?? "0",
-            'is_wishlisted': c['is_in_wishlist'] ?? false, // ✅ IMPORTANT
+            'is_wishlisted': c['is_in_wishlist'] ?? false, 
           };
         }).toList();
       }
@@ -367,7 +366,7 @@ class _UserProductssState extends State<UserProducts> {
           context,
           MaterialPageRoute(builder: (_) => const HomePage()),
         );
-        return false; // ⛔ prevent app close
+        return false; 
       },
       child: Scaffold(
         backgroundColor: const Color.fromARGB(255, 0, 0, 0),
@@ -422,7 +421,7 @@ class _UserProductssState extends State<UserProducts> {
                               // RIGHT ACTION ICONS (FAVORITE + CART)
                               Row(
                                 children: [
-                                  // ❤️ FAVORITE ICON
+                                  // FAVORITE ICON
                                   IconButton(
                                     onPressed: () {
                                       _handleUpdateProduct();

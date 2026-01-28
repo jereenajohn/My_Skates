@@ -33,10 +33,10 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
         return;
       }
 
-      // 🔐 STEP 0: FETCH MUTUAL FOLLOW (AUTHORITATIVE STATE)
+      //  STEP 0: FETCH MUTUAL FOLLOW (AUTHORITATIVE STATE)
       final Set<int> mutualFollowIds = await fetchMutualFollowIds();
 
-      // 🔔 STEP 1: FETCH NOTIFICATIONS
+      // STEP 1: FETCH NOTIFICATIONS
       final res = await http.get(
         Uri.parse("$api/api/myskates/notifications/"),
         headers: {
@@ -127,14 +127,14 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
       for (final n in temp) {
         final int actorId = n["actor"];
 
-        // 1️⃣ FOLLOW BACK REQUEST MUST SURVIVE
+        //  FOLLOW BACK REQUEST MUST SURVIVE
         if (n["notification_type"] == "follow_back_request") {
           n["status_ui"] = "follow_back_pending";
           byActor[actorId] = n;
           continue;
         }
 
-        // 2️⃣ MUTUAL FOLLOW IS TERMINAL (ONLY SOURCE OF TRUTH)
+        //  MUTUAL FOLLOW IS TERMINAL (ONLY SOURCE OF TRUTH)
         if (mutualFollowIds.contains(actorId)) {
           n["notification_type"] = "follow_back_accepted";
           n["status_ui"] = "following";
@@ -142,7 +142,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
           continue;
         }
 
-        // 3️⃣ NORMAL DEDUPE
+        // NORMAL DEDUPE
         if (!byActor.containsKey(actorId)) {
           byActor[actorId] = n;
         } else {
@@ -193,7 +193,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
 
     if (res.statusCode == 200) {
       if (n["notification_type"] == "follow_back_request") {
-        // ✅ FINAL STEP → MUTUAL FOLLOW
+        //  FINAL STEP → MUTUAL FOLLOW
         n["status_ui"] = "following";
         n["notification_type"] = "follow_back_accepted";
       } else {
@@ -431,7 +431,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                             if (n["status_ui"] == "following" ||
                                 n["status_ui"] == "follow_back_sent")
                               const SizedBox.shrink()
-                            // 🔵 FOLLOW REQUEST → Confirm / Ignore
+                            //  FOLLOW REQUEST → Confirm / Ignore
                             else if (n["status_ui"] == "request_pending")
                               Padding(
                                 padding: const EdgeInsets.only(top: 10),
@@ -481,7 +481,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                   ],
                                 ),
                               )
-                            // 🔵 FOLLOW BACK REQUEST → Confirm / Cancel
+                            //  FOLLOW BACK REQUEST → Confirm / Cancel
                             else if (n["status_ui"] == "follow_back_pending")
                               Padding(
                                 padding: const EdgeInsets.only(top: 10),
@@ -531,7 +531,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                   ],
                                 ),
                               )
-                            // 🟢 AFTER APPROVAL → Follow back / Cancel
+                            // AFTER APPROVAL → Follow back / Cancel
                             else if (n["status_ui"] == "approved")
                               Padding(
                                 padding: const EdgeInsets.only(top: 10),

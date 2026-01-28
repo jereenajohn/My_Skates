@@ -80,7 +80,7 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
   );
 
   if (res.statusCode == 200) {
-    // 🔍 CHECK if student already follows coach
+    //  CHECK if student already follows coach
     final approvedRes = await http.get(
       Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
       headers: {"Authorization": "Bearer $token"},
@@ -92,10 +92,10 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
           approved.map((e) => e["following"]).toSet();
 
       if (approvedIds.contains(r["follower"])) {
-        // ✅ already following → no follow back needed
+        //already following → no follow back needed
         requests.removeAt(index);
       } else {
-        // ❌ not following → show follow back
+        //  not following → show follow back
         r["status_ui"] = "follow_back";
       }
     }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_skates/STUDENTS/add_student_achievements.dart';
 import 'package:my_skates/loginpage.dart';
-import 'package:my_skates/STUDENTS/profile_page.dart'; // <-- Navigation Target Example
+import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:my_skates/STUDENTS/user_follow_requests.dart';
 import 'package:my_skates/STUDENTS/user_followers_list.dart';
 import 'package:my_skates/STUDENTS/user_following.dart';
@@ -26,7 +26,6 @@ class _UserSettingsState extends State<UserSettings> {
   Future<void> logoutUser() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Debug check before logout
     print("Token BEFORE logout: ${prefs.getString('token')}");
     print("ID BEFORE logout: ${prefs.getInt('id')}");
 

@@ -53,7 +53,6 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     print("USER LOCATION → Lat:${pos.latitude}, Lng:${pos.longitude}");
   }
 
-  // 🎯 FETCH COACHES FROM API
   Future<void> fetchCoaches() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -79,7 +78,7 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     }
   }
 
-  // 🎯 ADD ALL COACH MARKERS (Default)
+  // ADD ALL COACH MARKERS (Default)
   void addCoachMarkers() {
     markers = [];
     const double maxKm = 5.0;
@@ -231,7 +230,7 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     setState(() {});
   }
 
-  // 🎯 COACH DETAIL POPUP
+  // COACH DETAIL POPUP
   void showCoachBottomSheet(dynamic coach, double km) {
     showModalBottomSheet(
       backgroundColor: Colors.black87,
@@ -300,7 +299,7 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     );
   }
 
-  // 🎯 SEARCH BAR UI
+  //  SEARCH BAR UI
   Widget buildSearchBar() {
     return Positioned(
       top: 120, // moved higher
@@ -340,7 +339,7 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     );
   }
 
-  // 🎯 ZOOM BUTTONS (bottom right)
+  //  ZOOM BUTTONS (bottom right)
   Widget buildZoomButtons() {
     return Positioned(
       bottom: 40,
