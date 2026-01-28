@@ -65,7 +65,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     fetchStudentDetails();
     fetchClubs();
-    fetchEvents();
+loadEvents();
     refreshUserProfile().then((_) => fetchStudentDetails());
     getbanner();
     getTrainingSessions();
@@ -168,6 +168,49 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> toggleEventLike(int eventId) async {
+    final token = await getToken();
+    if (token == null) return;
+
+    final index = events.indexWhere((e) => e["id"] == eventId);
+    if (index == -1) return;
+
+    final bool wasLiked = events[index]["is_liked"] == true;
+    final int currentLikes = events[index]["likes_count"] ?? 0;
+
+    // 🔥 Optimistic UI update
+    setState(() {
+      events[index]["is_liked"] = !wasLiked;
+      events[index]["likes_count"] = wasLiked
+          ? currentLikes - 1
+          : currentLikes + 1;
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse("$api/api/myskates/events/$eventId/like/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      // ❌ Revert if API fails
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        setState(() {
+          events[index]["is_liked"] = wasLiked;
+          events[index]["likes_count"] = currentLikes;
+        });
+      }
+    } catch (e) {
+      // ❌ Revert on exception
+      setState(() {
+        events[index]["is_liked"] = wasLiked;
+        events[index]["likes_count"] = currentLikes;
+      });
+    }
+  }
+
   Future<void> fetchFollowRequestCount() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
@@ -182,49 +225,6 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         followRequestCount = data.length;
       });
-    }
-  }
-
-  Future<List<Map<String, dynamic>>> getAllEvents() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-
-    if (token == null) {
-      throw Exception("Authentication token missing");
-    }
-
-    final response = await http.get(
-      Uri.parse("$api/api/myskates/events/add/"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
-    );
-
-    debugPrint("EVENT LIST STATUS: ${response.statusCode}");
-    debugPrint("EVENT LIST BODY: ${response.body}");
-
-    if (response.statusCode == 200) {
-      final List decoded = jsonDecode(response.body);
-
-      return decoded.map<Map<String, dynamic>>((e) {
-        return {
-          "id": e["id"],
-          "title": e["title"],
-          "description": e["description"],
-          "note": e["note"],
-          "from_date": e["from_date"],
-          "to_date": e["to_date"],
-          "from_time": e["from_time"],
-          "to_time": e["to_time"],
-          "club_name": e["club_name"],
-          "club_image": e["club_image"],
-          "images": e["images"], // List of event images
-          "created_at": e["created_at"],
-        };
-      }).toList();
-    } else {
-      throw Exception("Failed to load events");
     }
   }
 
@@ -480,43 +480,48 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // FETCH EVENTS
-  Future<void> fetchEvents() async {
-    String? token = await getToken();
+  Future<List<Map<String, dynamic>>> getAllEvents() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
 
-    try {
-      final response = await http.get(
-        Uri.parse("$api/api/myskates/events/add/"),
-        headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json",
-        },
-      );
+    if (token == null) {
+      throw Exception("Authentication token missing");
+    }
 
-      print("EVENT STATUS: ${response.statusCode}");
-      print("EVENT BODY: ${response.body}");
+    final response = await http.get(
+      Uri.parse("$api/api/myskates/events/add/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
 
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
+    debugPrint("EVENT LIST STATUS: ${response.statusCode}");
+    debugPrint("EVENT LIST BODY: ${response.body}");
 
-        if (decoded is List) {
-          setState(() {
-            events = decoded;
-            eventsLoading = false;
-            eventsNoData = decoded.isEmpty;
-          });
-        }
-      } else {
-        setState(() {
-          eventsLoading = false;
-          eventsNoData = true;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        eventsLoading = false;
-        eventsNoData = true;
-      });
+    if (response.statusCode == 200) {
+      final List decoded = jsonDecode(response.body);
+
+      return decoded.map<Map<String, dynamic>>((e) {
+        return {
+          "id": e["id"],
+          "title": e["title"],
+          "description": e["description"],
+          "note": e["note"],
+          "from_date": e["from_date"],
+          "to_date": e["to_date"],
+          "from_time": e["from_time"],
+          "to_time": e["to_time"],
+          "club_name": e["club_name"],
+          "club_image": e["club_image"],
+          "images": e["images"] ?? [],
+          "likes_count": e["likes_count"] ?? 0, // ✅ REQUIRED
+          "is_liked": e["is_liked"] ?? false, // ✅ REQUIRED
+          "created_at": e["created_at"],
+        };
+      }).toList();
+    } else {
+      throw Exception("Failed to load events");
     }
   }
 
@@ -994,6 +999,10 @@ class _HomePageState extends State<HomePage> {
                             fromTime: event["from_time"] ?? "",
                             toTime: event["to_time"] ?? "",
                             icon: Icons.thumb_up_alt_outlined,
+                            eventId: event["id"],
+                            likesCount: event["likes_count"] ?? 0,
+                            isLiked: event["is_liked"] ?? false,
+                            onLike: toggleEventLike,
                           );
                         }).toList(),
                       ),
@@ -1182,6 +1191,11 @@ Widget buildEventCardWithImages({
   required String toDate,
   required String fromTime,
   required String toTime,
+  required int eventId,
+  required int likesCount,
+  required bool isLiked,
+
+  required Function(int) onLike,
 }) {
   return Container(
     padding: const EdgeInsets.all(14),
@@ -1335,9 +1349,21 @@ Widget buildEventCardWithImages({
 
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
-          children: const [
-            Icon(Icons.thumb_up_alt_outlined, color: Colors.white70, size: 22),
-            SizedBox(width: 14),
+          children: [
+            Text(
+              likesCount.toString(),
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.thumb_up_alt,
+                color: isLiked ? Colors.blueAccent : Colors.white70,
+                size: 22,
+              ),
+              onPressed: () {
+                onLike(eventId);
+              },
+            ),
           ],
         ),
       ],
