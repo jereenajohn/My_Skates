@@ -65,7 +65,8 @@ class Userfeedcommentsheet extends StatelessWidget {
                 Expanded(
                   child: p.loading
                       ? const Center(
-                          child: CircularProgressIndicator(color: accentColor))
+                          child: CircularProgressIndicator(color: accentColor),
+                        )
                       : ListView.separated(
                           padding: const EdgeInsets.all(12),
                           itemCount: p.comments.length,
@@ -75,7 +76,6 @@ class Userfeedcommentsheet extends StatelessWidget {
                             final c = p.comments[i];
                             final bool isMine = c["user"] == p.myUserId;
 
-
                             return Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -84,11 +84,15 @@ class Userfeedcommentsheet extends StatelessWidget {
                                   backgroundColor: Colors.white12,
                                   backgroundImage: c["profile_image"] != null
                                       ? NetworkImage(
-                                          "$api${c["profile_image"]}")
+                                          "$api${c["profile_image"]}",
+                                        )
                                       : null,
                                   child: c["profile_image"] == null
-                                      ? const Icon(Icons.person,
-                                          color: Colors.white70, size: 18)
+                                      ? const Icon(
+                                          Icons.person,
+                                          color: Colors.white70,
+                                          size: 18,
+                                        )
                                       : null,
                                 ),
                                 const SizedBox(width: 10),
@@ -111,9 +115,11 @@ class Userfeedcommentsheet extends StatelessWidget {
                                           ),
                                           if (isMine) ...[
                                             IconButton(
-                                              icon: const Icon(Icons.edit,
-                                                  size: 18,
-                                                  color: Colors.white70),
+                                              icon: const Icon(
+                                                Icons.edit,
+                                                size: 18,
+                                                color: Colors.white70,
+                                              ),
                                               padding: EdgeInsets.zero,
                                               constraints:
                                                   const BoxConstraints(),
@@ -122,15 +128,18 @@ class Userfeedcommentsheet extends StatelessWidget {
                                             ),
                                             IconButton(
                                               icon: const Icon(
-                                                  Icons.delete_outline,
-                                                  size: 18,
-                                                  color: Colors.redAccent),
+                                                Icons.delete_outline,
+                                                size: 18,
+                                                color: Colors.redAccent,
+                                              ),
                                               padding: EdgeInsets.zero,
                                               constraints:
                                                   const BoxConstraints(),
-                                              onPressed: () =>
-                                                  _confirmDelete(
-                                                      context, p, c["id"]),
+                                              onPressed: () => _confirmDelete(
+                                                context,
+                                                p,
+                                                c["id"],
+                                              ),
                                             ),
                                           ],
                                         ],
@@ -157,8 +166,7 @@ class Userfeedcommentsheet extends StatelessWidget {
                   padding: EdgeInsets.only(
                     left: 12,
                     right: 12,
-                    bottom:
-                        MediaQuery.of(context).viewInsets.bottom + 10,
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 10,
                   ),
                   decoration: const BoxDecoration(
                     border: Border(top: BorderSide(color: Colors.white10)),
@@ -168,8 +176,11 @@ class Userfeedcommentsheet extends StatelessWidget {
                       const CircleAvatar(
                         radius: 16,
                         backgroundColor: Colors.white12,
-                        child: Icon(Icons.person,
-                            color: Colors.white70, size: 16),
+                        child: Icon(
+                          Icons.person,
+                          color: Colors.white70,
+                          size: 16,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -182,8 +193,7 @@ class Userfeedcommentsheet extends StatelessWidget {
                           },
                           decoration: const InputDecoration(
                             hintText: "Add a comment...",
-                            hintStyle:
-                                TextStyle(color: Colors.white38),
+                            hintStyle: TextStyle(color: Colors.white38),
                             border: InputBorder.none,
                           ),
                         ),
@@ -233,16 +243,19 @@ void _openEditSheet(
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: const BoxDecoration(
-          gradient:
-              LinearGradient(colors: [Color(0xFF00312D), Colors.black]),
+          gradient: LinearGradient(colors: [Color(0xFF00312D), Colors.black]),
           borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("Edit Comment",
-                style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
+            const Text(
+              "Edit Comment",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: controller,
@@ -250,9 +263,7 @@ void _openEditSheet(
             ),
             const SizedBox(height: 12),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
               onPressed: () async {
                 await provider.updateComment(
                   commentId: c["id"],
@@ -260,7 +271,10 @@ void _openEditSheet(
                 );
                 Navigator.pop(context);
               },
-              child: const Text("Update",style: TextStyle(color: Colors.white),),
+              child: const Text(
+                "Update",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -280,24 +294,28 @@ void _confirmDelete(
     context: context,
     builder: (_) => AlertDialog(
       backgroundColor: Colors.black,
-      title: const Text("Delete Comment",
-          style: TextStyle(color: Colors.white)),
+      title: const Text(
+        "Delete Comment",
+        style: TextStyle(color: Colors.white),
+      ),
       content: const Text(
         "Are you sure you want to delete this comment?",
         style: TextStyle(color: Colors.white70),
       ),
-      actions: [  
+      actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text("Cancel",style: TextStyle(color: Colors.white),),
+          child: const Text("Cancel", style: TextStyle(color: Colors.white)),
         ),
         TextButton(
           onPressed: () async {
             await provider.deleteComment(id);
             Navigator.pop(context);
           },
-          child: const Text("Delete",
-              style: TextStyle(color: Colors.redAccent)),
+          child: const Text(
+            "Delete",
+            style: TextStyle(color: Colors.redAccent),
+          ),
         ),
       ],
     ),

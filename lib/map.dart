@@ -110,7 +110,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
                 },
               ),
               children: [
-                // ✅ Your Jawg template
+                // Your Jawg template
                 TileLayer(
                   urlTemplate:
                       "https://tile.jawg.io/jawg-dark/{z}/{x}/{y}.png?access-token=2B7dgDmr4GbsgqSaMLKgFwKHXVuhFAcIAJ7sD1TgNjB9Mmto5m9L4rcDGNKHl4GQ",

@@ -7,7 +7,7 @@ class UserRepostComposerSheet extends StatefulWidget {
   final Map<String, dynamic> feed;
   final CoachFeedProvider feedProvider;
 
-  // 🔹 OPTIONAL — used only for edit
+  //  OPTIONAL — used only for edit
   final bool isEdit;
   final int? repostId;
   final String? initialText;
@@ -92,7 +92,7 @@ class _UserRepostComposerSheetState extends State<UserRepostComposerSheet> {
 
           const SizedBox(height: 12),
 
-          // ✏️ TEXT INPUT
+          // TEXT INPUT
           TextField(
             controller: controller,
             maxLines: null,
@@ -107,7 +107,7 @@ class _UserRepostComposerSheetState extends State<UserRepostComposerSheet> {
 
           const Divider(color: Colors.white12),
 
-          // 📦 ORIGINAL FEED PREVIEW
+          //  ORIGINAL FEED PREVIEW
           Expanded(
             child: SingleChildScrollView(
               child: Column(
@@ -129,7 +129,7 @@ class _UserRepostComposerSheetState extends State<UserRepostComposerSheet> {
 
           const SizedBox(height: 12),
 
-          // 🔘 ACTION BUTTON
+          //  ACTION BUTTON
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -141,7 +141,7 @@ class _UserRepostComposerSheetState extends State<UserRepostComposerSheet> {
                   : () async {
                       setState(() => posting = true);
 
-                      // ✏️ EDIT REPOST
+                      // EDIT REPOST
                       if (widget.isEdit &&
                           widget.repostId != null) {
                         await widget.feedProvider.updateRepostText(
@@ -149,7 +149,7 @@ class _UserRepostComposerSheetState extends State<UserRepostComposerSheet> {
                           text: controller.text.trim(),
                         );
                       }
-                      // 🔁 CREATE REPOST
+                      //  CREATE REPOST
                       else {
                         await widget.feedProvider.repostWithText(
                           feedId: widget.feedId,

@@ -7,7 +7,7 @@ class RepostComposerSheet extends StatefulWidget {
   final Map<String, dynamic> feed;
   final CoachFeedProvider feedProvider;
 
-  // 🔹 OPTIONAL — used only for edit
+  // OPTIONAL — used only for edit
   final bool isEdit;
   final int? repostId;
   final String? initialText;
@@ -34,7 +34,7 @@ class _RepostComposerSheetState extends State<RepostComposerSheet> {
   void initState() {
     super.initState();
 
-    // ✅ PRE-FILL TEXT WHEN EDITING
+    //  PRE-FILL TEXT WHEN EDITING
     if (widget.isEdit && widget.initialText != null) {
       controller.text = widget.initialText!;
     }
@@ -86,20 +86,17 @@ class _RepostComposerSheetState extends State<RepostComposerSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Center(
-            child: Icon(Icons.drag_handle, color: Colors.white38),
-          ),
+          const Center(child: Icon(Icons.drag_handle, color: Colors.white38)),
 
           const SizedBox(height: 12),
 
-          // ✏️ TEXT INPUT
+          //  TEXT INPUT
           TextField(
             controller: controller,
             maxLines: null,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
-              hintText:
-                  widget.isEdit ? "Edit your caption…" : "Add a caption…",
+              hintText: widget.isEdit ? "Edit your caption…" : "Add a caption…",
               hintStyle: const TextStyle(color: Colors.white54),
               border: InputBorder.none,
             ),
@@ -107,15 +104,13 @@ class _RepostComposerSheetState extends State<RepostComposerSheet> {
 
           const Divider(color: Colors.white12),
 
-          // 📦 ORIGINAL FEED PREVIEW
+          //  ORIGINAL FEED PREVIEW
           Expanded(
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if ((widget.feed["description"] ?? "")
-                      .toString()
-                      .isNotEmpty)
+                  if ((widget.feed["description"] ?? "").toString().isNotEmpty)
                     Text(
                       widget.feed["description"],
                       style: const TextStyle(color: Colors.white70),
@@ -129,7 +124,7 @@ class _RepostComposerSheetState extends State<RepostComposerSheet> {
 
           const SizedBox(height: 12),
 
-          // 🔘 ACTION BUTTON
+          // ACTION BUTTON
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -141,15 +136,14 @@ class _RepostComposerSheetState extends State<RepostComposerSheet> {
                   : () async {
                       setState(() => posting = true);
 
-                      // ✏️ EDIT REPOST
-                      if (widget.isEdit &&
-                          widget.repostId != null) {
+                      //  EDIT REPOST
+                      if (widget.isEdit && widget.repostId != null) {
                         await widget.feedProvider.updateRepostText(
                           repostId: widget.repostId!,
                           text: controller.text.trim(),
                         );
                       }
-                      // 🔁 CREATE REPOST
+                      // CREATE REPOST
                       else {
                         await widget.feedProvider.repostWithText(
                           feedId: widget.feedId,

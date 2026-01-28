@@ -48,7 +48,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
 
-      // ✅ REQUIRED FOR DEEP LINK NAVIGATION
+      // REQUIRED FOR DEEP LINK NAVIGATION
       navigatorKey: navigatorKey,
 
       home: _DeepLinkWrapper(
@@ -72,7 +72,7 @@ class MyApp extends StatelessWidget {
 }
 
 // ===================================================================
-// 🔗 DEEP LINK HANDLER (PRODUCTION SAFE, NO LOGIC CHANGE)
+//  DEEP LINK HANDLER (PRODUCTION SAFE, NO LOGIC CHANGE)
 // ===================================================================
 class _DeepLinkWrapper extends StatefulWidget {
   final Widget child;
@@ -89,12 +89,13 @@ class _DeepLinkWrapperState extends State<_DeepLinkWrapper> {
   void initState() {
     super.initState();
 
-    // 🔹 Cold start
+    // Cold start
     _appLinks.getInitialAppLink().then((uri) {
       if (uri != null) _handleLink(uri);
     });
 
-    // 🔹 App in background / foreground
+    //
+    // App in background / foreground
     _appLinks.uriLinkStream.listen((uri) {
       _handleLink(uri);
     });
