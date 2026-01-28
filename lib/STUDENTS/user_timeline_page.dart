@@ -113,7 +113,7 @@ class CoachAchievementsSection extends StatelessWidget {
                       );
                     },
                   ),
-                  // ✏️ EDIT
+                  //  EDIT
                   IconButton(
                     icon: const Icon(Icons.edit, color: accentColor, size: 20),
                     tooltip: "Edit Achievements",
@@ -183,7 +183,7 @@ class _AchievementListTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 🔹 LEFT: LOGO / IMAGE
+          // LEFT: LOGO / IMAGE
           Container(
             width: 46,
             height: 46,
@@ -204,7 +204,7 @@ class _AchievementListTile extends StatelessWidget {
 
           const SizedBox(width: 14),
 
-          // 🔹 RIGHT: DETAILS
+          // RIGHT: DETAILS
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,7 +331,7 @@ class _CoachTimelineView extends StatelessWidget {
 
                   const SizedBox(height: 20),
 
-                  // ✅ this is dynamic, so the list cannot be const
+                  // this is dynamic, so the list cannot be const
                   _FeedList(feedKeys: feedKeys),
 
                   const SizedBox(height: 40),
@@ -377,7 +377,7 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<CoachProfileProvider>(
       builder: (_, p, __) {
-        // ✅ Skeleton instead of spinner
+        //  Skeleton instead of spinner
         if (p.loading) {
           return const ProfileHeaderSkeleton();
         }
@@ -458,7 +458,7 @@ class _FeedComposer extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 🛼 PROFILE + ENERGY BADGE
+            //  PROFILE + ENERGY BADGE
             Stack(
               alignment: Alignment.bottomRight,
               children: [
@@ -486,7 +486,7 @@ class _FeedComposer extends StatelessWidget {
 
             const SizedBox(width: 14),
 
-            // ✍️ TEXT
+            // TEXT
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -505,7 +505,7 @@ class _FeedComposer extends StatelessWidget {
               ),
             ),
 
-            // 📸 ACTION ICON
+            // ACTION ICON
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -540,17 +540,17 @@ class _FeedList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<CoachFeedProvider>(
       builder: (_, p, __) {
-        // ✅ Skeleton loading
+        // Skeleton loading
         if (p.loading) {
           return const FeedSkeletonList();
         }
 
-        // ✅ Empty state
+        // Empty state
         if (p.feeds.isEmpty) {
           return const EmptyFeedState();
         }
 
-        // ✅ Normal feed
+        //  Normal feed
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -614,7 +614,7 @@ class _FeedCard extends StatelessWidget {
 
     final List images = (feed["feed_image"] ?? []) as List;
 
-    // 🔗 PRODUCTION DEEP LINK
+    //  PRODUCTION DEEP LINK
     final String deepLink = "https://myskates.app/feed/$feedId";
     // (for now you can use ngrok if needed)
 
@@ -656,14 +656,14 @@ class _FeedCard extends StatelessWidget {
     final profile = context.read<CoachProfileProvider>();
     final feedProvider = context.watch<CoachFeedProvider>();
 
-    // 🔁 Detect repost feed (ONCE)
+    // Detect repost feed (ONCE)
     final bool isRepostFeed = feed["feed"] != null;
 
-    // ✅ ALWAYS ASSIGNED — SAFE
+    // ALWAYS ASSIGNED — SAFE
     final Map<String, dynamic> displayFeed = isRepostFeed
         ? Map<String, dynamic>.from(feed["feed"] as Map)
         : Map<String, dynamic>.from(feed as Map);
-    // ✅ ALWAYS read counts from original feed
+    //  ALWAYS read counts from original feed
     final int likeCount = displayFeed["likes_count"] ?? 0;
     final int repostCount = displayFeed["shares_count"] ?? 0;
     final int commentCount = displayFeed["comments_count"] ?? 0;
@@ -699,7 +699,7 @@ class _FeedCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 🟢 TIMELINE DOT
+              // TIMELINE DOT
               Column(
                 children: [
                   Container(
@@ -720,12 +720,12 @@ class _FeedCard extends StatelessWidget {
 
               const SizedBox(width: 12),
 
-              // 🛼 FEED CONTENT
+              //  FEED CONTENT
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 🔁 REPOST HEADER
+                    // REPOST HEADER
                     if (isRepostFeed)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 6),
@@ -763,7 +763,7 @@ class _FeedCard extends StatelessWidget {
                         ),
                       ),
 
-                    // 🔹 HEADER (PROFILE + NAME)
+                    //  HEADER (PROFILE + NAME)
                     Row(
                       children: [
                         CircleAvatar(
@@ -835,7 +835,7 @@ class _FeedCard extends StatelessWidget {
                                     ),
                                   ),
                                   onTap: () {
-                                    // ⏳ Let the popup menu close first
+                                    // Let the popup menu close first
                                     Future.microtask(() {
                                       showModalBottomSheet(
                                         context: context,
@@ -843,9 +843,9 @@ class _FeedCard extends StatelessWidget {
                                         backgroundColor: Colors.transparent,
                                         builder: (_) => RepostComposerSheet(
                                           feedId:
-                                              actualFeedId, // original feed id
+                                              actualFeedId, 
                                           feed:
-                                              displayFeed, // original feed (image + desc)
+                                              displayFeed, 
                                           feedProvider:
                                               feedProvider, // existing provider
                                           isEdit: true,
@@ -991,7 +991,7 @@ class _FeedCard extends StatelessWidget {
 
                             await provider.toggleLike(actualFeedId);
 
-                            // 🔴 THIS IS THE FIX
+                            //  THIS IS THE FIX
                             await provider.fetchFeeds();
                           },
                         ),
@@ -1155,7 +1155,7 @@ class _FeedMediaState extends State<_FeedMedia> {
           ),
         ),
 
-        // 🔹 DOT INDICATOR (ONLY IF MULTIPLE IMAGES)
+        // DOT INDICATOR (ONLY IF MULTIPLE IMAGES)
         if (widget.images.length > 1)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
@@ -1256,10 +1256,10 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
     super.initState();
     _allEmojis = getAllEmojis();
 
-    // ✅ THIS LINE SHOWS DESCRIPTION WHEN EDITING
+    //  THIS LINE SHOWS DESCRIPTION WHEN EDITING
     controller.text = widget.initialText;
 
-    // ✅ THIS LINE SHOWS EXISTING IMAGES
+    //  THIS LINE SHOWS EXISTING IMAGES
     networkImages.addAll(widget.existingImageUrls);
   }
 
@@ -1399,7 +1399,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
 
             const Divider(color: Colors.white12),
 
-            // 🔹 SCROLLABLE CONTENT
+            //  SCROLLABLE CONTENT
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -1456,7 +1456,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
               ),
             ),
 
-            // 🔹 ACTION BAR
+            //  ACTION BAR
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
@@ -1489,7 +1489,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
               ),
             ),
 
-            // 🔹 EMOJI PICKER
+            //  EMOJI PICKER
             AnimatedContainer(
               duration: const Duration(milliseconds: 250),
               height: showEmojiPicker ? 260 : 0,
@@ -1539,7 +1539,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
     );
   }
 
-  /// ✅ ONLY CHANGE: Provider-based submit
+  ///  ONLY CHANGE: Provider-based submit
   Future<void> _submit() async {
     setState(() => posting = true);
 
