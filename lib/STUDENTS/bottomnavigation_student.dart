@@ -10,10 +10,7 @@ import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 class AppBottomNav_student extends StatelessWidget {
   final int currentIndex;
 
-  const AppBottomNav_student({
-    super.key,
-    required this.currentIndex,
-  });
+  const AppBottomNav_student({super.key, required this.currentIndex});
 
   void _onTap(BuildContext context, int index) {
     if (index == currentIndex) return;
@@ -81,26 +78,14 @@ class AppBottomNav_student extends StatelessWidget {
           type: BottomNavigationBarType.fixed,
           onTap: (i) => _onTap(context, i),
           items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_filled),
-              label: '',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_bag),
-              label: '',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
+            BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ''),
             BottomNavigationBarItem(
               icon: Icon(Icons.chat_bubble_rounded),
               label: '',
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.group),
-              label: '',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.event),
-              label: '',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
+            BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
           ],
         ),
       ),
