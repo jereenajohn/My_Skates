@@ -59,13 +59,14 @@ class _HomePageState extends State<HomePage> {
   int followRequestCount = 0;
   bool trainingLoading = true;
   bool trainingNoData = false;
+  Set<int> joinedClubs = {};
 
   @override
   initState() {
     super.initState();
     fetchStudentDetails();
     fetchClubs();
-loadEvents();
+    loadEvents();
     refreshUserProfile().then((_) => fetchStudentDetails());
     getbanner();
     getTrainingSessions();
@@ -165,6 +166,72 @@ loadEvents();
         trainingLoading = false;
         trainingNoData = true;
       });
+    }
+  }
+
+  Future<void> sendClubJoinRequest(int clubId) async {
+    final token = await getToken();
+    if (token == null) return;
+
+    try {
+      final response = await http.post(
+        Uri.parse('$api/api/myskates/club/join/$clubId/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      debugPrint("CLUB JOIN STATUS: ${response.statusCode}");
+      debugPrint("CLUB JOIN BODY: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        setState(() {
+          joinedClubs.add(clubId); // ✅ UPDATE UI
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Join request sent successfully"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("CLUB JOIN ERROR: $e");
+    }
+  }
+
+  Future<void> leaveClub(int clubId) async {
+    final token = await getToken();
+    if (token == null) return;
+
+    try {
+      final response = await http.post(
+        Uri.parse('$api/api/myskates/club/leave/$clubId/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      debugPrint("CLUB LEAVE STATUS: ${response.statusCode}");
+      debugPrint("CLUB LEAVE BODY: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        setState(() {
+          joinedClubs.remove(clubId); // ✅ UPDATE UI
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Left club successfully"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("CLUB LEAVE ERROR: $e");
     }
   }
 
@@ -895,7 +962,12 @@ loadEvents();
                         itemCount: clubs.length,
                         itemBuilder: (_, i) => Padding(
                           padding: const EdgeInsets.only(right: 12),
-                          child: buildClubCardFromApi(clubs[i]),
+                          child: buildClubCardFromApi(
+                            clubs[i],
+                            onJoinClub: sendClubJoinRequest,
+                            onLeaveClub: leaveClub,
+                            isJoined: joinedClubs.contains(clubs[i]['id']),
+                          ),
                         ),
                       ),
                     ),
@@ -1371,22 +1443,25 @@ Widget buildEventCardWithImages({
   );
 }
 
-// CLUB CARD
-Widget buildClubCardFromApi(Map club) {
+Widget buildClubCardFromApi(
+  Map club, {
+  required Function(int) onJoinClub,
+  required Function(int) onLeaveClub,
+  required bool isJoined,
+}) {
   String title = club["club_name"] ?? "Club";
+  int clubId = club["id"];
   String? img = club["image"];
   String imageUrl = (img != null && img.isNotEmpty) ? "$api$img" : "";
 
   return Container(
     width: 160,
-    height: 100,
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
       color: Colors.white10,
       borderRadius: BorderRadius.circular(16),
     ),
     child: Column(
-      mainAxisAlignment: MainAxisAlignment.start,
       children: [
         CircleAvatar(
           radius: 30,
@@ -1394,7 +1469,9 @@ Widget buildClubCardFromApi(Map club) {
               ? NetworkImage(imageUrl)
               : const AssetImage("lib/assets/images.png") as ImageProvider,
         ),
+
         const SizedBox(height: 10),
+
         Text(
           title,
           textAlign: TextAlign.center,
@@ -1402,16 +1479,27 @@ Widget buildClubCardFromApi(Map club) {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(color: Colors.white, fontSize: 14),
         ),
+
         const Spacer(),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.teal,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: const Text(
-            "Follow",
-            style: TextStyle(color: Colors.white, fontSize: 13),
+
+        GestureDetector(
+          onTap: () {
+            if (isJoined) {
+              onLeaveClub(clubId); // 🔁 LEAVE
+            } else {
+              onJoinClub(clubId); // ➕ JOIN
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+            decoration: BoxDecoration(
+              color: isJoined ? Colors.grey : Colors.teal,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              isJoined ? "Joined" : "Join Club",
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+            ),
           ),
         ),
       ],
