@@ -582,7 +582,7 @@ class _HomePageState extends State<HomePage> {
           "club_name": e["club_name"],
           "club_image": e["club_image"],
           "images": e["images"] ?? [],
-          "likes_count": e["likes_count"] ?? 0, 
+          "likes_count": e["likes_count"] ?? 0,
           "is_liked": e["is_liked"] ?? false,
           "created_at": e["created_at"],
         };
