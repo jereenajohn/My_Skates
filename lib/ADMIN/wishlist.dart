@@ -532,7 +532,7 @@ class _WishlistState extends State<Wishlist> {
                 ),
               ),
 
-              /// ❤️ WISHLIST ICON
+              ///WISHLIST ICON
               Positioned(
                 top: 8,
                 right: 8,
@@ -594,7 +594,6 @@ class _WishlistState extends State<Wishlist> {
               ),
             ),
           ),
-
 
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -873,7 +872,7 @@ class _WishlistState extends State<Wishlist> {
 
               /// HORIZONTAL VARIANTS
               SizedBox(
-                height: 190, // ✅ Taller = no overflow
+                height: 190, // Taller = no overflow
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: variants.length,

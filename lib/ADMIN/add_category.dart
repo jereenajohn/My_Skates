@@ -50,10 +50,7 @@ class _AddCategoryState extends State<AddCategory> {
         List<Map<String, dynamic>> list = [];
 
         for (var item in parsed) {
-          list.add({
-            "id": item["id"],
-            "name": item["name"],
-          });
+          list.add({"id": item["id"], "name": item["name"]});
         }
 
         setState(() {
@@ -76,12 +73,8 @@ class _AddCategoryState extends State<AddCategory> {
     try {
       var response = await http.post(
         Uri.parse("$api/api/myskates/products/category/"),
-        headers: {
-          "Authorization": "Bearer $token",
-        },
-        body: {
-          "name": categoryName,
-        },
+        headers: {"Authorization": "Bearer $token"},
+        body: {"name": categoryName},
       );
 
       print("ADD CATEGORY STATUS: ${response.statusCode}");
@@ -119,61 +112,57 @@ class _AddCategoryState extends State<AddCategory> {
     }
   }
 
- Future<void> updateProductCategory(
-  int id,
-  String name,
-  BuildContext context,
-) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
+  Future<void> updateProductCategory(
+    int id,
+    String name,
+    BuildContext context,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
 
-  try {
-    var response = await http.put(
-      Uri.parse("$api/api/myskates/products/category/edit/$id/"),
-      headers: {
-        "Authorization": "Bearer $token",
-      },
-      body: {
-        "name": name,
-      },
-    );
-
-    print("UPDATE STATUS: ${response.statusCode}");
-    print("UPDATE BODY: ${response.body}");
-
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Category updated successfully"),
-          backgroundColor: Colors.orange,
-        ),
+    try {
+      var response = await http.put(
+        Uri.parse("$api/api/myskates/products/category/edit/$id/"),
+        headers: {"Authorization": "Bearer $token"},
+        body: {"name": name},
       );
 
-      isEditMode = false;
-      editingCategoryId = null;
-      categoryCtrl.clear();
-      showForm = false;
+      print("UPDATE STATUS: ${response.statusCode}");
+      print("UPDATE BODY: ${response.body}");
 
-      await getProductCategories();
-      setState(() {});
-    } else {
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Category updated successfully"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+
+        isEditMode = false;
+        editingCategoryId = null;
+        categoryCtrl.clear();
+        showForm = false;
+
+        await getProductCategories();
+        setState(() {});
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed: ${response.body}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print("ERROR: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Failed: ${response.body}"),
+        const SnackBar(
+          content: Text("Something went wrong"),
           backgroundColor: Colors.red,
         ),
       );
     }
-  } catch (e) {
-    print("ERROR: $e");
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Something went wrong"),
-        backgroundColor: Colors.red,
-      ),
-    );
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -229,7 +218,6 @@ class _AddCategoryState extends State<AddCategory> {
 
               // _label("Categories"),
               // const SizedBox(height: 10),
-
               _categoryList(),
             ],
           ),
@@ -264,9 +252,7 @@ class _AddCategoryState extends State<AddCategory> {
       child: TextField(
         controller: controller,
         style: const TextStyle(color: Colors.white),
-        decoration: const InputDecoration(
-          border: InputBorder.none,
-        ),
+        decoration: const InputDecoration(border: InputBorder.none),
       ),
     );
   }
@@ -285,19 +271,15 @@ class _AddCategoryState extends State<AddCategory> {
           return;
         }
 
-       if (isEditMode) {
-  updateProductCategory(
-    editingCategoryId!,
-    categoryCtrl.text.trim(),
-    context,
-  );
-} else {
-  addProductCategory(
-    categoryCtrl.text.trim(),
-    context,
-  );
-}
-
+        if (isEditMode) {
+          updateProductCategory(
+            editingCategoryId!,
+            categoryCtrl.text.trim(),
+            context,
+          );
+        } else {
+          addProductCategory(categoryCtrl.text.trim(), context);
+        }
       },
       child: Container(
         width: double.infinity,

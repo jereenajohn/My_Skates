@@ -69,7 +69,7 @@ class _MenuPageState extends State<MenuPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F), // Dark IG-style background
+      backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
         backgroundColor: const Color(0xFF0F0F0F),
         elevation: 0,
@@ -148,10 +148,15 @@ class _MenuPageState extends State<MenuPage> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const AddSkatersType()),
+                    MaterialPageRoute(
+                      builder: (context) => const AddSkatersType(),
+                    ),
                   );
                 },
-                child: _menuTile(icon: Icons.bookmark_outline, text: "Skaters Type"),
+                child: _menuTile(
+                  icon: Icons.bookmark_outline,
+                  text: "Skaters Type",
+                ),
               ),
               _divider(),
 

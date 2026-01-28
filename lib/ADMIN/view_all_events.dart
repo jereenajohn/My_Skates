@@ -694,7 +694,7 @@ class _EventsState extends State<Events> {
           context,
           MaterialPageRoute(builder: (_) => const CoachHomepage()),
         );
-        return false; // ⛔ prevent app close
+        return false; // prevent app close
       },
       child: Scaffold(
         backgroundColor: const Color.fromARGB(255, 0, 0, 0),

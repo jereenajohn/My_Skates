@@ -50,8 +50,7 @@ class _AddSkatersTypeState extends State<AddSkatersType> {
         List<Map<String, dynamic>> list = [];
 
         for (var item in parsed) {
-          list.add({"id": item["id"], 
-          "name": item["type"]});
+          list.add({"id": item["id"], "name": item["type"]});
         }
 
         setState(() {
@@ -63,7 +62,6 @@ class _AddSkatersTypeState extends State<AddSkatersType> {
     }
   }
 
-  // ADD CATEGORY
   Future<void> addskaterCategory(
     String categoryName,
     BuildContext context,

@@ -39,7 +39,7 @@ class _ViewAddressState extends State<ViewAddress> {
           "Content-Type": "application/json",
         },
       );
-print("Address fetch response: ${res.body}");
+      print("Address fetch response: ${res.body}");
       if (res.statusCode == 200) {
         final decoded = jsonDecode(res.body);
 
@@ -69,7 +69,7 @@ print("Address fetch response: ${res.body}");
     }
   }
 
-Future<void> deleteAddress(int id) async {
+  Future<void> deleteAddress(int id) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
 
@@ -83,11 +83,10 @@ Future<void> deleteAddress(int id) async {
           "Content-Type": "application/json",
         },
       );
-print("Address delete response: ${res.statusCode}");
-print("Address delete response body: ${res.body}");
+      print("Address delete response: ${res.statusCode}");
+      print("Address delete response body: ${res.body}");
       if (res.statusCode == 200) {
-        
-        fetchAddresses(); // Refresh the address list
+        fetchAddresses(); 
       } else {
         setState(() => addressLoading = false);
       }
@@ -96,6 +95,7 @@ print("Address delete response body: ${res.body}");
       setState(() => addressLoading = false);
     }
   }
+
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
@@ -110,20 +110,12 @@ print("Address delete response body: ${res.body}");
         ),
         title: const Text(
           "Addresses",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
         actions: [
           TextButton(
             onPressed: () {
-               Navigator.push(
-                                  context,
-                                  slideRightToLeftRoute(
-                                    AddAddress()
-                                  ),
-                                );
+              Navigator.push(context, slideRightToLeftRoute(AddAddress()));
             },
             child: const Text(
               "+ Add Address",
@@ -132,7 +124,7 @@ print("Address delete response body: ${res.body}");
                 fontWeight: FontWeight.w600,
               ),
             ),
-          )
+          ),
         ],
       ),
       body: addressLoading
@@ -155,10 +147,7 @@ print("Address delete response body: ${res.body}");
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _addressCard(
-                      _defaultAddress()!,
-                      isDefault: true,
-                    ),
+                    _addressCard(_defaultAddress()!, isDefault: true),
                     const SizedBox(height: 24),
                   ],
 
@@ -189,15 +178,12 @@ print("Address delete response body: ${res.body}");
   }
 
   // ================= ADDRESS CARD =================
-  Widget _addressCard(Map<String, dynamic> addr,
-      {bool isDefault = false}) {
+  Widget _addressCard(Map<String, dynamic> addr, {bool isDefault = false}) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF121212),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.08),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -205,8 +191,7 @@ print("Address delete response body: ${res.body}");
         children: [
           if (isDefault)
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
               decoration: BoxDecoration(
                 color: Colors.tealAccent,
                 borderRadius: BorderRadius.circular(6),
@@ -254,24 +239,25 @@ print("Address delete response body: ${res.body}");
             ),
           ),
 
-          const Divider(
-            height: 28,
-            color: Colors.white24,
-          ),
+          const Divider(height: 28, color: Colors.white24),
 
           Row(
             children: [
               _actionText("Delete", Colors.redAccent, () {
-                deleteAddress(addr["id"]);  
+                deleteAddress(addr["id"]);
               }),
               const SizedBox(width: 24),
               _actionText("Edit", Colors.tealAccent, () {
-                Navigator.push(context, MaterialPageRoute(builder: (context)=>UpdateAddress(id:addr["id"])));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => UpdateAddress(id: addr["id"]),
+                  ),
+                );
                 // Edit navigation
               }),
-             
             ],
-          )
+          ),
         ],
       ),
     );

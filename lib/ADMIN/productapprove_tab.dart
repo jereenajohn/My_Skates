@@ -15,7 +15,6 @@ class ProductapproveTab extends StatefulWidget {
 
 class _ProductapproveTabState extends State<ProductapproveTab>
     with SingleTickerProviderStateMixin {
-
   late TabController _tab;
 
   @override
@@ -47,19 +46,17 @@ class _ProductapproveTabState extends State<ProductapproveTab>
                 indicator: UnderlineTabIndicator(
                   borderSide: const BorderSide(
                     color: Colors.teal,
-                    width: 4,      // THICKER LINE
+                    width: 4, // THICKER LINE
                   ),
                   insets: const EdgeInsets.symmetric(
-                    horizontal: 70,  // MAKES IT LONGER/WIDER
+                    horizontal: 70, // MAKES IT LONGER/WIDER
                   ),
                 ),
 
                 labelColor: Colors.white,
                 unselectedLabelColor: Colors.grey,
 
-                labelStyle: const TextStyle(
-                  fontSize: 15,
-                ),
+                labelStyle: const TextStyle(fontSize: 15),
 
                 tabs: const [
                   Tab(text: "Approved"),
@@ -77,11 +74,10 @@ class _ProductapproveTabState extends State<ProductapproveTab>
       body: TabBarView(
         controller: _tab,
         children: const [
-
-         approvedProducts(),
+          approvedProducts(),
           Approveproduct(),
 
-         DisapprovedProducts(),
+          DisapprovedProducts(),
         ],
       ),
     );

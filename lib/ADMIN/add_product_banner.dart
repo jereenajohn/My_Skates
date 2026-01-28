@@ -361,9 +361,9 @@ class _AddproductBannerState extends State<AddproductBanner> {
                     onPressed: () {
                       if (validateForm()) {
                         if (editingBannerId == null) {
-                          submitClub(); // CREATE MODE
+                          submitClub();
                         } else {
-                          updateBanner(); // UPDATE MODE
+                          updateBanner();
                         }
                       }
                     },
@@ -479,8 +479,7 @@ class _AddproductBannerState extends State<AddproductBanner> {
                         setState(() {
                           editingBannerId = item['id'];
                           bannerNameCtrl.text = item['title'] ?? "";
-                          existingBannerImage =
-                              item['image']; // show existing image
+                          existingBannerImage = item['image'];
                           pickedImage =
                               null; // user will choose new image only if needed
                         });
