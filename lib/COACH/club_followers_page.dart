@@ -42,9 +42,69 @@ class _ClubFollowersPageState extends State<ClubFollowersPage> {
       } else {
         setState(() => loading = false);
       }
-    } catch (e) {
+    } catch (_) {
       setState(() => loading = false);
     }
+  }
+Future<void> kickFollower(int userId, int index) async {
+  print("Calling kick API for userId: $userId");
+
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+  if (token == null) return;
+
+  final res = await http.post(
+    Uri.parse("$api/api/myskates/club/kick/"),
+    headers: {
+      "Authorization": "Bearer $token",
+      "Content-Type": "application/json",
+    },
+    body: jsonEncode({
+      "club_id": widget.clubId,
+      "user_id": userId,
+    }),
+  );
+
+  print("Kick API response status: ${res.statusCode}");
+
+  print("Kick API response body: ${res.body}");
+
+  if (res.statusCode == 200) {
+    setState(() {
+      followers.removeAt(index);
+    });
+  }
+}
+
+  void confirmKick(int userId, int index, String name) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Colors.black,
+        title: const Text(
+          "Remove follower?",
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          "Are you sure you want to remove $name from this club?",
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              kickFollower(userId, index);
+            },
+            child: const Text("Remove",
+                style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -54,11 +114,11 @@ class _ClubFollowersPageState extends State<ClubFollowersPage> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        title: const Text("Followers"),
+        title: const Text("Club Members",style: TextStyle(color: Colors.white,fontSize: 15),),
       ),
       body: loading
           ? const Center(
-              child: CircularProgressIndicator(color: Colors.teal),
+              child: CircularProgressIndicator(color: Colors.tealAccent),
             )
           : followers.isEmpty
               ? const Center(
@@ -67,48 +127,54 @@ class _ClubFollowersPageState extends State<ClubFollowersPage> {
                     style: TextStyle(color: Colors.white70),
                   ),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+              : ListView.separated(
                   itemCount: followers.length,
+                  separatorBuilder: (_, __) => const Divider(
+                    color: Colors.white12,
+                    height: 1,
+                  ),
                   itemBuilder: (context, index) {
                     final f = followers[index];
-                    final String name =
-                        "${f["first_name"] ?? ""} ${f["last_name"] ?? ""}";
-                    final String? profile = f["profile"];
+                    final userId = f["id"];
+                    final name =
+                        "${f["first_name"] ?? ""} ${f["last_name"] ?? ""}"
+                            .trim();
+                    final profile = f["profile"];
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white12,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 26,
-                            backgroundImage: (profile != null &&
-                                    profile.isNotEmpty)
+                    return ListTile(
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 16),
+                      leading: CircleAvatar(
+                        radius: 24,
+                        backgroundImage:
+                            (profile != null && profile.isNotEmpty)
                                 ? NetworkImage("$api$profile")
                                 : null,
-                            backgroundColor: Colors.grey.shade800,
-                            child: profile == null
-                                ? const Icon(Icons.person,
-                                    color: Colors.white70)
-                                : null,
-                          ),
-                          const SizedBox(width: 15),
-                          Expanded(
-                            child: Text(
-                              name.trim().isEmpty ? "User" : name,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ],
+                        backgroundColor: Colors.grey.shade800,
+                        child: profile == null
+                            ? const Icon(Icons.person,
+                                color: Colors.white70)
+                            : null,
                       ),
+                      title: Text(
+                        name.isEmpty ? "User" : name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                     trailing: IconButton(
+  icon: const Icon(
+    Icons.person_remove_alt_1,
+    color: Colors.redAccent,
+  ),
+  onPressed: () {
+    print("Kick pressed for userId: $userId");
+    confirmKick(userId, index, name);
+  },
+),
+
                     );
                   },
                 ),
