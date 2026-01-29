@@ -20,6 +20,7 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
   List coaches = [];
   List<Marker> markers = [];
   bool isLoading = true;
+  double selectedRadiusKm = 5.0;
 
   final Distance dist = const Distance();
   final MapController mapController = MapController();
@@ -81,7 +82,7 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
   // ADD ALL COACH MARKERS (Default)
   void addCoachMarkers() {
     markers = [];
-    const double maxKm = 5.0;
+    final double maxKm = selectedRadiusKm;
 
     for (var coach in coaches) {
       if (coach["latitude"] == null || coach["longitude"] == null) continue;
@@ -339,6 +340,52 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     );
   }
 
+  Widget buildRadiusSelector() {
+    return Positioned(
+      bottom: 145,
+      left: 40,
+      right: 40,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.75),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "${selectedRadiusKm.toInt()} km radius",
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(
+              height: 26,
+              child: Slider(
+                value: selectedRadiusKm,
+                min: 1,
+                max: 50,
+                divisions: 49,
+                activeColor: Colors.tealAccent,
+                inactiveColor: Colors.grey,
+                label: "${selectedRadiusKm.toInt()} km",
+                onChanged: (value) {
+                  setState(() {
+                    selectedRadiusKm = value;
+                    addCoachMarkers();
+                  });
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   //  ZOOM BUTTONS (bottom right)
   Widget buildZoomButtons() {
     return Positioned(
@@ -399,7 +446,7 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
                 circles: [
                   CircleMarker(
                     point: userLocation!,
-                    radius: 5000,
+                    radius: selectedRadiusKm * 1000,
                     useRadiusInMeter: true,
                     color: Colors.teal.withOpacity(0.09),
                     borderColor: Colors.teal,
@@ -426,17 +473,13 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 5),
-                Text(
-                  "within 5 km",
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
               ],
             ),
           ),
 
           buildSearchBar(),
           buildZoomButtons(),
+          buildRadiusSelector(),
         ],
       ),
     );
