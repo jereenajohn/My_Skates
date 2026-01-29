@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:my_skates/COACH/club_followers_page.dart';
 import 'package:my_skates/COACH/coach_add_events.dart';
 import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
@@ -22,12 +23,14 @@ class _ClubViewState extends State<ClubView> {
   bool loading = true;
   List<dynamic> feedPosts = [];
   bool isFeedLoading = true;
+  int followersCount = 0;
 
   @override
   void initState() {
     super.initState();
     fetchClubDetails();
     fetchClubEvents();
+    fetchFollowersCount();
     // fetchFeed();
 
     print("Club ID: ${widget.clubid}");
@@ -36,6 +39,28 @@ class _ClubViewState extends State<ClubView> {
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString("access");
+  }
+
+  Future<void> fetchFollowersCount() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      if (token == null) return;
+
+      final res = await http.get(
+        Uri.parse("$api/api/myskates/club/${widget.clubid}/followers/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        setState(() {
+          followersCount = body["followers_count"] ?? 0;
+        });
+      }
+    } catch (e) {
+      // fail silently
+    }
   }
 
   // Future<void> fetchFeed() async {
@@ -120,7 +145,6 @@ class _ClubViewState extends State<ClubView> {
       ).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
-
 
   Future<void> fetchClubDetails() async {
     String? token = await getToken();
@@ -478,237 +502,239 @@ class _ClubViewState extends State<ClubView> {
   }
 
   String safeString(dynamic v) {
-  if (v == null) return "";
-  return v.toString();
-}
-
-String safeDate(dynamic v) {
-  if (v == null || v.toString().isEmpty) return "-";
-  return formatDate(v.toString());
-}
-
-String safeTime(dynamic v) {
-  if (v == null || v.toString().isEmpty) return "-";
-  return formatTime(v.toString());
-}
-
-
-Widget _eventTile(Map event) {
-  // -----------------------------------------------------
-  // BUILD IMAGE LIST (main image + gallery images)
-  // -----------------------------------------------------
-  List<String> images = [];
-
-  // Add main image if exists
- final mainImage = safeString(event["image"]);
-if (mainImage.isNotEmpty) {
-  images.add(mainImage);
-}
-
-
-  // Add gallery images
-if (event["images"] is List) {
-  for (var g in event["images"]) {
-    final img = safeString(g["image"]);
-    if (img.isNotEmpty) images.add(img);
+    if (v == null) return "";
+    return v.toString();
   }
-}
 
+  String safeDate(dynamic v) {
+    if (v == null || v.toString().isEmpty) return "-";
+    return formatDate(v.toString());
+  }
 
-  // Convert to full URLs
-  images = images.map((path) {
-    return path.startsWith("http")
-        ? path
-        : "$api${path.startsWith("/") ? path : "/$path"}";
-  }).toList();
+  String safeTime(dynamic v) {
+    if (v == null || v.toString().isEmpty) return "-";
+    return formatTime(v.toString());
+  }
 
-  // -----------------------------------------------------
+  Widget _eventTile(Map event) {
+    // -----------------------------------------------------
+    // BUILD IMAGE LIST (main image + gallery images)
+    // -----------------------------------------------------
+    List<String> images = [];
 
-  return Container(
-    padding: const EdgeInsets.all(12),
-    margin: const EdgeInsets.only(bottom: 12),
-    decoration: BoxDecoration(
-      color: Colors.white12,
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // -----------------------------------------------------
-        // IMAGE SECTION (auto adjust)
-        // -----------------------------------------------------
-        if (images.isNotEmpty)
-          Container(
-            height: images.length == 1 ? 170 : 140,
-            child: images.length == 1
-                ? 
-                // ---------- ONE IMAGE (full width) ----------
-                GestureDetector(
-                    onTap: () => _openSquareMediaViewer(images[0]),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        images[0],
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                      ),
-                    ),
-                  )
+    // Add main image if exists
+    final mainImage = safeString(event["image"]);
+    if (mainImage.isNotEmpty) {
+      images.add(mainImage);
+    }
 
-                :
+    // Add gallery images
+    if (event["images"] is List) {
+      for (var g in event["images"]) {
+        final img = safeString(g["image"]);
+        if (img.isNotEmpty) images.add(img);
+      }
+    }
 
-                // ---------- TWO OR MORE IMAGES ----------
-                Row(
-                  children: [
-                    // LEFT IMAGE
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => _openSquareMediaViewer(images[0]),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
-                            images[0],
-                            fit: BoxFit.cover,
-                          ),
+    // Convert to full URLs
+    images = images.map((path) {
+      return path.startsWith("http")
+          ? path
+          : "$api${path.startsWith("/") ? path : "/$path"}";
+    }).toList();
+
+    // -----------------------------------------------------
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white12,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // -----------------------------------------------------
+          // IMAGE SECTION (auto adjust)
+          // -----------------------------------------------------
+          if (images.isNotEmpty)
+            Container(
+              height: images.length == 1 ? 170 : 140,
+              child: images.length == 1
+                  ?
+                    // ---------- ONE IMAGE (full width) ----------
+                    GestureDetector(
+                      onTap: () => _openSquareMediaViewer(images[0]),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          images[0],
+                          fit: BoxFit.cover,
+                          width: double.infinity,
                         ),
                       ),
-                    ),
-
-                    const SizedBox(width: 8),
-
-                    // RIGHT IMAGE with +N overlay if needed
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => _openSquareMediaViewer(images[1]),
-                        child: Stack(
-                          children: [
-                            ClipRRect(
+                    )
+                  :
+                    // ---------- TWO OR MORE IMAGES ----------
+                    Row(
+                      children: [
+                        // LEFT IMAGE
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => _openSquareMediaViewer(images[0]),
+                            child: ClipRRect(
                               borderRadius: BorderRadius.circular(12),
                               child: Image.network(
-                                images[1],
+                                images[0],
                                 fit: BoxFit.cover,
-                                width: double.infinity,
-                                height: double.infinity,
                               ),
                             ),
+                          ),
+                        ),
 
-                            // More images overlay
-                            if (images.length > 2)
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.black54,
+                        const SizedBox(width: 8),
+
+                        // RIGHT IMAGE with +N overlay if needed
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => _openSquareMediaViewer(images[1]),
+                            child: Stack(
+                              children: [
+                                ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    "+${images.length - 2}",
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 26,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                  child: Image.network(
+                                    images[1],
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
                                   ),
                                 ),
-                              ),
-                          ],
+
+                                // More images overlay
+                                if (images.length > 2)
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.black54,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        "+${images.length - 2}",
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 26,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+            ),
+
+          const SizedBox(height: 12),
+
+          // -----------------------------------------------------
+          // TITLE
+          // -----------------------------------------------------
+          Text(
+            safeString(event["title"]),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
 
-        const SizedBox(height: 12),
+          const SizedBox(height: 6),
 
-        // -----------------------------------------------------
-        // TITLE
-        // -----------------------------------------------------
-     Text(
-  safeString(event["title"]),
-  style: const TextStyle(
-    color: Colors.white,
-    fontSize: 18,
-    fontWeight: FontWeight.bold,
-  ),
-),
-
-        const SizedBox(height: 6),
-
-        // -----------------------------------------------------
-        // DESCRIPTION
-        // -----------------------------------------------------
-       Text(
-  safeString(event["description"]),
-  style: const TextStyle(color: Colors.white70, fontSize: 14),
-)
-,
-        const SizedBox(height: 10),
-
-        // -----------------------------------------------------
-        // DATE RANGE
-        // -----------------------------------------------------
-        Row(
-          children: [
-            const Icon(Icons.calendar_today, size: 16, color: Color(0xFF00AFA5)),
-            const SizedBox(width: 5),
+          // -----------------------------------------------------
+          // DESCRIPTION
+          // -----------------------------------------------------
           Text(
-  "${safeDate(event["from_date"])} → ${safeDate(event["to_date"])}",
-  style: const TextStyle(color: Colors.white70),
-)
+            safeString(event["description"]),
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+          const SizedBox(height: 10),
 
-          ],
-        ),
+          // -----------------------------------------------------
+          // DATE RANGE
+          // -----------------------------------------------------
+          Row(
+            children: [
+              const Icon(
+                Icons.calendar_today,
+                size: 16,
+                color: Color(0xFF00AFA5),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                "${safeDate(event["from_date"])} → ${safeDate(event["to_date"])}",
+                style: const TextStyle(color: Colors.white70),
+              ),
+            ],
+          ),
 
-        const SizedBox(height: 5),
+          const SizedBox(height: 5),
 
-        // -----------------------------------------------------
-        // TIME RANGE + MENU
-        // -----------------------------------------------------
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.access_time, size: 16, color: Color(0xFF00AFA5)),
-                const SizedBox(width: 5),
-               Text(
-  "${safeTime(event["from_time"])} → ${safeTime(event["to_time"])}",
-  style: const TextStyle(color: Colors.white70),
-)
+          // -----------------------------------------------------
+          // TIME RANGE + MENU
+          // -----------------------------------------------------
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.access_time,
+                    size: 16,
+                    color: Color(0xFF00AFA5),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    "${safeTime(event["from_time"])} → ${safeTime(event["to_time"])}",
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ],
+              ),
 
-              ],
-            ),
-
-            // OPTIONS (UPDATE / DELETE)
-            PopupMenuButton<String>(
-              color: const Color.fromARGB(225, 4, 19, 13),
-              icon: const Icon(Icons.more_vert, color: Colors.white70),
-              onSelected: (value) {
-                if (value == "update") {
-                  print("Update event clicked");
-                }
-                if (value == "delete") {
-                  _deleteEvent(event["id"]);
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: "update",
-                  child: Text("Update", style: TextStyle(color: Colors.white)),
-                ),
-                const PopupMenuItem(
-                  value: "delete",
-                  child: Text("Delete", style: TextStyle(color: Colors.red)),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-}
-
+              // OPTIONS (UPDATE / DELETE)
+              PopupMenuButton<String>(
+                color: const Color.fromARGB(225, 4, 19, 13),
+                icon: const Icon(Icons.more_vert, color: Colors.white70),
+                onSelected: (value) {
+                  if (value == "update") {
+                    print("Update event clicked");
+                  }
+                  if (value == "delete") {
+                    _deleteEvent(event["id"]);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: "update",
+                    child: Text(
+                      "Update",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: "delete",
+                    child: Text("Delete", style: TextStyle(color: Colors.red)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _fancySwipeEventTile(Map event) {
     return Dismissible(
@@ -968,7 +994,7 @@ if (event["images"] is List) {
 
                   const SizedBox(width: 15),
 
-                  // CLUB NAME + LOCATION
+                  // CLUB NAME + LOCATION + MEMBERS
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -993,59 +1019,49 @@ if (event["images"] is List) {
                             color: Colors.white70,
                           ),
                         ),
+
+                        const SizedBox(height: 6),
+
+                        // 👥 MEMBERS COUNT
+                        Text(
+                          "$followersCount Members joined",
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.white60,
+                          ),
+                        ),
                       ],
                     ),
+                  ),
+
+                  // 3 DOT MENU (TOP RIGHT)
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: Colors.white),
+                    color: const Color(0xFF06201A),
+                    onSelected: (value) {
+                      if (value == "followers") {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ClubFollowersPage(clubId: widget.clubid),
+                          ),
+                        );
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: "followers",
+                        child: Text(
+                          "View Followers",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-
-              const SizedBox(height: 25),
-
-              // ---------------- FOLLOWING / FOLLOWERS ----------------
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      children: const [
-                        Text(
-                          "973",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 5),
-                        Text(
-                          "Following",
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      children: const [
-                        Text(
-                          "1535",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 5),
-                        Text(
-                          "Followers",
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 30),
+              SizedBox(height: 20),
 
               // ---------------- OVERVIEW ----------------
               const Text(
@@ -1665,51 +1681,47 @@ if (event["images"] is List) {
     );
   }
 
- void _openSquareMediaViewer(String imageUrl) {
-  showDialog(
-    context: context,
-    barrierColor: Colors.black.withOpacity(0.9),
-    builder: (context) {
-      return GestureDetector(
-        onTap: () => Navigator.pop(context), // close on tap outside
-        child: Stack(
-          children: [
-            // FULL SCREEN ZOOM VIEW
-            Center(
-              child: InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 4.0,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(0),
-                  child: Image.network(
-                    imageUrl,
-                    width: double.infinity,
-                    height: double.infinity,
-                    fit: BoxFit.contain,
+  void _openSquareMediaViewer(String imageUrl) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.9),
+      builder: (context) {
+        return GestureDetector(
+          onTap: () => Navigator.pop(context), // close on tap outside
+          child: Stack(
+            children: [
+              // FULL SCREEN ZOOM VIEW
+              Center(
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(0),
+                    child: Image.network(
+                      imageUrl,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            // CLOSE BUTTON
-            Positioned(
-              top: 40,
-              right: 20,
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: const Icon(
-                  Icons.close,
-                  color: Colors.white,
-                  size: 32,
+              // CLOSE BUTTON
+              Positioned(
+                top: 40,
+                right: 20,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const Icon(Icons.close, color: Colors.white, size: 32),
                 ),
               ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   Widget _coachTile(String name, String img) {
     return Container(
@@ -1883,6 +1895,7 @@ Widget _feedTile(Map post) {
     ),
   );
 }
+
 class SkeletonBox extends StatelessWidget {
   final double height;
   final double width;
