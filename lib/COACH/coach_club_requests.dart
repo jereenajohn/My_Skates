@@ -90,7 +90,7 @@ class _CoachClubRequestsState extends State<CoachClubRequests> {
   Future<void> approveOrRejectRequest({
     required int clubId,
     required int userId,
-    required String status, // "approved" or "rejected"
+    required String status,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
@@ -115,7 +115,6 @@ class _CoachClubRequestsState extends State<CoachClubRequests> {
       debugPrint("APPROVE/REJECT BODY: ${response.body}");
 
       if (response.statusCode == 200) {
-        //  REMOVE FROM LIST (optimistic + correct)
         setState(() {
           requests.removeWhere((r) => r["userId"] == userId);
         });
@@ -275,7 +274,10 @@ class _CoachClubRequestsState extends State<CoachClubRequests> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00AFA5),
                 ),
-                child: const Text("Approve",style: TextStyle(color: Colors.white),),
+                child: const Text(
+                  "Approve",
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),

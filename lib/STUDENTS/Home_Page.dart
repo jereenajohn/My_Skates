@@ -59,7 +59,6 @@ class _HomePageState extends State<HomePage> {
   int followRequestCount = 0;
   bool trainingLoading = true;
   bool trainingNoData = false;
-  Set<int> joinedClubs = {};
 
   @override
   initState() {
@@ -182,13 +181,9 @@ class _HomePageState extends State<HomePage> {
         },
       );
 
-      debugPrint("CLUB JOIN STATUS: ${response.statusCode}");
-      debugPrint("CLUB JOIN BODY: ${response.body}");
-
       if (response.statusCode == 200 || response.statusCode == 201) {
-        setState(() {
-          joinedClubs.add(clubId); //  UPDATE UI
-        });
+        // 🔁 THIS IS THE IMPORTANT LINE
+        await fetchClubs(); // ← HERE
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -215,13 +210,9 @@ class _HomePageState extends State<HomePage> {
         },
       );
 
-      debugPrint("CLUB LEAVE STATUS: ${response.statusCode}");
-      debugPrint("CLUB LEAVE BODY: ${response.body}");
-
       if (response.statusCode == 200 || response.statusCode == 201) {
-        setState(() {
-          joinedClubs.remove(clubId); //  UPDATE UI
-        });
+        // 🔁 REFRESH CLUB LIST FROM BACKEND
+        await fetchClubs();
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -520,6 +511,7 @@ class _HomePageState extends State<HomePage> {
             clubs = decoded;
             noData = decoded.isEmpty;
           });
+          print("CLUBS FETCHED: $clubs");
         }
       } else {
         setState(() {
@@ -966,7 +958,7 @@ class _HomePageState extends State<HomePage> {
                             clubs[i],
                             onJoinClub: sendClubJoinRequest,
                             onLeaveClub: leaveClub,
-                            isJoined: joinedClubs.contains(clubs[i]['id']),
+                             context: context,
                           ),
                         ),
                       ),
@@ -1443,16 +1435,85 @@ Widget buildEventCardWithImages({
   );
 }
 
+
+  Future<bool> confirmLeaveClub(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) {
+            return AlertDialog(
+              backgroundColor: const Color.fromARGB(255, 0, 0, 0),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Text(
+                "Leave Club?",
+                style: TextStyle(color: Colors.white),
+              ),
+              content: const Text(
+                "Are you sure you want to leave this club?",
+                style: TextStyle(color: Colors.white70),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text(
+                    "Cancel",
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                  ),
+                  child: const Text("Leave",style: TextStyle(color: Colors.white),),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
 Widget buildClubCardFromApi(
   Map club, {
   required Function(int) onJoinClub,
   required Function(int) onLeaveClub,
-  required bool isJoined,
+required BuildContext context,
 }) {
   String title = club["club_name"] ?? "Club";
   int clubId = club["id"];
   String? img = club["image"];
   String imageUrl = (img != null && img.isNotEmpty) ? "$api$img" : "";
+
+  String? status = club["approval_status"];
+
+  bool isApproved = status == "approved";
+  bool isPending = status == "pending";
+
+  String buttonText;
+  Color buttonColor;
+  VoidCallback? onTap;
+
+  if (isApproved) {
+    buttonText = "Joined";
+    buttonColor = Colors.redAccent;
+    onTap = () async {
+      final confirmed = await confirmLeaveClub(context);
+      if (confirmed) {
+        onLeaveClub(clubId);
+      }
+    };
+  } else if (isPending) {
+    buttonText = "Requested";
+    buttonColor = Colors.orange;
+    onTap = null; // ❌ disabled
+  } else {
+    buttonText = "Join Club";
+    buttonColor = Colors.teal;
+    onTap = () => onJoinClub(clubId); // ✅ JOIN
+  }
 
   return Container(
     width: 160,
@@ -1483,22 +1544,20 @@ Widget buildClubCardFromApi(
         const Spacer(),
 
         GestureDetector(
-          onTap: () {
-            if (isJoined) {
-              onLeaveClub(clubId); // 🔁 LEAVE
-            } else {
-              onJoinClub(clubId); // ➕ JOIN
-            }
-          },
+          onTap: onTap,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
             decoration: BoxDecoration(
-              color: isJoined ? Colors.grey : Colors.teal,
+              color: buttonColor,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              isJoined ? "Joined" : "Join Club",
-              style: const TextStyle(color: Colors.white, fontSize: 13),
+              buttonText,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
