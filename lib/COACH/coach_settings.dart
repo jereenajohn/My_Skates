@@ -11,7 +11,7 @@ import 'package:my_skates/COACH/coach_profile.dart';
 import 'package:my_skates/COACH/view_clubs.dart';
 import 'package:my_skates/coach/add_coach_achievements.dart';
 import 'package:my_skates/loginpage.dart';
-import 'package:my_skates/STUDENTS/profile_page.dart'; // <-- Navigation Target Example
+import 'package:my_skates/STUDENTS/profile_page.dart'; 
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CoachSettings extends StatefulWidget {
@@ -25,6 +25,11 @@ class _CoachSettingsState extends State<CoachSettings> {
   @override
   void initState() {
     super.initState();
+  }
+
+
+  void pushWithSlide(Widget page) {
+    Navigator.push(context, slideRightToLeftRoute(page));
   }
 
   // ADD THIS INSIDE _UserSettingsState
@@ -44,7 +49,7 @@ class _CoachSettingsState extends State<CoachSettings> {
     print("Token AFTER logout: ${prefs.getString('token')}");
     print("ID AFTER logout: ${prefs.getInt('id')}");
 
-    // Snackbar message
+    // Snackbar message[]
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
@@ -72,7 +77,7 @@ class _CoachSettingsState extends State<CoachSettings> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F), // Dark IG-style background
+      backgroundColor: const Color(0xFF0F0F0F), 
 
       appBar: AppBar(
         backgroundColor: const Color(0xFF0F0F0F),
@@ -135,10 +140,8 @@ class _CoachSettingsState extends State<CoachSettings> {
                 text: "Accounts Center",
                 subtitle: "Profile Update and more",
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const CoachProfile()),
-                  );
+                 
+                  pushWithSlide(const CoachProfile());
                 },
               ),
 
@@ -161,10 +164,9 @@ class _CoachSettingsState extends State<CoachSettings> {
                 icon: Icons.home,
                 text: "Add Achievements",
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    slideRightToLeftRoute(AddCoachAchievements()),
-                  );
+                 
+
+                  pushWithSlide(AddCoachAchievements());
                 },
               ),
               _divider(),
@@ -197,12 +199,8 @@ class _CoachSettingsState extends State<CoachSettings> {
                 icon: Icons.home,
                 text: "Follow Requests",
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const CoachFollowRequest(),
-                    ),
-                  );
+                 
+                  pushWithSlide(const CoachFollowRequest());
                 },
               ),
               _divider(),
@@ -217,6 +215,7 @@ class _CoachSettingsState extends State<CoachSettings> {
                       builder: (_) => const CoachFollowersList(),
                     ),
                   );
+                  pushWithSlide(CoachFollowersList());
                 },
               ),
               _divider(),
@@ -231,6 +230,8 @@ class _CoachSettingsState extends State<CoachSettings> {
                       builder: (_) => const CoachFollowingList(),
                     ),
                   );
+
+                  pushWithSlide(CoachFollowingList());
                 },
               ),
               _divider(),

@@ -7,6 +7,7 @@ import 'package:my_skates/ADMIN/approve_coach.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/menu.dart';
 import 'package:my_skates/ADMIN/productapprove_tab.dart';
+import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'dart:convert';
@@ -45,6 +46,10 @@ class _DashboardPageState extends State<DashboardPage> {
     if (idValue is int) return idValue;
     if (idValue is String) return int.tryParse(idValue);
     return null;
+  }
+
+  void pushWithSlide(Widget page) {
+    Navigator.push(context, slideRightToLeftRoute(page));
   }
 
   // Future<int?> getid() async {
@@ -95,7 +100,7 @@ class _DashboardPageState extends State<DashboardPage> {
     setState(() {
       studentName = prefs.getString("name") ?? "User";
       studentRole = prefs.getString("user_type") ?? "";
-      studentImage = prefs.getString("profile"); // if you save profile later
+      studentImage = prefs.getString("profile");
       isLoading = false;
     });
 
@@ -119,12 +124,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 children: [
                   GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ProfilePage(),
-                        ),
-                      );
+                      pushWithSlide(const ProfilePage());
                     },
                     child: CircleAvatar(
                       radius: 28,
@@ -170,12 +170,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   // MENU BUTTON
                   IconButton(
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MenuPage(),
-                        ),
-                      );
+                      pushWithSlide(MenuPage());
                     },
                     icon: const Icon(
                       Icons.menu,
@@ -190,10 +185,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
               GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AddBanner()),
-                  );
+                  pushWithSlide(const AddBanner());
                 },
 
                 child: Column(
@@ -268,30 +260,6 @@ class _DashboardPageState extends State<DashboardPage> {
                                     ),
                                   ),
                                 ),
-
-                                // Banner Title (Optional)
-                                // Positioned(
-                                //   bottom: 12,
-                                //   left: 12,
-                                //   right: 12,
-                                //   child: Text(
-                                //     item["title"] ?? "",
-                                //     style: const TextStyle(
-                                //       color: Colors.white,
-                                //       fontSize: 18,
-                                //       fontWeight: FontWeight.bold,
-                                //       shadows: [
-                                //         Shadow(
-                                //           offset: Offset(0, 1),
-                                //           blurRadius: 4,
-                                //           color: Colors.black54,
-                                //         )
-                                //       ],
-                                //     ),
-                                //     maxLines: 1,
-                                //     overflow: TextOverflow.ellipsis,
-                                //   ),
-                                // ),
                               ],
                             );
                           }).toList(),
@@ -519,34 +487,16 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
         onPressed: () {
           if (title == "Approve Coaches") {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const CoachApprovalTabs(),
-              ),
-            );
+            pushWithSlide(const CoachApprovalTabs());
           }
           if (title == "Buy and Sell products") {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const UserApprovedProducts(),
-              ),
-            );
+            pushWithSlide(const UserApprovedProducts());
           }
           if (title == "Approve Products") {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ProductapproveTab(),
-              ),
-            );
+            pushWithSlide(const ProductapproveTab());
           }
           if (title == "Add Products") {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AddProduct()),
-            );
+            pushWithSlide(const AddProduct());
           }
         },
         child: Text(
