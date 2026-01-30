@@ -348,10 +348,7 @@ class _cartState extends State<cart> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF00312D), 
-              Color(0xFF000000), 
-            ],
+            colors: [Color(0xFF00312D), Color(0xFF000000)],
             stops: [0.0, 0.35],
           ),
         ),
@@ -408,7 +405,7 @@ class _cartState extends State<cart> {
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 140),
-                  itemCount: cartItems.length + 3, 
+                  itemCount: cartItems.length + 4,
                   itemBuilder: (context, index) {
                     // Address section (TOP)
                     if (index == 0) {
@@ -422,19 +419,163 @@ class _cartState extends State<cart> {
                       return _buildCartItem(item, variant);
                     }
 
-                    // Payment Method (AFTER PRODUCTS)
                     if (index == cartItems.length + 1) {
+                      // add vertical spacing before coupon card
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: _buildCouponSectionPremiumInput(),
+                      );
+                    }
+
+                    // Payment Method (AFTER PRODUCTS)
+                    if (index == cartItems.length + 2) {
                       return _buildPaymentMethodSection();
                     }
 
                     // Order Summary (LAST)
-                    return _buildOrderSummary();
+                    if (index == cartItems.length + 3) {
+                      return _buildOrderSummary();
+                    }
+
+                    return const SizedBox.shrink();
                   },
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCouponSectionPremiumInput() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color.fromARGB(255, 0, 0, 0).withOpacity(0.18),
+            const Color(0xFF121212),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.tealAccent.withOpacity(0.45)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.tealAccent.withOpacity(0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // HEADER
+          Row(
+            children: const [
+              Icon(
+                Icons.local_offer_rounded,
+                color: Colors.tealAccent,
+                size: 18,
+              ),
+              SizedBox(width: 8),
+              Text(
+                "Apply Coupon",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 6),
+
+          const Text(
+            "Have a promo code? Get instant savings",
+            style: TextStyle(color: Colors.white70, fontSize: 11),
+          ),
+
+          const SizedBox(height: 14),
+
+          // INPUT + APPLY
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.tealAccent.withOpacity(0.4)),
+            ),
+            child: Row(
+              children: [
+                // INPUT FIELD
+                Expanded(
+                  child: TextField(
+                    textCapitalization: TextCapitalization.characters,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.1,
+                    ),
+                    decoration: const InputDecoration(
+                      hintText: "ENTER COUPON CODE",
+                      hintStyle: TextStyle(
+                        color: Colors.white38,
+                        fontSize: 12,
+                        letterSpacing: 1,
+                      ),
+                      border: InputBorder.none,
+                      isDense: true,
+                    ),
+                  ),
+                ),
+
+                // APPLY BUTTON (design only)
+                Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Colors.tealAccent, Color(0xFF00C2A8)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    "APPLY",
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // FOOTER NOTE
+          Row(
+            children: const [
+              Icon(Icons.flash_on_rounded, size: 14, color: Colors.tealAccent),
+              SizedBox(width: 6),
+              Text(
+                "Best coupons auto-applied at checkout",
+                style: TextStyle(color: Colors.white54, fontSize: 11),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -456,7 +597,7 @@ class _cartState extends State<cart> {
             "Payment Method",
             style: TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               fontFamily: 'Poppins',
             ),
@@ -478,6 +619,8 @@ class _cartState extends State<cart> {
             subtitle: "UPI / Card / Netbanking",
             icon: Icons.credit_card,
           ),
+
+          SizedBox(height: 12),
         ],
       ),
     );
@@ -587,8 +730,7 @@ class _cartState extends State<cart> {
           const SizedBox(height: 10),
 
           InkWell(
-            onTap: () {
-            },
+            onTap: () {},
             child: _row(
               "Coupon Savings",
               "Apply Coupon",
@@ -949,7 +1091,7 @@ class _cartState extends State<cart> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              _removeFromCart(item); 
+              _removeFromCart(item);
             },
             child: const Text(
               "Remove",
@@ -998,7 +1140,6 @@ class _cartState extends State<cart> {
                     ),
                     const SizedBox(height: 12),
 
-                 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -1100,8 +1241,6 @@ class _cartState extends State<cart> {
                             setState(() {
                               item["quantity"] = parsed < 1 ? 1 : parsed;
                             });
-
-                          
                           },
                           child: const Text(
                             "OK",
