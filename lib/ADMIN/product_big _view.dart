@@ -763,6 +763,24 @@ class _big_viewState extends State<big_view> {
                             ),
                           ],
 
+                          const SizedBox(height: 28),
+
+                          /// USER REVIEW (STATIC)
+                          const Text(
+                            "USER REVIEW",
+                            style: TextStyle(
+                              color: Colors.greenAccent,
+                              fontSize: 12,
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+
+                          const SizedBox(height: 14),
+
+                          const StaticReviewCard(),
+
                           const SizedBox(height: 80),
                         ],
                       ),
@@ -858,6 +876,86 @@ class SkeletonBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.08),
         borderRadius: borderRadius,
+      ),
+    );
+  }
+}
+
+class StaticReviewCard extends StatelessWidget {
+  const StaticReviewCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111111),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.greenAccent.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          /// NAME + VERIFIED
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: const [
+                  Text(
+                    "Verified Buyer",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Poppins',
+                      fontSize: 14,
+                    ),
+                  ),
+                  SizedBox(width: 6),
+                  Icon(Icons.verified, size: 16, color: Colors.greenAccent),
+                ],
+              ),
+
+              /// STAR RATING
+              Row(
+                children: List.generate(
+                  5,
+                  (index) => const Icon(
+                    Icons.star,
+                    size: 14,
+                    color: Colors.greenAccent,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 6),
+
+          /// DATE
+          const Text(
+            "January 2026",
+            style: TextStyle(
+              color: Colors.white54,
+              fontSize: 11,
+              fontFamily: 'Poppins',
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          /// REVIEW TEXT
+          const Text(
+            "Excellent quality and premium finish. The variant options are clearly explained and easy to choose. Delivery was fast and packaging was top-notch. Highly recommended.",
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              height: 1.5,
+              fontFamily: 'Poppins',
+            ),
+          ),
+        ],
       ),
     );
   }

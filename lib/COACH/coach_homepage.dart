@@ -682,6 +682,10 @@ class _CoachHomepageState extends State<CoachHomepage> {
     });
   }
 
+  void pushWithSlide(Widget page) {
+    Navigator.push(context, slideRightToLeftRoute(page));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -704,12 +708,13 @@ class _CoachHomepageState extends State<CoachHomepage> {
                   children: [
                     GestureDetector(
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CoachMenuPage(),
-                          ),
-                        );
+                        // Navigator.push(
+                        //   context,
+                        //   MaterialPageRoute(
+                        //     builder: (_) => const CoachMenuPage(),
+                        //   ),
+                        // );
+                        pushWithSlide(const CoachMenuPage());
                       },
                       child: CircleAvatar(
                         radius: 28,
@@ -1183,34 +1188,15 @@ class _CoachHomepageState extends State<CoachHomepage> {
         ),
         onPressed: () {
           if (title == "Find Coaches") {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const UserConnectCoaches(),
-              ),
-            );
+            pushWithSlide(const UserConnectCoaches());
           } else if (title == "Find Skaters") {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const StudentList()),
-            );
+            pushWithSlide(const StudentList());
           } else if (title == "Find Clubs") {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const ClubGridPage()),
-            );
+            pushWithSlide(const ClubGridPage());
           } else if (title == "Find Events") {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const Events()),
-            );
+            pushWithSlide(const Events());
           } else if (title == "Buy and Sell products") {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const UserApprovedProducts(),
-              ),
-            );
+            pushWithSlide(const UserApprovedProducts());
           }
         },
         child: Text(

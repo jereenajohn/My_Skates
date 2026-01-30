@@ -26,7 +26,7 @@ class _ApproveCoachState extends State<ApproveCoach> {
       return "";
     }
 
-    try {
+    try {  
       double latitude = double.parse(lat);
       double longitude = double.parse(lng);
 
@@ -77,6 +77,7 @@ class _ApproveCoachState extends State<ApproveCoach> {
       print(e);
     }
   }
+
 
   Future<void> getcoach() async {
     final prefs = await SharedPreferences.getInstance();
