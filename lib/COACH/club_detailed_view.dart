@@ -291,6 +291,36 @@ class _ClubViewState extends State<ClubView> {
     }
   }
 
+  List<String> getMediaImagesFromEvents() {
+    final List<String> media = [];
+
+    for (var event in clubEvents) {
+      // Main image
+      if (event["image"] != null && event["image"].toString().isNotEmpty) {
+        media.add(
+          event["image"].toString().startsWith("http")
+              ? event["image"]
+              : "$api${event["image"]}",
+        );
+      }
+
+      // Gallery images
+      if (event["images"] is List) {
+        for (var img in event["images"]) {
+          if (img["image"] != null && img["image"].toString().isNotEmpty) {
+            media.add(
+              img["image"].toString().startsWith("http")
+                  ? img["image"]
+                  : "$api${img["image"]}",
+            );
+          }
+        }
+      }
+    }
+
+    return media;
+  }
+
   Future<void> _deleteEvent(int eventId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -940,6 +970,7 @@ class _ClubViewState extends State<ClubView> {
     final String instagram = (c["instagram"] ?? "").toString();
     final String website = (c["website"] ?? "").toString();
     final String? imagePath = c["image"]?.toString();
+    final mediaImages = getMediaImagesFromEvents();
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -1242,10 +1273,11 @@ class _ClubViewState extends State<ClubView> {
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [
-                    _mediaItem("https://picsum.photos/200"),
-                    _mediaItem("https://picsum.photos/210"),
-                    _mediaItem("https://picsum.photos/220"),
-                    _mediaItem("https://picsum.photos/230"),
+                    ...mediaImages
+                        .take(10)
+                        .map((img) => _mediaItem(img))
+                        .toList(),
+
                     Container(
                       width: 70,
                       margin: const EdgeInsets.only(right: 10),
