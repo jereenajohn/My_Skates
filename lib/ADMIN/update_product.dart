@@ -212,7 +212,7 @@ class _UpdateProductState extends State<UpdateProduct> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 0, 0, 0),
       resizeToAvoidBottomInset: true,
-      extendBody: true, 
+      extendBody: true,
       extendBodyBehindAppBar: true,
       body: Container(
         decoration: const BoxDecoration(
@@ -333,9 +333,8 @@ class _UpdateProductState extends State<UpdateProduct> {
                     "Description",
 
                     descriptionCtrl,
-                    maxLines: 4, // description style
-                    maxLength: 100,
-                    isNumber: false,
+                    maxLines: 10,
+                    maxLength: 5000,
                   ),
 
                   Row(
@@ -538,7 +537,7 @@ class _UpdateProductState extends State<UpdateProduct> {
 
   Widget _dropdownField({
     required String label,
-    required String? value, 
+    required String? value,
     required List<Map<String, dynamic>> items,
     required Function(String?) onChange,
   }) {
