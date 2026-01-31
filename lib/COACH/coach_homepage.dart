@@ -995,6 +995,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                               : "";
 
                           return buildTrainingSessionRow(
+                            context: context,
                             title: session['title'] ?? "",
                             note: session['note'] ?? "",
                             location: session['location'] ?? "",
@@ -2114,6 +2115,7 @@ Widget _imagePlaceholder() {
 }
 
 Widget buildTrainingSessionRow({
+  required BuildContext context,
   required String title,
   required String note,
   required String location,
@@ -2134,18 +2136,27 @@ Widget buildTrainingSessionRow({
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // LEFT IMAGE
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: imageUrl.isNotEmpty
-              ? Image.network(
-                  imageUrl,
-                  width: 90,
-                  height: 90,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _imagePlaceholder(),
-                )
-              : _imagePlaceholder(),
-        ),
+      // LEFT IMAGE (CLICKABLE)
+ClipRRect(
+  borderRadius: BorderRadius.circular(10),
+  child: GestureDetector(
+    onTap: () {
+      if (imageUrl.isNotEmpty) {
+        showImagePopup(context, imageUrl);
+      }
+    },
+    child: imageUrl.isNotEmpty
+        ? Image.network(
+            imageUrl,
+            width: 90,
+            height: 90,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _imagePlaceholder(),
+          )
+        : _imagePlaceholder(),
+  ),
+),
+
 
         const SizedBox(width: 12),
 
