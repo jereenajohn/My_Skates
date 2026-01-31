@@ -3,6 +3,7 @@ import 'package:my_skates/ADMIN/add_attributes.dart';
 import 'package:my_skates/ADMIN/add_banner.dart';
 import 'package:my_skates/ADMIN/add_category.dart';
 import 'package:my_skates/ADMIN/add_country.dart';
+import 'package:my_skates/ADMIN/add_coupon.dart';
 import 'package:my_skates/ADMIN/add_district.dart';
 import 'package:my_skates/ADMIN/add_product_banner.dart';
 import 'package:my_skates/ADMIN/add_skaters_type.dart';
@@ -193,15 +194,17 @@ class _MenuPageState extends State<MenuPage> {
                 child: _menuTile(icon: Icons.history, text: "values"),
               ),
               _divider(),
-              // GestureDetector(
-              //   onTap: () {
-              //     Navigator.push(
-              //       context,
-              //       MaterialPageRoute(builder: (context) => const AddClub()),
-              //     );
-              //   },
-              //   child: _menuTile(icon: Icons.show_chart_outlined, text: "Your activity")),
-              // _divider(),
+
+
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AddCoupon()),
+                  );
+                },
+                child: _menuTile(icon: Icons.show_chart_outlined, text: "Add Coupon"),),
+              _divider(),
               GestureDetector(
                 onTap: () {
                   Navigator.push(
