@@ -2136,27 +2136,26 @@ Widget buildTrainingSessionRow({
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // LEFT IMAGE
-      // LEFT IMAGE (CLICKABLE)
-ClipRRect(
-  borderRadius: BorderRadius.circular(10),
-  child: GestureDetector(
-    onTap: () {
-      if (imageUrl.isNotEmpty) {
-        showImagePopup(context, imageUrl);
-      }
-    },
-    child: imageUrl.isNotEmpty
-        ? Image.network(
-            imageUrl,
-            width: 90,
-            height: 90,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _imagePlaceholder(),
-          )
-        : _imagePlaceholder(),
-  ),
-),
-
+        // LEFT IMAGE (CLICKABLE)
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: GestureDetector(
+            onTap: () {
+              if (imageUrl.isNotEmpty) {
+                showImagePopup(context, imageUrl);
+              }
+            },
+            child: imageUrl.isNotEmpty
+                ? Image.network(
+                    imageUrl,
+                    width: 90,
+                    height: 90,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                  )
+                : _imagePlaceholder(),
+          ),
+        ),
 
         const SizedBox(width: 12),
 
