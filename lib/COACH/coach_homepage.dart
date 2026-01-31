@@ -1030,6 +1030,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                         child: Text(
                           "No events found",
                           style: TextStyle(color: Colors.white70),
+                          
                         ),
                       )
                     else

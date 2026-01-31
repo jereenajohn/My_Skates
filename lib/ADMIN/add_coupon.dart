@@ -153,6 +153,23 @@ class _AddCouponState extends State<AddCoupon> {
       firstDate: DateTime.now(),
       lastDate: DateTime(2100),
       initialDate: DateTime.now(),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Colors.black,
+              onPrimary: Colors.white,
+              surface: Colors.black,
+              onSurface: Colors.white,
+            ),
+            dialogBackgroundColor: Colors.black,
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(foregroundColor: Colors.white),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null) {
@@ -171,19 +188,13 @@ class _AddCouponState extends State<AddCoupon> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.white, // 👈 back arrow white
-          ),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text("Coupons", style: TextStyle(color: Colors.white)),
         actions: [
           IconButton(
-            icon: const Icon(
-              Icons.add,
-              color: Colors.white, // 👈 add icon white
-            ),
+            icon: const Icon(Icons.add, color: Colors.white),
             onPressed: () {
               setState(() {
                 showForm = !showForm;
@@ -231,19 +242,18 @@ class _AddCouponState extends State<AddCoupon> {
           },
         ),
 
-       label("Discount Price"),
-input(
-  priceCtrl,
-  keyboard: TextInputType.number,
-  enabled: !disablePrice,
-  onChanged: (val) {
-    setState(() {
-      disablePercent = val.trim().isNotEmpty;
-      if (disablePercent) percentCtrl.clear();
-    });
-  },
-),
-
+        label("Discount Price"),
+        input(
+          priceCtrl,
+          keyboard: TextInputType.number,
+          enabled: !disablePrice,
+          onChanged: (val) {
+            setState(() {
+              disablePercent = val.trim().isNotEmpty;
+              if (disablePercent) percentCtrl.clear();
+            });
+          },
+        ),
 
         label("Valid From"),
         dateBox(validFrom, () => pickDate(true)),
@@ -279,7 +289,11 @@ input(
 
   Widget couponList() {
     if (coupons.isEmpty) {
-      return const Text("No coupons", style: TextStyle(color: Colors.white70));
+      return const Text(
+        "No coupons",
+        style: TextStyle(color: Colors.white70),
+        strutStyle: StrutStyle(fontSize: 16),
+      );
     }
 
     return ListView.builder(
@@ -353,34 +367,31 @@ input(
     child: Text(t, style: const TextStyle(color: Colors.white70, fontSize: 14)),
   );
 
-Widget input(
-  TextEditingController c, {
-  int maxLines = 1,
-  TextInputType keyboard = TextInputType.text,
-  bool enabled = true,
-  Function(String)? onChanged,
-}) {
-  return Container(
-    height: maxLines == 1 ? 55 : null,
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-    decoration: BoxDecoration(
-      color: enabled ? const Color(0xFF1E1E1E) : Colors.grey.shade800,
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: TextField(
-      controller: c,
-      enabled: enabled,
-      onChanged: onChanged,
-      maxLines: maxLines,
-      keyboardType: keyboard,
-      style: TextStyle(
-        color: enabled ? Colors.white : Colors.white54,
+  Widget input(
+    TextEditingController c, {
+    int maxLines = 1,
+    TextInputType keyboard = TextInputType.text,
+    bool enabled = true,
+    Function(String)? onChanged,
+  }) {
+    return Container(
+      height: maxLines == 1 ? 55 : null,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: enabled ? const Color(0xFF1E1E1E) : Colors.grey.shade800,
+        borderRadius: BorderRadius.circular(20),
       ),
-      decoration: const InputDecoration(border: InputBorder.none),
-    ),
-  );
-}
-
+      child: TextField(
+        controller: c,
+        enabled: enabled,
+        onChanged: onChanged,
+        maxLines: maxLines,
+        keyboardType: keyboard,
+        style: TextStyle(color: enabled ? Colors.white : Colors.white54),
+        decoration: const InputDecoration(border: InputBorder.none),
+      ),
+    );
+  }
 
   Widget dateBox(DateTime? date, VoidCallback onTap) {
     return GestureDetector(
@@ -392,10 +403,17 @@ Widget input(
           color: const Color(0xFF1E1E1E),
           borderRadius: BorderRadius.circular(20),
         ),
-        alignment: Alignment.centerLeft,
-        child: Text(
-          date == null ? "Select date" : date.toString().split(" ")[0],
-          style: const TextStyle(color: Colors.white),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                date == null ? "Select date" : date.toString().split(" ")[0],
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.calendar_today, color: Colors.white70),
+          ],
         ),
       ),
     );
