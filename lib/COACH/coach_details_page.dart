@@ -10,6 +10,8 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 
+const Color accentColor = Color(0xFF00BFA5);
+
 class CoachDetailsPage extends StatefulWidget {
   final int coachId;
 
@@ -22,247 +24,133 @@ class CoachDetailsPage extends StatefulWidget {
 class _CoachDetailsPageState extends State<CoachDetailsPage> {
   Map<String, dynamic>? coach;
   bool isLoading = true;
-  List<dynamic> coachFeeds = [];
-  bool feedLoading = true;
-List<dynamic> existingImages = [];
-List<File> newImages = [];
-Set<int> removedImageIds = {};
-
-  final TextEditingController feedController = TextEditingController();
-  List<File> feedImages = [];
-  int? editingFeedId;
-bool isEditingFeed = false;
-List<Map<String, dynamic>> editingFeedExistingImages = [];
-
+  
+  List<Map<String, dynamic>> achievements = [];
+  bool achievementsLoading = true;
+  
+  List<Map<String, dynamic>> feeds = [];
+  bool feedsLoading = true;
+  
+  bool _isPosting = false;
+  String? userLocationName;
 
   @override
   void initState() {
     super.initState();
     fetchCoachDetails();
-    fetchCoachFeeds();
+    fetchAchievements();
+    fetchFeed();
   }
 
-  
- Future<void> updateFeed() async {
-  if (editingFeedId == null) return;
-
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-
-  final request = http.MultipartRequest(
-    "PUT",
-    Uri.parse("$api/api/myskates/feeds/update/$editingFeedId/"),
-  );
-
-  request.headers["Authorization"] = "Bearer $token";
-  request.fields["description"] = feedController.text;
-
-  for (var img in editingFeedExistingImages) {
-    request.fields["existing_images[]"] = img['id'].toString();
-  }
-
-  for (var img in feedImages) {
-    request.files.add(
-      await http.MultipartFile.fromPath("images", img.path),
-    );
-  }
-
-  final streamedResponse = await request.send();
-  final body = await streamedResponse.stream.bytesToString();
-
-  print("STATUS: ${streamedResponse.statusCode}");
-  print("BODYyyyyyyyy: $body");
-}
-
-
-
- Future<void> postFeed() async {
-  if (feedController.text.isEmpty && feedImages.isEmpty) return;
-
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-
-  final request = http.MultipartRequest(
-    "POST",
-    Uri.parse("$api/api/myskates/feeds/"),
-  );
-
-  request.headers["Authorization"] = "Bearer $token";
-  request.fields["description"] = feedController.text;
-
-  for (var img in feedImages) {
-    request.files.add(
-      await http.MultipartFile.fromPath("images", img.path),
-    );
-  }
-
-  print("📤 POST FEED FIELDS: ${request.fields}");
-  print("📸 TOTAL IMAGES: ${request.files.length}");
-
-  // 🔥 SEND REQUEST
-  final streamedResponse = await request.send();
-
-  // 🔥 READ RESPONSE BODY
-  final responseBody =
-      await streamedResponse.stream.bytesToString();
-
-  // ✅ PRINT EVERYTHING
-  print("✅ POST FEED STATUS: ${streamedResponse.statusCode}");
-  print("📩 POST FEED BODY: $responseBody");
-
-  if (streamedResponse.statusCode == 201) {
-    setState(() {
-      feedController.clear();
-      feedImages.clear();
-    });
-    fetchCoachFeeds();
-  } else {
-    print("❌ POST FEED FAILED");
-  }
-}
-
-
-  Future<void> addFeedImages() async {
-    final ImagePicker picker = ImagePicker();
-
-    final List<XFile>? pickedImages = await picker.pickMultiImage();
-
-    if (pickedImages != null && pickedImages.isNotEmpty) {
-      setState(() {
-        feedImages.addAll(pickedImages.map((xfile) => File(xfile.path)));
-      });
-    }
-  }
-
-  Future<void> fetchCoachFeeds() async {
+  // ==================== FETCH ACHIEVEMENTS ====================
+  Future<void> fetchAchievements() async {
     try {
-      setState(() => feedLoading = true);
+      setState(() {
+        achievementsLoading = true;
+      });
 
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
-      final id = prefs.getInt('id');
+
+      if (token == null) {
+        debugPrint("ACCESS TOKEN IS NULL");
+        setState(() {
+          achievements = [];
+          achievementsLoading = false;
+        });
+        return;
+      }
 
       final res = await http.get(
-        Uri.parse("$api/api/myskates/feeds/user/$id/"),
+        Uri.parse("$api/api/myskates/achievements/user/${widget.coachId}/"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
         },
       );
 
-      print("Feed Status: ${res.statusCode}");
-      print("Feed Body: ${res.body}");
+      debugPrint("Achievements response: ${res.body}");
 
       if (res.statusCode == 200) {
-        final decoded = jsonDecode(res.body);
+        final List data = jsonDecode(res.body);
 
         setState(() {
-          coachFeeds = decoded["data"] ?? [];
-          feedLoading = false;
+          achievements = data.cast<Map<String, dynamic>>();
+          achievementsLoading = false;
         });
       } else {
-        feedLoading = false;
+        debugPrint("Failed to fetch achievements: ${res.statusCode}");
+        setState(() {
+          achievements = [];
+          achievementsLoading = false;
+        });
       }
     } catch (e) {
-      print("Feed Error: $e");
-      feedLoading = false;
+      debugPrint("FETCH ACHIEVEMENTS ERROR: $e");
+      setState(() {
+        achievements = [];
+        achievementsLoading = false;
+      });
     }
   }
 
+  // ==================== FETCH FEED ====================
+  Future<void> fetchFeed() async {
+    try {
+      setState(() {
+        feedsLoading = true;
+      });
 
-  Future<void> _confirmDeleteFeed(int feedId) async {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: const Color(0xFF1A1A1A),
-      title: const Text(
-        "Delete Feed",
-        style: TextStyle(color: Colors.white),
-      ),
-      content: const Text(
-        "Are you sure you want to delete this feed?",
-        style: TextStyle(color: Colors.white70),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-        ),
-        TextButton(
-          onPressed: () async {
-            Navigator.pop(context);
-            await _deleteFeed(feedId);
-          },
-          child: const Text(
-            "Delete",
-            style: TextStyle(color: Colors.redAccent),
-          ),
-        ),
-      ],
-    ),
-  );
-}
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
 
-Future<void> _deleteFeed(int feedId) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
+      if (token == null) {
+        debugPrint("ACCESS TOKEN IS NULL");
+        setState(() {
+          feeds = [];
+          feedsLoading = false;
+        });
+        return;
+      }
 
-  final res = await http.delete(
-    Uri.parse("$api/api/myskates/feeds/$feedId/"),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    },
-  );
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/feeds/user/${widget.coachId}/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
 
-  if (res.statusCode == 204 || res.statusCode == 200) {
-    fetchCoachFeeds(); // refresh list
-  }
-}
-Future<void> _updateFeedWithImages({
-  required int feedId,
-  required String description,
-  required List<File> newImages,
-  required Set<int> removedImageIds,
-}) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
+      debugPrint("Feed response: ${response.body}");
 
-  final request = http.MultipartRequest(
-    "PUT",
-    Uri.parse("$api/api/myskates/feeds/$feedId/"),
-  );
-
-  request.headers["Authorization"] = "Bearer $token";
-  request.fields["description"] = description;
-
-  // REMOVED IMAGE IDS
-  if (removedImageIds.isNotEmpty) {
-    request.fields["remove_images"] =
-        jsonEncode(removedImageIds.toList());
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        setState(() {
+          feeds = List<Map<String, dynamic>>.from(decoded["data"]);
+          feedsLoading = false;
+        });
+      } else {
+        debugPrint("Failed to load feed: ${response.statusCode}");
+        setState(() {
+          feeds = [];
+          feedsLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("FETCH FEED ERROR: $e");
+      setState(() {
+        feeds = [];
+        feedsLoading = false;
+      });
+    }
   }
 
-  // ADD NEW IMAGES
-  for (var img in newImages) {
-    request.files.add(
-      await http.MultipartFile.fromPath("images", img.path),
-    );
-  }
-
-  final response = await request.send();
-
-  if (response.statusCode == 200) {
-    fetchCoachFeeds();
-  } else {
-    print("Update failed: ${response.statusCode}");
-  }
-}
-
-
+  // ==================== FETCH COACH DETAILS ====================
   Future<void> fetchCoachDetails() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
+
       final res = await http.get(
         Uri.parse("$api/api/myskates/user/extras/details/${widget.coachId}/"),
         headers: {
@@ -285,28 +173,23 @@ Future<void> _updateFeedWithImages({
         });
       }
     } catch (e) {
-      print("Error fetching Coach: $e");
+      debugPrint("Error fetching Coach: $e");
+      setState(() => isLoading = false);
     }
   }
 
+  // ==================== UTILITIES ====================
   String fullImageUrl(String? path) {
     if (path == null || path.isEmpty) {
       return "https://cdn-icons-png.flaticon.com/512/149/149071.png";
     }
-
     if (path.startsWith("http")) {
       return path;
     }
-
-    String cleanBase = api.endsWith("/")
-        ? api.substring(0, api.length - 1)
-        : api;
+    String cleanBase = api.endsWith("/") ? api.substring(0, api.length - 1) : api;
     String cleanPath = path.startsWith("/") ? path.substring(1) : path;
-
     return "$cleanBase/$cleanPath";
   }
-
-  String? userLocationName;
 
   Future<void> getPlaceFromLatLong(String lat, String long) async {
     try {
@@ -319,45 +202,34 @@ Future<void> _updateFeedWithImages({
       );
 
       Placemark place = placemarks.first;
-
       setState(() {
-        userLocationName =
-            "${place.locality}, ${place.subAdministrativeArea}, ${place.administrativeArea}";
+        userLocationName = "${place.locality}, ${place.subAdministrativeArea}, ${place.administrativeArea}";
       });
     } catch (e) {
-      userLocationName = "Unknown";
+      setState(() {
+        userLocationName = "Unknown";
+      });
     }
   }
 
-  // -----------------------------
-  // LAUNCH INSTAGRAM
-  // -----------------------------
   Future<void> openInstagram(String username) async {
     final url = "https://www.instagram.com/$username/";
-
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } else {
-      print("Unable to open Instagram");
+      debugPrint("Unable to open Instagram");
     }
   }
 
-  // -----------------------------
-  // LAUNCH WHATSAPP
-  // -----------------------------
   Future<void> openWhatsApp(String phone) async {
     final url = "https://wa.me/$phone";
-
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } else {
-      print("Unable to launch WhatsApp");
+      debugPrint("Unable to launch WhatsApp");
     }
   }
 
-  // -----------------------------
-  // CONNECT POPUP
-  // -----------------------------
   void _showConnectPopup() {
     showDialog(
       context: context,
@@ -380,7 +252,6 @@ Future<void> _updateFeedWithImages({
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // INSTAGRAM
                 GestureDetector(
                   onTap: () {
                     Navigator.pop(context);
@@ -404,8 +275,6 @@ Future<void> _updateFeedWithImages({
                     ),
                   ),
                 ),
-
-                // WHATSAPP
                 GestureDetector(
                   onTap: () {
                     Navigator.pop(context);
@@ -437,9 +306,20 @@ Future<void> _updateFeedWithImages({
     );
   }
 
-  // --------------------------------------------------------------------------
-  // UI STARTS HERE
-  // --------------------------------------------------------------------------
+  Color getUserTypeColor(String type) {
+    switch (type.toLowerCase()) {
+      case "coach":
+        return const Color(0xFFFFB800);
+      case "student":
+        return const Color(0xFF00B8FF);
+      case "admin":
+        return const Color(0xFFFF0080);
+      default:
+        return Colors.white70;
+    }
+  }
+
+  // ==================== BUILD UI ====================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -447,210 +327,9 @@ Future<void> _updateFeedWithImages({
       body: isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : _buildUI(),
-
-          
     );
-
-    
   }
 
-void _showEditFeedDialog(Map feed) {
-  final TextEditingController editController =
-      TextEditingController(text: feed["description"] ?? "");
-
-  List<dynamic> existingImages =
-      List.from(feed["feed_image"] ?? []);
-  List<File> newImages = [];
-  Set<int> removedImageIds = {};
-
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) {
-      return StatefulBuilder(
-        builder: (context, setModalState) {
-          return AlertDialog(
-            backgroundColor: const Color(0xFF1A1A1A),
-            title: const Text(
-              "Update Feed",
-              style: TextStyle(color: Colors.white),
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // DESCRIPTION
-                  TextField(
-                    controller: editController,
-                    maxLines: 4,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      hintText: "Edit description...",
-                      hintStyle: TextStyle(color: Colors.grey),
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // EXISTING IMAGES
-                  if (existingImages.isNotEmpty) ...[
-                    const Text(
-                      "Existing Images",
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                    const SizedBox(height: 8),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: existingImages.length,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 6,
-                        mainAxisSpacing: 6,
-                      ),
-                      itemBuilder: (context, index) {
-                        final img = existingImages[index];
-                        return Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.network(
-                                fullImageUrl(img["image"]),
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                              ),
-                            ),
-                            Positioned(
-                              top: 4,
-                              right: 4,
-                              child: GestureDetector(
-                                onTap: () {
-                                  setModalState(() {
-                                    removedImageIds.add(img["id"]);
-                                    existingImages.removeAt(index);
-                                  });
-                                },
-                                child: const CircleAvatar(
-                                  radius: 11,
-                                  backgroundColor: Colors.black54,
-                                  child: Icon(Icons.close,
-                                      size: 14, color: Colors.white),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-
-                  const SizedBox(height: 12),
-
-                  // NEW IMAGES
-                  if (newImages.isNotEmpty) ...[
-                    const Text(
-                      "New Images",
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                    const SizedBox(height: 8),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: newImages.length,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 6,
-                        mainAxisSpacing: 6,
-                      ),
-                      itemBuilder: (context, index) {
-                        return Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.file(
-                                newImages[index],
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                              ),
-                            ),
-                            Positioned(
-                              top: 4,
-                              right: 4,
-                              child: GestureDetector(
-                                onTap: () {
-                                  setModalState(() {
-                                    newImages.removeAt(index);
-                                  });
-                                },
-                                child: const CircleAvatar(
-                                  radius: 11,
-                                  backgroundColor: Colors.black54,
-                                  child: Icon(Icons.close,
-                                      size: 14, color: Colors.white),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-
-                  const SizedBox(height: 12),
-
-                  // ADD IMAGE BUTTON
-                  TextButton.icon(
-                    onPressed: () async {
-                      final picker = ImagePicker();
-                      final picked =
-                          await picker.pickMultiImage();
-                      if (picked != null) {
-                        setModalState(() {
-                          newImages.addAll(
-                            picked.map((x) => File(x.path)),
-                          );
-                        });
-                      }
-                    },
-                    icon: const Icon(Icons.photo, color: Colors.teal),
-                    label: const Text(
-                      "Add Images",
-                      style: TextStyle(color: Colors.teal),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Cancel",
-                    style: TextStyle(color: Colors.grey)),
-              ),
-              TextButton(
-                onPressed: () async {
-                  Navigator.pop(context);
-                  await _updateFeedWithImages(
-                    feedId: feed["id"],
-                    description: editController.text,
-                    newImages: newImages,
-                    removedImageIds: removedImageIds,
-                  );
-                },
-                child: const Text(
-                  "Update",
-                  style: TextStyle(color: Colors.tealAccent),
-                ),
-              ),
-            ],
-          );
-        },
-      );
-    },
-  );
-}
   Widget _buildUI() {
     return Stack(
       children: [
@@ -664,7 +343,6 @@ void _showEditFeedDialog(Map feed) {
             ),
           ),
         ),
-
         SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -672,7 +350,6 @@ void _showEditFeedDialog(Map feed) {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 20),
-
                 Align(
                   alignment: Alignment.topLeft,
                   child: InkWell(
@@ -684,9 +361,7 @@ void _showEditFeedDialog(Map feed) {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 CircleAvatar(
                   radius: 34,
                   backgroundColor: Colors.grey.shade900,
@@ -695,9 +370,7 @@ void _showEditFeedDialog(Map feed) {
                     headers: {"ngrok-skip-browser-warning": "1"},
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
                 Text(
                   "${coach?["first_name"] ?? ""} ${coach?["last_name"] ?? ""}",
                   style: const TextStyle(
@@ -706,16 +379,12 @@ void _showEditFeedDialog(Map feed) {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-
                 const SizedBox(height: 5),
-
                 Text(
                   userLocationName ?? "Loading...",
                   style: const TextStyle(fontSize: 15, color: Colors.grey),
                 ),
-
                 const SizedBox(height: 3),
-
                 const Text(
                   "COACH",
                   style: TextStyle(
@@ -724,57 +393,16 @@ void _showEditFeedDialog(Map feed) {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-
                 const SizedBox(height: 25),
-
-                // Row(
-                //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                //   children: [
-                //     Column(
-                //       children: [
-                //         Text(
-                //           (coach?["following"] ?? 0).toString(),
-                //           style: const TextStyle(
-                //             color: Colors.white,
-                //             fontSize: 15,
-                //             fontWeight: FontWeight.bold,
-                //           ),
-                //         ),
-                //         const Text("Following",
-                //             style: TextStyle(color: Colors.grey, fontSize: 15)),
-                //       ],
-                //     ),
-                //     Column(
-                //       children: [
-                //         Text(
-                //           (coach?["followers"] ?? 0).toString(),
-                //           style: const TextStyle(
-                //             color: Colors.white,
-                //             fontSize: 15,
-                //             fontWeight: FontWeight.bold,
-                //           ),
-                //         ),
-                //         const Text("Followers",
-                //             style: TextStyle(color: Colors.grey, fontSize: 15)),
-                //       ],
-                //     ),
-                //   ],
-                // ),
-
-                // const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // CONNECT BUTTON
-
-                    // FOLLOW BUTTON
-                    // FOLLOW BUTTON (TRANSPARENT)
                     Expanded(
                       child: SizedBox(
                         height: 50,
                         child: OutlinedButton(
                           onPressed: () {
-                            print("Follow pressed");
+                            debugPrint("Follow pressed");
                           },
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(
@@ -798,7 +426,6 @@ void _showEditFeedDialog(Map feed) {
                         ),
                       ),
                     ),
-
                     const SizedBox(width: 15),
                     Expanded(
                       child: SizedBox(
@@ -822,739 +449,507 @@ void _showEditFeedDialog(Map feed) {
                         ),
                       ),
                     ),
-
                     const SizedBox(width: 15),
                   ],
                 ),
+                const SizedBox(height: 35),
 
+                // ==================== DETAILS SECTION ====================
+                _buildDetailsSection(),
                 const SizedBox(height: 25),
 
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "Personal Info",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                _personalInfoCard(),
-
+                // ==================== ACHIEVEMENTS SECTION ====================
+                _buildAchievementsSection(),
                 const SizedBox(height: 25),
 
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "Achievements",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 15),
-
-                achievementCard(
-                  title: "Langham Skating Club",
-                  date: "November 18, 2025",
-                  location: "Panamballi Nagar, Kochi",
-                  subTitle: "Morning training session",
-                  time: "1h 12m",
-                  distance: "Panamballi Nagar - Kaicor",
-                  // iconUrl: fullImageUrl(
-                  //   "/media/profile_images/1000004721_K1a26PJ.jpg",
-                  // ),
-                ),
-
-                const SizedBox(height: 20),
-
-                achievementCard(
-                  title: "RBT Skating Event",
-                  date: "December 01, 2025",
-                  location: "Kakkanad, Kochi",
-                  time: "4h 54m",
-                  distance: "89.05 km",
-                ),
-
+                // ==================== FEED SECTION ====================
+                _buildFeedSection(),
                 const SizedBox(height: 40),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-                // ======================= FEED SECTION =======================
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "Feeds",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+  // ==================== DETAILS SECTION WIDGET ====================
+  Widget _buildDetailsSection() {
+    if (coach == null) return const SizedBox.shrink();
 
-                const SizedBox(height: 12),
+    final String userType = (coach?["user_type"] ?? "coach").toString();
+    final Color typeColor = getUserTypeColor(userType);
+    final String firstName = coach?["first_name"] ?? "N/A";
+    final String lastName = coach?["last_name"] ?? "";
+    final String email = coach?["email"] ?? "";
+    final String phone = coach?["phone"] ?? "";
+    final String instagram = coach?["instagram"] ?? "";
 
-                // ------------------ FEED COMPOSER ------------------
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Coach Details",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF00312D), Colors.black],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(
+              color: const Color(0xFF00BFA5).withOpacity(0.35),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1A1A1A),
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: typeColor, width: 2),
+                    color: Colors.white.withOpacity(0.08),
+                    image: coach?["profile"] != null &&
+                            coach!["profile"].toString().isNotEmpty
+                        ? DecorationImage(
+                            image: NetworkImage(
+                              fullImageUrl(coach!["profile"]),
+                            ),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
                   ),
+                  child: coach?["profile"] == null ||
+                          coach!["profile"].toString().isEmpty
+                      ? Icon(Icons.person, color: typeColor, size: 28)
+                      : null,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundImage: NetworkImage(
-                              fullImageUrl(coach?["profile"]),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
                           Expanded(
-                            child: TextField(
-                              controller: feedController,
-                              style: const TextStyle(color: Colors.white),
-                              maxLines: 3,
-                              decoration: InputDecoration(
-                                hintText: "Share something...",
-                                hintStyle: const TextStyle(color: Colors.grey),
-                                filled: true,
-                                fillColor: const Color(0xFF262626),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: BorderSide.none,
-                                ),
+                            child: Text(
+                              "$firstName $lastName",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                        ],
-                      ),
-
-                      if (feedImages.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: feedImages.length,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                crossAxisSpacing: 6,
-                                mainAxisSpacing: 6,
-                              ),
-                          itemBuilder: (context, index) {
-                            return Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.file(
-                                    feedImages[index],
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 4,
-                                  right: 4,
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        feedImages.removeAt(index);
-                                      });
-                                    },
-                                    child: const CircleAvatar(
-                                      radius: 11,
-                                      backgroundColor: Colors.black54,
-                                      child: Icon(
-                                        Icons.close,
-                                        size: 14,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                        // EXISTING IMAGES (EDIT MODE)
-if (isEditingFeed && editingFeedExistingImages.isNotEmpty) ...[
-  const SizedBox(height: 10),
-  GridView.builder(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    itemCount: editingFeedExistingImages.length,
-    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 3,
-      crossAxisSpacing: 6,
-      mainAxisSpacing: 6,
-    ),
-    itemBuilder: (context, index) {
-      final img = editingFeedExistingImages[index];
-
-      return Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              fullImageUrl(img['image']),
-              fit: BoxFit.cover,
-              width: double.infinity,
-            ),
-          ),
-          Positioned(
-            top: 4,
-            right: 4,
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  editingFeedExistingImages.removeAt(index);
-                });
-              },
-              child: const CircleAvatar(
-                radius: 11,
-                backgroundColor: Colors.black54,
-                child: Icon(
-                  Icons.close,
-                  size: 14,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-    },
-  ),
-],
-
-                      ],
-
-                      const SizedBox(height: 10),
-
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.photo_library,
-                              color: Colors.grey,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
                             ),
-                            onPressed: addFeedImages,
-                          ),
-                          const Spacer(),
-                          ElevatedButton(
-                            onPressed: isEditingFeed ? updateFeed : postFeed,
-
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.teal,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
+                            decoration: BoxDecoration(
+                              color: typeColor.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: typeColor.withOpacity(0.5),
                               ),
                             ),
                             child: Text(
-  isEditingFeed ? "Update" : "Post",
-  style: const TextStyle(color: Colors.white),
-),
-
+                              userType.toUpperCase(),
+                              style: TextStyle(
+                                color: typeColor,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 8),
+                      if (phone.isNotEmpty) _InfoRow(icon: Icons.phone, text: phone),
+                      if (email.isNotEmpty) _InfoRow(icon: Icons.email, text: email),
+                      if (instagram.isNotEmpty)
+                        _InfoRow(icon: Icons.camera_alt, text: "@$instagram"),
                     ],
                   ),
                 ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-                const SizedBox(height: 20),
+  // ==================== ACHIEVEMENTS SECTION ====================
+  Widget _buildAchievementsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Achievements",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        achievementsLoading
+            ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
+              )
+            : achievements.isEmpty
+                ? Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF00312D), Colors.black],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      border: Border.all(color: accentColor.withOpacity(0.35)),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        "No achievements yet",
+                        style: TextStyle(color: Colors.grey, fontSize: 14),
+                      ),
+                    ),
+                  )
+                : Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF00312D), Colors.black],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      border: Border.all(color: accentColor.withOpacity(0.35)),
+                    ),
+                    child: Column(
+                      children: List.generate(achievements.length, (index) {
+                        final a = achievements[index];
+                        return Column(
+                          children: [
+                            _AchievementListTile(achievement: a),
+                            if (index != achievements.length - 1)
+                              Divider(
+                                color: Colors.white.withOpacity(0.08),
+                                height: 1,
+                              ),
+                          ],
+                        );
+                      }),
+                    ),
+                  ),
+      ],
+    );
+  }
 
-              
-                // ======================= FEED LIST (PROFESSIONAL) =======================
-                feedLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(color: Colors.white),
-                      )
-                    : coachFeeds.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: Text(
-                          "No feeds yet",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      )
-                    : Column(
-                        children: coachFeeds.map((feed) {
-                          final List images = feed["feed_image"] ?? [];
+  // ==================== FEED SECTION ====================
+  Widget _buildFeedSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Posts",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 20),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF151515),
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.35),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // ---------------- HEADER ----------------
-                               // ---------------- HEADER ----------------
-Row(
-  children: [
-    CircleAvatar(
-      radius: 18,
-      backgroundImage: NetworkImage(
-        fullImageUrl(coach?["profile"]),
+        if (feedsLoading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+          )
+        else if (feeds.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF00312D), Colors.black],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(color: accentColor.withOpacity(0.35)),
+            ),
+            child: const Center(
+              child: Text(
+                "No posts yet",
+                style: TextStyle(color: Colors.grey, fontSize: 14),
+              ),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: feeds.length,
+            itemBuilder: (context, index) {
+              return _feedCard(feeds[index]);
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _feedCard(Map<String, dynamic> feed) {
+    final images = feed["feed_image"] ?? [];
+    final likesCount = feed["likes_count"] ?? 0;
+    final commentsCount = feed["comments_count"] ?? 0;
+    final sharesCount = feed["shares_count"] ?? 0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF00312D), Colors.black],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(
+          color: const Color(0xFF00BFA5).withOpacity(0.35),
+        ),
       ),
-    ),
-    const SizedBox(width: 10),
-
-    Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "${coach?["first_name"] ?? ""} ${coach?["last_name"] ?? ""}",
+            feed["user_name"] ?? "",
             style: const TextStyle(
               color: Colors.white,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 8),
           Text(
-            feed["created_at"] ?? "",
-            style: const TextStyle(
-              color: Colors.grey,
-              fontSize: 12,
-            ),
+            feed["description"] ?? "",
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
-        ],
-      ),
-    ),
-
-    // ✏️ EDIT ICON
-    GestureDetector(
-     onTap: () {
-  setState(() {
-    editingFeedId = feed['id'];
-    isEditingFeed = true;
-    feedController.text = feed['description'] ?? "";
-    feedImages.clear(); // new images only
-    editingFeedExistingImages =
-        List<Map<String, dynamic>>.from(feed['feed_image'] ?? []);
-  });
-
-  // scroll to composer
-  Scrollable.ensureVisible(
-    context,
-    duration: const Duration(milliseconds: 300),
-  );
-},
-
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: const Icon(
-          Icons.edit,
-          color: Colors.white70,
-          size: 18,
-        ),
-      ),
-    ),
-  ],
-),
-
-
-                                // ---------------- DESCRIPTION ----------------
-                                if (feed["description"] != null &&
-                                    feed["description"]
-                                        .toString()
-                                        .isNotEmpty) ...[
-                                  const SizedBox(height: 14),
-                                  Text(
-                                    feed["description"],
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 15,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
-
-                                // ---------------- IMAGE GRID ----------------
-                                if (images.isNotEmpty) ...[
-                                  const SizedBox(height: 14),
-                                  GridView.builder(
-                                    shrinkWrap: true,
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    itemCount: images.length,
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: images.length == 1
-                                              ? 1
-                                              : 2,
-                                          crossAxisSpacing: 8,
-                                          mainAxisSpacing: 8,
-                                        ),
-                                    itemBuilder: (context, index) {
-                                      final imgPath = images[index]["image"];
-
-                                      return ClipRRect(
-                                        borderRadius: BorderRadius.circular(16),
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) => FeedImageViewer(
-                                                  images: images,
-                                                  initialIndex: index,
-                                                  fullImageUrl: fullImageUrl,
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                          child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              16,
-                                            ),
-                                            child: Image.network(
-                                              fullImageUrl(imgPath),
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (c, e, s) =>
-                                                  Container(
-                                                    color: Colors.grey.shade800,
-                                                    child: const Icon(
-                                                      Icons
-                                                          .broken_image_outlined,
-                                                      color: Colors.white54,
-                                                      size: 40,
-                                                    ),
-                                                  ),
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ],
-
-                                const SizedBox(height: 14),
-                                const Divider(
-                                  color: Color(0xFF2A2A2A),
-                                  height: 1,
-                                ),
-                                const SizedBox(height: 10),
-
-                                // ---------------- ACTION BAR ----------------
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceAround,
-                                  children: [
-                                    _actionButton(
-                                      icon: Icons.thumb_up_alt_outlined,
-                                      label: "Like",
-                                    ),
-                                    _actionButton(
-                                      icon: Icons.mode_comment_outlined,
-                                      label: "Comment",
-                                    ),
-                                    _actionButton(
-                                      icon: Icons.share_outlined,
-                                      label: "Share",
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-
-                const SizedBox(height: 40),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _actionButton({required IconData icon, required String label}) {
-    return Row(
-      children: [
-        Icon(icon, color: Colors.grey, size: 18),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.grey,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _personalInfoCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Column(
-        children: [
-          _row("Experience", "${coach?["experience"] ?? "0"} yr"),
-          _row("Club/Organisation", coach?["club"] ?? "Not Available"),
-          _row("Events", coach?["club"] ?? "Unknown"),
-          _row("Area", userLocationName ?? "Unknown"),
-        ],
-      ),
-    );
-  }
-
-  Widget _row(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 15),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14)),
-          Text(
-            value,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget achievementCard({
-    required String title,
-    required String date,
-    required String location,
-    String? subTitle,
-    String? time,
-    String? distance,
-    String? iconUrl,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(
-                  iconUrl ??
-                      "https://cdn-icons-png.flaticon.com/512/2997/2997563.png",
-                  height: 45,
-                  width: 45,
-                  fit: BoxFit.cover,
-                ),
-              ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                            ),
+          if (images.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 220,
+              child: PageView.builder(
+                itemCount: images.length,
+                itemBuilder: (_, i) {
+                  final imageUrl = images[i]["image"] ?? "";
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      fullImageUrl(imageUrl),
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey.shade800,
+                          child: const Center(
+                            child: Icon(Icons.image, color: Colors.white54, size: 40),
                           ),
-                        ),
-                        const Icon(
-                          Icons.emoji_events,
-                          color: Colors.yellow,
-                          size: 22,
-                        ),
-                      ],
+                        );
+                      },
                     ),
-
-                    const SizedBox(height: 4),
-                    Text(
-                      date,
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
-                    ),
-                    Text(
-                      location,
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _count(Icons.favorite_border, likesCount),
+              SizedBox(width: 10),
+              _count(Icons.comment_outlined, commentsCount),
+              SizedBox(width: 10),
+              _count(Icons.repeat, sharesCount),
             ],
           ),
-
-          if (subTitle != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              subTitle,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-
-          if (time != null || distance != null) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                if (time != null)
-                  Text(
-                    time,
-                    style: const TextStyle(color: Colors.grey, fontSize: 13),
-                  ),
-                if (distance != null) ...[
-                  const SizedBox(width: 12),
-                  Text(
-                    distance,
-                    style: const TextStyle(color: Colors.grey, fontSize: 13),
-                  ),
-                ],
-              ],
-            ),
-          ],
         ],
       ),
     );
   }
+
+  Widget _count(IconData icon, int count) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white70, size: 18),
+        const SizedBox(width: 4),
+        Text(
+          count.toString(),
+          style: const TextStyle(color: Colors.white70, fontSize: 13),
+        ),
+      ],
+    );
+  }
 }
 
-class FeedImageViewer extends StatefulWidget {
-  final List images;
-  final int initialIndex;
-  final String Function(String) fullImageUrl;
+// ==================== ACHIEVEMENT LIST TILE WIDGET ====================
+class _AchievementListTile extends StatelessWidget {
+  final Map<String, dynamic> achievement;
 
-  const FeedImageViewer({
-    super.key,
-    required this.images,
-    required this.initialIndex,
-    required this.fullImageUrl,
-  });
-
-  @override
-  State<FeedImageViewer> createState() => _FeedImageViewerState();
-}
-
-class _FeedImageViewerState extends State<FeedImageViewer> {
-  late PageController _controller;
-  late int currentIndex;
-
-  @override
-  void initState() {
-    super.initState();
-    currentIndex = widget.initialIndex;
-    _controller = PageController(initialPage: currentIndex);
-
-    // immersive mode
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-  }
-
-  @override
-  void dispose() {
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    _controller.dispose();
-    super.dispose();
-  }
+  const _AchievementListTile({required this.achievement});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          PageView.builder(
-            controller: _controller,
-            itemCount: widget.images.length,
-            onPageChanged: (i) => setState(() => currentIndex = i),
-            itemBuilder: (context, index) {
-              final img = widget.images[index]["image"];
+    final image = achievement["image"];
+    final title = achievement["title"] ?? "";
+    final org = achievement["organization"] ?? "";
+    final duration = achievement["date"] ?? "";
+    final location = achievement["location"] ?? "";
 
-              return InteractiveViewer(
-                minScale: 1,
-                maxScale: 4,
-                child: Center(
-                  child: Image.network(
-                    widget.fullImageUrl(img),
-                    fit: BoxFit.contain,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: Colors.white.withOpacity(0.08),
+              image: image != null
+                  ? DecorationImage(
+                      image: NetworkImage("$api$image"),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: image == null
+                ? const Icon(Icons.emoji_events, color: accentColor, size: 22)
+                : null,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              );
-            },
-          ),
-
-          // CLOSE BUTTON
-          Positioned(
-            top: 40,
-            left: 16,
-            child: GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  shape: BoxShape.circle,
+                if (org.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      org,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 13,
+                      color: Colors.white54,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      duration,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.close, color: Colors.white),
-              ),
-            ),
-          ),
-
-          // IMAGE COUNT
-          Positioned(
-            top: 45,
-            right: 16,
-            child: Text(
-              "${currentIndex + 1}/${widget.images.length}",
-              style: const TextStyle(color: Colors.white70),
+                if (location.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on,
+                          size: 13,
+                          color: Colors.white54,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            location,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
       ),
     );
-
-    
   }
-
-  
 }
 
+// ==================== INFO ROW WIDGET ====================
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _InfoRow({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 13, color: Colors.white54),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
