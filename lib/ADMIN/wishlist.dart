@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/add_product.dart';
 import 'package:my_skates/ADMIN/cart_view.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
+import 'package:my_skates/ADMIN/product_big%20_view.dart';
 import 'package:my_skates/ADMIN/products_by_user.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/update_product.dart';
@@ -514,20 +515,31 @@ class _WishlistState extends State<Wishlist> {
         children: [
           Stack(
             children: [
-              Container(
-                height: 150,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: Image.network(
-                    p['image'],
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.broken_image, color: Colors.grey),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => big_view(productId: p['id']),
+                    ),
+                  );
+                },
+
+                child: Container(
+                  height: 150,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Image.network(
+                      p['image'],
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.broken_image, color: Colors.grey),
+                    ),
                   ),
                 ),
               ),
