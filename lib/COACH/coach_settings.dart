@@ -11,7 +11,7 @@ import 'package:my_skates/COACH/coach_profile.dart';
 import 'package:my_skates/COACH/view_clubs.dart';
 import 'package:my_skates/coach/add_coach_achievements.dart';
 import 'package:my_skates/loginpage.dart';
-import 'package:my_skates/STUDENTS/profile_page.dart'; 
+import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CoachSettings extends StatefulWidget {
@@ -27,6 +27,8 @@ class _CoachSettingsState extends State<CoachSettings> {
     super.initState();
   }
 
+  TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
 
   void pushWithSlide(Widget page) {
     Navigator.push(context, slideRightToLeftRoute(page));
@@ -77,7 +79,7 @@ class _CoachSettingsState extends State<CoachSettings> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F), 
+      backgroundColor: const Color(0xFF0F0F0F),
 
       appBar: AppBar(
         backgroundColor: const Color(0xFF0F0F0F),
@@ -108,15 +110,20 @@ class _CoachSettingsState extends State<CoachSettings> {
                   color: Colors.grey[900],
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.search, color: Colors.white60),
-                    SizedBox(width: 10),
-                    Text(
-                      "Search",
-                      style: TextStyle(color: Colors.white60, fontSize: 16),
-                    ),
-                  ],
+                child: TextField(
+                  controller: _searchController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    icon: Icon(Icons.search, color: Colors.white60),
+                    hintText: "Search",
+                    hintStyle: TextStyle(color: Colors.white60),
+                    border: InputBorder.none,
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value.toLowerCase();
+                    });
+                  },
                 ),
               ),
 
@@ -135,15 +142,15 @@ class _CoachSettingsState extends State<CoachSettings> {
               const SizedBox(height: 12),
 
               // Accounts Center → navigate to ProfilePage()
-              _menuTile(
-                icon: Icons.person_outline,
-                text: "Accounts Center",
-                subtitle: "Profile Update and more",
-                onTap: () {
-                 
-                  pushWithSlide(const CoachProfile());
-                },
-              ),
+              if ("Accounts Center".toLowerCase().contains(_searchQuery))
+                _menuTile(
+                  icon: Icons.person_outline,
+                  text: "Accounts Center",
+                  subtitle: "Profile Update and more",
+                  onTap: () {
+                    pushWithSlide(const CoachProfile());
+                  },
+                ),
 
               const SizedBox(height: 25),
 
@@ -158,112 +165,123 @@ class _CoachSettingsState extends State<CoachSettings> {
               ),
 
               const SizedBox(height: 12),
-              _menuTile(icon: Icons.phone, text: "Change Phone Number"),
+              if ("Change Phone Number".toLowerCase().contains(_searchQuery))
+                _menuTile(icon: Icons.phone, text: "Change Phone Number"),
               _divider(),
-              _menuTile(
-                icon: Icons.home,
-                text: "Add Achievements",
-                onTap: () {
-                 
-
-                  pushWithSlide(AddCoachAchievements());
-                },
-              ),
-              _divider(),
-
-              _menuTile(
-                icon: Icons.home,
-                text: "Add Club",
-                onTap: () {
-                  Navigator.push(context, slideRightToLeftRoute(AddClub()));
-                },
-              ),
-              _divider(),
-              _menuTile(
-                icon: Icons.home,
-                text: "Add address",
-                onTap: () {
-                  Navigator.push(context, slideRightToLeftRoute(ViewAddress()));
-                },
-              ),
-              _divider(),
-              _menuTile(
-                icon: Icons.home,
-                text: "View Club",
-                onTap: () {
-                  Navigator.push(context, slideRightToLeftRoute(ViewClubs()));
-                },
-              ),
-              _divider(),
-              _menuTile(
-                icon: Icons.home,
-                text: "Follow Requests",
-                onTap: () {
-                 
-                  pushWithSlide(const CoachFollowRequest());
-                },
-              ),
+              if ("Add Achievements".toLowerCase().contains(_searchQuery))
+                _menuTile(
+                  icon: Icons.home,
+                  text: "Add Achievements",
+                  onTap: () {
+                    pushWithSlide(AddCoachAchievements());
+                  },
+                ),
               _divider(),
 
-              _menuTile(
-                icon: Icons.home,
-                text: "Followers",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const CoachFollowersList(),
-                    ),
-                  );
-                  pushWithSlide(CoachFollowersList());
-                },
-              ),
+              if ("Add Club".toLowerCase().contains(_searchQuery))
+                _menuTile(
+                  icon: Icons.home,
+                  text: "Add Club",
+                  onTap: () {
+                    Navigator.push(context, slideRightToLeftRoute(AddClub()));
+                  },
+                ),
+              _divider(),
+              if ("Add address".toLowerCase().contains(_searchQuery))
+                _menuTile(
+                  icon: Icons.home,
+                  text: "Add address",
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      slideRightToLeftRoute(ViewAddress()),
+                    );
+                  },
+                ),
+              _divider(),
+              if ("View Club".toLowerCase().contains(_searchQuery))
+                _menuTile(
+                  icon: Icons.home,
+                  text: "View Club",
+                  onTap: () {
+                    Navigator.push(context, slideRightToLeftRoute(ViewClubs()));
+                  },
+                ),
+              _divider(),
+              if ("Follow Requests".toLowerCase().contains(_searchQuery))
+                _menuTile(
+                  icon: Icons.home,
+                  text: "Follow Requests",
+                  onTap: () {
+                    pushWithSlide(const CoachFollowRequest());
+                  },
+                ),
               _divider(),
 
-              _menuTile(
-                icon: Icons.home,
-                text: "Following",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const CoachFollowingList(),
-                    ),
-                  );
+              if ("Followers".toLowerCase().contains(_searchQuery))
+                _menuTile(
+                  icon: Icons.home,
+                  text: "Followers",
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CoachFollowersList(),
+                      ),
+                    );
+                    pushWithSlide(CoachFollowersList());
+                  },
+                ),
+              _divider(),
+              if ("Following".toLowerCase().contains(_searchQuery))
+                _menuTile(
+                  icon: Icons.home,
+                  text: "Following",
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CoachFollowingList(),
+                      ),
+                    );
 
-                  pushWithSlide(CoachFollowingList());
-                },
-              ),
+                    pushWithSlide(CoachFollowingList());
+                  },
+                ),
               _divider(),
 
-              _menuTile(icon: Icons.show_chart_outlined, text: "Your activity"),
+              if ("Your activity".toLowerCase().contains(_searchQuery))
+                _menuTile(
+                  icon: Icons.show_chart_outlined,
+                  text: "Your activity",
+                ),
               _divider(),
-
-              _menuTile(
-                icon: Icons.notifications_outlined,
-                text: "Notifications",
-              ),
+              if ("Notifications".toLowerCase().contains(_searchQuery))
+                _menuTile(
+                  icon: Icons.notifications_outlined,
+                  text: "Notifications",
+                ),
               _divider(),
 
               const SizedBox(height: 25),
-
-              // SECTION: WHO CAN SEE YOUR CONTENT
-              const Text(
-                "Other settings",
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
+              if ("Other Settings".toLowerCase().contains(_searchQuery))
+                // SECTION: WHO CAN SEE YOUR CONTENT
+                const Text(
+                  "Other settings",
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
 
               const SizedBox(height: 12),
-
-              _menuTile(
-                icon: Icons.lock_outline,
-                text: "Logout",
-                onTap: logoutUser,
-              ),
+              if ("Logout".toLowerCase().contains(_searchQuery))
+                _menuTile(
+                  icon: Icons.lock_outline,
+                  text: "Logout",
+                  onTap: logoutUser,
+                ),
 
               _divider(),
             ],

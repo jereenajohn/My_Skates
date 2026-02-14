@@ -34,12 +34,302 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
   bool _isPosting = false;
   String? userLocationName;
 
+  // Follow status tracking
+  String followStatus = "none"; // none, pending, approved
+  bool isFollowLoading = false;
+
   @override
   void initState() {
     super.initState();
-    fetchCoachDetails();
-    fetchAchievements();
-    fetchFeed();
+    initializeData();
+  }
+
+  Future<void> initializeData() async {
+    await fetchCoachDetails();
+    await checkFollowStatus();
+    
+    // Only fetch detailed info if follow request is approved
+    if (followStatus == "approved") {
+      await fetchAchievements();
+      await fetchFeed();
+    }
+  }
+
+  // ==================== CHECK FOLLOW STATUS USING EXISTING APIs ====================
+  Future<void> checkFollowStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        debugPrint("ACCESS TOKEN IS NULL");
+        return;
+      }
+
+      // Check sent/approved requests to see if already following
+      final approvedRes = await http.get(
+        Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      debugPrint("Approved requests response: ${approvedRes.body}");
+
+      if (approvedRes.statusCode == 200) {
+        final List approved = jsonDecode(approvedRes.body);
+        
+        // Check if this coach is in approved list
+        final isApproved = approved.any((req) => req["following"] == widget.coachId);
+        
+        if (isApproved) {
+          setState(() {
+            followStatus = "approved";
+          });
+          return;
+        }
+      }
+
+      // If not approved, set to none
+      setState(() {
+        followStatus = "none";
+      });
+
+    } catch (e) {
+      debugPrint("CHECK FOLLOW STATUS ERROR: $e");
+      setState(() {
+        followStatus = "none";
+      });
+    }
+  }
+
+  // ==================== SEND FOLLOW REQUEST ====================
+  Future<void> sendFollowRequest() async {
+    setState(() {
+      isFollowLoading = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        debugPrint("ACCESS TOKEN IS NULL");
+        setState(() {
+          isFollowLoading = false;
+        });
+        return;
+      }
+
+      final res = await http.post(
+        Uri.parse("$api/api/myskates/user/follow/request/"),
+        headers: {
+          "Authorization": "Bearer $token",
+        },
+        body: {
+          "following_id": widget.coachId.toString(),
+        },
+      );
+
+      debugPrint("Follow request response: ${res.statusCode} - ${res.body}");
+
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        final data = jsonDecode(res.body);
+        
+        // Check if the response indicates status
+        if (data["status"] == "approved") {
+          // Request was auto-approved
+          setState(() {
+            followStatus = "approved";
+          });
+
+          if (!mounted) return;
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Follow request approved! You can now view coach details."),
+              backgroundColor: Colors.teal,
+            ),
+          );
+
+          // Fetch the details
+          await fetchAchievements();
+          await fetchFeed();
+        } else {
+          // Request is pending
+          setState(() {
+            followStatus = "pending";
+          });
+
+          if (!mounted) return;
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Follow request sent! Waiting for coach approval."),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } else if (res.statusCode == 400) {
+        // Request might already exist
+        final data = jsonDecode(res.body);
+        
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data["message"] ?? "Request already exists"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        
+        setState(() {
+          followStatus = "pending";
+        });
+      } else {
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Failed to send follow request"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("SEND FOLLOW REQUEST ERROR: $e");
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("An error occurred"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        isFollowLoading = false;
+      });
+    }
+  }
+
+  // ==================== UNFOLLOW FUNCTIONALITY ====================
+  Future<void> unfollowCoach() async {
+    // Show confirmation dialog
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text(
+          "Unfollow Coach?",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          "If you unfollow, you will lose access to their achievements, posts, and contact details.",
+          style: TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(color: Colors.white70),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              "Unfollow",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() {
+      isFollowLoading = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        debugPrint("ACCESS TOKEN IS NULL");
+        setState(() {
+          isFollowLoading = false;
+        });
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse("$api/api/myskates/user/unfollow/"),
+        headers: {
+          "Authorization": "Bearer $token",
+        },
+        body: {
+          "following_id": widget.coachId.toString(),
+        },
+      );
+
+      debugPrint("Unfollow response: ${response.statusCode} - ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        setState(() {
+          followStatus = "none";
+          // Clear the data
+          achievements = [];
+          feeds = [];
+        });
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Successfully unfollowed"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Failed to unfollow"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("UNFOLLOW ERROR: $e");
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("An error occurred"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        isFollowLoading = false;
+      });
+    }
   }
 
   // ==================== FETCH ACHIEVEMENTS ====================
@@ -394,82 +684,211 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
                   ),
                 ),
                 const SizedBox(height: 25),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 50,
-                        child: OutlinedButton(
-                          onPressed: () {
-                            debugPrint("Follow pressed");
-                          },
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(
-                              color: Colors.white,
-                              width: 1.4,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(22),
-                            ),
-                            foregroundColor: Colors.white,
-                            backgroundColor: Colors.transparent,
-                          ),
-                          child: const Text(
-                            "Follow",
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 15),
-                    Expanded(
-                      child: SizedBox(
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: () => _showConnectPopup(),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.teal,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(22),
-                            ),
-                          ),
-                          child: const Text(
-                            "Connect",
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 15),
-                  ],
-                ),
+                
+                // ==================== ACTION BUTTONS ====================
+                _buildActionButtons(),
+                
                 const SizedBox(height: 35),
 
-                // ==================== DETAILS SECTION ====================
-                _buildDetailsSection(),
-                const SizedBox(height: 25),
-
-                // ==================== ACHIEVEMENTS SECTION ====================
-                _buildAchievementsSection(),
-                const SizedBox(height: 25),
-
-                // ==================== FEED SECTION ====================
-                _buildFeedSection(),
+                // ==================== CONTENT BASED ON FOLLOW STATUS ====================
+                if (followStatus == "approved") ...[
+                  _buildDetailsSection(),
+                  const SizedBox(height: 25),
+                  _buildAchievementsSection(),
+                  const SizedBox(height: 25),
+                  _buildFeedSection(),
+                ] else ...[
+                  _buildRestrictedContent(),
+                ],
+                
                 const SizedBox(height: 40),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+
+  // ==================== ACTION BUTTONS ====================
+  Widget _buildActionButtons() {
+    if (followStatus == "approved") {
+      // Show Following button (with unfollow option) and Connect button
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 50,
+              child: OutlinedButton(
+                onPressed: isFollowLoading ? null : unfollowCoach,
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(
+                    color: Colors.teal,
+                    width: 1.4,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  foregroundColor: Colors.teal,
+                  backgroundColor: Colors.transparent,
+                ),
+                child: isFollowLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.teal,
+                        ),
+                      )
+                    : const Text(
+                        "Following",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.teal,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: SizedBox(
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () => _showConnectPopup(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                ),
+                child: const Text(
+                  "Connect",
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 15),
+        ],
+      );
+    } else if (followStatus == "pending") {
+      // Show pending status
+      return SizedBox(
+        height: 50,
+        width: double.infinity,
+        child: OutlinedButton(
+          onPressed: null,
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(
+              color: Colors.orange,
+              width: 1.4,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
+            backgroundColor: Colors.transparent,
+          ),
+          child: const Text(
+            "Request Pending",
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.orange,
+            ),
+          ),
+        ),
+      );
+    } else {
+      // Show follow request button
+      return SizedBox(
+        height: 50,
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: isFollowLoading ? null : sendFollowRequest,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.teal,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
+          ),
+          child: isFollowLoading
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text(
+                  "Send Follow Request",
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+        ),
+      );
+    }
+  }
+
+  // ==================== RESTRICTED CONTENT ====================
+  Widget _buildRestrictedContent() {
+    return Container(
+      margin: const EdgeInsets.only(top: 40),
+      padding: const EdgeInsets.all(30),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF00312D), Colors.black],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(
+          color: const Color(0xFF00BFA5).withOpacity(0.35),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            followStatus == "pending" ? Icons.hourglass_empty : Icons.lock_outline,
+            size: 64,
+            color: Colors.white30,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            followStatus == "pending"
+                ? "Request Pending"
+                : "Profile Locked",
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            followStatus == "pending"
+                ? "Your follow request is pending. You'll be able to view this coach's details once they accept your request."
+                : "Send a follow request to view this coach's achievements, posts, and detailed information.",
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -592,7 +1011,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
       ],
     );
   }
-
+  
   // ==================== ACHIEVEMENTS SECTION ====================
   Widget _buildAchievementsSection() {
     return Column(
@@ -600,7 +1019,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
       children: [
         const Text(
           "Achievements",
-          style: TextStyle(
+            style: TextStyle(
             color: Colors.white,
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -616,13 +1035,13 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
               )
             : achievements.isEmpty
                 ? Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF00312D), Colors.black],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                      colors: [Color(0xFF00312D), Colors.black],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                       ),
                       border: Border.all(color: accentColor.withOpacity(0.35)),
                     ),
@@ -634,12 +1053,12 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
                     ),
                   )
                 : Container(
-                    decoration: BoxDecoration(
+                      decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF00312D), Colors.black],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                      colors: [Color(0xFF00312D), Colors.black],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                       ),
                       border: Border.all(color: accentColor.withOpacity(0.35)),
                     ),
@@ -670,7 +1089,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
       children: [
         const Text(
           "Posts",
-          style: TextStyle(
+            style: TextStyle(
             color: Colors.white,
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -688,9 +1107,9 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
         else if (feeds.isEmpty)
           Container(
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              gradient: const LinearGradient(
+                decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                gradient: const LinearGradient(
                 colors: [Color(0xFF00312D), Colors.black],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -710,30 +1129,30 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
             physics: const NeverScrollableScrollPhysics(),
             itemCount: feeds.length,
             itemBuilder: (context, index) {
-              return _feedCard(feeds[index]);
+            return _feedCard(feeds[index]);
             },
           ),
       ],
     );
   }
 
-  Widget _feedCard(Map<String, dynamic> feed) {
-    final images = feed["feed_image"] ?? [];
-    final likesCount = feed["likes_count"] ?? 0;
-    final commentsCount = feed["comments_count"] ?? 0;
-    final sharesCount = feed["shares_count"] ?? 0;
+   Widget _feedCard(Map<String, dynamic> feed) {
+         final images = feed["feed_image"] ?? [];
+         final likesCount = feed["likes_count"] ?? 0;
+         final commentsCount = feed["comments_count"] ?? 0;
+         final sharesCount = feed["shares_count"] ?? 0;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: const LinearGradient(
           colors: [Color(0xFF00312D), Colors.black],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(
+          border: Border.all(
           color: const Color(0xFF00BFA5).withOpacity(0.35),
         ),
       ),
@@ -741,8 +1160,8 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            feed["user_name"] ?? "",
-            style: const TextStyle(
+              feed["user_name"] ?? "",
+              style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
               fontSize: 15,
@@ -762,14 +1181,14 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
                 itemBuilder: (_, i) {
                   final imageUrl = images[i]["image"] ?? "";
                   return ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      fullImageUrl(imageUrl),
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                            fullImageUrl(imageUrl),
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
                         return Container(
-                          color: Colors.grey.shade800,
-                          child: const Center(
+                            color: Colors.grey.shade800,
+                            child: const Center(
                             child: Icon(Icons.image, color: Colors.white54, size: 40),
                           ),
                         );
@@ -829,9 +1248,9 @@ class _AchievementListTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
               color: Colors.white.withOpacity(0.08),
               image: image != null
@@ -851,8 +1270,8 @@ class _AchievementListTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
-                  style: const TextStyle(
+                    title,
+                    style: const TextStyle(
                     color: Colors.white,
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -860,10 +1279,10 @@ class _AchievementListTile extends StatelessWidget {
                 ),
                 if (org.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      org,
-                      style: const TextStyle(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                        org,
+                        style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -880,8 +1299,8 @@ class _AchievementListTile extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      duration,
-                      style: const TextStyle(
+                        duration,
+                        style: const TextStyle(
                         color: Colors.white54,
                         fontSize: 12,
                       ),
@@ -900,11 +1319,11 @@ class _AchievementListTile extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         Expanded(
-                          child: Text(
-                            location,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                              child: Text(
+                              location,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
                               color: Colors.white54,
                               fontSize: 12,
                             ),

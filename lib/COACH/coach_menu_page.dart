@@ -5,6 +5,7 @@ import 'package:my_skates/COACH/club_list.dart';
 import 'package:my_skates/COACH/coach_clubs_to_approve_request.dart';
 import 'package:my_skates/COACH/coach_followers_list.dart';
 import 'package:my_skates/COACH/coach_club_requests.dart';
+import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/COACH/coach_timeline_page.dart';
 import 'package:my_skates/COACH/training_session_page.dart';
@@ -222,15 +223,15 @@ class _CoachMenuPageState extends State<CoachMenuPage>
   // ───────────────── BUILD ─────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
+     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: _buildAppBar(),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFF00312D), Color(0xFF000000)],
             begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            
           ),
         ),
         child: SafeArea(
@@ -328,6 +329,9 @@ class _CoachMenuPageState extends State<CoachMenuPage>
   // ───────────────── APP BAR ─────────────────
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
+      leading: IconButton(onPressed: (){
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const CoachHomepage()));
+      }, icon: Icon(Icons.arrow_back,color: Colors.white,)),
       backgroundColor: Colors.transparent,
       elevation: 0,
       title: const Text(
