@@ -91,7 +91,8 @@ class _StudentListState extends State<StudentList> {
     print("Follow request response: ${response.statusCode} - ${response.body}");
     if (response.statusCode == 200 || response.statusCode == 201) {
       setState(() {
-        students.removeAt(index); //  instantly hide student
+        students.removeAt(index); // instantly hide student
+        students.removeAt(index);
         noData = students.isEmpty;
       });
     }
