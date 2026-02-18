@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:my_skates/STUDENTS/add_student_achievements.dart';
-import 'package:my_skates/STUDENTS/student_order_page';
+import 'package:my_skates/STUDENTS/student_order_page.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:my_skates/STUDENTS/user_follow_requests.dart';
