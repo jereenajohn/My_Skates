@@ -11,7 +11,7 @@ class CoachProfileProvider extends ChangeNotifier {
   String role = "Coach";
   String? image;
 
-  Future<void> fetchProfile() async {
+Future<void> fetchProfile({int? coachId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");

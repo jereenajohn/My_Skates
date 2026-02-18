@@ -1257,6 +1257,7 @@ String formatDateTimeToAmPm(String date, String time) {
   return "$hour:$minute $period";
 }
 
+
 // --------------------------- EVENT CARD 2 ---------------------------
 Widget buildEventCardWithImages({
   required String clubName,

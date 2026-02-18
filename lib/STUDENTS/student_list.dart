@@ -40,6 +40,8 @@ class _StudentListState extends State<StudentList> {
         },
       );
 
+      print(res.body);
+
       if (res.statusCode == 200) {
         final List decoded = jsonDecode(res.body);
 
@@ -90,6 +92,7 @@ class _StudentListState extends State<StudentList> {
     if (response.statusCode == 200 || response.statusCode == 201) {
       setState(() {
         students.removeAt(index); // instantly hide student
+        students.removeAt(index);
         noData = students.isEmpty;
       });
     }

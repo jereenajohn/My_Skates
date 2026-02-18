@@ -14,8 +14,54 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ Professional error screen (no red/yellow)
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: Colors.black,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline,
+                  color: Colors.redAccent, size: 60),
+              const SizedBox(height: 12),
+              const Text(
+                "Oops! Something went wrong",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: "Poppins",
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                "Please try again later.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 13,
+                  fontFamily: "Poppins",
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  };
+
+  // ✅ Keeps error log in console (for developer)
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.dumpErrorToConsole(details);
+  };
+
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -96,9 +142,14 @@ class _DeepLinkWrapperState extends State<_DeepLinkWrapper> {
 
     //
     // App in background / foreground
-    _appLinks.uriLinkStream.listen((uri) {
-      _handleLink(uri);
-    });
+   _appLinks.uriLinkStream.listen((uri) {
+  try {
+    _handleLink(uri);
+  } catch (e) {
+    debugPrint("Deep Link Error: $e");
+  }
+});
+
   }
 
   void _handleLink(Uri uri) {
