@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/add_attributes.dart';
 import 'package:my_skates/ADMIN/add_banner.dart';
@@ -9,6 +10,7 @@ import 'package:my_skates/ADMIN/add_product_banner.dart';
 import 'package:my_skates/ADMIN/add_skaters_type.dart';
 import 'package:my_skates/ADMIN/add_state.dart';
 import 'package:my_skates/ADMIN/add_values.dart';
+import 'package:my_skates/ADMIN/admin_orders_page.dart';
 import 'package:my_skates/COACH/add_club.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,6 +28,11 @@ class _MenuPageState extends State<MenuPage> {
     // TODO: implement initState
     super.initState();
   }
+
+  
+  TextEditingController _searchController=TextEditingController();
+  String _searchQuery= "";
+
 
   Future<void> logoutUser() async {
     final prefs = await SharedPreferences.getInstance();
@@ -100,19 +107,24 @@ class _MenuPageState extends State<MenuPage> {
                   color: Colors.grey[900],
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.search, color: Colors.white60),
-                    SizedBox(width: 10),
-                    Text(
-                      "Search",
-                      style: TextStyle(color: Colors.white60, fontSize: 16),
+                child: TextField(
+                  controller: _searchController,
+                  style: TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                  hintText: "Search",hintStyle: TextStyle(color: const Color.fromARGB(192, 255, 255, 255)),
+                  icon: Icon(Icons.search,color:Colors.white60),
+                  border: InputBorder.none
                     ),
-                  ],
-                ),
+                    onChanged: (value){
+                      setState(() {
+                        _searchQuery=value.toLowerCase();
+                      });
+                    }
+                )
               ),
 
               const SizedBox(height: 12),
+              if ("Country".toLowerCase().contains(_searchQuery))
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -120,10 +132,24 @@ class _MenuPageState extends State<MenuPage> {
                     MaterialPageRoute(builder: (context) => const AddCountry()),
                   );
                 },
+                
                 child: _menuTile(icon: Icons.bookmark_outline, text: "Country"),
               ),
+              if ("Country".toLowerCase().contains(_searchQuery))
               _divider(),
-
+              if ("Orders".toLowerCase().contains(_searchQuery))
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const Admin_order_page()),
+                  );
+                },
+                child: _menuTile(icon: Icons.bookmark_outline, text: "Orders"),
+              ),
+              if ("Orders".toLowerCase().contains(_searchQuery))
+              _divider(),
+              if ("State".toLowerCase().contains(_searchQuery))
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -133,7 +159,10 @@ class _MenuPageState extends State<MenuPage> {
                 },
                 child: _menuTile(icon: Icons.bookmark_outline, text: "State"),
               ),
+              if ("State".toLowerCase().contains(_searchQuery))
               _divider(),
+
+              if ("District".toLowerCase().contains(_searchQuery))
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -143,8 +172,10 @@ class _MenuPageState extends State<MenuPage> {
                 },
                 child: _menuTile(icon: Icons.history, text: "District"),
               ),
+              if ("District".toLowerCase().contains(_searchQuery))
               _divider(),
 
+             if ("SkatersType".toLowerCase().contains(_searchQuery))
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -159,8 +190,10 @@ class _MenuPageState extends State<MenuPage> {
                   text: "Skaters Type",
                 ),
               ),
+              if ("Skaters Type".toLowerCase().contains(_searchQuery))
               _divider(),
 
+             if ("Category".toLowerCase().contains(_searchQuery))
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -172,7 +205,10 @@ class _MenuPageState extends State<MenuPage> {
                 },
                 child: _menuTile(icon: Icons.history, text: "Category"),
               ),
+              if ("Category".toLowerCase().contains(_searchQuery))
               _divider(),
+
+              if ("Attributes".toLowerCase().contains(_searchQuery))
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -182,8 +218,10 @@ class _MenuPageState extends State<MenuPage> {
                 },
                 child: _menuTile(icon: Icons.history, text: "Attributes"),
               ),
+              if ("Attributes".toLowerCase().contains(_searchQuery))
               _divider(),
 
+              if ("Values".toLowerCase().contains(_searchQuery))
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -193,9 +231,10 @@ class _MenuPageState extends State<MenuPage> {
                 },
                 child: _menuTile(icon: Icons.history, text: "values"),
               ),
+              if ("Values".toLowerCase().contains(_searchQuery))
               _divider(),
 
-
+              if ("Add Coupon".toLowerCase().contains(_searchQuery))
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -204,7 +243,10 @@ class _MenuPageState extends State<MenuPage> {
                   );
                 },
                 child: _menuTile(icon: Icons.show_chart_outlined, text: "Add Coupon"),),
+                if ("Add Coupon".toLowerCase().contains(_searchQuery))
               _divider(),
+
+              if ("Add Banners".toLowerCase().contains(_searchQuery))
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -217,7 +259,11 @@ class _MenuPageState extends State<MenuPage> {
                   text: "Add Banners",
                 ),
               ),
+              if ("Add Banners".toLowerCase().contains(_searchQuery))
               _divider(),
+
+
+              if ("Product Banners".toLowerCase().contains(_searchQuery))
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -232,9 +278,12 @@ class _MenuPageState extends State<MenuPage> {
                   text: "Product Banners",
                 ),
               ),
+              if ("Product Banners".toLowerCase().contains(_searchQuery))
               _divider(),
               // _menuTile(icon: Icons.access_time, text: "Time management"),
               // _divider(),
+
+              if ("Logout".toLowerCase().contains(_searchQuery))
               _menuTile(
                 icon: Icons.lock_outline,
                 text: "Logout",

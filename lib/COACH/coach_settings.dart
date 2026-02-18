@@ -8,6 +8,7 @@ import 'package:my_skates/COACH/coach_follow_request.dart';
 import 'package:my_skates/COACH/coach_followers_list.dart';
 import 'package:my_skates/COACH/coach_following_list.dart';
 import 'package:my_skates/COACH/coach_profile.dart';
+import 'package:my_skates/COACH/myorders.dart';
 import 'package:my_skates/COACH/view_clubs.dart';
 import 'package:my_skates/coach/add_coach_achievements.dart';
 import 'package:my_skates/loginpage.dart';
@@ -168,6 +169,15 @@ class _CoachSettingsState extends State<CoachSettings> {
               if ("Change Phone Number".toLowerCase().contains(_searchQuery))
                 _menuTile(icon: Icons.phone, text: "Change Phone Number"),
               _divider(),
+              if ("My Orders".toLowerCase().contains(_searchQuery))
+                _menuTile(
+                  icon: Icons.shopping_bag,
+                  text: "My Orders",
+                  onTap: () {
+                    Navigator.push(context, slideRightToLeftRoute(Myorders()));
+                  },
+                ),
+                _divider(),
               if ("Add Achievements".toLowerCase().contains(_searchQuery))
                 _menuTile(
                   icon: Icons.home,
@@ -177,7 +187,6 @@ class _CoachSettingsState extends State<CoachSettings> {
                   },
                 ),
               _divider(),
-
               if ("Add Club".toLowerCase().contains(_searchQuery))
                 _menuTile(
                   icon: Icons.home,

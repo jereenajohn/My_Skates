@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 
@@ -364,6 +365,9 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
+        leading: IconButton(onPressed: (){
+          Navigator.push(context, MaterialPageRoute(builder: (_) => CoachHomepage()));
+        }, icon: Icon(Icons.arrow_back,color: Colors.white)),
         backgroundColor: Colors.black,
         elevation: 0,
         title: const Text(

@@ -12,6 +12,7 @@ import 'package:my_skates/COACH/training_session_page.dart';
 import 'package:my_skates/COACH/view_clubs.dart';
 import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CoachMenuPage extends StatefulWidget {
@@ -77,8 +78,10 @@ class _CoachMenuPageState extends State<CoachMenuPage>
 
   Future<int?> getUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getInt("id");
+    return
+     prefs.getInt("id");
   }
+  
 
   Future<void> fetchCoachFollowers() async {
     try {
@@ -259,7 +262,7 @@ class _CoachMenuPageState extends State<CoachMenuPage>
           ),
         ),
       ),
-      bottomNavigationBar: _bottomNav(),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 4),
     );
   }
 
@@ -330,7 +333,8 @@ class _CoachMenuPageState extends State<CoachMenuPage>
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       leading: IconButton(onPressed: (){
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const CoachHomepage()));
+        Navigator.pushReplacement
+        (context, MaterialPageRoute(builder: (_) => const CoachHomepage()));
       }, icon: Icon(Icons.arrow_back,color: Colors.white,)),
       backgroundColor: Colors.transparent,
       elevation: 0,

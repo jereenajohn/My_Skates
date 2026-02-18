@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/COACH/coach_timeline_page.dart';
+import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/user_settings.dart';
 import 'package:my_skates/STUDENTS/user_timeline_page.dart';
 import 'package:my_skates/api.dart';
@@ -126,6 +127,7 @@ class _UserMenuPageState extends State<UserMenuPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
       appBar: _buildAppBar(),
       body: Container(
@@ -233,6 +235,15 @@ class _UserMenuPageState extends State<UserMenuPage>
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
+      leading: IconButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => HomePage()),
+          );
+        },
+        icon: Icon(Icons.arrow_back, color: Colors.white),
+      ),
       title: const Text(
         "",
         style: TextStyle(

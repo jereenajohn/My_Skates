@@ -3,12 +3,15 @@ import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/CoachApprovalTabs.dart';
 import 'package:my_skates/ADMIN/add_banner.dart';
 import 'package:my_skates/ADMIN/add_product.dart';
+import 'package:my_skates/ADMIN/admin_notificationpage.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/menu.dart';
 import 'package:my_skates/ADMIN/productapprove_tab.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
+import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
+import 'package:my_skates/bottomnavigation.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
@@ -34,6 +37,32 @@ class _DashboardPageState extends State<DashboardPage> {
     _loadInitialData();
   }
 
+  void _onBottomNavTap(int index) {
+    switch (index) {
+      case 0:
+        break;
+      case 1:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const UserApprovedProducts()),
+        );
+        break;
+
+      case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminNotificationpage()),
+        );
+        break;
+
+      case 3:
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => UserConnectCoaches()))  ;
+        break;
+
+      case 4: 
+      break; 
+    }
+  }
 
   Future<void> _loadInitialData() async {
     await Future.wait([fetchStudentDetails(), getbanner()]);
@@ -44,8 +73,6 @@ class _DashboardPageState extends State<DashboardPage> {
     if (!mounted || isRefreshing) return;
 
     setState(() => isRefreshing = true);
-
-  
 
     // Refresh all data
     await Future.wait([fetchStudentDetails(), getbanner()]);
@@ -130,9 +157,9 @@ class _DashboardPageState extends State<DashboardPage> {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF001F1D),Color(0xFF003A36), Colors.black,],
+            colors: [Color(0xFF001F1D), Color(0xFF003A36), Colors.black],
             begin: Alignment.topLeft,
-            end: Alignment.bottomCenter
+            end: Alignment.bottomCenter,
           ),
         ),
         child: SafeArea(
@@ -311,7 +338,6 @@ class _DashboardPageState extends State<DashboardPage> {
                                                     ),
                                                   ),
                                                 ),
-                                              
                                               ],
                                             );
                                           }).toList(),
@@ -345,7 +371,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             color: Colors.white,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5
+                            letterSpacing: 0.5,
                           ),
                         ),
 
@@ -489,43 +515,10 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
 
       // BOTTOM NAV
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-          child: BottomNavigationBar(
-            backgroundColor: Colors.black,
-            selectedItemColor: const Color(0xFF00AFA5),
-            unselectedItemColor: Colors.white70,
-            showSelectedLabels: false,
-            showUnselectedLabels: false,
-            type: BottomNavigationBarType.fixed,
-            currentIndex: 0,
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.shopping_bag),
-                label: '',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.chat_bubble_rounded),
-                label: '',
-              ),
-              BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
-              BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
-            ],
-          ),
-        ),
-      ),
+      bottomNavigationBar: AppBottomNav(
+      currentIndex: 0,
+      onTap: _onBottomNavTap,
+),
     );
   }
 
@@ -616,10 +609,11 @@ Widget buildEventCard({
       border: Border.all(color: Colors.white.withOpacity(0.1)),
       boxShadow: [
         BoxShadow(
-            color: Colors.black.withOpacity(0.5),
-            blurRadius: 10,
-            offset: Offset(0, 6)
-      )]
+          color: Colors.black.withOpacity(0.5),
+          blurRadius: 10,
+          offset: Offset(0, 6),
+        ),
+      ],
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -674,16 +668,14 @@ Widget buildEventCard({
 
         const SizedBox(height: 6),
 
-        
-
         const SizedBox(height: 10),
 
         // LIKE + FAVORITE BUTTONS (BOTTOM RIGHT)
         Row(
           children: [
-            Text(location,style: TextStyle(color: Colors.white70),),
+            Text(location, style: TextStyle(color: Colors.white70)),
             SizedBox(width: 120),
-            Icon(Icons.thumb_up_alt_outlined,color: Colors.tealAccent,)
+            Icon(Icons.thumb_up_alt_outlined, color: Colors.tealAccent),
           ],
         ),
       ],

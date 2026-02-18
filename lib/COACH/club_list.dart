@@ -67,31 +67,43 @@ class _ClubGridPageState extends State<ClubGridPage> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: loading
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.tealAccent),
-            )
-          : noData
-          ? const Center(
-              child: Text(
-                "No clubs found",
-                style: TextStyle(color: Colors.white70),
-              ),
-            )
-          : Padding(
-              padding: const EdgeInsets.all(14),
-              child: GridView.builder(
-                itemCount: clubs.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 14,
-                  childAspectRatio: 0.75,
+    ? const Center(
+        child: CircularProgressIndicator(color: Colors.tealAccent),
+      )
+    : RefreshIndicator(
+        color: Colors.tealAccent,
+        backgroundColor: Colors.black,
+        onRefresh: fetchClubs,
+        child: noData
+            ? ListView(
+                
+                children: const [
+                  SizedBox(height: 200),
+                  Center(
+                    child: Text(
+                      "No clubs found",
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  ),
+                ],
+              )
+            : Padding(
+                padding: const EdgeInsets.all(14),
+                child: GridView.builder(
+                  itemCount: clubs.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    childAspectRatio: 0.75,
+                  ),
+                  itemBuilder: (context, index) {
+                    return ClubGridCard(club: clubs[index]);
+                  },
                 ),
-                itemBuilder: (context, index) {
-                  return ClubGridCard(club: clubs[index]);
-                },
               ),
-            ),
+      ),
+
     );
   }
 }
@@ -105,89 +117,134 @@ class ClubGridCard extends StatelessWidget {
     final String clubName = club["club_name"] ?? "Club";
     final String place = club["place"] ?? "";
     final String image = club["image"] ?? "";
-    final String instagram = club["instagram"] ?? "";
-    int id = club["id"] ?? 0;
+    final int id = club["id"] ?? 0;
 
-    final String imageUrl =
-        image.isNotEmpty ? "$api$image" : "";
+    final String imageUrl = image.isNotEmpty ? "$api$image" : "";
 
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 36,
-            backgroundImage: imageUrl.isNotEmpty
-                ? NetworkImage(imageUrl)
-                : const AssetImage("lib/assets/images.png") as ImageProvider,
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ClubView(clubid: id),
           ),
-
-          const SizedBox(height: 10),
-
-          Text(
-            clubName,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.35),
+              blurRadius: 10,
+              offset: const Offset(0, 6),
             ),
-          ),
-
-          const SizedBox(height: 4),
-
-          Text(
-            place,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
+          ],
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              flex: 6,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(18),
+                ),
+                child: imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      )
+                    : Image.asset(
+                        "lib/assets/images.png",
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+              ),
             ),
-          ),
 
-          const Spacer(),
+            /// CONTENT
+            Expanded(
+              flex: 5,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    /// CLUB NAME
+                    Text(
+                      clubName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
 
-          SizedBox(
-            width: double.infinity,
-            height: 34,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00AFA5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 6),
+
+                    /// LOCATION
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on,
+                          size: 14,
+                          color: Colors.white54,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            place,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const Spacer(),
+
+                    /// BUTTON
+                    Container(
+                      height: 34,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFF00E0D3),
+                            Color(0xFF00AFA5),
+                          ],
+                        ),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          "View Club",
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              onPressed: () {
-
-                Navigator.push(context, MaterialPageRoute(builder: (context)=>ClubView(clubid: id)));
-              
-              },
-              child: const Text(
-                "View Club",
-                style: TextStyle(color: Colors.white, fontSize: 13),
-              ),
             ),
-          ),
-
-          // if (instagram.isNotEmpty) ...[
-          //   const SizedBox(height: 6),
-          //   Text(
-          //     "@$instagram",
-          //     style: const TextStyle(
-          //       color: Colors.tealAccent,
-          //       fontSize: 11,
-          //     ),
-          //   ),
-          // ],
-        ],
+          ],
+        ),
       ),
     );
   }
 }
+
+
