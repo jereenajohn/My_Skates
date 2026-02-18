@@ -44,10 +44,6 @@ class _CoachEventsState extends State<CoachEvents> {
     return prefs.getInt("id");
   }
 
-
-  // ---------------------------------------------------------------------------
-  // DELETE EVENT
-  // ---------------------------------------------------------------------------
   Future<void> _deleteEvent(int id) async {
     try {
       final token = await getToken();
@@ -81,9 +77,6 @@ class _CoachEventsState extends State<CoachEvents> {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // DELETE A SINGLE EVENT IMAGE (CALLED ONLY ON UPDATE PRESS)
-  // ---------------------------------------------------------------------------
   Future<void> _deleteEventImage(int eventId, int imageId) async {
     try {
       final token = await getToken();
@@ -98,7 +91,6 @@ class _CoachEventsState extends State<CoachEvents> {
         headers: {"Authorization": "Bearer $token"},
       );
 
-      // You can log the result; avoid spamming snackbars on success
       debugPrint(
         "Delete image $imageId of event $eventId => "
         "${response.statusCode} - ${response.body}",
@@ -116,9 +108,6 @@ class _CoachEventsState extends State<CoachEvents> {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // UPDATE EVENT (DELETE MARKED IMAGES + ADD NEW IMAGES)
-  // ---------------------------------------------------------------------------
   Future<void> updateEvent(
     int eventId,
     String title,
@@ -142,12 +131,10 @@ class _CoachEventsState extends State<CoachEvents> {
         return;
       }
 
-      // Step 1: Delete all marked images one by one (backend endpoint you shared)
       for (final imgId in imagesToDelete) {
         await _deleteEventImage(eventId, imgId);
       }
 
-      // Step 2: Send PUT update for event details + NEW images
       final url = Uri.parse("$api/api/myskates/events/updates/$eventId/");
       final request = http.MultipartRequest("PUT", url);
       request.headers["Authorization"] = "Bearer $token";
@@ -201,37 +188,48 @@ class _CoachEventsState extends State<CoachEvents> {
 
   Future<void> fetchClubEvents() async {
     try {
+      setState(() => loadingEvents = true); 
+      
       final token = await getToken();
       final userId = await getUserId();
 
-      if (token == null || userId == null) return;
-print("urlllllllllllllllllllllllllllllll$api/api/myskates/events/add/by/user/");
-      final url = Uri.parse(
-        "$api/api/myskates/events/add/by/user/",
-      );
+      if (token == null || userId == null) {
+        setState(() => loadingEvents = false);
+        return;
+      }
+
+      final url = Uri.parse("$api/api/myskates/events/add/by/user/");
 
       final response = await http.get(
         url,
         headers: {"Authorization": "Bearer $token"},
       );
-print("response.body::::::::::::: ${response.body}");
-print("response.statusCode::::::::::::: ${response.statusCode}");
+
       if (response.statusCode == 200) {
         setState(() {
           clubEvents = jsonDecode(response.body);
         });
-        print(clubEvents);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to fetch events: ${response.statusCode}"),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       print("Error fetching events: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error: ${e.toString()}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => loadingEvents = false);
     }
-
-    setState(() => loadingEvents = false);
   }
 
-  // ---------------------------------------------------------------------------
-  // UPDATE EVENT DIALOG
-  // ---------------------------------------------------------------------------
   void _openUpdateEventDialog(Map<String, dynamic> event) {
     final TextEditingController titleCtrl =
         TextEditingController(text: event["title"] ?? "");
@@ -248,12 +246,10 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
     final TextEditingController toTimeCtrl =
         TextEditingController(text: event["to_time"] ?? "");
 
-    // Existing images from API
     final List<dynamic> existingImages =
         List<dynamic>.from(event["images"] ?? []);
     List<int> imagesToDelete = [];
 
-    // New images picked in this dialog
     List<XFile> pickedImages = [];
 
     String existingBanner = buildImageUrl(event["image"]);
@@ -263,7 +259,6 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            // Count only non-deleted existing images
             int activeExisting = existingImages
                 .where((img) => img["_deleted"] != true)
                 .length;
@@ -384,7 +379,6 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
 
                       const SizedBox(height: 10),
 
-                      // Existing gallery images from API
                       if (existingImages.isNotEmpty)
                         GridView.builder(
                           shrinkWrap: true,
@@ -392,10 +386,10 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
                           itemCount: existingImages.length,
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 8,
-                            crossAxisSpacing: 8,
-                          ),
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 8,
+                                crossAxisSpacing: 8,
+                              ),
                           itemBuilder: (context, index) {
                             final img = existingImages[index];
 
@@ -444,7 +438,6 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
 
                       if (existingImages.isNotEmpty) const SizedBox(height: 10),
 
-                      // Existing legacy banner image if any and no gallery images
                       if (event["image"] != null && existingImages.isEmpty)
                         ClipRRect(
                           borderRadius: BorderRadius.circular(10),
@@ -459,7 +452,6 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
                       if (event["image"] != null && existingImages.isEmpty)
                         const SizedBox(height: 10),
 
-                      // Newly picked images
                       if (pickedImages.isNotEmpty)
                         GridView.builder(
                           shrinkWrap: true,
@@ -467,10 +459,10 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
                           itemCount: pickedImages.length,
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 8,
-                            crossAxisSpacing: 8,
-                          ),
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 8,
+                                crossAxisSpacing: 8,
+                              ),
                           itemBuilder: (context, index) {
                             return Stack(
                               children: [
@@ -560,11 +552,6 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
     );
   }
 
-  
-
-  // ---------------------------------------------------------------------------
-  // FIELD WIDGETS
-  // ---------------------------------------------------------------------------
   Widget _inputField(
     String label,
     TextEditingController controller, {
@@ -646,9 +633,6 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // PICKERS
-  // ---------------------------------------------------------------------------
   Future<void> _pickDate(
     BuildContext context,
     TextEditingController ctrl,
@@ -677,20 +661,15 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // UI BUILD
-  // ---------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (_) => const CoachHomepage(),
-          ),
+          MaterialPageRoute(builder: (_) => const CoachHomepage()),
         );
-        return false; // ⛔ prevent app close
+        return false;
       },
       child: Scaffold(
         backgroundColor: const Color.fromARGB(255, 0, 0, 0),
@@ -701,62 +680,97 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
             style: const TextStyle(color: Colors.grey, fontSize: 15),
           ),
         ),
-        body: (loadingEvents)
+        body: loadingEvents
             ? const Center(child: CircularProgressIndicator(color: Colors.teal))
-            : Column(
-                children: [
-                  
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white24),
-                      ),
-                      child: const Row(
+            : RefreshIndicator(
+                onRefresh: fetchClubEvents,
+                color: Colors.tealAccent,
+                backgroundColor: Colors.black,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Column(
                         children: [
-                          Icon(Icons.swipe, color: Colors.teal, size: 20),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              "Swipe right to update an event, swipe left to delete.",
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 11,
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.white24),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.swipe, color: Colors.teal, size: 20),
+                                  SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      "Swipe right to update an event, swipe left to delete.",
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: clubEvents.isEmpty
-                        ? const Center(
-                            child: Text(
-                              "No events found",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: EdgeInsets.zero,
-                            itemCount: clubEvents.length,
-                            itemBuilder: (context, index) {
-                              return _fancySwipeEventTile(
-                                Map<String, dynamic>.from(clubEvents[index]),
-                              );
-                            },
+                    if (clubEvents.isEmpty)
+                      SliverFillRemaining(
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.event_busy,
+                                color: Colors.white70,
+                                size: 50,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                "No events found",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "Pull down to refresh",
+                                style: TextStyle(
+                                  color: Colors.tealAccent,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
                           ),
-                  ),
-                ],
+                        ),
+                      )
+                    else
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            return _fancySwipeEventTile(
+                              Map<String, dynamic>.from(clubEvents[index]),
+                            );
+                          },
+                          childCount: clubEvents.length,
+                        ),
+                      ),
+                  ],
+                ),
               ),
         bottomNavigationBar: const AppBottomNav(
-      currentIndex: 4, // Home tab
-    ),
+          currentIndex: 4,
+        ),
       ),
     );
   }
@@ -884,11 +898,10 @@ print("response.statusCode::::::::::::: ${response.statusCode}");
         child: Transform.scale(
           scale: 1.00,
           child: buildEventCard(
-  event,
-  buildImageUrl(event["club_image"]),
-  event["club_name"] ?? "",
-)
-
+            event,
+            buildImageUrl(event["club_image"]),
+            event["club_name"] ?? "",
+          ),
         ),
       ),
     );

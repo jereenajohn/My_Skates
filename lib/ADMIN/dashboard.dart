@@ -3,13 +3,15 @@ import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/CoachApprovalTabs.dart';
 import 'package:my_skates/ADMIN/add_banner.dart';
 import 'package:my_skates/ADMIN/add_product.dart';
-import 'package:my_skates/ADMIN/approve_coach.dart';
+import 'package:my_skates/ADMIN/admin_notificationpage.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/menu.dart';
 import 'package:my_skates/ADMIN/productapprove_tab.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
+import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
+import 'package:my_skates/bottomnavigation.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
@@ -26,13 +28,63 @@ class _DashboardPageState extends State<DashboardPage> {
   String studentRole = "";
   String? studentImage;
   bool isLoading = true;
+  bool isRefreshing = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
-  initState() {
+  void initState() {
     super.initState();
-    fetchStudentDetails();
-    getbanner();
+    _loadInitialData();
+  }
+
+  void _onBottomNavTap(int index) {
+    switch (index) {
+      case 0:
+        break;
+      case 1:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const UserApprovedProducts()),
+        );
+        break;
+
+      case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminNotificationpage()),
+        );
+        break;
+
+      case 3:
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => UserConnectCoaches()))  ;
+        break;
+
+      case 4: 
+      break; 
+    }
+  }
+
+  Future<void> _loadInitialData() async {
+    await Future.wait([fetchStudentDetails(), getbanner()]);
+    setState(() => isLoading = false);
+  }
+
+  Future<void> _refreshData() async {
+    if (!mounted || isRefreshing) return;
+
+    setState(() => isRefreshing = true);
+
+    // Refresh all data
+    await Future.wait([fetchStudentDetails(), getbanner()]);
+
+    setState(() => isRefreshing = false);
+
+    // Hide snackbar after refresh
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
+    });
   }
 
   Future<String?> getToken() async {
@@ -52,10 +104,6 @@ class _DashboardPageState extends State<DashboardPage> {
     Navigator.push(context, slideRightToLeftRoute(page));
   }
 
-  // Future<int?> getid() async {
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   return prefs.getInt('id');
-  // }
   List<Map<String, dynamic>> banner = [];
 
   Future<void> getbanner() async {
@@ -71,14 +119,11 @@ class _DashboardPageState extends State<DashboardPage> {
         },
       );
 
-      List<Map<String, dynamic>> statelist = [];
-      print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
-      print(response.statusCode);
       if (response.statusCode == 200) {
         final parsed = jsonDecode(response.body);
-        var productsData = parsed;
+        List<Map<String, dynamic>> statelist = [];
 
-        for (var productData in productsData) {
+        for (var productData in parsed) {
           String imageUrl = "$api${productData['image']}";
           statelist.add({
             'id': productData['id'],
@@ -88,10 +133,11 @@ class _DashboardPageState extends State<DashboardPage> {
         }
         setState(() {
           banner = statelist;
-          print("statelistttttttttttttttttttt:$banner");
         });
       }
-    } catch (error) {}
+    } catch (error) {
+      print("Error fetching banner: $error");
+    }
   }
 
   Future<void> fetchStudentDetails() async {
@@ -101,374 +147,378 @@ class _DashboardPageState extends State<DashboardPage> {
       studentName = prefs.getString("name") ?? "User";
       studentRole = prefs.getString("user_type") ?? "";
       studentImage = prefs.getString("profile");
-      isLoading = false;
     });
-
-    print("USER FROM PREFS:");
-    print("Name: $studentName");
-    print("Role: $studentRole");
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // PROFILE ROW
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      pushWithSlide(const ProfilePage());
-                    },
-                    child: CircleAvatar(
-                      radius: 28,
-                      backgroundImage:
-                          studentImage != null && studentImage!.isNotEmpty
-                          ? NetworkImage("$api$studentImage")
-                          : const AssetImage("lib/assets/img.jpg")
-                                as ImageProvider,
-                    ),
-                  ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF001F1D), Color(0xFF003A36), Colors.black],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(color: Colors.tealAccent),
+                )
+              : RefreshIndicator(
+                  onRefresh: _refreshData,
+                  color: Colors.tealAccent,
+                  backgroundColor: Colors.black,
+                  strokeWidth: 3.0,
+                  displacement: 40.0,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // PROFILE ROW
+                        Row(
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                pushWithSlide(const ProfilePage());
+                              },
+                              child: CircleAvatar(
+                                radius: 28,
+                                backgroundImage:
+                                    studentImage != null &&
+                                        studentImage!.isNotEmpty
+                                    ? NetworkImage("$api$studentImage")
+                                    : const AssetImage("lib/assets/img.jpg")
+                                          as ImageProvider,
+                              ),
+                            ),
 
-                  const SizedBox(width: 12),
+                            const SizedBox(width: 12),
 
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        studentName,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        studentRole,
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                    ],
-                  ),
-
-                  const Spacer(),
-
-                  // NOTIFICATION BUTTON
-                  // IconButton(
-                  //   onPressed: () {},
-                  //   icon: const Icon(
-                  //     Icons.notifications_active,
-                  //     color: Colors.tealAccent,
-                  //   ),
-                  // ),
-
-                  // MENU BUTTON
-                  IconButton(
-                    onPressed: () {
-                      pushWithSlide(MenuPage());
-                    },
-                    icon: const Icon(
-                      Icons.menu,
-                      color: Colors.tealAccent,
-                      size: 28,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              GestureDetector(
-                onTap: () {
-                  pushWithSlide(const AddBanner());
-                },
-
-                child: Column(
-                  children: [
-                    // MAIN BANNER
-                    Container(
-                      height: 160,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.25),
-                            blurRadius: 8,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: FlutterCarousel(
-                          options: CarouselOptions(
-                            height: 160,
-                            autoPlay: true,
-                            autoPlayInterval: Duration(seconds: 3),
-                            viewportFraction: 1,
-                            showIndicator: true,
-                            slideIndicator: CircularSlideIndicator(),
-                          ),
-                          items: banner.map((item) {
-                            return Stack(
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Background Image
-                                Positioned.fill(
-                                  child: Image.network(
-                                    item["image"] ?? "",
-                                    fit: BoxFit.cover,
-                                    loadingBuilder: (context, child, progress) {
-                                      if (progress == null) return child;
-                                      return Container(
-                                        color: Colors.grey.shade900,
-                                        alignment: Alignment.center,
-                                        child:
-                                            const CircularProgressIndicator(),
-                                      );
-                                    },
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            Container(
-                                              color: Colors.black,
-                                              alignment: Alignment.center,
-                                              child: Icon(
-                                                Icons.broken_image,
-                                                color: Colors.white54,
-                                                size: 40,
-                                              ),
-                                            ),
+                                Text(
+                                  studentName,
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
                                   ),
                                 ),
-
-                                // Gradient Overlay (bottom fade)
-                                Positioned.fill(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Colors.transparent,
-                                          Colors.black.withOpacity(0.6),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
+                                Text(
+                                  studentRole,
+                                  style: const TextStyle(color: Colors.white70),
                                 ),
                               ],
-                            );
-                          }).toList(),
+                            ),
+
+                            const Spacer(),
+
+                            // MENU BUTTON
+                            IconButton(
+                              onPressed: () {
+                                pushWithSlide(MenuPage());
+                              },
+                              icon: const Icon(
+                                Icons.menu,
+                                color: Colors.tealAccent,
+                                size: 28,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+
+                        const SizedBox(height: 20),
+
+                        GestureDetector(
+                          onTap: () {
+                            pushWithSlide(const AddBanner());
+                          },
+
+                          child: Column(
+                            children: [
+                              // MAIN BANNER
+                              Container(
+                                height: 160,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.25),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: banner.isEmpty
+                                      ? Container(
+                                          color: Colors.grey.shade900,
+                                          child: const Center(
+                                            child: CircularProgressIndicator(
+                                              color: Colors.tealAccent,
+                                            ),
+                                          ),
+                                        )
+                                      : FlutterCarousel(
+                                          options: CarouselOptions(
+                                            height: 160,
+                                            autoPlay: true,
+                                            autoPlayInterval: const Duration(
+                                              seconds: 3,
+                                            ),
+                                            viewportFraction: 1,
+                                            showIndicator: true,
+                                            slideIndicator:
+                                                const CircularSlideIndicator(),
+                                          ),
+                                          items: banner.map((item) {
+                                            return Stack(
+                                              children: [
+                                                Positioned.fill(
+                                                  child: Image.network(
+                                                    item["image"] ?? "",
+                                                    fit: BoxFit.cover,
+                                                    loadingBuilder:
+                                                        (
+                                                          context,
+                                                          child,
+                                                          progress,
+                                                        ) {
+                                                          if (progress == null)
+                                                            return child;
+                                                          return Container(
+                                                            color: Colors
+                                                                .grey
+                                                                .shade900,
+                                                            alignment: Alignment
+                                                                .center,
+                                                            child:
+                                                                const CircularProgressIndicator(),
+                                                          );
+                                                        },
+                                                    errorBuilder:
+                                                        (
+                                                          context,
+                                                          error,
+                                                          stackTrace,
+                                                        ) => Container(
+                                                          color: Colors.black,
+                                                          alignment:
+                                                              Alignment.center,
+                                                          child: const Icon(
+                                                            Icons.broken_image,
+                                                            color:
+                                                                Colors.white54,
+                                                            size: 40,
+                                                          ),
+                                                        ),
+                                                  ),
+                                                ),
+                                                Positioned.fill(
+                                                  child: Container(
+                                                    decoration: BoxDecoration(
+                                                      gradient: LinearGradient(
+                                                        begin:
+                                                            Alignment.topCenter,
+                                                        end: Alignment
+                                                            .bottomCenter,
+                                                        colors: [
+                                                          Colors.transparent,
+                                                          Colors.black
+                                                              .withOpacity(0.6),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          }).toList(),
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 22),
+
+                        const Text(
+                          "Weeee offer training and an e-commerce platform\nthat connects students and coaches.",
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        buildButton("Approve Coaches"),
+                        buildButton("Add Products"),
+                        buildButton("Approve Products"),
+                        buildButton("Buy and Sell products"),
+
+                        const SizedBox(height: 25),
+
+                        // RECOMMENDED CLUBS TITLE
+                        const Text(
+                          "Recommended Clubs near you",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        // HORIZONTAL CLUB SCROLL
+                        SizedBox(
+                          height: 160,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                buildClubCard(
+                                  "Spark roller skating",
+                                  "lib/assets/images.png",
+                                ),
+                                const SizedBox(width: 12),
+                                buildClubCard(
+                                  "Kimberley skating",
+                                  "lib/assets/imagess.png",
+                                ),
+                                const SizedBox(width: 12),
+                                buildClubCard(
+                                  "City Skate Club",
+                                  "lib/assets/images.png",
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // UPCOMING EVENTS
+                        const SizedBox(height: 25),
+                        const Text(
+                          "Inspired to push your limits every day.",
+                          style: TextStyle(color: Colors.white, fontSize: 14),
+                        ),
+
+                        const SizedBox(height: 15),
+
+                        // EVENT CARD 1
+                        buildEventCard(
+                          clubName: "Langham Skating Club",
+                          date: "November 13, 2025",
+                          location: "Ponnurunni nagar - Kaloor",
+                          title: "Morning training session",
+                          timeLeft: "In 12m",
+                          icon: Icons.thumb_up_alt,
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // EVENT CARD 2 (with images)
+                        buildEventCardWithImages(
+                          clubName: "Strathmore Skating Club",
+                          date: "November 18, 2025",
+                          location: "Kaloor, Kochi",
+                          title: "MG Road Speed Hunters Event",
+                          image1: "lib/assets/skate.jpg",
+                          image2: "lib/assets/skating.png",
+                          description:
+                              "Strathmore skating club conducting skating event on 30th Nov. Join with us!",
+                          icon: Icons.favorite_border,
+                        ),
+
+                        // SUGGESTED COACHES
+                        const SizedBox(height: 25),
+                        const Text(
+                          "Suggested Coaches",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+
+                        const SizedBox(height: 15),
+
+                        // HORIZONTAL COACH SCROLL
+                        SizedBox(
+                          height: 230,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            reverse: true,
+                            child: Row(
+                              children: [
+                                buildCoachCard(
+                                  name: "Alex Peter",
+                                  subtitle: "Spark roller skating",
+                                  city: "Kaloor",
+                                  image: "lib/assets/img.jpg",
+                                ),
+                                buildCoachCard(
+                                  name: "Sundar",
+                                  subtitle: "Eva skating academy",
+                                  city: "Kakkanad",
+                                  image: "lib/assets/img22.jpg",
+                                ),
+                                buildCoachCard(
+                                  name: "Sundar",
+                                  subtitle: "Eva skating academy",
+                                  city: "Kakkanad",
+                                  image: "lib/assets/img22.jpg",
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // EVENT CARD 1
+                        buildEventCard(
+                          clubName: "Langham Skating Club",
+                          date: "November 13, 2025",
+                          location: "Ponnurunni nagar - Kaloor",
+                          title: "Morning training session",
+                          timeLeft: "In 12m",
+                          icon: Icons.thumb_up_alt,
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // EVENT CARD 2 (with images)
+                        buildEventCardWithImages(
+                          clubName: "Strathmore Skating Club",
+                          date: "November 18, 2025",
+                          location: "Kaloor, Kochi",
+                          title: "MG Road Speed Hunters Event",
+                          image1: "lib/assets/skating1.jpg",
+                          image2: "lib/assets/skating2.jpg",
+                          description:
+                              "Strathmore skating club conducting skating event on 30th Nov. Join with us!",
+                          icon: Icons.favorite_border,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 22),
-
-              const Text(
-                "Weeee offer training and an e-commerce platform\nthat connects students and coaches.",
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-
-              const SizedBox(height: 25),
-
-              buildButton("Approve Coaches"),
-              // buildButton("Connect Students"),
-              buildButton("Add Products"),
-              buildButton("Approve Products"),
-              buildButton("Buy and Sell products"),
-
-              const SizedBox(height: 25),
-
-              // RECOMMENDED CLUBS TITLE
-              const Text(
-                "Recommended Clubs near you",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              // HORIZONTAL CLUB SCROLL
-              SizedBox(
-                height: 160,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      buildClubCard(
-                        "Spark roller skating",
-                        "lib/assets/images.png",
-                      ),
-                      const SizedBox(width: 12),
-                      buildClubCard(
-                        "Kimberley skating",
-                        "lib/assets/imagess.png",
-                      ),
-                      const SizedBox(width: 12),
-                      buildClubCard("City Skate Club", "lib/assets/images.png"),
-                    ],
                   ),
                 ),
-              ),
-
-              // UPCOMING EVENTS
-              const SizedBox(height: 25),
-              const Text(
-                "Inspired to push your limits every day.",
-                style: TextStyle(color: Colors.white, fontSize: 14),
-              ),
-
-              const SizedBox(height: 15),
-
-              // EVENT CARD 1
-              buildEventCard(
-                clubName: "Langham Skating Club",
-                date: "November 13, 2025",
-                location: "Ponnurunni nagar - Kaloor",
-                title: "Morning training session",
-                timeLeft: "In 12m",
-                icon: Icons.thumb_up_alt,
-              ),
-
-              const SizedBox(height: 12),
-
-              // EVENT CARD 2 (with images)
-              buildEventCardWithImages(
-                clubName: "Strathmore Skating Club",
-                date: "November 18, 2025",
-                location: "Kaloor, Kochi",
-                title: "MG Road Speed Hunters Event",
-                image1: "lib/assets/skate.jpg",
-                image2: "lib/assets/skating.png",
-                description:
-                    "Strathmore skating club conducting skating event on 30th Nov. Join with us!",
-                icon: Icons.favorite_border,
-              ),
-
-              // SUGGESTED COACHES
-              const SizedBox(height: 25),
-              const Text(
-                "Suggested Coaches",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-
-              const SizedBox(height: 15),
-
-              // HORIZONTAL COACH SCROLL
-              SizedBox(
-                height: 230,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  reverse: true,
-                  child: Row(
-                    children: [
-                      buildCoachCard(
-                        name: "Alex Peter",
-                        subtitle: "Spark roller skating",
-                        city: "Kaloor",
-                        image: "lib/assets/img.jpg",
-                      ),
-                      buildCoachCard(
-                        name: "Sundar",
-                        subtitle: "Eva skating academy",
-                        city: "Kakkanad",
-                        image: "lib/assets/img22.jpg",
-                      ),
-                      buildCoachCard(
-                        name: "Sundar",
-                        subtitle: "Eva skating academy",
-                        city: "Kakkanad",
-                        image: "lib/assets/img22.jpg",
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // EVENT CARD 1
-              buildEventCard(
-                clubName: "Langham Skating Club",
-                date: "November 13, 2025",
-                location: "Ponnurunni nagar - Kaloor",
-                title: "Morning training session",
-                timeLeft: "In 12m",
-                icon: Icons.thumb_up_alt,
-              ),
-
-              const SizedBox(height: 12),
-
-              // EVENT CARD 2 (with images)
-              buildEventCardWithImages(
-                clubName: "Strathmore Skating Club",
-                date: "November 18, 2025",
-                location: "Kaloor, Kochi",
-                title: "MG Road Speed Hunters Event",
-                image1: "lib/assets/skating1.jpg",
-                image2: "lib/assets/skating2.jpg",
-                description:
-                    "Strathmore skating club conducting skating event on 30th Nov. Join with us!",
-                icon: Icons.favorite_border,
-              ),
-            ],
-          ),
         ),
       ),
 
       // BOTTOM NAV
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-          child: BottomNavigationBar(
-            backgroundColor: Colors.black,
-            selectedItemColor: const Color(0xFF00AFA5),
-            unselectedItemColor: Colors.white70,
-            showSelectedLabels: false,
-            showUnselectedLabels: false,
-            type: BottomNavigationBarType.fixed,
-            currentIndex: 0,
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.shopping_bag),
-                label: '',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.chat_bubble_rounded),
-                label: '',
-              ),
-              BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
-              BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
-            ],
-          ),
-        ),
-      ),
+      bottomNavigationBar: AppBottomNav(
+      currentIndex: 0,
+      onTap: _onBottomNavTap,
+),
     );
   }
 
@@ -482,7 +532,7 @@ class _DashboardPageState extends State<DashboardPage> {
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF00AFA5),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(25),
           ),
         ),
         onPressed: () {
@@ -513,7 +563,8 @@ class _DashboardPageState extends State<DashboardPage> {
       width: 160,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white10,
+        color: Colors.white.withOpacity(0.05),
+        border: Border.all(color: Colors.white12),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -550,11 +601,19 @@ Widget buildEventCard({
   required IconData icon,
 }) {
   return Container(
-    padding: EdgeInsets.all(14),
-    margin: EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(14),
+    margin: const EdgeInsets.only(bottom: 12),
     decoration: BoxDecoration(
-      color: Colors.white10,
-      borderRadius: BorderRadius.circular(16),
+      color: Colors.white.withOpacity(0.05),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: Colors.white.withOpacity(0.1)),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.5),
+          blurRadius: 10,
+          offset: Offset(0, 6),
+        ),
+      ],
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -564,63 +623,59 @@ Widget buildEventCard({
           children: [
             CircleAvatar(
               radius: 22,
-              backgroundImage: AssetImage("lib/assets/images.png"),
+              backgroundImage: const AssetImage("lib/assets/images.png"),
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   clubName,
-                  style: TextStyle(color: Colors.white, fontSize: 15),
+                  style: const TextStyle(color: Colors.white, fontSize: 15),
                 ),
                 Text(
                   date,
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
                 Text(
                   location,
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
           ],
         ),
 
-        SizedBox(height: 10),
+        const SizedBox(height: 10),
 
         // TITLE
         Text(
           title,
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),
 
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
 
         // TIME
         Text(
           timeLeft,
-          style: TextStyle(color: Colors.tealAccent, fontSize: 13),
+          style: const TextStyle(color: Colors.tealAccent, fontSize: 13),
         ),
 
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
 
-        Text(location, style: TextStyle(color: Colors.white54, fontSize: 12)),
-
-        SizedBox(height: 10),
+        const SizedBox(height: 10),
 
         // LIKE + FAVORITE BUTTONS (BOTTOM RIGHT)
         Row(
-          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Icon(Icons.thumb_up_alt_outlined, color: Colors.white70, size: 22),
-            SizedBox(width: 14),
-            // Icon(Icons.favorite_border,
-            //     color: Colors.white70, size: 22),
+            Text(location, style: TextStyle(color: Colors.white70)),
+            SizedBox(width: 120),
+            Icon(Icons.thumb_up_alt_outlined, color: Colors.tealAccent),
           ],
         ),
       ],
@@ -640,8 +695,8 @@ Widget buildEventCardWithImages({
   required IconData icon,
 }) {
   return Container(
-    padding: EdgeInsets.all(14),
-    margin: EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(14),
+    margin: const EdgeInsets.only(bottom: 12),
     decoration: BoxDecoration(
       color: Colors.white10,
       borderRadius: BorderRadius.circular(16),
@@ -654,41 +709,41 @@ Widget buildEventCardWithImages({
           children: [
             CircleAvatar(
               radius: 22,
-              backgroundImage: AssetImage("lib/assets/imagess.png"),
+              backgroundImage: const AssetImage("lib/assets/imagess.png"),
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   clubName,
-                  style: TextStyle(color: Colors.white, fontSize: 15),
+                  style: const TextStyle(color: Colors.white, fontSize: 15),
                 ),
                 Text(
                   date,
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
                 Text(
                   location,
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
           ],
         ),
 
-        SizedBox(height: 10),
+        const SizedBox(height: 10),
 
         Text(
           title,
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),
 
-        SizedBox(height: 10),
+        const SizedBox(height: 10),
 
         // IMAGES ROW
         Row(
@@ -699,7 +754,7 @@ Widget buildEventCardWithImages({
                 child: Image.asset(image1, height: 110, fit: BoxFit.cover),
               ),
             ),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Expanded(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -709,32 +764,34 @@ Widget buildEventCardWithImages({
           ],
         ),
 
-        SizedBox(height: 10),
+        const SizedBox(height: 10),
 
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.info, color: Colors.amberAccent, size: 18),
-            SizedBox(width: 6),
+            const Icon(Icons.info, color: Colors.amberAccent, size: 18),
+            const SizedBox(width: 6),
             Expanded(
               child: Text(
                 description,
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
               ),
             ),
           ],
         ),
 
-        SizedBox(height: 10),
+        const SizedBox(height: 10),
 
         // LIKE + FAV BUTTONS BOTTOM RIGHT
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Icon(Icons.thumb_up_alt_outlined, color: Colors.white70, size: 22),
-            SizedBox(width: 14),
-            // Icon(Icons.favorite_border,
-            //     color: Colors.white70, size: 22),
+            Icon(
+              Icons.thumb_up_alt_outlined,
+              color: Colors.tealAccent,
+              size: 22,
+            ),
+            const SizedBox(width: 14),
           ],
         ),
       ],
@@ -750,15 +807,12 @@ Widget buildCoachCard({
   required String image,
 }) {
   return Container(
-    width: 165, // REDUCED WIDTH (was 200)
-    margin: const EdgeInsets.only(
-      right: 6, // SMALLER GAP BETWEEN CARDS
-    ),
+    width: 165,
+    margin: const EdgeInsets.only(right: 6),
     child: Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.topCenter,
       children: [
-        // MAIN CARD
         Container(
           height: 185,
           padding: const EdgeInsets.only(
@@ -815,8 +869,6 @@ Widget buildCoachCard({
             ],
           ),
         ),
-
-        // FLOATING AVATAR
         Positioned(
           top: -18,
           child: CircleAvatar(radius: 36, backgroundImage: AssetImage(image)),

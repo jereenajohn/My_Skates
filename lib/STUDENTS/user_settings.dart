@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:my_skates/STUDENTS/add_student_achievements.dart';
+import 'package:my_skates/STUDENTS/student_order_page';
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:my_skates/STUDENTS/user_follow_requests.dart';
@@ -149,6 +150,22 @@ class _UserSettingsState extends State<UserSettings> {
 
               const SizedBox(height: 12),
               _menuTile(icon: Icons.phone, text: "Change Phone Number"),
+
+              _divider(),
+
+                _menuTile(
+                icon: Icons.shopping_bag,
+                text: "My Orders",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const Student_order_page(),
+                    ),
+                  );
+                },
+              ),
+
               _divider(),
               _menuTile(
                 icon: Icons.home,
@@ -160,6 +177,7 @@ class _UserSettingsState extends State<UserSettings> {
                   );
                 },
               ),
+
               _divider(),
 
                 _menuTile(

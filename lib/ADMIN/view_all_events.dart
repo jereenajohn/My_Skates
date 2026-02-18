@@ -44,9 +44,6 @@ class _EventsState extends State<Events> {
     return prefs.getInt("id");
   }
 
-  // ---------------------------------------------------------------------------
-  // DELETE EVENT
-  // ---------------------------------------------------------------------------
   Future<void> _deleteEvent(int id) async {
     try {
       final token = await getToken();
@@ -80,9 +77,6 @@ class _EventsState extends State<Events> {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // DELETE A SINGLE EVENT IMAGE (CALLED ONLY ON UPDATE PRESS)
-  // ---------------------------------------------------------------------------
   Future<void> _deleteEventImage(int eventId, int imageId) async {
     try {
       final token = await getToken();
@@ -97,7 +91,6 @@ class _EventsState extends State<Events> {
         headers: {"Authorization": "Bearer $token"},
       );
 
-      // You can log the result; avoid spamming snackbars on success
       debugPrint(
         "Delete image $imageId of event $eventId => "
         "${response.statusCode} - ${response.body}",
@@ -115,9 +108,6 @@ class _EventsState extends State<Events> {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // UPDATE EVENT (DELETE MARKED IMAGES + ADD NEW IMAGES)
-  // ---------------------------------------------------------------------------
   Future<void> updateEvent(
     int eventId,
     String title,
@@ -141,12 +131,10 @@ class _EventsState extends State<Events> {
         return;
       }
 
-      // Step 1: Delete all marked images one by one (backend endpoint you shared)
       for (final imgId in imagesToDelete) {
         await _deleteEventImage(eventId, imgId);
       }
 
-      // Step 2: Send PUT update for event details + NEW images
       final url = Uri.parse("$api/api/myskates/events/updates/$eventId/");
       final request = http.MultipartRequest("PUT", url);
       request.headers["Authorization"] = "Bearer $token";
@@ -201,37 +189,40 @@ class _EventsState extends State<Events> {
 
   Future<void> fetchClubEvents() async {
     try {
+      setState(() {
+        loadingEvents = true;
+      });
+      
       final token = await getToken();
       final userId = await getUserId();
 
       if (token == null || userId == null) return;
-      print(
-        "urlllllllllllllllllllllllllllllll$api/api/myskates/events/add/by/user/",
-      );
+      
       final url = Uri.parse("$api/api/myskates/events/add/");
 
       final response = await http.get(
         url,
         headers: {"Authorization": "Bearer $token"},
       );
-      print("response.body::::::::::::: ${response.body}");
-      print("response.statusCode::::::::::::: ${response.statusCode}");
+      
       if (response.statusCode == 200) {
         setState(() {
           clubEvents = jsonDecode(response.body);
+          loadingEvents = false;
         });
-        print(clubEvents);
+      } else {
+        setState(() {
+          loadingEvents = false;
+        });
       }
     } catch (e) {
       print("Error fetching events: $e");
+      setState(() {
+        loadingEvents = false;
+      });
     }
-
-    setState(() => loadingEvents = false);
   }
 
-  // ---------------------------------------------------------------------------
-  // UPDATE EVENT DIALOG
-  // ---------------------------------------------------------------------------
   void _openUpdateEventDialog(Map<String, dynamic> event) {
     final TextEditingController titleCtrl = TextEditingController(
       text: event["title"] ?? "",
@@ -255,13 +246,11 @@ class _EventsState extends State<Events> {
       text: event["to_time"] ?? "",
     );
 
-    // Existing images from API
     final List<dynamic> existingImages = List<dynamic>.from(
       event["images"] ?? [],
     );
     List<int> imagesToDelete = [];
 
-    // New images picked in this dialog
     List<XFile> pickedImages = [];
 
     String existingBanner = buildImageUrl(event["image"]);
@@ -271,7 +260,6 @@ class _EventsState extends State<Events> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            // Count only non-deleted existing images
             int activeExisting = existingImages
                 .where((img) => img["_deleted"] != true)
                 .length;
@@ -392,7 +380,6 @@ class _EventsState extends State<Events> {
 
                       const SizedBox(height: 10),
 
-                      // Existing gallery images from API
                       if (existingImages.isNotEmpty)
                         GridView.builder(
                           shrinkWrap: true,
@@ -452,7 +439,6 @@ class _EventsState extends State<Events> {
 
                       if (existingImages.isNotEmpty) const SizedBox(height: 10),
 
-                      // Existing legacy banner image if any and no gallery images
                       if (event["image"] != null && existingImages.isEmpty)
                         ClipRRect(
                           borderRadius: BorderRadius.circular(10),
@@ -467,7 +453,6 @@ class _EventsState extends State<Events> {
                       if (event["image"] != null && existingImages.isEmpty)
                         const SizedBox(height: 10),
 
-                      // Newly picked images
                       if (pickedImages.isNotEmpty)
                         GridView.builder(
                           shrinkWrap: true,
@@ -568,9 +553,6 @@ class _EventsState extends State<Events> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // FIELD WIDGETS
-  // ---------------------------------------------------------------------------
   Widget _inputField(
     String label,
     TextEditingController controller, {
@@ -652,9 +634,6 @@ class _EventsState extends State<Events> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // PICKERS
-  // ---------------------------------------------------------------------------
   Future<void> _pickDate(
     BuildContext context,
     TextEditingController ctrl,
@@ -683,9 +662,6 @@ class _EventsState extends State<Events> {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // UI BUILD
-  // ---------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -694,7 +670,7 @@ class _EventsState extends State<Events> {
           context,
           MaterialPageRoute(builder: (_) => const CoachHomepage()),
         );
-        return false; // prevent app close
+        return false;
       },
       child: Scaffold(
         backgroundColor: const Color.fromARGB(255, 0, 0, 0),
@@ -702,41 +678,76 @@ class _EventsState extends State<Events> {
           backgroundColor: Colors.black,
           title: Text(
             clubDetails?["club_name"] ?? "My Club Events",
-            style: const TextStyle(color: Colors.grey, fontSize: 15),
+            style: const TextStyle(color: Colors.white, fontSize: 20
+            ),
           ),
+          leading: IconButton(onPressed: (){
+            Navigator.push(context, MaterialPageRoute(builder: (_) => CoachHomepage()));
+          }, icon: Icon(Icons.arrow_back,color: Colors.white,)),
         ),
         body: (loadingEvents)
             ? const Center(child: CircularProgressIndicator(color: Colors.teal))
-            : Column(
-                children: [
-                  Expanded(
-                    child: clubEvents.isEmpty
-                        ? const Center(
-                            child: Text(
-                              "No events found",
-                              style: TextStyle(color: Colors.white),
+            : RefreshIndicator(
+                onRefresh: fetchClubEvents,
+                color: Colors.tealAccent,
+                backgroundColor: Colors.black,
+                strokeWidth: 3.0,
+                edgeOffset: 20.0,
+                displacement: 40.0,
+                child: clubEvents.isEmpty
+                    ? SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.8,
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.event_note_outlined,
+                                  color: Colors.white54,
+                                  size: 60,
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  "No events found",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  "Pull down to refresh",
+                                  style: TextStyle(
+                                    color: Colors.tealAccent,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
-                          )
-                        : ListView.builder(
-                            padding: EdgeInsets.zero,
-                            itemCount: clubEvents.length,
-                            itemBuilder: (context, index) {
-                              final event = Map<String, dynamic>.from(
-                                clubEvents[index],
-                              );
-
-                              return buildEventCard(
-                                event,
-                                buildImageUrl(event["club_image"]),
-                                event["club_name"] ?? "",
-                              );
-                            },
                           ),
-                  ),
-                ],
+                        ),
+                      )
+                    : ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.zero,
+                        itemCount: clubEvents.length,
+                        itemBuilder: (context, index) {
+                          final event = Map<String, dynamic>.from(
+                            clubEvents[index],
+                          );
+
+                          return buildEventCard(
+                            event,
+                            buildImageUrl(event["club_image"]),
+                            event["club_name"] ?? "",
+                          );
+                        },
+                      ),
               ),
         bottomNavigationBar: const AppBottomNav(
-          currentIndex: 4, // Home tab
+          currentIndex: 4,
         ),
       ),
     );
@@ -770,8 +781,6 @@ class _EventsState extends State<Events> {
     String clubLogo,
     String clubName,
   ) {
-    print("clubLogo::::::::::::: $clubLogo");
-    print("clubName::::::::::::: $clubName");
     final String bannerImagePath = event["image"] ?? "";
     final List<dynamic> gallery = event["images"] ?? [];
     final List<dynamic> firstTwoImages = gallery.take(2).toList();

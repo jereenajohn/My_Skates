@@ -34,6 +34,19 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
     fetchClubEvents();
   }
 
+  Future<void> _refreshEvents() async {
+  setState(() {
+    loadingEvents = true;
+  });
+
+  await fetchClubEvents();
+
+  setState(() {
+    loadingEvents = false;
+  });
+}
+
+
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString("access");
@@ -1012,121 +1025,141 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
   // ---------------------------------------------------------------------------
   // UI BUILD
   // ---------------------------------------------------------------------------
+
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 0, 0, 0),
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text(
-          clubDetails?["club_name"] ?? "My Club Events",
-          style: const TextStyle(color: Colors.grey, fontSize: 15),
-        ),
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: const Color.fromARGB(255, 0, 0, 0),
+    appBar: AppBar(
+      backgroundColor: Colors.black,
+      title: Text(
+        clubDetails?["club_name"] ?? "My Club Events",
+        style: const TextStyle(color: Colors.grey, fontSize: 15),
       ),
-      body: (loadingClub || loadingEvents)
-          ? const Center(child: CircularProgressIndicator(color: Colors.teal))
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: GestureDetector(
-                    onTap: _openAddEventDialog,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(40),
-                        border: Border.all(color: Colors.white54, width: 1.2),
+    ),
+    body: (loadingClub || loadingEvents)
+        ? const Center(
+            child: CircularProgressIndicator(color: Colors.teal),
+          )
+        : Column(
+            children: [
+              // Upload Button
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: GestureDetector(
+                  onTap: _openAddEventDialog,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(40),
+                      border: Border.all(color: Colors.white54, width: 1.2),
+                    ),
+                    child: const Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            "Upload your Activities",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          Icon(
+                            Icons.add_photo_alternate_outlined,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ],
                       ),
-                      child: const Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              "Upload your Activities",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Swipe Info Box
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.swipe, color: Colors.teal, size: 20),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          "Swipe right to update an event, swipe left to delete.",
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Expanded(
+                child: RefreshIndicator(
+                  color: Colors.teal,
+                  backgroundColor: Colors.black,
+                  onRefresh: _refreshEvents,
+                  child: clubEvents.isEmpty
+                      ? ListView(
+                          physics:
+                              const AlwaysScrollableScrollPhysics(),
+                          children: const [
+                            SizedBox(height: 200),
+                            Center(
+                              child: Text(
+                                "No events found",
+                                style: TextStyle(color: Colors.white),
                               ),
                             ),
-                            SizedBox(width: 6),
-                            Icon(
-                              Icons.add_photo_alternate_outlined,
-                              color: Colors.white,
-                              size: 18,
-                            ),
                           ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.swipe, color: Colors.teal, size: 20),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            "Swipe right to update an event, swipe left to delete.",
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: clubEvents.isEmpty
-                      ? const Center(
-                          child: Text(
-                            "No events found",
-                            style: TextStyle(color: Colors.white),
-                          ),
                         )
                       : ListView.builder(
+                          physics:
+                              const AlwaysScrollableScrollPhysics(),
                           padding: EdgeInsets.zero,
                           itemCount: clubEvents.length,
                           itemBuilder: (context, index) {
                             return _fancySwipeEventTile(
-                              Map<String, dynamic>.from(clubEvents[index]),
+                              Map<String, dynamic>.from(
+                                  clubEvents[index]),
                             );
                           },
                         ),
                 ),
-              ],
-            ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.black,
-        selectedItemColor: const Color(0xFF00AFA5),
-        unselectedItemColor: Colors.white70,
-        type: BottomNavigationBarType.fixed,
-        currentIndex: 3,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: ""),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ""),
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: ""),
-          BottomNavigationBarItem(icon: Icon(Icons.group), label: ""),
-          BottomNavigationBarItem(icon: Icon(Icons.event), label: ""),
-        ],
-      ),
-    );
-  }
+              ),
+            ],
+          ),
+    bottomNavigationBar: BottomNavigationBar(
+      backgroundColor: Colors.black,
+      selectedItemColor: const Color(0xFF00AFA5),
+      unselectedItemColor: Colors.white70,
+      type: BottomNavigationBarType.fixed,
+      currentIndex: 3,
+      showSelectedLabels: false,
+      showUnselectedLabels: false,
+      items: const [
+        BottomNavigationBarItem(icon: Icon(Icons.home), label: ""),
+        BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ""),
+        BottomNavigationBarItem(icon: Icon(Icons.chat), label: ""),
+        BottomNavigationBarItem(icon: Icon(Icons.group), label: ""),
+        BottomNavigationBarItem(icon: Icon(Icons.event), label: ""),
+      ],
+    ),
+  );
+}
+
 
   String formatDate(String date) {
     try {

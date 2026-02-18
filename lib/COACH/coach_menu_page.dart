@@ -5,12 +5,14 @@ import 'package:my_skates/COACH/club_list.dart';
 import 'package:my_skates/COACH/coach_clubs_to_approve_request.dart';
 import 'package:my_skates/COACH/coach_followers_list.dart';
 import 'package:my_skates/COACH/coach_club_requests.dart';
+import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/COACH/coach_timeline_page.dart';
 import 'package:my_skates/COACH/training_session_page.dart';
 import 'package:my_skates/COACH/view_clubs.dart';
 import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CoachMenuPage extends StatefulWidget {
@@ -76,8 +78,10 @@ class _CoachMenuPageState extends State<CoachMenuPage>
 
   Future<int?> getUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getInt("id");
+    return
+     prefs.getInt("id");
   }
+  
 
   Future<void> fetchCoachFollowers() async {
     try {
@@ -222,15 +226,15 @@ class _CoachMenuPageState extends State<CoachMenuPage>
   // ───────────────── BUILD ─────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
+     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: _buildAppBar(),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFF00312D), Color(0xFF000000)],
             begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            
           ),
         ),
         child: SafeArea(
@@ -258,7 +262,7 @@ class _CoachMenuPageState extends State<CoachMenuPage>
           ),
         ),
       ),
-      bottomNavigationBar: _bottomNav(),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 4),
     );
   }
 
@@ -328,6 +332,10 @@ class _CoachMenuPageState extends State<CoachMenuPage>
   // ───────────────── APP BAR ─────────────────
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
+      leading: IconButton(onPressed: (){
+        Navigator.pushReplacement
+        (context, MaterialPageRoute(builder: (_) => const CoachHomepage()));
+      }, icon: Icon(Icons.arrow_back,color: Colors.white,)),
       backgroundColor: Colors.transparent,
       elevation: 0,
       title: const Text(

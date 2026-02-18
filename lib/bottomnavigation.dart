@@ -3,16 +3,23 @@ import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/live_tracking.dart';
 import 'package:my_skates/COACH/coach_event_list.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
+import 'package:my_skates/COACH/coach_menu_page.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 
 class AppBottomNav extends StatelessWidget {
   final int currentIndex;
+  final Function(int)? onTap;
 
-  const AppBottomNav({super.key, required this.currentIndex});
+  const AppBottomNav({super.key, required this.currentIndex,this.onTap});
 
   void _onTap(BuildContext context, int index) {
     if (index == currentIndex) return;
+
+    if(onTap!=null){
+      onTap!(index);
+      return;
+    }
 
     switch (index) {
       case 0:

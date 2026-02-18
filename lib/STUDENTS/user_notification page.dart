@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 
@@ -360,7 +361,9 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-
+        leading: IconButton(onPressed: (){
+          Navigator.push(context, MaterialPageRoute(builder: (_) => HomePage()));
+        }, icon: Icon(Icons.arrow_back,color: Colors.white,)),
         elevation: 0,
         title: const Text(
           "Notifications",

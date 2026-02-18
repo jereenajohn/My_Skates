@@ -3,9 +3,48 @@ import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/cart_view.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/wishlist.dart';
+import 'package:my_skates/COACH/product_review_page';
 import 'package:my_skates/api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+
+class Review {
+  final int id;
+  final String userName;
+  final double rating;
+  final String comment;
+  final DateTime createdAt;
+  final bool isVerified;
+
+  Review({
+    required this.id,
+    required this.userName,
+    required this.rating,
+    required this.comment,
+    required this.createdAt,
+    this.isVerified = false,
+  });
+
+  factory Review.fromJson(Map<String, dynamic> json) {
+    String firstName = json['user_first_name'] ?? '';
+    String lastName = json['user_last_name'] ?? '';
+    String fullName = '$firstName $lastName'.trim();
+    if (fullName.isEmpty) {
+      fullName = json['user_name'] ?? 'Anonymous';
+    }
+
+    return Review(
+      id: json['id'] ?? 0,
+      userName: fullName,
+      rating: (json['rating'] ?? 0).toDouble(),
+      comment: json['review'] ?? json['comment'] ?? '',
+      createdAt: DateTime.parse(
+        json['created_at'] ?? DateTime.now().toIso8601String(),
+      ),
+      isVerified: json['is_verified'] ?? false,
+    );
+  }
+}
 
 class big_view extends StatefulWidget {
   final int productId;
@@ -21,10 +60,79 @@ class _big_viewState extends State<big_view> {
   int? selectedVariantId;
   Map<String, dynamic>? selectedVariant;
 
+  // Review variables
+  List<Review> reviews = [];
+  bool reviewsLoading = false;
+  double averageRating = 0;
+  int totalReviews = 0;
+  bool isInWishlist = false;
+
   @override
   void initState() {
     super.initState();
     getproductDetails();
+    fetchProductReviews();
+  }
+
+  Future<void> fetchProductReviews() async {
+    setState(() {
+      reviewsLoading = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final response = await http.get(
+        Uri.parse('$api/api/myskates/products/${widget.productId}/ratings/'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      print('Reviews API Status: ${response.statusCode}');
+      print('Reviews API Response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        List<Review> fetchedReviews = [];
+
+        if (data is List) {
+          fetchedReviews = (data as List)
+              .map((r) => Review.fromJson(r))
+              .toList();
+        } else if (data['success'] == true && data['data'] != null) {
+          fetchedReviews = (data['data'] as List)
+              .map((r) => Review.fromJson(r))
+              .toList();
+        }
+
+        // Calculate average rating
+        if (fetchedReviews.isNotEmpty) {
+          double total = 0;
+          for (var review in fetchedReviews) {
+            total += review.rating;
+          }
+          averageRating = total / fetchedReviews.length;
+          totalReviews = fetchedReviews.length;
+        }
+
+        setState(() {
+          reviews = fetchedReviews;
+          reviewsLoading = false;
+
+          print("reviewss...${reviews}");
+        });
+      } else {
+        setState(() {
+          reviewsLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error fetching reviews: $e');
+      setState(() {
+        reviewsLoading = false;
+      });
+    }
   }
 
   Future<void> addToCart(int variantId) async {
@@ -59,7 +167,7 @@ class _big_viewState extends State<big_view> {
           icon: Icons.warning_amber_rounded,
           color: Colors.orangeAccent,
           background: const Color(0xFF2A230F),
-          message: message, // "Only 0 in stock"
+          message: message,
         );
       }
     } catch (e) {
@@ -243,8 +351,6 @@ class _big_viewState extends State<big_view> {
     }
   }
 
-  bool isInWishlist = false;
-
   Future<void> getproductDetails() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -269,6 +375,7 @@ class _big_viewState extends State<big_view> {
   }
 
   List get variants => product?["variants"] ?? [];
+
   void _handleUpdateProduct() {
     Navigator.push(context, slideRightToLeftRoute(Wishlist()));
   }
@@ -442,9 +549,15 @@ class _big_viewState extends State<big_view> {
                         children: [
                           // PRODUCT IMAGE
                           Positioned.fill(
-                            child: Image.network(
-                              product!["image"],
-                              fit: BoxFit.cover,
+                            child: Hero(
+                              tag: "product_${widget.productId}",
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(18),
+                                child: Image.network(
+                                  product!["image"],
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
                             ),
                           ),
 
@@ -533,23 +646,41 @@ class _big_viewState extends State<big_view> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const Row(
-                              children: [
-                                Icon(
-                                  Icons.star,
-                                  size: 16,
-                                  color: Colors.greenAccent,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  "4.3",
-                                  style: TextStyle(
+
+                            // Dynamic rating display
+                            if (totalReviews > 0)
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.star,
+                                    size: 16,
                                     color: Colors.greenAccent,
-                                    fontWeight: FontWeight.bold,
                                   ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    averageRating.toStringAsFixed(1),
+                                    style: const TextStyle(
+                                      color: Colors.greenAccent,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    ' ($totalReviews)',
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else
+                              const Text(
+                                'No ratings',
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 12,
                                 ),
-                              ],
-                            ),
+                              ),
                           ],
                         ),
                       ),
@@ -765,21 +896,128 @@ class _big_viewState extends State<big_view> {
 
                           const SizedBox(height: 28),
 
-                          /// USER REVIEW (STATIC)
-                          const Text(
-                            "USER REVIEW",
-                            style: TextStyle(
-                              color: Colors.greenAccent,
-                              fontSize: 12,
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
+                          /// USER REVIEWS SECTION
+                          // Only show USER REVIEWS section if there are reviews
+                          if (totalReviews > 0) ...[
+                            /// USER REVIEWS SECTION
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  "USER REVIEWS",
+                                  style: TextStyle(
+                                    color: Colors.greenAccent,
+                                    fontSize: 12,
+                                    fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                                Text(
+                                  '$totalReviews reviews',
+                                  style: const TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 14),
+
+                            // Rating Summary
+                            RatingSummary(
+                              averageRating: averageRating,
+                              totalReviews: totalReviews,
+                            ),
+
+                            const SizedBox(height: 14),
+
+                            // Reviews List
+                            if (reviewsLoading)
+                              const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(20),
+                                  child: CircularProgressIndicator(
+                                    color: Colors.greenAccent,
+                                  ),
+                                ),
+                              )
+                            else
+                              Column(
+                                children: [
+                                  ...reviews
+                                      .take(3)
+                                      .map(
+                                        (review) => ReviewCard(review: review),
+                                      )
+                                      .toList(),
+
+                                  if (reviews.length > 3)
+                                    Center(
+                                      child: TextButton(
+                                        onPressed: () {
+                                        },
+                                        child: Text(
+                                          'View all ${reviews.length} reviews',
+                                          style: const TextStyle(
+                                            color: Colors.greenAccent,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+
+                            const SizedBox(height: 20),
+                          ],
+
+                          const SizedBox(height: 20),
+
+                          // Write Review Button
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ProductReviewPage(
+                                    productId: widget.productId,
+                                    productTitle: product!["title"],
+                                    productImage: product!["image"],
+                                    variantId: selectedVariantId ?? 0,
+                                    variantImage:
+                                        selectedVariant?["images"]
+                                                ?.isNotEmpty ==
+                                            true
+                                        ? selectedVariant!["images"][0]["image"]
+                                        : product!["image"],
+                                    variantLabel:
+                                        selectedVariant?["sku"] ?? "Default",
+                                  ),
+                                ),
+                              );
+
+                              // Refresh reviews after returning
+                              if (result != null) {
+                                fetchProductReviews();
+                              }
+                            },
+                            icon: const Icon(Icons.edit, color: Colors.black),
+                            label: const Text(
+                              'Write a Review',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.greenAccent,
+                              minimumSize: const Size(double.infinity, 45),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
-
-                          const SizedBox(height: 14),
-
-                          const StaticReviewCard(),
 
                           const SizedBox(height: 80),
                         ],
@@ -881,8 +1119,11 @@ class SkeletonBox extends StatelessWidget {
   }
 }
 
-class StaticReviewCard extends StatelessWidget {
-  const StaticReviewCard({super.key});
+// Review Card Widget - Dynamic from API
+class ReviewCard extends StatelessWidget {
+  final Review review;
+
+  const ReviewCard({super.key, required this.review});
 
   @override
   Widget build(BuildContext context) {
@@ -897,34 +1138,43 @@ class StaticReviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// NAME + VERIFIED
+          // Header with User Name and Stars
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // User Name with Verified Badge (if verified)
               Row(
-                children: const [
+                children: [
                   Text(
-                    "Verified Buyer",
-                    style: TextStyle(
+                    review.userName,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
                       fontFamily: 'Poppins',
                       fontSize: 14,
                     ),
                   ),
-                  SizedBox(width: 6),
-                  Icon(Icons.verified, size: 16, color: Colors.greenAccent),
+                  if (review.isVerified) ...[
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.verified,
+                      size: 16,
+                      color: Colors.greenAccent,
+                    ),
+                  ],
                 ],
               ),
 
-              /// STAR RATING
+              // Star Rating - Dynamic from API
               Row(
                 children: List.generate(
                   5,
-                  (index) => const Icon(
-                    Icons.star,
+                  (index) => Icon(
+                    index < review.rating.round()
+                        ? Icons.star
+                        : Icons.star_border,
                     size: 14,
-                    color: Colors.greenAccent,
+                    color: Colors.amber,
                   ),
                 ),
               ),
@@ -933,10 +1183,10 @@ class StaticReviewCard extends StatelessWidget {
 
           const SizedBox(height: 6),
 
-          /// DATE
-          const Text(
-            "January 2026",
-            style: TextStyle(
+          // Date - Dynamic from API
+          Text(
+            _formatDate(review.createdAt),
+            style: const TextStyle(
               color: Colors.white54,
               fontSize: 11,
               fontFamily: 'Poppins',
@@ -945,14 +1195,116 @@ class StaticReviewCard extends StatelessWidget {
 
           const SizedBox(height: 10),
 
-          /// REVIEW TEXT
-          const Text(
-            "Excellent quality and premium finish. The variant options are clearly explained and easy to choose. Delivery was fast and packaging was top-notch. Highly recommended.",
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-              height: 1.5,
-              fontFamily: 'Poppins',
+          // Review Text - Dynamic from API
+          if (review.comment.isNotEmpty)
+            Text(
+              review.comment,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                height: 1.5,
+                fontFamily: 'Poppins',
+              ),
+            )
+          else
+            const Text(
+              'No written review',
+              style: TextStyle(
+                color: Colors.white38,
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${months[date.month - 1]} ${date.year}';
+  }
+}
+
+// Rating Summary Widget
+class RatingSummary extends StatelessWidget {
+  final double averageRating;
+  final int totalReviews;
+
+  const RatingSummary({
+    super.key,
+    required this.averageRating,
+    required this.totalReviews,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111111),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.greenAccent.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Text(
+                averageRating.toStringAsFixed(1),
+                style: const TextStyle(
+                  color: Colors.greenAccent,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: List.generate(
+                      5,
+                      (index) => Icon(
+                        index < averageRating.round()
+                            ? Icons.star
+                            : Icons.star_border,
+                        color: Colors.greenAccent,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$totalReviews reviews',
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          TextButton.icon(
+            onPressed: () {
+              // Navigate to all reviews page (you can add this later)
+            },
+            icon: const Icon(Icons.arrow_forward, color: Colors.greenAccent),
+            label: const Text(
+              'View All',
+              style: TextStyle(color: Colors.greenAccent),
             ),
           ),
         ],
