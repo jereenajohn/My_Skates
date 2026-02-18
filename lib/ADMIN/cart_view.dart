@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/add_address.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 class cart extends StatefulWidget {
   const cart({super.key});
@@ -15,12 +16,28 @@ class cart extends StatefulWidget {
 class _cartState extends State<cart> {
   bool loading = true;
   List cartItems = [];
+  late Razorpay _razorpay;
+  String? razorpayOrderId;
+  bool placingOrder = false;
 
   @override
   void initState() {
     super.initState();
     fetchCart();
     fetchAddresses();
+
+    _razorpay = Razorpay();
+    debugPrint("RAZORPAY INITIALIZED ✅");
+
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+  @override
+  void dispose() {
+    _razorpay.clear();
+    super.dispose();
   }
 
   String subtotal = "0.00";
@@ -29,6 +46,318 @@ class _cartState extends State<cart> {
   Map<String, dynamic>? selectedAddress;
   List addresses = [];
   bool addressLoading = false;
+
+  Future<void> ordercreate() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    print(
+      "Initiating order creation with total: $total and address: $selectedAddress",
+    );
+    print("Token: $token");
+
+    if (token == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Login required")));
+      return;
+    }
+
+    if (selectedAddress == null) {
+      placingOrder = false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select delivery address")),
+      );
+      return;
+    }
+
+    double payableAmount = double.tryParse(total) ?? 0;
+
+    if (payableAmount <= 0) {
+      placingOrder = false;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Invalid amount")));
+      return;
+    }
+
+    try {
+      setState(() => loading = true);
+
+      final response = await http.post(
+        Uri.parse("$api/api/myskates/razorpay/create/order/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({"amount": payableAmount}),
+      );
+
+      debugPrint("ORDER CREATE STATUS: ${response.statusCode}");
+      debugPrint("ORDER CREATE BODY: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final decoded = jsonDecode(response.body);
+
+        // Example expected response:
+        // { "order_id": "order_Qwerty123", "amount": 50000, "currency": "INR" }
+
+        razorpayOrderId = decoded["order_id"].toString();
+
+        final int amountInPaise = decoded["amount"]; // Razorpay always paise
+
+        openRazorpayCheckout(
+          amountInPaise: amountInPaise,
+          orderId: razorpayOrderId!,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Order creation failed: ${response.body}")),
+        );
+      }
+    } catch (e) {
+      debugPrint("Order Create Error: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    } finally {
+      placingOrder = false; // ✅ unlock button
+      setState(() => loading = false);
+    }
+  }
+
+  Future<bool> verifyRazorpayPayment({
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    if (token == null) {
+      debugPrint("VERIFY ERROR: Token missing");
+      return false;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse("$api/api/myskates/razorpay/verify/payment/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "razorpay_order_id": razorpayOrderId,
+          "razorpay_payment_id": razorpayPaymentId,
+          "razorpay_signature": razorpaySignature,
+        }),
+      );
+
+      debugPrint("VERIFY STATUS: ${response.statusCode}");
+      debugPrint("VERIFY BODY: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final decoded = jsonDecode(response.body);
+
+        if (decoded["success"] == true ||
+            decoded["verified"] == true ||
+            decoded["status"] == "success") {
+          debugPrint("PAYMENT VERIFIED SUCCESS ✅");
+          return true;
+        }
+      }
+
+      debugPrint("PAYMENT VERIFY FAILED ❌");
+      return false;
+    } catch (e) {
+      debugPrint("VERIFY ERROR: $e");
+      return false;
+    }
+  }
+
+  void openRazorpayCheckout({
+    required int amountInPaise,
+    required String orderId,
+  }) {
+    var options = {
+      'key': 'rzp_test_S8mkawKvbCtNbt',
+      'amount': amountInPaise,
+      'name': 'My Skates',
+      'description': 'Order Payment',
+      'order_id': orderId,
+      'currency': 'INR',
+      'timeout': 300,
+      'prefill': {
+        'contact': selectedAddress?["phone"] ?? "",
+        'email': selectedAddress?["email"] ?? "",
+      },
+      'theme': {'color': '#00C2A8'},
+    };
+
+    try {
+      _razorpay.open(options);
+    } catch (e) {
+      debugPrint("Razorpay Open Error: $e");
+    }
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    debugPrint("PAYMENT SUCCESS CALLED ✅");
+    debugPrint("PAYMENT ID: ${response.paymentId}");
+    debugPrint("ORDER ID: ${response.orderId}");
+    debugPrint("SIGNATURE: ${response.signature}");
+
+    setState(() {
+      loading = true;
+    });
+
+    bool verified = await verifyRazorpayPayment(
+      razorpayOrderId: response.orderId ?? "",
+      razorpayPaymentId: response.paymentId ?? "",
+      razorpaySignature: response.signature ?? "",
+    );
+
+    if (!verified) {
+      setState(() {
+        placingOrder = false;
+        loading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Payment verification failed ❌")),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Payment Verified Successfully ✅")),
+    );
+
+    await checkoutOrder(
+      paymentMethod: "ONLINE",
+      paymentRef: response.paymentId ?? "",
+      fullName: (selectedAddress?["full_name"] ?? "").toString(),
+      phone: (selectedAddress?["phone"] ?? "").toString(),
+      addressLine1: (selectedAddress?["address_line1"] ?? "").toString(),
+      addressLine2: (selectedAddress?["address_line2"] ?? "").toString(),
+      city: (selectedAddress?["city"] ?? "").toString(),
+      state: (selectedAddress?["state"] ?? selectedAddress?["state_name"] ?? "")
+          .toString()
+          .trim(),
+      pincode: (selectedAddress?["pincode"] ?? "").toString(), // ✅ FIX
+      country: (selectedAddress?["country"] ?? "India").toString(),
+      note: "",
+    );
+  }
+
+  Future<void> checkoutOrder({
+    required String paymentMethod,
+    required String paymentRef,
+    required String fullName,
+    required String phone,
+    required String addressLine1,
+    required String addressLine2,
+    required String city,
+    required String state,
+    required String pincode,
+    required String country,
+    required String note,
+  }) async {
+    debugPrint("CHECKOUT ORDER FUNCTION CALLED ✅");
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    if (token == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Login required")));
+      return;
+    }
+
+    try {
+      setState(() => loading = true);
+      print("SELECTED ADDRESS DATA: $selectedAddress");
+
+      final response = await http.post(
+        Uri.parse("$api/api/myskates/checkout/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "payment_method": paymentMethod,
+          "payment_ref": paymentRef,
+          "full_name": fullName,
+          "phone": phone,
+          "address_line1": addressLine1,
+          "address_line2": addressLine2,
+          "city": city,
+          "state": state,
+          "pincode": pincode,
+          "country": country,
+          "note": note,
+        }),
+      );
+
+      debugPrint("Payment method: $paymentMethod");
+      debugPrint("Payment reference: $paymentRef");
+      debugPrint("Full name: $fullName");
+      debugPrint("Phone: $phone");
+      debugPrint("Address Line 1: $addressLine1");
+      debugPrint("Address Line 2: $addressLine2");
+      debugPrint("City: $city");
+      debugPrint("State: $state");
+      debugPrint("Pincode: $pincode");
+      debugPrint("Country: $country");
+      debugPrint("Note: $note");
+
+      debugPrint("CHECKOUT BODY: ${response.body}");
+      debugPrint("CHECKOUT STATUS: ${response.statusCode}");
+      debugPrint("CHECKOUT BODY: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Order placed successfully ✅")),
+        );
+
+        fetchCart(); // refresh cart
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Checkout failed: ${response.body}")),
+        );
+      }
+    } catch (e) {
+      debugPrint("Checkout Error: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    } finally {
+      placingOrder = false; // ✅ unlock button
+      setState(() => loading = false);
+    }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    debugPrint("PAYMENT FAILED: ${response.code} - ${response.message}");
+    setState(() {
+      placingOrder = false;
+      loading = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Payment Failed: ${response.message}")),
+    );
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    debugPrint("EXTERNAL WALLET: ${response.walletName}");
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Wallet Selected: ${response.walletName}")),
+    );
+  }
+
   Future<void> fetchAddresses() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
@@ -82,8 +411,6 @@ class _cartState extends State<cart> {
       addressLoading = false;
     }
   }
-
-  Future ordercreate() async {}
 
   Future<void> _removeFromCart(dynamic item) async {
     final prefs = await SharedPreferences.getInstance();
@@ -1327,7 +1654,60 @@ class _cartState extends State<cart> {
             SizedBox(
               height: 48,
               child: ElevatedButton(
-                onPressed: cartItems.isEmpty ? null : () {},
+                onPressed: cartItems.isEmpty
+                    ? null
+                    : () {
+                        if (placingOrder) return; // ✅ prevents multiple clicks
+
+                        if (selectedAddress == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Please select delivery address"),
+                            ),
+                          );
+                          return;
+                        }
+
+                        setState(() {
+                          placingOrder = true;
+                        });
+
+                        if (selectedPayment == "cod") {
+                          checkoutOrder(
+                            paymentMethod: "COD",
+                            paymentRef: "",
+                            fullName: (selectedAddress?["full_name"] ?? "")
+                                .toString(),
+                            phone: (selectedAddress?["phone"] ?? "").toString(),
+                            addressLine1:
+                                (selectedAddress?["address_line1"] ?? "")
+                                    .toString(),
+                            addressLine2:
+                                (selectedAddress?["address_line2"] ?? "")
+                                    .toString(),
+                            city: (selectedAddress?["city"] ?? "").toString(),
+
+                            state:
+                                (selectedAddress?["state_name"] ??
+                                        selectedAddress?["state"] ??
+                                        "")
+                                    .toString()
+                                    .trim(),
+
+                            pincode: (selectedAddress?["pincode"] ?? "")
+                                .toString(),
+                            country:
+                                (selectedAddress?["country_name"] ??
+                                        selectedAddress?["country"] ??
+                                        "India")
+                                    .toString(),
+                            note: "",
+                          );
+                        } else {
+                          ordercreate();
+                        }
+                      },
+
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.tealAccent,
                   foregroundColor: Colors.black,
