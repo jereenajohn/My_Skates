@@ -3,6 +3,7 @@ import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/add_student_achievements.dart';
 import 'package:my_skates/STUDENTS/products.dart';
+import 'package:my_skates/STUDENTS/student_change_phone_number.dart';
 import 'package:my_skates/STUDENTS/student_order_page.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 import 'package:my_skates/loginpage.dart';
@@ -153,11 +154,21 @@ class _UserSettingsState extends State<UserSettings> {
               ),
 
               const SizedBox(height: 12),
-              _menuTile(icon: Icons.phone, text: "Change Phone Number"),
-
+              _menuTile(
+                icon: Icons.shopping_bag,
+                text: "Change Phone Number",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const StudentChangePhoneNumber(),
+                    ),
+                  );
+                },
+              ),
               _divider(),
 
-                _menuTile(
+              _menuTile(
                 icon: Icons.shopping_bag,
                 text: "My Orders",
                 onTap: () {
@@ -184,7 +195,7 @@ class _UserSettingsState extends State<UserSettings> {
 
               _divider(),
 
-                _menuTile(
+              _menuTile(
                 icon: Icons.home,
                 text: "Add Achievements",
                 onTap: () {

@@ -4,6 +4,7 @@ import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/view_address.dart';
 import 'package:my_skates/COACH/add_club.dart';
 import 'package:my_skates/COACH/coach_add_events.dart';
+import 'package:my_skates/COACH/coach_change_phone_number.dart';
 import 'package:my_skates/COACH/coach_follow_request.dart';
 import 'package:my_skates/COACH/coach_followers_list.dart';
 import 'package:my_skates/COACH/coach_following_list.dart';
@@ -171,7 +172,17 @@ class _CoachSettingsState extends State<CoachSettings> {
 
               const SizedBox(height: 12),
               if ("Change Phone Number".toLowerCase().contains(_searchQuery))
-                _menuTile(icon: Icons.phone, text: "Change Phone Number"),
+                _menuTile(
+                  icon: Icons.phone_android_outlined,
+                  text: "Change Phone Number",
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      slideRightToLeftRoute(ChangePhonePage()),
+                    );
+                  },
+                ),
+
               _divider(),
               if ("My Orders".toLowerCase().contains(_searchQuery))
                 _menuTile(

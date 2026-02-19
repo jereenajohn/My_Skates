@@ -1011,7 +1011,6 @@ class _cartState extends State<cart> {
                     cartErrorMessage = null;
                     loading = true;
                   });
-
                   fetchCart();
                   fetchCartSummary();
                 },
