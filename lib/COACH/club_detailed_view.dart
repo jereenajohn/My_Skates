@@ -1356,39 +1356,39 @@ class _ClubViewState extends State<ClubView> {
       ),
 
       // ---------------- ADD MEDIA BUTTON ----------------
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Add Media Button
-          FloatingActionButton(
-            heroTag: "media_btn",
-            backgroundColor: const Color(0xFF00AFA5),
-            elevation: 5,
-            child: const Icon(
-              Icons.add_photo_alternate_rounded,
-              color: Color.fromARGB(255, 252, 252, 252),
-              size: 30,
-            ),
-            onPressed: _openAddMediaSheet,
-          ),
-          const SizedBox(height: 12),
+      // floatingActionButton: Column(
+      //   mainAxisSize: MainAxisSize.min,
+      //   children: [
+      //     // Add Media Button
+      //     FloatingActionButton(
+      //       heroTag: "media_btn",
+      //       backgroundColor: const Color(0xFF00AFA5),
+      //       elevation: 5,
+      //       child: const Icon(
+      //         Icons.add_photo_alternate_rounded,
+      //         color: Color.fromARGB(255, 252, 252, 252),
+      //         size: 30,
+      //       ),
+      //       onPressed: _openAddMediaSheet,
+      //     ),
+      //     const SizedBox(height: 12),
 
-          // Existing Add Event Button
-          FloatingActionButton(
-            heroTag: "event_btn",
-            backgroundColor: const Color(0xFF00AFA5),
-            child: const Icon(Icons.event, color: Colors.white, size: 28),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CoachAddEvents(clubid: widget.clubid),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+      //     // Existing Add Event Button
+      //     FloatingActionButton(
+      //       heroTag: "event_btn",
+      //       backgroundColor: const Color(0xFF00AFA5),
+      //       child: const Icon(Icons.event, color: Colors.white, size: 28),
+      //       onPressed: () {
+      //         Navigator.push(
+      //           context,
+      //           MaterialPageRoute(
+      //             builder: (context) => CoachAddEvents(clubid: widget.clubid),
+      //           ),
+      //         );
+      //       },
+      //     ),
+      //   ],
+      // ),
 
       // ---------------- BOTTOM NAV ----------------
       bottomNavigationBar: BottomNavigationBar(

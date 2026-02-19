@@ -56,6 +56,10 @@ class _ClubGridPageState extends State<ClubGridPage> {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final double screenWidth = screenSize.width;
+    final double screenHeight = screenSize.height;
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -77,9 +81,9 @@ class _ClubGridPageState extends State<ClubGridPage> {
         child: noData
             ? ListView(
                 
-                children: const [
-                  SizedBox(height: 200),
-                  Center(
+                children: [
+                  SizedBox(height: screenHeight * 0.25),
+                  const Center(
                     child: Text(
                       "No clubs found",
                       style: TextStyle(color: Colors.white70),
@@ -88,13 +92,13 @@ class _ClubGridPageState extends State<ClubGridPage> {
                 ],
               )
             : Padding(
-                padding: const EdgeInsets.all(14),
+                padding:  EdgeInsets.all(screenWidth * 0.035),
                 child: GridView.builder(
                   itemCount: clubs.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:  SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
+                    crossAxisSpacing: screenWidth * 0.035,
+                    mainAxisSpacing: screenHeight * 0.02,
                     childAspectRatio: 0.75,
                   ),
                   itemBuilder: (context, index) {

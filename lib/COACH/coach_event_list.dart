@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -675,9 +676,12 @@ class _CoachEventsState extends State<CoachEvents> {
         backgroundColor: const Color.fromARGB(255, 0, 0, 0),
         appBar: AppBar(
           backgroundColor: Colors.black,
+          leading: IconButton(onPressed: (){
+            Navigator.push(context, MaterialPageRoute(builder: (_)=>DashboardPage()));
+          }, icon: Icon(Icons.arrow_back,color: Colors.white,)),
           title: Text(
             clubDetails?["club_name"] ?? "My Club Events",
-            style: const TextStyle(color: Colors.grey, fontSize: 15),
+            style: const TextStyle(color: Colors.white, fontSize: 18),
           ),
         ),
         body: loadingEvents
@@ -743,13 +747,6 @@ class _CoachEventsState extends State<CoachEvents> {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Text(
-                                "Pull down to refresh",
-                                style: TextStyle(
-                                  color: Colors.tealAccent,
-                                  fontSize: 14,
-                                ),
-                              ),
                             ],
                           ),
                         ),

@@ -8,9 +8,13 @@ import 'package:my_skates/COACH/coach_change_phone_number.dart';
 import 'package:my_skates/COACH/coach_follow_request.dart';
 import 'package:my_skates/COACH/coach_followers_list.dart';
 import 'package:my_skates/COACH/coach_following_list.dart';
+import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_profile.dart';
 import 'package:my_skates/COACH/myorders.dart';
 import 'package:my_skates/COACH/view_clubs.dart';
+import 'package:my_skates/STUDENTS/Home_Page.dart';
+import 'package:my_skates/STUDENTS/products.dart';
+import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 import 'package:my_skates/coach/add_coach_achievements.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
@@ -283,7 +287,7 @@ class _CoachSettingsState extends State<CoachSettings> {
                 ),
               _divider(),
 
-              const SizedBox(height: 25),
+              const SizedBox(height: 15),
               if ("Other Settings".toLowerCase().contains(_searchQuery))
                 // SECTION: WHO CAN SEE YOUR CONTENT
                 const Text(
@@ -295,15 +299,13 @@ class _CoachSettingsState extends State<CoachSettings> {
                   ),
                 ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               if ("Logout".toLowerCase().contains(_searchQuery))
                 _menuTile(
                   icon: Icons.lock_outline,
                   text: "Logout",
                   onTap: logoutUser,
                 ),
-
-              _divider(),
             ],
           ),
         ),
@@ -329,6 +331,40 @@ class _CoachSettingsState extends State<CoachSettings> {
             showUnselectedLabels: false,
             type: BottomNavigationBarType.fixed,
             currentIndex: 0,
+            onTap: (index) {
+              switch (index) {
+                case 0:
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HomePage()),
+                  );
+                  break;
+                case 1:
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const UserProducts()),
+                  );
+                  break;
+                case 2:
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CoachNotificationPage(),
+                    ),
+                  );
+                  break;
+                case 3:
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const UserConnectCoaches(),
+                    ),
+                  );
+                  break;
+                case 4:
+                  break;
+              }
+            },
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
               BottomNavigationBarItem(
