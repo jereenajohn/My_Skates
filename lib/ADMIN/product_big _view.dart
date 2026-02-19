@@ -1,9 +1,10 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/cart_view.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/wishlist.dart';
-import 'package:my_skates/COACH/product_review_page';
+import 'package:my_skates/COACH/product_review_page.dart';
 import 'package:my_skates/api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -54,7 +55,7 @@ class big_view extends StatefulWidget {
   State<big_view> createState() => _big_viewState();
 }
 
-class _big_viewState extends State<big_view> {
+class _big_viewState extends State<big_view> with TickerProviderStateMixin {
   bool loading = true;
   Map<String, dynamic>? product;
   int? selectedVariantId;
@@ -67,12 +68,131 @@ class _big_viewState extends State<big_view> {
   int totalReviews = 0;
   bool isInWishlist = false;
 
+  // Animation variables
+  late AnimationController _animationController;
+  late Animation<Offset> _offsetAnimation;
+  OverlayEntry? _overlayEntry;
+  bool _isAnimating = false;
+  final GlobalKey _variantImageKey = GlobalKey();
+  final GlobalKey _cartIconKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
+
+    // Initialize AnimationController
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+
+    _offsetAnimation =
+        Tween<Offset>(begin: Offset.zero, end: const Offset(1.5, -1.5)).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeInOutCubic,
+          ),
+        );
+
+    // Call API methods
     getproductDetails();
     fetchProductReviews();
   }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _removeOverlay();
+    super.dispose();
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _showFloatingAnimation(Offset startPosition, String imageUrl) {
+    _removeOverlay();
+    RenderBox? cartBox =
+        _cartIconKey.currentContext?.findRenderObject() as RenderBox?;
+    if (cartBox == null) return;
+
+    Offset cartPosition = cartBox.localToGlobal(Offset.zero);
+    _overlayEntry = OverlayEntry(
+      builder: (context) {
+        return AnimatedBuilder(
+          animation: _animationController,
+          builder: (context, child) {
+            double progress = _animationController.value;
+
+            // Calculate current position (linear interpolation)
+            double currentX =
+                startPosition.dx +
+                (cartPosition.dx - startPosition.dx + 20) * progress;
+            double currentY =
+                startPosition.dy +
+                (cartPosition.dy - startPosition.dy - 10) * progress;
+
+            // Add a slight arc to the motion
+            double arcOffset = sin(progress * pi) * 50;
+            currentY -= arcOffset;
+            return Positioned(
+              left: currentX - 30,
+              top: currentY - 30,
+              child: Opacity(
+                opacity: 1.0 - progress,
+                child: Transform.scale(
+                  scale: 1.0 + (0.2 * sin(progress * pi)),
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.tealAccent.withOpacity(0.5),
+                          blurRadius: 10,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey[900],
+                            child: const Icon(
+                              Icons.broken_image,
+                              color: Colors.white54,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+
+    _animationController.forward().then((_) {
+      _removeOverlay();
+      _animationController.reset();
+      _isAnimating = false;
+
+      _animateCartIcon();
+    });
+  }
+
+  void _animateCartIcon() {}
 
   Future<void> fetchProductReviews() async {
     setState(() {
@@ -97,9 +217,7 @@ class _big_viewState extends State<big_view> {
         List<Review> fetchedReviews = [];
 
         if (data is List) {
-          fetchedReviews = (data as List)
-              .map((r) => Review.fromJson(r))
-              .toList();
+          fetchedReviews = data.map((r) => Review.fromJson(r)).toList();
         } else if (data['success'] == true && data['data'] != null) {
           fetchedReviews = (data['data'] as List)
               .map((r) => Review.fromJson(r))
@@ -119,7 +237,6 @@ class _big_viewState extends State<big_view> {
         setState(() {
           reviews = fetchedReviews;
           reviewsLoading = false;
-
           print("reviewss...${reviews}");
         });
       } else {
@@ -136,6 +253,22 @@ class _big_viewState extends State<big_view> {
   }
 
   Future<void> addToCart(int variantId) async {
+    if (_isAnimating) return;
+
+    RenderBox? renderBox =
+        _variantImageKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
+    Offset position = renderBox.localToGlobal(Offset.zero);
+
+    String imageUrl = selectedVariant?["images"]?.isNotEmpty == true
+        ? selectedVariant!["images"][0]["image"]
+        : product!["image"];
+
+    _isAnimating = true;
+
+    _showFloatingAnimation(position, imageUrl);
+
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
 
@@ -156,13 +289,18 @@ class _big_viewState extends State<big_view> {
       final String message = decoded["message"] ?? "Unable to add to cart";
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        _showSnackBar(
-          icon: Icons.shopping_cart,
-          color: Colors.tealAccent,
-          background: const Color(0xFF0F2F2B),
-          message: message,
-        );
+        Future.delayed(const Duration(milliseconds: 800), () {
+          _showSnackBar(
+            icon: Icons.shopping_cart,
+            color: Colors.tealAccent,
+            background: const Color(0xFF0F2F2B),
+            message: message,
+          );
+        });
       } else {
+        _isAnimating = false;
+        _animationController.stop();
+        _removeOverlay();
         _showSnackBar(
           icon: Icons.warning_amber_rounded,
           color: Colors.orangeAccent,
@@ -171,6 +309,9 @@ class _big_viewState extends State<big_view> {
         );
       }
     } catch (e) {
+      _isAnimating = false;
+      _animationController.stop();
+      _removeOverlay();
       debugPrint("Add to cart error: $e");
 
       _showSnackBar(
@@ -407,43 +548,47 @@ class _big_viewState extends State<big_view> {
 
               const SizedBox(width: 4),
 
-              IconButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const cart()),
-                  );
-                },
-                icon: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Icon(
-                      Icons.shopping_cart_outlined,
-                      color: Colors.white,
-                      size: 26,
-                    ),
+              // Replace your current cart IconButton with this:
+              Container(
+                key: _cartIconKey, // Add this key
+                child: IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const cart()),
+                    );
+                  },
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(
+                        Icons.shopping_cart_outlined,
+                        color: Colors.white,
+                        size: 26,
+                      ),
 
-                    // CART BADGE
-                    Positioned(
-                      right: -2,
-                      top: -2,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.redAccent,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Text(
-                          "2",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                      // CART BADGE
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.redAccent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Text(
+                            "2",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 
@@ -556,6 +701,15 @@ class _big_viewState extends State<big_view> {
                                 child: Image.network(
                                   product!["image"],
                                   fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      color: Colors.grey[900],
+                                      child: const Icon(
+                                        Icons.broken_image,
+                                        color: Colors.white54,
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             ),
@@ -777,6 +931,9 @@ class _big_viewState extends State<big_view> {
                                       });
                                     },
                                     child: Container(
+                                      key: selectedVariantId == variant["id"]
+                                          ? _variantImageKey
+                                          : null,
                                       width: 150,
                                       margin: const EdgeInsets.only(right: 14),
                                       padding: const EdgeInsets.all(12),
@@ -818,6 +975,17 @@ class _big_viewState extends State<big_view> {
                                               height: 90,
                                               width: double.infinity,
                                               fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                    return Container(
+                                                      height: 90,
+                                                      color: Colors.grey[900],
+                                                      child: const Icon(
+                                                        Icons.broken_image,
+                                                        color: Colors.white54,
+                                                      ),
+                                                    );
+                                                  },
                                             ),
                                           ),
 
@@ -897,9 +1065,7 @@ class _big_viewState extends State<big_view> {
                           const SizedBox(height: 28),
 
                           /// USER REVIEWS SECTION
-                          // Only show USER REVIEWS section if there are reviews
                           if (totalReviews > 0) ...[
-                            /// USER REVIEWS SECTION
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -956,8 +1122,7 @@ class _big_viewState extends State<big_view> {
                                   if (reviews.length > 3)
                                     Center(
                                       child: TextButton(
-                                        onPressed: () {
-                                        },
+                                        onPressed: () {},
                                         child: Text(
                                           'View all ${reviews.length} reviews',
                                           style: const TextStyle(
@@ -971,54 +1136,6 @@ class _big_viewState extends State<big_view> {
 
                             const SizedBox(height: 20),
                           ],
-
-                          const SizedBox(height: 20),
-
-                          // Write Review Button
-                          ElevatedButton.icon(
-                            onPressed: () async {
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ProductReviewPage(
-                                    productId: widget.productId,
-                                    productTitle: product!["title"],
-                                    productImage: product!["image"],
-                                    variantId: selectedVariantId ?? 0,
-                                    variantImage:
-                                        selectedVariant?["images"]
-                                                ?.isNotEmpty ==
-                                            true
-                                        ? selectedVariant!["images"][0]["image"]
-                                        : product!["image"],
-                                    variantLabel:
-                                        selectedVariant?["sku"] ?? "Default",
-                                  ),
-                                ),
-                              );
-
-                              // Refresh reviews after returning
-                              if (result != null) {
-                                fetchProductReviews();
-                              }
-                            },
-                            icon: const Icon(Icons.edit, color: Colors.black),
-                            label: const Text(
-                              'Write a Review',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.greenAccent,
-                              minimumSize: const Size(double.infinity, 45),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-
                           const SizedBox(height: 80),
                         ],
                       ),
@@ -1119,7 +1236,7 @@ class SkeletonBox extends StatelessWidget {
   }
 }
 
-// Review Card Widget - Dynamic from API
+// Review Card Widget
 class ReviewCard extends StatelessWidget {
   final Review review;
 
@@ -1138,11 +1255,9 @@ class ReviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with User Name and Stars
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // User Name with Verified Badge (if verified)
               Row(
                 children: [
                   Text(
@@ -1164,8 +1279,6 @@ class ReviewCard extends StatelessWidget {
                   ],
                 ],
               ),
-
-              // Star Rating - Dynamic from API
               Row(
                 children: List.generate(
                   5,
@@ -1180,10 +1293,7 @@ class ReviewCard extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 6),
-
-          // Date - Dynamic from API
           Text(
             _formatDate(review.createdAt),
             style: const TextStyle(
@@ -1192,10 +1302,7 @@ class ReviewCard extends StatelessWidget {
               fontFamily: 'Poppins',
             ),
           ),
-
           const SizedBox(height: 10),
-
-          // Review Text - Dynamic from API
           if (review.comment.isNotEmpty)
             Text(
               review.comment,
@@ -1298,9 +1405,7 @@ class RatingSummary extends StatelessWidget {
             ],
           ),
           TextButton.icon(
-            onPressed: () {
-              // Navigate to all reviews page (you can add this later)
-            },
+            onPressed: () {},
             icon: const Icon(Icons.arrow_forward, color: Colors.greenAccent),
             label: const Text(
               'View All',

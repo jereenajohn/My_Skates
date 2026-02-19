@@ -435,6 +435,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           description:
                               "Strathmore skating club conducting skating event on 30th Nov. Join with us!",
                           icon: Icons.favorite_border,
+                          
                         ),
 
                         // SUGGESTED COACHES

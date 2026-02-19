@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/COACH/coach_notification_page.dart';
+import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/add_student_achievements.dart';
+import 'package:my_skates/STUDENTS/products.dart';
 import 'package:my_skates/STUDENTS/student_order_page.dart';
+import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:my_skates/STUDENTS/user_follow_requests.dart';
@@ -261,49 +265,83 @@ class _UserSettingsState extends State<UserSettings> {
                 onTap: logoutUser,
               ),
 
-              _divider(),
+              
             ],
           ),
         ),
       ),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
+  decoration: const BoxDecoration(
+    color: Colors.black,
+    borderRadius: BorderRadius.only(
+      topLeft: Radius.circular(30),
+      topRight: Radius.circular(30),
+    ),
+  ),
+  child: ClipRRect(
+    borderRadius: const BorderRadius.only(
+      topLeft: Radius.circular(30),
+      topRight: Radius.circular(30),
+    ),
+    child: BottomNavigationBar(
+      backgroundColor: Colors.black,
+      selectedItemColor: const Color(0xFF00AFA5),
+      unselectedItemColor: Colors.white70,
+      showSelectedLabels: false,
+      showUnselectedLabels: false,
+      type: BottomNavigationBarType.fixed,
+      currentIndex: 4, // Changed from 0 to 4 (Menu page index)
+      onTap: (index) {
+        // Add navigation logic here
+        switch (index) {
+          case 0:
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const HomePage()),
+            );
+            break;
+          case 1:
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const UserProducts()),
+            );
+            break;
+          case 2:
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const CoachNotificationPage()),
+            );
+            break;
+          case 3:
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const UserConnectCoaches()),
+            );
+            break;
+          case 4:
+            
+            break;
+        }
+      },
+      items: const [
+        BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.shopping_bag),
+          label: '',
         ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-          child: BottomNavigationBar(
-            backgroundColor: Colors.black,
-            selectedItemColor: const Color(0xFF00AFA5),
-            unselectedItemColor: Colors.white70,
-            showSelectedLabels: false,
-            showUnselectedLabels: false,
-            type: BottomNavigationBarType.fixed,
-            currentIndex: 0,
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.shopping_bag),
-                label: '',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.chat_bubble_rounded),
-                label: '',
-              ),
-              BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
-              BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
-            ],
-          ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.chat_bubble_rounded),
+          label: '',
         ),
-      ),
+        BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
+        BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
+      ],
+    ),
+  ),
+),
+        
     );
+    
   }
 
   // MENU TILE WIDGET WITH NAVIGATION SUPPORT

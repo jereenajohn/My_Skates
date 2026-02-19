@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 
@@ -116,6 +117,9 @@ class _CoachFollowersListState extends State<CoachFollowersList> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
+        leading: IconButton(onPressed: (){
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_)=>CoachSettings()));
+        }, icon: Icon(Icons.arrow_back)),
         title: const Text(
           "Coach Followers",
           style: TextStyle(color: Colors.white),

@@ -1,9 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:my_skates/ADMIN/view_all_events.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/COACH/coach_timeline_page.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
+import 'package:my_skates/STUDENTS/student_list.dart';
+import 'package:my_skates/STUDENTS/user_notification%20page.dart';
 import 'package:my_skates/STUDENTS/user_settings.dart';
 import 'package:my_skates/STUDENTS/user_timeline_page.dart';
 import 'package:my_skates/api.dart';
@@ -395,6 +398,36 @@ class _UserMenuPageState extends State<UserMenuPage>
       unselectedItemColor: Colors.white54,
       type: BottomNavigationBarType.fixed,
       currentIndex: 4,
+      onTap: (index) {
+        switch (index) {
+          case 0:
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomePage()),
+            );
+            break;
+          case 1:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const StudentList()),
+            );
+            break;
+          case 2:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const Events()),
+            );
+            break;
+          case 3:
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const UserNotificationPage()),
+            );
+            break;
+          case 4:
+            break;  
+        }
+      },
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
         BottomNavigationBarItem(icon: Icon(Icons.groups), label: "Athletes"),
