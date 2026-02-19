@@ -363,49 +363,49 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     return DateFormat("dd MMM").format(dt);
   }
 
-  String notificationText(Map<String, dynamic> n) {
-    final type = n["notification_type"];
+ String notificationText(Map<String, dynamic> n) {
+  final type = n["notification_type"];
 
-    if (n["status_ui"] == "following") {
-      return "started following you.";
-    }
-
-    if (n["status_ui"] == "follow_back_sent") {
-      return "you sent a follow request.";
-    }
-
-    switch (type) {
-      case "follow_request":
-        return "requested to follow you.";
-
-      case "follow_approved":
-        return "accepted your follow request.";
-
-      case "follow_back_request":
-        return "requested you to follow back.";
-
-      case "follow_back_accepted":
-        return "you are now following each other.";
-
-      case "event_like":
-        return "liked your event.";
-
-      case "club_join_request":
-        return "invited you to join their club.";
-
-      case "club_join_approved":
-        return "joined your club.";
-
-      case "post_like":
-        return "liked your post.";
-
-      case "comment":
-        return "commented on your post.";
-
-      default:
-        return "sent you a notification.";
-    }
+  if (n["status_ui"] == "following") {
+    return "started following you.";
   }
+
+  if (n["status_ui"] == "follow_back_sent") {
+    return "you sent a follow request.";
+  }
+
+  switch (type) {
+    case "follow_request":
+      return "requested to follow you.";
+
+    case "follow_approved":
+      return "accepted your follow request.";
+
+    case "follow_back_request":
+      return "requested you to follow back.";
+
+    case "follow_back_accepted":
+      return "you are now following each other.";
+
+    case "event_like":
+      return "liked your event.";
+
+    case "club_join_request":
+      return "requested to join your club."; // ✅ FIXED
+
+    case "club_join_approved":
+      return "joined your club.";
+
+    case "post_like":
+      return "liked your post.";
+
+    case "comment":
+      return "commented on your post.";
+
+    default:
+      return "sent you a notification.";
+  }
+}
 
   String getSectionTitle(DateTime dt) {
     final now = DateTime.now();
@@ -457,19 +457,19 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
   }
 
   // ================= SECTION TITLE =================
-Widget sectionTitle(String title) {
-  return Padding(
-    padding: const EdgeInsets.only(left: 14, right: 14, top: 10, bottom: 6),
-    child: Text(
-      title,
-      style: TextStyle(
-        color: Colors.grey.shade300,
-        fontSize: 13, // ✅ SMALLER TEXT
-        fontWeight: FontWeight.w700,
+  Widget sectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 14, right: 14, top: 10, bottom: 6),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: Colors.grey.shade300,
+          fontSize: 13, // ✅ SMALLER TEXT
+          fontWeight: FontWeight.w700,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   // ================= TILE =================
   Widget instaNotificationTile(Map<String, dynamic> n, int index) {
