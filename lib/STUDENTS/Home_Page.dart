@@ -517,7 +517,7 @@ class _HomePageState extends State<HomePage> {
       studentName = prefs.getString("name") ?? "User";
       studentRole = prefs.getString("user_type") ?? "Student";
       studentImage = prefs.getString("profile");
-loggedInUserId = prefs.getInt("user_id");
+      loggedInUserId = prefs.getInt("id");
       isLoading = false;
     });
   }

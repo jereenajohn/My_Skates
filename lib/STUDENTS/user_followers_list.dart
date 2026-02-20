@@ -22,44 +22,76 @@ class _UserFollowersListState extends State<UserFollowersList> {
     fetchFollowers();
   }
 
-  Future<void> fetchFollowers() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("access");
+ Future<void> fetchFollowers() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
 
-      final response = await http.get(
-        Uri.parse("$api/api/myskates/user/followers/"),
-        headers: {"Authorization": "Bearer $token"},
-      );
+    final response = await http.get(
+      Uri.parse("$api/api/myskates/user/followers/"),
+      headers: {"Authorization": "Bearer $token"},
+    );
 
-      print("FOLLOWERS STATUS: ${response.statusCode}");
-      print("FOLLOWERS BODY: ${response.body}");
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      final List raw = decoded["data"] ?? [];
 
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        final List data = decoded["data"] ?? [];
+      final normalized = raw.map<Map<String, dynamic>>((e) {
+        return {
+          "id": e["follower__id"],
+          "first_name": e["follower__first_name"],
+          "last_name": e["follower__last_name"],
+          "profile": e["follower__profile"],
+          "user_type": e["follower__user_type"],
+          "is_mutual": e["is_mutual"] ?? false,
+          "follow_requested":
+              e["has_requested"] == true &&
+              e["request_status"] == "pending",
+          "isLoading": false,
+        };
+      }).toList();
 
-        setState(() {
-          followers = data
-              .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
-              .toList();
-          noData = followers.isEmpty;
-          loading = false;
-        });
-      } else {
-        setState(() {
-          noData = true;
-          loading = false;
-        });
-      }
-    } catch (e) {
-      print("FOLLOWERS ERROR: $e");
+      setState(() {
+        followers = normalized;
+        noData = followers.isEmpty;
+        loading = false;
+      });
+    } else {
       setState(() {
         noData = true;
         loading = false;
       });
     }
+  } catch (e) {
+    setState(() {
+      noData = true;
+      loading = false;
+    });
   }
+}
+
+Future<void> followBack(int followerId, int index) async {
+  final follower = followers[index];
+  follower["isLoading"] = true;
+  setState(() {});
+
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+
+  final response = await http.post(
+    Uri.parse("$api/api/myskates/user/follow/request/"),
+    headers: {"Authorization": "Bearer $token"},
+    body: {"following_id": followerId.toString()},
+  );
+
+  if (response.statusCode == 200 || response.statusCode == 201) {
+    follower["follow_requested"] = true;
+  }
+
+  follower["isLoading"] = false;
+  setState(() {});
+}
+
 
   Future<void> removeFollower(int followerId) async {
     try {
@@ -110,34 +142,150 @@ class _UserFollowersListState extends State<UserFollowersList> {
     );
   }
 
-  Widget _buildFollowerTile(Map follower) {
-    final String name =
-        "${follower["follower__first_name"] ?? ""} ${follower["follower__last_name"] ?? ""}";
-    final int followerId = follower["follower__id"];
+Widget _buildFollowerTile(Map<String, dynamic> follower) {
+  final int followerId = follower["id"];
+  final String name =
+      "${follower["first_name"] ?? ""} ${follower["last_name"] ?? ""}".trim();
 
-    return ListTile(
-      leading: const CircleAvatar(
-        radius: 22,
-        backgroundImage: AssetImage("lib/assets/img.jpg"),
-      ),
-      title: Text(
-        name.trim(),
-        style: const TextStyle(color: Colors.white, fontSize: 15),
-      ),
-      subtitle: Text(
-        follower["follower__user_type"] ?? "",
-        style: const TextStyle(color: Colors.white54, fontSize: 12),
-      ),
-      trailing: OutlinedButton(
-        onPressed: () {
-          removeFollower(followerId);
-        },
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Colors.white54),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    child: Row(
+      children: [
+        const CircleAvatar(
+          radius: 24,
+          backgroundImage: AssetImage("lib/assets/img.jpg"),
         ),
-        child: const Text("Remove", style: TextStyle(color: Colors.white)),
-      ),
-    );
-  }
+
+        const SizedBox(width: 14),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name.isEmpty ? "User" : name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                follower["user_type"] ?? "",
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+
+            // Follow back
+            if (follower["is_mutual"] == false &&
+                follower["follow_requested"] != true)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ElevatedButton(
+                  onPressed: follower["isLoading"]
+                      ? null
+                      : () => followBack(
+                          followerId,
+                          followers.indexOf(follower),
+                        ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    minimumSize: const Size(0, 30),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  child: follower["isLoading"]
+                      ? const SizedBox(
+                          height: 14,
+                          width: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          "Follow back",
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              )
+
+            // Requested state
+            else if (follower["follow_requested"] == true)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: OutlinedButton(
+                  onPressed: null,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 30),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    side: const BorderSide(color: Colors.white38),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  child: const Text(
+                    "Requested",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white54,
+                    ),
+                  ),
+                ),
+              ),
+
+            // Remove button
+            OutlinedButton(
+              onPressed: () => removeFollower(followerId),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 30),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                side: const BorderSide(color: Colors.white38),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+              child: const Text(
+                "Remove",
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
 }

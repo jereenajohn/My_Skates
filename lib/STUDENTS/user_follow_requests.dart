@@ -23,7 +23,6 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
 
   Future<void> initLoad() async {
     await fetchRequests();
-    await syncApprovedFollowBacks();
   }
 
   // ------------------------------------------------------------
@@ -62,53 +61,7 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
   // ------------------------------------------------------------
   // CONFIRM REQUEST
   // ------------------------------------------------------------
- Future<void> confirmRequest(int index) async {
-  final r = requests[index];
-  r["isLoading"] = true;
-  setState(() {});
-
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-
-  final res = await http.post(
-    Uri.parse("$api/api/myskates/user/follow/approve/"),
-    headers: {"Authorization": "Bearer $token"},
-    body: {
-      "request_id": r["id"].toString(),
-      "action": "approved",
-    },
-  );
-
-  if (res.statusCode == 200) {
-    //  CHECK if student already follows coach
-    final approvedRes = await http.get(
-      Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
-      headers: {"Authorization": "Bearer $token"},
-    );
-
-    if (approvedRes.statusCode == 200) {
-      final List approved = jsonDecode(approvedRes.body);
-      final approvedIds =
-          approved.map((e) => e["following"]).toSet();
-
-      if (approvedIds.contains(r["follower"])) {
-        //already following → no follow back needed
-        requests.removeAt(index);
-      } else {
-        //  not following → show follow back
-        r["status_ui"] = "follow_back";
-      }
-    }
-  }
-
-  r["isLoading"] = false;
-  setState(() {});
-}
-
-  // ------------------------------------------------------------
-  // FOLLOW BACK
-  // ------------------------------------------------------------
-  Future<void> followBack(int index) async {
+  Future<void> confirmRequest(int index) async {
     final r = requests[index];
     r["isLoading"] = true;
     setState(() {});
@@ -117,24 +70,23 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
     final token = prefs.getString("access");
 
     final res = await http.post(
-      Uri.parse("$api/api/myskates/user/follow/request/"),
+      Uri.parse("$api/api/myskates/user/follow/approve/"),
       headers: {"Authorization": "Bearer $token"},
-      body: {
-        "following_id": r["follower"].toString(),
-      },
+      body: {"request_id": r["id"].toString(), "action": "approved"},
     );
 
-    print(res.statusCode);
-    print(res.body);
-
-    if (res.statusCode == 200 || res.statusCode == 201) {
-      r["status_ui"] = "requested";
+    if (res.statusCode == 200) {
+      // 🔥 Immediately remove from UI
+      requests.removeAt(index);
     }
 
-    r["isLoading"] = false;
     setState(() {});
   }
 
+  // ------------------------------------------------------------
+  // FOLLOW BACK
+  // ------------------------------------------------------------
+ 
   // ------------------------------------------------------------
   // REJECT REQUEST
   // ------------------------------------------------------------
@@ -147,11 +99,7 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
     final res = await http.post(
       Uri.parse("$api/api/myskates/user/follow/approve/"),
       headers: {"Authorization": "Bearer $token"},
-      body: {
-        "request_id": r["id"].toString(),
-        "action": "rejected",
-      },
-
+      body: {"request_id": r["id"].toString(), "action": "rejected"},
     );
 
     if (res.statusCode == 200) {
@@ -160,34 +108,7 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
     }
   }
 
-  // ------------------------------------------------------------
-  // CHECK WHEN OTHER USER APPROVES FOLLOW BACK
-  // ------------------------------------------------------------
-  Future<void> syncApprovedFollowBacks() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-
-    final res = await http.get(
-      Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
-      headers: {"Authorization": "Bearer $token"},
-    );
-
-    if (res.statusCode != 200) return;
-
-    final List approved = jsonDecode(res.body);
-    final approvedIds =
-        approved.map((e) => e["following"]).toSet();
-
-    setState(() {
-      for (final r in requests) {
-        if (r["status_ui"] == "requested" &&
-            approvedIds.contains(r["follower"])) {
-          r["status_ui"] = "following";
-        }
-      }
-    });
-  }
-
+ 
   // ------------------------------------------------------------
   // UI
   // ------------------------------------------------------------
@@ -196,89 +117,84 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text("Follow Requests",
-            style: TextStyle(color: Colors.white)),
+        title: const Text(
+          "Follow Requests",
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: loading
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.white))
+          ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : requests.isEmpty
-              ? const Center(
-                  child: Text("No Follow Requests",
-                      style: TextStyle(color: Colors.white70)))
-              : ListView.builder(
-                  itemCount: requests.length,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  itemBuilder: (_, i) {
-                    final r = requests[i];
+          ? const Center(
+              child: Text(
+                "No Follow Requests",
+                style: TextStyle(color: Colors.white70),
+              ),
+            )
+          : ListView.builder(
+              itemCount: requests.length,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              itemBuilder: (_, i) {
+                final r = requests[i];
 
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
-                      child: Row(
-                        children: [
-                          const CircleAvatar(
-                            radius: 28,
-                            backgroundImage:
-                                AssetImage("lib/assets/img.jpg"),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  r["follower_name"] ?? "",
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  r["status_ui"] == "following"
-                                      ? "You are following each other"
-                                      : "Requested to follow you",
-                                  style: const TextStyle(
-                                      color: Colors.white54,
-                                      fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          if (r["status_ui"] == "pending") ...[
-                            _btn(
-                              text: "Confirm",
-                              color: Colors.teal,
-                              loading: r["isLoading"],
-                              onTap: () => confirmRequest(i),
-                            ),
-                            const SizedBox(width: 8),
-                            _outlineBtn(
-                              text: "Delete",
-                              onTap: () => rejectRequest(i),
-                            ),
-                          ] else if (r["status_ui"] == "follow_back") ...[
-                            _btn(
-                              text: "Follow back",
-                              color: const Color(0xFF00AFA5),
-                              loading: r["isLoading"],
-                              onTap: () => followBack(i),
-                            ),
-                          ] else if (r["status_ui"] == "requested") ...[
-                            _outlineBtn(text: "Requested"),
-                          ] else ...[
-                            _outlineBtn(text: "Following"),
-                          ],
-                        ],
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(
+                        radius: 28,
+                        backgroundImage: AssetImage("lib/assets/img.jpg"),
                       ),
-                    );
-                  },
-                ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              r["follower_name"] ?? "",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              r["status_ui"] == "following"
+                                  ? "You are following each other"
+                                  : "Requested to follow you",
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      if (r["status_ui"] == "pending") ...[
+                        _btn(
+                          text: "Confirm",
+                          color: Colors.teal,
+                          loading: r["isLoading"],
+                          onTap: () => confirmRequest(i),
+                        ),
+                        const SizedBox(width: 8),
+                        _outlineBtn(
+                          text: "Delete",
+                          onTap: () => rejectRequest(i),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
     );
   }
 
@@ -292,15 +208,16 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
       onPressed: loading ? null : onTap,
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       child: loading
           ? const SizedBox(
               height: 16,
               width: 16,
               child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.white),
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
             )
           : Text(text, style: const TextStyle(color: Colors.white)),
     );
@@ -312,8 +229,7 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
       style: OutlinedButton.styleFrom(
         side: const BorderSide(color: Colors.white24),
       ),
-      child: Text(text,
-          style: const TextStyle(color: Colors.white70)),
+      child: Text(text, style: const TextStyle(color: Colors.white70)),
     );
   }
 }
