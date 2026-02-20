@@ -28,7 +28,9 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
-      final userId = prefs.getInt("user_id"); // make sure you save this at login
+      final userId = prefs.getInt(
+        "user_id",
+      ); // make sure you save this at login
 
       if (token == null) {
         setState(() => loading = false);
@@ -58,50 +60,51 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
       // ─────────────────────────────────────────────
       // STEP 2: NORMALIZE NOTIFICATIONS
       // ─────────────────────────────────────────────
-     final List<Map<String, dynamic>> temp = data
-    .where((e) {
-      final type = e["notification_type"];
+      final List<Map<String, dynamic>> temp = data
+          .where((e) {
+            final type = e["notification_type"];
 
-      // 🚫 Hide follow_approved if I am the actor (I approved someone)
-      if (type == "follow_approved" && e["actor"] == userId) {
-        return false;
-      }
+            // 🚫 Hide follow_approved if I am the actor (I approved someone)
+            if (type == "follow_approved" && e["actor"] == userId) {
+              return false;
+            }
 
-      return true;
-    })
-    .map<Map<String, dynamic>>((e) {
-      final m = Map<String, dynamic>.from(e);
+            return true;
+          })
+          .map<Map<String, dynamic>>((e) {
+            final m = Map<String, dynamic>.from(e);
 
-      m["created_at"] =
-          DateTime.tryParse(m["created_at"]?.toString() ?? "") ??
-          DateTime.now();
+            m["created_at"] =
+                DateTime.tryParse(m["created_at"]?.toString() ?? "") ??
+                DateTime.now();
 
-      m["is_read"] = m["is_read"] ?? false;
-      m["isLoading"] = false;
+            m["is_read"] = m["is_read"] ?? false;
+            m["isLoading"] = false;
 
-      switch (m["notification_type"]) {
-        case "follow_request":
-          m["status_ui"] = "request_pending";
-          break;
+            switch (m["notification_type"]) {
+              case "follow_request":
+                m["status_ui"] = "request_pending";
+                break;
 
-        case "follow_approved":
-          m["status_ui"] = "approved";
-          break;
+              case "follow_approved":
+                m["status_ui"] = "approved";
+                break;
 
-        case "follow_back_request":
-          m["status_ui"] = "follow_back_pending";
-          break;
+              case "follow_back_request":
+                m["status_ui"] = "follow_back_pending";
+                break;
 
-        case "follow_back_accepted":
-          m["status_ui"] = "following";
-          break;
+              case "follow_back_accepted":
+                m["status_ui"] = "following";
+                break;
 
-        default:
-          m["status_ui"] = "none";
-      }
+              default:
+                m["status_ui"] = "none";
+            }
 
-      return m;
-    }).toList();
+            return m;
+          })
+          .toList();
 
       // ─────────────────────────────────────────────
       // STEP 3: DEDUPLICATE ONLY FOLLOW NOTIFICATIONS
@@ -229,45 +232,44 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
 
     print("CONFIRM RESPONSE: ${res.statusCode} - ${res.body}");
 
- if (res.statusCode == 200) {
-  // Remove notification after approval
-  notifications.removeAt(index);
-}
+    if (res.statusCode == 200) {
+      // Remove notification after approval
+      notifications.removeAt(index);
+    }
 
     n["isLoading"] = false;
     setState(() {});
   }
 
   // ================= IGNORE FOLLOW REQUEST =================
-Future<void> ignoreFollowRequest(int index) async {
-  final n = notifications[index];
-  n["isLoading"] = true;
-  setState(() {});
+  Future<void> ignoreFollowRequest(int index) async {
+    final n = notifications[index];
+    n["isLoading"] = true;
+    setState(() {});
 
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-  if (token == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+    if (token == null) return;
 
-  final res = await http.post(
-    Uri.parse("$api/api/myskates/user/follow/request/remove/"),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: {
-      "follower_id": n["actor"].toString(),
-    },
-  );
+    final res = await http.post(
+      Uri.parse("$api/api/myskates/user/follow/request/remove/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: {"follower_id": n["actor"].toString()},
+    );
 
-  print("IGNORE RESPONSE: ${res.statusCode} - ${res.body}");
+    print("IGNORE RESPONSE: ${res.statusCode} - ${res.body}");
 
-  if (res.statusCode == 200) {
-    notifications.removeAt(index);
+    if (res.statusCode == 200) {
+      notifications.removeAt(index);
+    }
+
+    n["isLoading"] = false;
+    setState(() {});
   }
 
-  n["isLoading"] = false;
-  setState(() {});
-}
   // ================= FOLLOW BACK =================
   Future<void> confirmRequest(int index) async {
     final n = notifications[index];
@@ -579,7 +581,10 @@ Future<void> ignoreFollowRequest(int index) async {
                             color: Colors.white,
                           ),
                         )
-                      : const Text("Confirm", style: TextStyle(fontSize: 12)),
+                      : const Text(
+                          "Confirm",
+                          style: TextStyle(fontSize: 10, color: Colors.white),
+                        ),
                 ),
                 const SizedBox(width: 6),
                 OutlinedButton(
