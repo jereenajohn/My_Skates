@@ -361,9 +361,15 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        leading: IconButton(onPressed: (){
-          Navigator.push(context, MaterialPageRoute(builder: (_) => HomePage()));
-        }, icon: Icon(Icons.arrow_back,color: Colors.white,)),
+        leading: IconButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => HomePage()),
+            );
+          },
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+        ),
         elevation: 0,
         title: const Text(
           "Notifications",
@@ -534,56 +540,59 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                                   ],
                                 ),
                               )
-                            // AFTER APPROVAL → Follow back / Cancel
+                            // AFTER APPROVAL → Just show text (no buttons)
                             else if (n["status_ui"] == "approved")
-                              Padding(
-                                padding: const EdgeInsets.only(top: 10),
-                                child: Row(
-                                  children: [
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            Colors.tealAccent.shade700,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 18,
-                                          vertical: 10,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                      ),
-                                      onPressed: n["isLoading"]
-                                          ? null
-                                          : () => confirmRequest(index),
-                                      child: const Text("Follow back"),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    OutlinedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            Colors.tealAccent.shade700,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 18,
-                                          vertical: 10,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                      ),
-                                      onPressed: n["isLoading"]
-                                          ? null
-                                          : () => cancelRequest(index),
-                                      child: const Text("Cancel"),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                              const SizedBox.shrink(),
+                            // AFTER APPROVAL → Follow back / Cancel
+                            // else if (n["status_ui"] == "approved")
+                            //   Padding(
+                            //     padding: const EdgeInsets.only(top: 10),
+                            //     child: Row(
+                            //       children: [
+                            //         ElevatedButton(
+                            //           style: ElevatedButton.styleFrom(
+                            //             backgroundColor:
+                            //                 Colors.tealAccent.shade700,
+                            //             foregroundColor: Colors.white,
+                            //             padding: const EdgeInsets.symmetric(
+                            //               horizontal: 18,
+                            //               vertical: 10,
+                            //             ),
+                            //             shape: RoundedRectangleBorder(
+                            //               borderRadius: BorderRadius.circular(
+                            //                 8,
+                            //               ),
+                            //             ),
+                            //           ),
+                            //           onPressed: n["isLoading"]
+                            //               ? null
+                            //               : () => confirmRequest(index),
+                            //           child: const Text("Follow back"),
+                            //         ),
+                            //         const SizedBox(width: 8),
+                            //         OutlinedButton(
+                            //           style: ElevatedButton.styleFrom(
+                            //             backgroundColor:
+                            //                 Colors.tealAccent.shade700,
+                            //             foregroundColor: Colors.white,
+                            //             padding: const EdgeInsets.symmetric(
+                            //               horizontal: 18,
+                            //               vertical: 10,
+                            //             ),
+                            //             shape: RoundedRectangleBorder(
+                            //               borderRadius: BorderRadius.circular(
+                            //                 8,
+                            //               ),
+                            //             ),
+                            //           ),
+                            //           onPressed: n["isLoading"]
+                            //               ? null
+                            //               : () => cancelRequest(index),
+                            //           child: const Text("Cancel"),
+                            //         ),
+                            //       ],
+                            //     ),
+                            //   ),
                           ],
                         ),
                       ),

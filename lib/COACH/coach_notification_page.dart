@@ -28,6 +28,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
+      final userId = prefs.getInt("user_id"); // make sure you save this at login
 
       if (token == null) {
         setState(() => loading = false);
@@ -57,41 +58,50 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
       // ─────────────────────────────────────────────
       // STEP 2: NORMALIZE NOTIFICATIONS
       // ─────────────────────────────────────────────
-      final List<Map<String, dynamic>> temp = data.map<Map<String, dynamic>>((
-        e,
-      ) {
-        final m = Map<String, dynamic>.from(e);
+     final List<Map<String, dynamic>> temp = data
+    .where((e) {
+      final type = e["notification_type"];
 
-        m["created_at"] =
-            DateTime.tryParse(m["created_at"]?.toString() ?? "") ??
-            DateTime.now();
+      // 🚫 Hide follow_approved if I am the actor (I approved someone)
+      if (type == "follow_approved" && e["actor"] == userId) {
+        return false;
+      }
 
-        m["is_read"] = m["is_read"] ?? false;
-        m["isLoading"] = false;
+      return true;
+    })
+    .map<Map<String, dynamic>>((e) {
+      final m = Map<String, dynamic>.from(e);
 
-        switch (m["notification_type"]) {
-          case "follow_request":
-            m["status_ui"] = "request_pending";
-            break;
+      m["created_at"] =
+          DateTime.tryParse(m["created_at"]?.toString() ?? "") ??
+          DateTime.now();
 
-          case "follow_approved":
-            m["status_ui"] = "approved";
-            break;
+      m["is_read"] = m["is_read"] ?? false;
+      m["isLoading"] = false;
 
-          case "follow_back_request":
-            m["status_ui"] = "follow_back_pending";
-            break;
+      switch (m["notification_type"]) {
+        case "follow_request":
+          m["status_ui"] = "request_pending";
+          break;
 
-          case "follow_back_accepted":
-            m["status_ui"] = "following";
-            break;
+        case "follow_approved":
+          m["status_ui"] = "approved";
+          break;
 
-          default:
-            m["status_ui"] = "none";
-        }
+        case "follow_back_request":
+          m["status_ui"] = "follow_back_pending";
+          break;
 
-        return m;
-      }).toList();
+        case "follow_back_accepted":
+          m["status_ui"] = "following";
+          break;
+
+        default:
+          m["status_ui"] = "none";
+      }
+
+      return m;
+    }).toList();
 
       // ─────────────────────────────────────────────
       // STEP 3: DEDUPLICATE ONLY FOLLOW NOTIFICATIONS
@@ -217,46 +227,47 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
       },
     );
 
-    if (res.statusCode == 200) {
-      if (n["notification_type"] == "follow_back_request") {
-        n["status_ui"] = "following";
-        n["notification_type"] = "follow_back_accepted";
-      } else {
-        n["status_ui"] = "approved";
-        n["notification_type"] = "follow_approved";
-      }
-    }
+    print("CONFIRM RESPONSE: ${res.statusCode} - ${res.body}");
+
+ if (res.statusCode == 200) {
+  // Remove notification after approval
+  notifications.removeAt(index);
+}
 
     n["isLoading"] = false;
     setState(() {});
   }
 
   // ================= IGNORE FOLLOW REQUEST =================
-  Future<void> ignoreFollowRequest(int index) async {
-    final n = notifications[index];
-    n["isLoading"] = true;
-    setState(() {});
+Future<void> ignoreFollowRequest(int index) async {
+  final n = notifications[index];
+  n["isLoading"] = true;
+  setState(() {});
 
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-    if (token == null) return;
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+  if (token == null) return;
 
-    final res = await http.post(
-      Uri.parse("$api/api/myskates/user/follow/cancel/"),
-      headers: {"Authorization": "Bearer $token"},
-      body: {
-        "request_id": n["follow_request_id"].toString(),
-        "action": "rejected",
-      },
-    );
+  final res = await http.post(
+    Uri.parse("$api/api/myskates/user/follow/request/remove/"),
+    headers: {
+      "Authorization": "Bearer $token",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: {
+      "follower_id": n["actor"].toString(),
+    },
+  );
 
-    if (res.statusCode == 200) {
-      notifications.removeAt(index);
-    }
+  print("IGNORE RESPONSE: ${res.statusCode} - ${res.body}");
 
-    setState(() {});
+  if (res.statusCode == 200) {
+    notifications.removeAt(index);
   }
 
+  n["isLoading"] = false;
+  setState(() {});
+}
   // ================= FOLLOW BACK =================
   Future<void> confirmRequest(int index) async {
     final n = notifications[index];
@@ -272,7 +283,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
       headers: {"Authorization": "Bearer $token"},
       body: {"following_id": n["actor"].toString()},
     );
-
+    print("FOLLOW BACK RESPONSE: ${res.statusCode} - ${res.body}");
     if (res.statusCode == 200) {
       n["status_ui"] = "follow_back_sent";
       n["notification_type"] = "follow_back_request";
@@ -295,12 +306,9 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     final res = await http.post(
       Uri.parse("$api/api/myskates/user/follow/cancel/"),
       headers: {"Authorization": "Bearer $token"},
-      body: {
-        "request_id": n["follow_request_id"].toString(),
-        "action": "rejected",
-      },
+      body: {"following_id": n["actor"].toString()},
     );
-
+    print("CANCEL REQUEST RESPONSE: ${res.statusCode} - ${res.body}");
     if (res.statusCode == 200) {
       notifications.removeAt(index);
     }
@@ -323,7 +331,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
       headers: {"Authorization": "Bearer $token"},
       body: {"actor_id": n["actor"].toString()},
     );
-
+    print("APPROVE CLUB RESPONSE: ${res.statusCode} - ${res.body}");
     if (res.statusCode == 200) {
       notifications.removeAt(index);
     }
@@ -346,7 +354,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
       headers: {"Authorization": "Bearer $token"},
       body: {"actor_id": n["actor"].toString()},
     );
-
+    print("REJECT CLUB RESPONSE: ${res.statusCode} - ${res.body}");
     if (res.statusCode == 200) {
       notifications.removeAt(index);
     }
@@ -363,49 +371,49 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     return DateFormat("dd MMM").format(dt);
   }
 
- String notificationText(Map<String, dynamic> n) {
-  final type = n["notification_type"];
+  String notificationText(Map<String, dynamic> n) {
+    final type = n["notification_type"];
 
-  if (n["status_ui"] == "following") {
-    return "started following you.";
+    if (n["status_ui"] == "following") {
+      return "started following you.";
+    }
+
+    if (n["status_ui"] == "follow_back_sent") {
+      return "you sent a follow request.";
+    }
+
+    switch (type) {
+      case "follow_request":
+        return "requested to follow you.";
+
+      case "follow_approved":
+        return "accepted your follow request.";
+
+      case "follow_back_request":
+        return "requested you to follow back.";
+
+      case "follow_back_accepted":
+        return "you are now following each other.";
+
+      case "event_like":
+        return "liked your event.";
+
+      case "club_join_request":
+        return "requested to join your club.";
+
+      case "club_join_approved":
+        return "joined your club.";
+
+      case "post_like":
+        return "liked your post.";
+
+      case "comment":
+        return "commented on your post.";
+
+      default:
+        return "sent you a notification.";
+    }
   }
-
-  if (n["status_ui"] == "follow_back_sent") {
-    return "you sent a follow request.";
-  }
-
-  switch (type) {
-    case "follow_request":
-      return "requested to follow you.";
-
-    case "follow_approved":
-      return "accepted your follow request.";
-
-    case "follow_back_request":
-      return "requested you to follow back.";
-
-    case "follow_back_accepted":
-      return "you are now following each other.";
-
-    case "event_like":
-      return "liked your event.";
-
-    case "club_join_request":
-      return "requested to join your club."; 
-
-    case "club_join_approved":
-      return "joined your club.";
-
-    case "post_like":
-      return "liked your post.";
-
-    case "comment":
-      return "commented on your post.";
-
-    default:
-      return "sent you a notification.";
-  }
-}
 
   String getSectionTitle(DateTime dt) {
     final now = DateTime.now();
@@ -525,6 +533,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
           const SizedBox(width: 10),
 
           // RIGHT SIDE BUTTONS
+          // ================= RIGHT SIDE ACTIONS =================
           if (n["status_ui"] == "following" ||
               n["status_ui"] == "follow_back_sent")
             Container(
@@ -542,86 +551,165 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
                 ),
               ),
             )
-          else if (n["status_ui"] == "request_pending" ||
-              n["status_ui"] == "follow_back_pending")
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 7,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: n["isLoading"]
-                  ? null
-                  : () => confirmFollowRequest(index),
-              child: n["isLoading"]
-                  ? const SizedBox(
-                      height: 14,
-                      width: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text(
-                      "Confirm",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12.5,
-                      ),
+          // 🔵 FOLLOW REQUEST → Confirm + Ignore
+          else if (n["status_ui"] == "request_pending")
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
                     ),
-            )
-          else if (n["status_ui"] == "approved")
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 7,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: n["isLoading"]
+                      ? null
+                      : () => confirmFollowRequest(index),
+                  child: n["isLoading"]
+                      ? const SizedBox(
+                          height: 14,
+                          width: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text("Confirm", style: TextStyle(fontSize: 12)),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                const SizedBox(width: 6),
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.grey,
+                    side: BorderSide(color: Colors.grey.shade700),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                  ),
+                  onPressed: n["isLoading"]
+                      ? null
+                      : () => ignoreFollowRequest(index),
+                  child: const Text("Ignore", style: TextStyle(fontSize: 12)),
                 ),
-              ),
-              onPressed: n["isLoading"] ? null : () => confirmRequest(index),
-              child: const Text(
-                "Follow",
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
-              ),
+              ],
             )
+          // 🔵 FOLLOW BACK REQUEST → Confirm + Cancel
+          else if (n["status_ui"] == "follow_back_pending")
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: n["isLoading"]
+                      ? null
+                      : () => confirmFollowRequest(index),
+                  child: const Text("Confirm", style: TextStyle(fontSize: 12)),
+                ),
+                const SizedBox(width: 6),
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.grey,
+                    side: BorderSide(color: Colors.grey.shade700),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                  ),
+                  onPressed: n["isLoading"] ? null : () => cancelRequest(index),
+                  child: const Text("Cancel", style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            )
+          // 🟢 AFTER APPROVAL → Follow Back + Cancel
+          // else if (n["status_ui"] == "approved")
+          //   Row(
+          //     mainAxisSize: MainAxisSize.min,
+          //     children: [
+          //       ElevatedButton(
+          //         style: ElevatedButton.styleFrom(
+          //           backgroundColor: Colors.teal,
+          //           padding: const EdgeInsets.symmetric(
+          //             horizontal: 14,
+          //             vertical: 6,
+          //           ),
+          //           shape: RoundedRectangleBorder(
+          //             borderRadius: BorderRadius.circular(8),
+          //           ),
+          //         ),
+          //         onPressed: n["isLoading"]
+          //             ? null
+          //             : () => confirmRequest(index),
+          //         child: const Text(
+          //           "Follow back",
+          //           style: TextStyle(fontSize: 12),
+          //         ),
+          //       ),
+          //       const SizedBox(width: 6),
+          //       OutlinedButton(
+          //         style: OutlinedButton.styleFrom(
+          //           foregroundColor: Colors.grey,
+          //           side: BorderSide(color: Colors.grey.shade700),
+          //           padding: const EdgeInsets.symmetric(
+          //             horizontal: 12,
+          //             vertical: 6,
+          //           ),
+          //         ),
+          //         onPressed: n["isLoading"] ? null : () => cancelRequest(index),
+          //         child: const Text("Cancel", style: TextStyle(fontSize: 12)),
+          //       ),
+          //     ],
+          //   )
+          // 🟣 CLUB JOIN REQUEST
           else if (n["notification_type"] == "club_join_request")
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                minimumSize: const Size(0, 28), // 👈 height smaller
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ), // 👈 smaller
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: n["isLoading"]
+                      ? null
+                      : () => approveClubRequest(index),
+                  child: const Text("Approve", style: TextStyle(fontSize: 12)),
                 ),
-              ),
-              onPressed: n["isLoading"]
-                  ? null
-                  : () => approveClubRequest(index),
-              child: const Text(
-                "Approve",
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 11, // 👈 smaller text
+                const SizedBox(width: 6),
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.grey,
+                    side: BorderSide(color: Colors.grey.shade700),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                  ),
+                  onPressed: n["isLoading"]
+                      ? null
+                      : () => rejectClubRequest(index),
+                  child: const Text("Reject", style: TextStyle(fontSize: 12)),
                 ),
-              ),
+              ],
             )
           else
             const SizedBox.shrink(),

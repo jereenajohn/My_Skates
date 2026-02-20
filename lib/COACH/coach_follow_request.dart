@@ -23,7 +23,6 @@ class _CoachFollowRequestState extends State<CoachFollowRequest> {
 
   Future<void> initLoad() async {
     await fetchRequests();
-    await syncApprovedFollowBacks();
   }
 
   // ------------------------------------------------------------
@@ -51,19 +50,19 @@ class _CoachFollowRequestState extends State<CoachFollowRequest> {
             m["status_ui"] =
                 "pending"; // pending | follow_back | requested | following
             m["isLoading"] = false;
-              print("MAPPED REQUEST ITEM: $m");
+            print("MAPPED REQUEST ITEM: $m");
             return m;
           }).toList();
           loading = false;
         });
-         print("REQUESTS STATE UPDATED. COUNT: ${requests.length}");
+        print("REQUESTS STATE UPDATED. COUNT: ${requests.length}");
       } else {
-              print("❌ NON-200 RESPONSE");
+        print("❌ NON-200 RESPONSE");
 
         loading = false;
       }
     } catch (e) {
-        print("🔥 FETCH REQUESTS ERROR: $e");
+      print("🔥 FETCH REQUESTS ERROR: $e");
       loading = false;
     }
   }
@@ -71,167 +70,66 @@ class _CoachFollowRequestState extends State<CoachFollowRequest> {
   // ------------------------------------------------------------
   // CONFIRM (APPROVE) REQUEST
   // ------------------------------------------------------------
-Future<void> confirmRequest(int index) async {
-  final r = requests[index];
+  Future<void> confirmRequest(int index) async {
+    final r = requests[index];
 
-  r["isLoading"] = true;
-  setState(() {});
+    r["isLoading"] = true;
+    setState(() {});
 
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
 
-  final res = await http.post(
-    Uri.parse("$api/api/myskates/user/follow/approve/"),
-    headers: {"Authorization": "Bearer $token"},
-    body: {
-      "request_id": r["id"].toString(),
-      "action": "approved",
-    },
-  );
-
-  if (res.statusCode == 200) {
-    // 🔍 check if already following
-    final approvedRes = await http.get(
-      Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
+    final res = await http.post(
+      Uri.parse("$api/api/myskates/user/follow/approve/"),
       headers: {"Authorization": "Bearer $token"},
+      body: {"request_id": r["id"].toString(), "action": "approved"},
     );
 
-    if (approvedRes.statusCode == 200) {
-      final List approved = jsonDecode(approvedRes.body);
-      final approvedIds =
-          approved.map((e) => e["following"]).toSet();
-
-      if (approvedIds.contains(r["follower"])) {
-        requests.removeAt(index); // already mutual
-      } else {
-        r["status_ui"] = "follow_back";
-      }
+    if (res.statusCode == 200) {
+      // Remove request completely after approval
+      requests.removeAt(index);
     }
+
+    setState(() {});
   }
-
-  r["isLoading"] = false;
-  setState(() {});
-}
-
 
   // ------------------------------------------------------------
   // FOLLOW BACK (SEND REQUEST)
   // ------------------------------------------------------------
-Future<void> followBack(int index) async {
-  final r = requests[index];
-
-  r["isLoading"] = true;
-  setState(() {});
-
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-
-  final res = await http.post(
-    Uri.parse("$api/api/myskates/user/follow/request/"),
-    headers: {"Authorization": "Bearer $token"},
-    body: {
-      "following_id": r["follower"].toString(),
-    },
-  );
-
-  if (res.statusCode == 200 || res.statusCode == 201) {
-    final data = jsonDecode(res.body);
-
-    /// 🔑 IMPORTANT LOGIC
-    if (data["status"] == "approved") {
-      // Already following
-      r["status_ui"] = "following";
-    } else {
-      // Request newly sent
-      r["status_ui"] = "requested";
-    }
-  }
-
-  r["isLoading"] = false;
-  setState(() {});
-}
 
   // ------------------------------------------------------------
   // REJECT REQUEST
   // ------------------------------------------------------------
-Future<void> rejectRequest(int index) async {
-  final r = requests[index];
+  Future<void> rejectRequest(int index) async {
+    final r = requests[index];
 
-  print("===== REJECT REQUEST =====");
-  print("INDEX: $index");
-  print("REQUEST ID: ${r["id"]}");
+    print("===== REJECT REQUEST =====");
+    print("INDEX: $index");
+    print("REQUEST ID: ${r["id"]}");
 
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-  print("TOKEN: $token");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+    print("TOKEN: $token");
 
-  final res = await http.post(
-    Uri.parse("$api/api/myskates/user/follow/approve/"),
-    headers: {"Authorization": "Bearer $token"},
-    body: {
-      "request_id": r["id"].toString(),
-      "action": "rejected",
-    },
-  );
+    final res = await http.post(
+      Uri.parse("$api/api/myskates/user/follow/approve/"),
+      headers: {"Authorization": "Bearer $token"},
+      body: {"request_id": r["id"].toString(), "action": "rejected"},
+    );
 
-  print("REJECT STATUS CODE: ${res.statusCode}");
-  print("REJECT RESPONSE BODY: ${res.body}");
+    print("REJECT STATUS CODE: ${res.statusCode}");
+    print("REJECT RESPONSE BODY: ${res.body}");
 
-  if (res.statusCode == 200) {
-    print("REQUEST REMOVED FROM UI LIST");
-    requests.removeAt(index);
-    setState(() {});
-  } else {
-    print("REJECT FAILED");
+    if (res.statusCode == 200) {
+      print("REQUEST REMOVED FROM UI LIST");
+      requests.removeAt(index);
+      setState(() {});
+    } else {
+      print("REJECT FAILED");
+    }
+
+    print("===== REJECT END =====");
   }
-
-  print("===== REJECT END =====");
-}
-
-  // ------------------------------------------------------------
-  // CHECK WHEN OTHER USER APPROVES FOLLOW BACK
-  // ------------------------------------------------------------
-Future<void> syncApprovedFollowBacks() async {
-  print("===== SYNC APPROVED FOLLOW BACKS =====");
-
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-  print("TOKEN: $token");
-
-  final res = await http.get(
-    Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
-    headers: {"Authorization": "Bearer $token"},
-  );
-
-  print("SYNC STATUS CODE: ${res.statusCode}");
-  print("SYNC RESPONSE BODY: ${res.body}");
-
-  if (res.statusCode == 200) {
-    final List approved = jsonDecode(res.body);
-    final approvedIds =
-        approved.map((e) => e["following"]).toSet();
-
-    print("APPROVED FOLLOWING IDS: $approvedIds");
-
-    setState(() {
-      for (final r in requests) {
-        print(
-            "CHECKING REQUEST → ${r["follower_name"]} | STATUS: ${r["status_ui"]}");
-
-        if (r["status_ui"] == "requested" &&
-            approvedIds.contains(r["follower"])) {
-          r["status_ui"] = "following";
-          print(
-              "STATUS UPDATED → following FOR ${r["follower_name"]}");
-        }
-      }
-    });
-  } else {
-    print("SYNC FAILED");
-  }
-
-  print("===== SYNC END =====");
-}
 
   // ------------------------------------------------------------
   // UI
@@ -315,17 +213,6 @@ Future<void> syncApprovedFollowBacks() async {
                           text: "Delete",
                           onTap: () => rejectRequest(i),
                         ),
-                      ] else if (r["status_ui"] == "follow_back") ...[
-                        _btn(
-                          text: "Follow back",
-                          color: const Color(0xFF00AFA5),
-                          loading: r["isLoading"],
-                          onTap: () => followBack(i),
-                        ),
-                      ] else if (r["status_ui"] == "requested") ...[
-                        _outlineBtn(text: "Requested"),
-                      ] else ...[
-                        _outlineBtn(text: "Following"),
                       ],
                     ],
                   ),
