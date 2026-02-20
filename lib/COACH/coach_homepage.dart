@@ -49,6 +49,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
   bool noData = false;
   bool trainingLoading = true;
   bool trainingNoData = false;
+  int notificationUnreadCount = 0;
 
   // FOLLOW STATUS (same as user homepage)
   List<int> myFollowing = [];
@@ -73,7 +74,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
     super.initState();
     fetchcoachDetails();
     getbanner();
-    fetchFollowRequestCount();
+    fetchNotificationCount();
     fetchClubs();
     loadEvents();
     getAllEvents();
@@ -81,9 +82,13 @@ class _CoachHomepageState extends State<CoachHomepage> {
 
     loadEverything();
     _timer = Timer.periodic(
-      const Duration(seconds: 15),
-      (_) => fetchFollowRequestCount(),
-    );
+  const Duration(seconds: 10),
+  (timer) {
+    if (mounted) {
+      fetchNotificationCount();
+    }
+  },
+);
   }
 
   Future<void> loadEvents() async {
@@ -107,20 +112,20 @@ class _CoachHomepageState extends State<CoachHomepage> {
     super.dispose();
   }
 
-  Future<void> _refreshAll() async {
-    await Future.wait([
-      fetchcoachDetails(),
-      getbanner(),
-      fetchFollowRequestCount(),
-      fetchClubs(),
-      loadEvents(),
-      getTrainingSessions(),
-      fetchFollowStatus().then((_) async {
-        await fetchCoaches();
-        await fetchStudents();
-      }),
-    ]);
-  }
+Future<void> _refreshAll() async {
+  await Future.wait([
+    fetchcoachDetails(),
+    getbanner(),
+    fetchNotificationCount(),  
+    fetchClubs(),
+    loadEvents(),
+    getTrainingSessions(),
+    fetchFollowStatus().then((_) async {
+      await fetchCoaches();
+      await fetchStudents();
+    }),
+  ]);
+}
 
   void _onBottomNavTap(int index) {
     if (index == _currentIndex) return;
@@ -180,6 +185,35 @@ class _CoachHomepageState extends State<CoachHomepage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getInt("id");
   }
+
+ Future<void> fetchNotificationCount() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    if (token == null) return;
+
+    final response = await http.get(
+      Uri.parse("$api/api/myskates/notifications/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
+
+    if (!mounted) return; // 🔥 IMPORTANT
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+
+      setState(() {
+        notificationUnreadCount = decoded["unread_count"] ?? 0;
+      });
+    }
+  } catch (e) {
+    print("Notification count error: $e");
+  }
+}
 
   List<Map<String, dynamic>> trainingSessions = [];
 
@@ -757,7 +791,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                           ),
                         ),
                         const SizedBox(width: 12),
-        
+
                         Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -776,7 +810,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                             ),
                           ],
                         ),
-        
+
                         const Spacer(),
                         Stack(
                           children: [
@@ -784,22 +818,20 @@ class _CoachHomepageState extends State<CoachHomepage> {
                               onPressed: () async {
                                 await Navigator.push(
                                   context,
-                                  // MaterialPageRoute(
-                                  //   builder: (_) => const CoachNotificationPage(),
-                                  // ),
-                                  slideRightToLeftRoute(CoachNotificationPage()),
+                                  slideRightToLeftRoute(
+                                    CoachNotificationPage(),
+                                  ),
                                 );
-        
-                                // 🔁 Refresh count when coming backkkk
-                                fetchFollowRequestCount();
+
+                                fetchNotificationCount(); // refresh when coming back
                               },
                               icon: const Icon(
                                 Icons.notifications_none,
                                 color: Colors.tealAccent,
                               ),
                             ),
-        
-                            if (followRequestCount > 0)
+
+                            if (notificationUnreadCount > 0)
                               Positioned(
                                 right: 6,
                                 top: 6,
@@ -814,7 +846,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                     minHeight: 18,
                                   ),
                                   child: Text(
-                                    followRequestCount.toString(),
+                                    notificationUnreadCount.toString(),
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 11,
@@ -830,7 +862,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                     ),
                   ),
                 ),
-        
+
                 // ---------------------------------------------------------
                 // ALL YOUR PAGE CONTENT AS IT IS
                 // ---------------------------------------------------------
@@ -841,7 +873,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          height: MediaQuery.of(context).size.height *0.2,
+                          height: MediaQuery.of(context).size.height * 0.2,
                           width: double.infinity,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(14),
@@ -894,7 +926,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                                 ),
                                       ),
                                     ),
-        
+
                                     // Gradient Overlay (bottom fade)
                                     Positioned.fill(
                                       child: Container(
@@ -910,7 +942,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                         ),
                                       ),
                                     ),
-        
+
                                     // Banner Title (Optional)
                                     // Positioned(
                                     //   bottom: 12,
@@ -940,24 +972,24 @@ class _CoachHomepageState extends State<CoachHomepage> {
                             ),
                           ),
                         ),
-        
+
                         const SizedBox(height: 22),
-        
+
                         const Text(
                           "We offer training and an e-commerce platform\nthat connects students and coaches.",
                           style: TextStyle(color: Colors.white70, fontSize: 14),
                         ),
-        
+
                         const SizedBox(height: 25),
-        
+
                         buildButton("Find Coaches"),
                         buildButton("Find Skaters"),
                         buildButton("Find Clubs"),
                         buildButton("Find Events"),
                         buildButton("Buy and Sell products"),
-        
+
                         const SizedBox(height: 25),
-        
+
                         // ChangeNotifierProvider(
                         //   create: (_) => HomeFeedProvider()..fetchHomeFeeds(),
                         //   child: Consumer<HomeFeedProvider>(
@@ -965,7 +997,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                         //       if (p.loading) {
                         //         return const CircularProgressIndicator();
                         //       }
-        
+
                         //       return Column(
                         //         children: p.feeds.map((feed) {
                         //           return HomeFeedCard(feed: feed);
@@ -974,9 +1006,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
                         //     },
                         //   ),
                         // ),
-        
+
                         // SizedBox(height: 20),
-        
+
                         // CLUBS
                         const Text(
                           "Recommended Clubs near you",
@@ -998,19 +1030,21 @@ class _CoachHomepageState extends State<CoachHomepage> {
                             ),
                           ),
                         ),
-        
+
                         const SizedBox(height: 25),
-        
+
                         const Text(
                           "Upcoming Training Sessions",
                           style: TextStyle(color: Colors.white, fontSize: 14),
                         ),
-        
+
                         const SizedBox(height: 15),
-        
+
                         if (trainingLoading)
                           const Center(
-                            child: CircularProgressIndicator(color: Colors.white),
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
                           )
                         else if (trainingNoData)
                           const Text(
@@ -1021,11 +1055,11 @@ class _CoachHomepageState extends State<CoachHomepage> {
                           Column(
                             children: trainingSessions.map((session) {
                               final images = session['images'] as List? ?? [];
-        
+
                               String imageUrl = images.isNotEmpty
                                   ? "$api${images[0]['image']}"
                                   : "";
-        
+
                               return buildTrainingSessionRow(
                                 context: context,
                                 title: session['title'] ?? "",
@@ -1039,9 +1073,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
                               );
                             }).toList(),
                           ),
-        
+
                         const SizedBox(height: 12),
-        
+
                         const Text(
                           "Upcoming Events",
                           style: TextStyle(
@@ -1050,12 +1084,14 @@ class _CoachHomepageState extends State<CoachHomepage> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-        
+
                         const SizedBox(height: 12),
-        
+
                         if (eventsLoading)
                           const Center(
-                            child: CircularProgressIndicator(color: Colors.white),
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
                           )
                         else if (eventsNoData)
                           const Center(
@@ -1068,15 +1104,15 @@ class _CoachHomepageState extends State<CoachHomepage> {
                           Column(
                             children: events.map((event) {
                               final images = event["images"] as List? ?? [];
-        
+
                               String image1 = images.isNotEmpty
                                   ? "$api${images[0]['image']}"
                                   : "";
-        
+
                               String image2 = images.length > 1
                                   ? "$api${images[1]['image']}"
                                   : "";
-        
+
                               return buildEventCardWithImages(
                                 context: context,
                                 clubName: event["club_name"] ?? "Skating Club",
@@ -1099,9 +1135,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
                               );
                             }).toList(),
                           ),
-        
+
                         const SizedBox(height: 12),
-        
+
                         // COACHES
                         const Text(
                           "Suggested Coaches",
@@ -1148,9 +1184,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                   ),
                                 ),
                         ),
-        
+
                         SizedBox(height: 20),
-        
+
                         const Text(
                           "Suggested Students",
                           style: TextStyle(
@@ -1190,7 +1226,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                   ),
                                 ),
                         ),
-        
+
                         const SizedBox(height: 12),
                       ],
                     ),
