@@ -391,7 +391,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
       return "liked your event.";
 
     case "club_join_request":
-      return "requested to join your club."; // ✅ FIXED
+      return "requested to join your club."; 
 
     case "club_join_approved":
       return "joined your club.";
