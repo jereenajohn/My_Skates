@@ -154,7 +154,7 @@ class _CoachSettingsState extends State<CoachSettings> {
                   text: "Accounts Center",
                   subtitle: "Profile Update and more",
                   onTap: () {
-                    pushWithSlide(const CoachProfile());
+                    pushWithSlide(const CoachProfilePage());
                   },
                 ),
 
