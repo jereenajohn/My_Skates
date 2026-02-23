@@ -800,6 +800,17 @@ Widget buildEventCardWithImages({
   );
 }
 
+
+
+
+
+
+
+
+
+
+
+
 // COACH CARD (HORIZONTAL)
 Widget buildCoachCard({
   required String name,

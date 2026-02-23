@@ -12,7 +12,8 @@ import 'package:image_picker/image_picker.dart';
 
 class ClubView extends StatefulWidget {
   final int clubid;
-  const ClubView({super.key, required this.clubid});
+  final bool isApproved;
+  const ClubView({super.key, required this.clubid, this.isApproved = false});
 
   @override
   State<ClubView> createState() => _ClubViewState();
@@ -1001,7 +1002,6 @@ class _ClubViewState extends State<ClubView> {
               ),
 
               const SizedBox(height: 20),
-
               // ---------------- TOP HEADER ----------------
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1135,15 +1135,90 @@ class _ClubViewState extends State<ClubView> {
 
               const SizedBox(height: 35),
 
-              // ---------------- CLUB RATING ----------------
+              if (!widget.isApproved) ...[
+  Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+        colors: [
+          Color(0xFF1A3A3A), // Dark teal
+          Color(0xFF0A2A2A), // Darker teal
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: const Color(0xFF00AFA5).withOpacity(0.3),
+        width: 1,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFF00AFA5).withOpacity(0.1),
+          blurRadius: 10,
+          spreadRadius: 2,
+        ),
+      ],
+    ),
+    child: Row(
+      children: [
+        // Animated clock icon
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF00AFA5).withOpacity(0.15),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.hourglass_empty,
+            color: Color(0xFF00AFA5),
+            size: 28,
+          ),
+        ),
+        const SizedBox(width: 16),
+        
+        // Text content
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               const Text(
-                "Club Rating",
+                "Request Pending",
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
+                  color: Color(0xFF00AFA5),
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              const SizedBox(height: 4),
+              // const Text(
+              //   "Your request to join this club is waiting for coach approval. You can view basic information while you wait.",
+              //   style: TextStyle(
+              //     color: Colors.white70,
+              //     fontSize: 13,
+              //     height: 1.3,
+              //   ),
+              // ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  ),
+  const SizedBox(height: 24),
+],
+
+              // ---------------- CLUB RATING ----------------
+              if (widget.isApproved) ...[
+  const Text(
+    "Club Rating",
+    style: TextStyle(
+      color: Colors.white,
+      fontSize: 22,
+      fontWeight: FontWeight.bold,
+    ),
+  ),
 
               const SizedBox(height: 10),
 
@@ -1231,15 +1306,18 @@ class _ClubViewState extends State<ClubView> {
 
               const SizedBox(height: 35),
 
+              ],
+
               // ---------------- FEED SECTION ----------------
-              const Text(
-                "Feed",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              if (widget.isApproved) ...[
+  const Text(
+    "Feed",
+    style: TextStyle(
+      color: Colors.white,
+      fontSize: 22,
+      fontWeight: FontWeight.bold,
+    ),
+  ),
               const SizedBox(height: 15),
 
               _feedInputBox(),
@@ -1256,16 +1334,18 @@ class _ClubViewState extends State<ClubView> {
 
               // const SizedBox(height: 35),
 
-              // ---------------- MEDIA ----------------
-              const Text(
-                "Media",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              ],
 
+              // ---------------- MEDIA ----------------
+              if (widget.isApproved) ...[
+  const Text(
+    "Media",
+    style: TextStyle(
+      color: Colors.white,
+      fontSize: 22,
+      fontWeight: FontWeight.bold,
+    ),
+  ),
               const SizedBox(height: 15),
 
               SizedBox(
@@ -1298,16 +1378,17 @@ class _ClubViewState extends State<ClubView> {
               ),
 
               const SizedBox(height: 35),
-
+              ],
               // ---------------- COACHES ----------------
-              const Text(
-                "Coaches",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              if (widget.isApproved) ...[
+  const Text(
+    "Coaches",
+    style: TextStyle(
+      color: Colors.white,
+      fontSize: 22,
+      fontWeight: FontWeight.bold,
+    ),
+  ),
 
               const SizedBox(height: 10),
 
@@ -1321,16 +1402,17 @@ class _ClubViewState extends State<ClubView> {
               ),
 
               const SizedBox(height: 40),
-
+              ],
               // ---------------- EVENTS ----------------
-              const Text(
-                "Events",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              if (widget.isApproved) ...[
+  const Text(
+    "Events",
+    style: TextStyle(
+      color: Colors.white,
+      fontSize: 22,
+      fontWeight: FontWeight.bold,
+    ),
+  ),
 
               const SizedBox(height: 10),
 
@@ -1349,11 +1431,13 @@ class _ClubViewState extends State<ClubView> {
                     return _fancySwipeEventTile(event);
                   }).toList(),
                 ),
+              ],
               const SizedBox(height: 40),
             ],
           ),
         ),
       ),
+
 
       // ---------------- ADD MEDIA BUTTON ----------------
       // floatingActionButton: Column(

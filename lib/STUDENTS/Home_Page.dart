@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/view_all_events.dart';
+import 'package:my_skates/COACH/club_detailed_view.dart';
 import 'package:my_skates/COACH/club_list.dart';
 import 'package:my_skates/COACH/coach_details_page.dart';
 import 'package:my_skates/STUDENTS/bottomnavigation_student.dart';
@@ -304,7 +305,7 @@ class _HomePageState extends State<HomePage> {
         if (decoded is List) {
           setState(() {
             students = decoded
-                .where((s) => s["id"] != loggedInUserId) // FILTER SELF
+                .where((s) => s["id"] != loggedInUserId) 
                 .toList();
 
             studentsNoData = students.isEmpty;
@@ -639,7 +640,7 @@ class _HomePageState extends State<HomePage> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         setState(() {
-          registeredTrainingIds.add(trainingId); // ✅ DISABLE BUTTON
+          registeredTrainingIds.add(trainingId); 
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1493,60 +1494,65 @@ Widget buildClubCardFromApi(
   } else if (isPending) {
     buttonText = "Requested";
     buttonColor = Colors.orange;
-    onTap = null; // ❌ disabled
+    onTap = null; 
   } else {
     buttonText = "Join Club";
     buttonColor = Colors.teal;
     onTap = () => onJoinClub(clubId); 
   }
 
-  return Container(
-    width: 160,
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: Colors.white10,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Column(
-      children: [
-        CircleAvatar(
-          radius: 30,
-          backgroundImage: imageUrl.isNotEmpty
-              ? NetworkImage(imageUrl)
-              : const AssetImage("lib/assets/images.png") as ImageProvider,
-        ),
-
-        const SizedBox(height: 10),
-
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
-        ),
-
-        const Spacer(),
-
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-            decoration: BoxDecoration(
-              color: buttonColor,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              buttonText,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+  return GestureDetector(
+    onTap: (){
+      Navigator.push(context, MaterialPageRoute(builder: (_)=>ClubView(clubid: clubId,isApproved: isApproved,)));
+    },
+    child: Container(
+      width: 160,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundImage: imageUrl.isNotEmpty
+                ? NetworkImage(imageUrl)
+                : const AssetImage("lib/assets/images.png") as ImageProvider,
+          ),
+    
+          const SizedBox(height: 10),
+    
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+          ),
+    
+          const Spacer(),
+    
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              decoration: BoxDecoration(
+                color: buttonColor,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                buttonText,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }
@@ -1796,6 +1802,7 @@ Widget buildEventCardWithDynamicImages({
   );
 }
 
+// UPDATED COACH FOLLOW CARD - MATCHING CLUB CARD STYLE
 class CoachFollowCard extends StatefulWidget {
   final Map coach;
   final List<int> myFollowing;
@@ -1840,182 +1847,146 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
 
     return Container(
       width: 160,
+      height: 200, // Fixed height to match club cards
       margin: const EdgeInsets.only(right: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white10, // Same as club cards
+        borderRadius: BorderRadius.circular(16), // Same as club cards
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundImage: imageUrl.isNotEmpty
-                ? NetworkImage(imageUrl)
-                : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+          // Profile section
+          Column(
+            children: [
+              CircleAvatar(
+                radius: 30, // Same size as club cards
+                backgroundImage: imageUrl.isNotEmpty
+                    ? NetworkImage(imageUrl)
+                    : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                exp,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                city,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 10,
+                ),
+              ),
+            ],
           ),
-
-          const SizedBox(height: 10),
-
-          Text(
-            name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white, fontSize: 15),
+          
+          // Follow button - styled like club card's follow button
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.teal, // Same as club cards
+              borderRadius: BorderRadius.circular(20), // Same as club cards
+            ),
+            child: _buildButton(coachId),
           ),
-
-          const SizedBox(height: 4),
-
-          Text(
-            exp,
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
-          ),
-          Text(
-            city,
-            style: const TextStyle(color: Colors.white38, fontSize: 11),
-          ),
-
-          const SizedBox(height: 12),
-
-          SizedBox(width: double.infinity, child: _buildButton(coachId)),
         ],
       ),
     );
   }
 
   Widget _buildButton(int coachId) {
-    // ALREADY FOLLOWING (from followers list)
-    if (widget.myFollowing.contains(coachId)) {
+    if (widget.myFollowing.contains(coachId) ||
+        widget.myApprovedSent.contains(coachId)) {
       return _followingBtn(coachId);
     }
 
-    // SENT APPROVED REQUESTS (this is new)
-    if (widget.myApprovedSent.contains(coachId)) {
-      return _followingBtn(coachId);
-    }
-
-    // REQUESTED (pending)
     if (widget.myRequests.contains(coachId)) {
       return _requestedBtn(coachId);
     }
 
-    // DEFAULT — FOLLOW
     return _followBtn(coachId);
   }
 
   Widget _followingBtn(int coachId) {
-    return OutlinedButton(
-      onPressed: () async {
+    return GestureDetector(
+      onTap: () async {
         await widget.onUnfollow(coachId);
-        widget.refreshParent(); // Refresh parent UI
+        widget.refreshParent();
       },
-      style: OutlinedButton.styleFrom(
-        side: BorderSide(color: Colors.white, width: 1.5),
+      child: const Text(
+        "Following",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      child: const Text("Following", style: TextStyle(color: Colors.white)),
     );
   }
 
   Widget _requestedBtn(int coachId) {
-    return OutlinedButton(
-      onPressed: () async {
+    return GestureDetector(
+      onTap: () async {
         await widget.onCancelPending(coachId);
-        widget.refreshParent(); // THIS FIXES UI
+        widget.refreshParent();
       },
-      style: OutlinedButton.styleFrom(
-        side: BorderSide(color: Colors.white, width: 1.5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: const Text(
+        "Requested",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      child: const Text("Requested", style: TextStyle(color: Colors.white)),
     );
   }
 
   Widget _followBtn(int coachId) {
-    return ElevatedButton(
-      onPressed: () async {
+    return GestureDetector(
+      onTap: () async {
         await widget.onFollow(coachId);
-        widget.refreshParent(); // FIX
+        widget.refreshParent();
       },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF00AFA5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      child: const Text("Follow", style: TextStyle(color: Colors.white)),
-    );
-  }
-}
-
-class StudentCard extends StatelessWidget {
-  final Map student;
-
-  const StudentCard({super.key, required this.student});
-
-  @override
-  Widget build(BuildContext context) {
-    String name = "${student['first_name'] ?? ''} ${student['last_name'] ?? ''}"
-        .trim();
-    if (name.isEmpty) name = "Student";
-
-    String standard = student["standard"] != null
-        ? "Class ${student["standard"]}"
-        : "Student";
-
-    String imageUrl =
-        student["profile"] != null && student["profile"].toString().isNotEmpty
-        ? "$api${student["profile"]}"
-        : "";
-
-    return Container(
-      width: 160,
-      margin: const EdgeInsets.only(right: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundImage: imageUrl.isNotEmpty
-                ? NetworkImage(imageUrl)
-                : const AssetImage("lib/assets/img.jpg") as ImageProvider,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white, fontSize: 15),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            standard,
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
-          ),
-          const Spacer(),
-          ElevatedButton(
-            onPressed: () {
-              // TODO: student follow API call (can be added later)
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00AFA5), // teal
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              minimumSize: const Size(double.infinity, 36),
-            ),
-            child: const Text(
-              "Follow",
-              style: TextStyle(color: Colors.white, fontSize: 14),
-            ),
-          ),
-        ],
+      child: const Text(
+        "Follow",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
 }
 
+// UPDATED STUDENT FOLLOW CARD - MATCHING CLUB CARD STYLE
 class StudentFollowCard extends StatefulWidget {
   final Map student;
   final List<int> myFollowing;
@@ -2047,8 +2018,7 @@ class _StudentFollowCardState extends State<StudentFollowCard> {
   @override
   Widget build(BuildContext context) {
     final student = widget.student;
-
-    int studentId = student["id"];
+    final int userId = student["id"];
 
     String name = "${student['first_name'] ?? ''} ${student['last_name'] ?? ''}"
         .trim();
@@ -2057,6 +2027,8 @@ class _StudentFollowCardState extends State<StudentFollowCard> {
     String standard = student["standard"] != null
         ? "Class ${student["standard"]}"
         : "Student";
+        
+    String institution = student["institution"] ?? "";
 
     String imageUrl =
         student["profile"] != null && student["profile"].toString().isNotEmpty
@@ -2065,45 +2037,81 @@ class _StudentFollowCardState extends State<StudentFollowCard> {
 
     return Container(
       width: 160,
+      height: 200, // Fixed height to match club cards
       margin: const EdgeInsets.only(right: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white10, // Same as club cards
+        borderRadius: BorderRadius.circular(16), // Same as club cards
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundImage: imageUrl.isNotEmpty
-                ? NetworkImage(imageUrl)
-                : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+          // Profile section
+          Column(
+            children: [
+              CircleAvatar(
+                radius: 30, // Same size as club cards
+                backgroundImage: imageUrl.isNotEmpty
+                    ? NetworkImage(imageUrl)
+                    : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              if (institution.isNotEmpty)
+                Text(
+                  institution,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                  ),
+                ),
+              const SizedBox(height: 2),
+              Text(
+                standard,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 10,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white, fontSize: 15),
+          
+          // Follow button - styled like club card's follow button
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.teal, // Same as club cards
+              borderRadius: BorderRadius.circular(20), // Same as club cards
+            ),
+            child: _buildButton(userId),
           ),
-          const SizedBox(height: 4),
-          Text(
-            standard,
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(width: double.infinity, child: _buildButton(studentId)),
         ],
       ),
     );
   }
 
   Widget _buildButton(int userId) {
-    if (widget.myFollowing.contains(userId)) {
-      return _followingBtn(userId);
-    }
-
-    if (widget.myApprovedSent.contains(userId)) {
+    if (widget.myFollowing.contains(userId) ||
+        widget.myApprovedSent.contains(userId)) {
       return _followingBtn(userId);
     }
 
@@ -2114,44 +2122,57 @@ class _StudentFollowCardState extends State<StudentFollowCard> {
     return _followBtn(userId);
   }
 
-  Widget _followBtn(int userId) {
-    return ElevatedButton(
-      onPressed: () async {
-        await widget.onFollow(userId);
+  Widget _followingBtn(int userId) {
+    return GestureDetector(
+      onTap: () async {
+        await widget.onUnfollow(userId);
         widget.refreshParent();
       },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF00AFA5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: const Text(
+        "Following",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      child: const Text("Follow", style: TextStyle(color: Colors.white)),
     );
   }
 
   Widget _requestedBtn(int userId) {
-    return OutlinedButton(
-      onPressed: () async {
+    return GestureDetector(
+      onTap: () async {
         await widget.onCancelPending(userId);
         widget.refreshParent();
       },
-      style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Colors.white),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: const Text(
+        "Requested",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      child: const Text("Requested", style: TextStyle(color: Colors.white)),
     );
   }
 
-  Widget _followingBtn(int userId) {
-    return OutlinedButton(
-      onPressed: () async {
-        await widget.onUnfollow(userId);
+  Widget _followBtn(int userId) {
+    return GestureDetector(
+      onTap: () async {
+        await widget.onFollow(userId);
         widget.refreshParent();
       },
-      style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Colors.white),
+      child: const Text(
+        "Follow",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      child: const Text("Following", style: TextStyle(color: Colors.white)),
     );
   }
 }

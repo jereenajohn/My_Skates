@@ -78,6 +78,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
     loadEvents();
     getAllEvents();
     getTrainingSessions();
+  
 
     loadEverything();
     _timer = Timer.periodic(
@@ -1872,6 +1873,8 @@ class _StudentFollowCardState extends State<StudentFollowCard> {
     String standard = student["standard"] != null
         ? "Class ${student["standard"]}"
         : "Student";
+        
+    String institution = student["institution"] ?? "";
 
     String imageUrl =
         student["profile"] != null && student["profile"].toString().isNotEmpty
@@ -1880,43 +1883,66 @@ class _StudentFollowCardState extends State<StudentFollowCard> {
 
     return Container(
       width: 160,
+      height: 200,
       margin: const EdgeInsets.only(right: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
+        color: Colors.white10,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundImage: imageUrl.isNotEmpty
-                ? NetworkImage(imageUrl)
-                : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+          Column(
+            children: [
+              CircleAvatar(
+                radius: 30,
+                backgroundImage: imageUrl.isNotEmpty
+                    ? NetworkImage(imageUrl)
+                    : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              if (institution.isNotEmpty)
+                Text(
+                  institution,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                  ),
+                ),
+              const SizedBox(height: 2),
+              Text(
+                standard,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 10,
+                ),
+              ),
+            ],
           ),
-
-          const SizedBox(height: 8),
-
-          Text(
-            name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white, fontSize: 15),
-          ),
-
-          const SizedBox(height: 2),
-
-          Text(
-            standard,
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
-          ),
-
-          const Spacer(),
-
-          SizedBox(
+          
+          Container(
             width: double.infinity,
-            height: 34,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.teal,
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: _buildButton(userId),
           ),
         ],
@@ -1925,11 +1951,8 @@ class _StudentFollowCardState extends State<StudentFollowCard> {
   }
 
   Widget _buildButton(int userId) {
-    if (widget.myFollowing.contains(userId)) {
-      return _followingBtn(userId);
-    }
-
-    if (widget.myApprovedSent.contains(userId)) {
+    if (widget.myFollowing.contains(userId) ||
+        widget.myApprovedSent.contains(userId)) {
       return _followingBtn(userId);
     }
 
@@ -1940,46 +1963,57 @@ class _StudentFollowCardState extends State<StudentFollowCard> {
     return _followBtn(userId);
   }
 
-  Widget _followBtn(int userId) {
-    return ElevatedButton(
-      onPressed: () async {
-        print("FOLLOW BUTTON CLICKED → userId=$userId");
-        await widget.onFollow(userId);
+  Widget _followingBtn(int userId) {
+    return GestureDetector(
+      onTap: () async {
+        await widget.onUnfollow(userId);
         widget.refreshParent();
       },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF00AFA5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: const Text(
+        "Following",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      child: const Text("Follow", style: TextStyle(color: Colors.white)),
     );
   }
 
   Widget _requestedBtn(int userId) {
-    return OutlinedButton(
-      onPressed: () async {
-        print(" REQUESTED BUTTON CLICKED (CANCEL) → userId=$userId");
+    return GestureDetector(
+      onTap: () async {
         await widget.onCancelPending(userId);
         widget.refreshParent();
       },
-      style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Colors.white),
+      child: const Text(
+        "Requested",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      child: const Text("Requested", style: TextStyle(color: Colors.white)),
     );
   }
 
-  Widget _followingBtn(int userId) {
-    return OutlinedButton(
-      onPressed: () async {
-        print(" FOLLOWING BUTTON CLICKED (UNFOLLOW) → userId=$userId");
-        await widget.onUnfollow(userId);
+  Widget _followBtn(int userId) {
+    return GestureDetector(
+      onTap: () async {
+        await widget.onFollow(userId);
         widget.refreshParent();
       },
-      style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Colors.white),
+      child: const Text(
+        "Follow",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      child: const Text("Following", style: TextStyle(color: Colors.white)),
     );
   }
 }
@@ -2028,107 +2062,136 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
 
     return Container(
       width: 160,
+      height: 200,
       margin: const EdgeInsets.only(right: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
+        color: Colors.white10,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundImage: imageUrl.isNotEmpty
-                ? NetworkImage(imageUrl)
-                : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+          Column(
+            children: [
+              CircleAvatar(
+                radius: 30,
+                backgroundImage: imageUrl.isNotEmpty
+                    ? NetworkImage(imageUrl)
+                    : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                exp,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                city,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 10,
+                ),
+              ),
+            ],
           ),
-
-          const SizedBox(height: 10),
-
-          Text(
-            name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white, fontSize: 15),
+          
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.teal,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: _buildButton(coachId),
           ),
-
-          const SizedBox(height: 4),
-
-          Text(
-            exp,
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
-          ),
-          Text(
-            city,
-            style: const TextStyle(color: Colors.white38, fontSize: 11),
-          ),
-
-          const SizedBox(height: 12),
-
-          SizedBox(width: double.infinity, child: _buildButton(coachId)),
         ],
       ),
     );
   }
 
   Widget _buildButton(int coachId) {
-    // ALREADY FOLLOWING (from followers list)
-    if (widget.myFollowing.contains(coachId)) {
+    if (widget.myFollowing.contains(coachId) ||
+        widget.myApprovedSent.contains(coachId)) {
       return _followingBtn(coachId);
     }
 
-    // SENT APPROVED REQUESTS (this is new)
-    if (widget.myApprovedSent.contains(coachId)) {
-      return _followingBtn(coachId);
-    }
-
-    // REQUESTED (pending)
     if (widget.myRequests.contains(coachId)) {
       return _requestedBtn(coachId);
     }
 
-    // DEFAULT — FOLLOW
     return _followBtn(coachId);
   }
 
   Widget _followingBtn(int coachId) {
-    return OutlinedButton(
-      onPressed: () async {
+    return GestureDetector(
+      onTap: () async {
         await widget.onUnfollow(coachId);
-        widget.refreshParent(); // Refresh parent UI
+        widget.refreshParent();
       },
-      style: OutlinedButton.styleFrom(
-        side: BorderSide(color: Colors.white, width: 1.5),
+      child: const Text(
+        "Following",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      child: const Text("Following", style: TextStyle(color: Colors.white)),
     );
   }
 
   Widget _requestedBtn(int coachId) {
-    return OutlinedButton(
-      onPressed: () async {
+    return GestureDetector(
+      onTap: () async {
         await widget.onCancelPending(coachId);
-        widget.refreshParent(); // THIS FIXES UI
+        widget.refreshParent();
       },
-      style: OutlinedButton.styleFrom(
-        side: BorderSide(color: Colors.white, width: 1.5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: const Text(
+        "Requested",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      child: const Text("Requested", style: TextStyle(color: Colors.white)),
     );
   }
 
   Widget _followBtn(int coachId) {
-    return ElevatedButton(
-      onPressed: () async {
+    return GestureDetector(
+      onTap: () async {
         await widget.onFollow(coachId);
-        widget.refreshParent(); // FIX
+        widget.refreshParent();
       },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF00AFA5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: const Text(
+        "Follow",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      child: const Text("Follow", style: TextStyle(color: Colors.white)),
     );
   }
 }

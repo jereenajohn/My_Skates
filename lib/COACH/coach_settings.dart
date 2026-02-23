@@ -9,16 +9,17 @@ import 'package:my_skates/COACH/coach_follow_request.dart';
 import 'package:my_skates/COACH/coach_followers_list.dart';
 import 'package:my_skates/COACH/coach_following_list.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
-import 'package:my_skates/COACH/coach_profile.dart';
+import 'package:my_skates/COACH/coach_profile_page.dart';
 import 'package:my_skates/COACH/myorders.dart';
 import 'package:my_skates/COACH/view_clubs.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/products.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
-import 'package:my_skates/coach/add_coach_achievements.dart';
+import 'package:my_skates/COACH/add_coach_achievements.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 
 class CoachSettings extends StatefulWidget {
   const CoachSettings({super.key});
@@ -154,7 +155,7 @@ class _CoachSettingsState extends State<CoachSettings> {
                   text: "Accounts Center",
                   subtitle: "Profile Update and more",
                   onTap: () {
-                    pushWithSlide(const CoachProfile());
+                    pushWithSlide( CoachProfilePage());
                   },
                 ),
 
