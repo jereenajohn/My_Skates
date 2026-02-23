@@ -19,6 +19,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -57,7 +58,8 @@ class _HomePageState extends State<HomePage> {
   bool studentsNoData = false;
 
   int? loggedInUserId;
-  int followRequestCount = 0;
+  int notificationUnreadCount = 0;
+  Timer? _timer;
   bool trainingLoading = true;
   bool trainingNoData = false;
 
@@ -72,7 +74,21 @@ class _HomePageState extends State<HomePage> {
     getTrainingSessions();
     fetchRegisteredTrainings();
 
-    loadEverything(); // Single initialization
+    loadEverything();
+
+    fetchNotificationCount();
+
+    _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (mounted) {
+        fetchNotificationCount();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   Future<void> loadEverything() async {
@@ -106,6 +122,35 @@ class _HomePageState extends State<HomePage> {
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('access');
+  }
+
+  Future<void> fetchNotificationCount() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) return;
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/notifications/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+
+        setState(() {
+          notificationUnreadCount = decoded["unread_count"] ?? 0;
+        });
+      }
+    } catch (e) {
+      print("Notification count error: $e");
+    }
   }
 
   List<Map<String, dynamic>> trainingSessions = [];
@@ -266,23 +311,6 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         events[index]["is_liked"] = wasLiked;
         events[index]["likes_count"] = currentLikes;
-      });
-    }
-  }
-
-  Future<void> fetchFollowRequestCount() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-
-    final res = await http.get(
-      Uri.parse("$api/api/myskates/user/follow/requests/"),
-      headers: {"Authorization": "Bearer $token"},
-    );
-
-    if (res.statusCode == 200) {
-      final List data = jsonDecode(res.body);
-      setState(() {
-        followRequestCount = data.length;
       });
     }
   }
@@ -806,15 +834,10 @@ class _HomePageState extends State<HomePage> {
                             onPressed: () async {
                               await Navigator.push(
                                 context,
-
-                                // MaterialPageRoute(
-                                //   builder: (_) => const UserNotificationPage(),
-                                // ),
                                 slideRightToLeftRoute(UserNotificationPage()),
                               );
 
-                              // 🔁 Refresh count when coming back
-                              fetchFollowRequestCount();
+                              fetchNotificationCount(); // refresh when coming back
                             },
                             icon: const Icon(
                               Icons.notifications_none,
@@ -822,7 +845,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
 
-                          if (followRequestCount > 0)
+                          if (notificationUnreadCount > 0)
                             Positioned(
                               right: 6,
                               top: 6,
@@ -837,7 +860,7 @@ class _HomePageState extends State<HomePage> {
                                   minHeight: 18,
                                 ),
                                 child: Text(
-                                  followRequestCount.toString(),
+                                  notificationUnreadCount.toString(),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 11,
@@ -1258,7 +1281,6 @@ String formatDateTimeToAmPm(String date, String time) {
   return "$hour:$minute $period";
 }
 
-
 // --------------------------- EVENT CARD 2 ---------------------------
 Widget buildEventCardWithImages({
   required String clubName,
@@ -1498,7 +1520,7 @@ Widget buildClubCardFromApi(
   } else {
     buttonText = "Join Club";
     buttonColor = Colors.teal;
-    onTap = () => onJoinClub(clubId); 
+    onTap = () => onJoinClub(clubId);
   }
 
   return GestureDetector(
