@@ -56,61 +56,56 @@ class _ClubGridPageState extends State<ClubGridPage> {
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final double screenWidth = screenSize.width;
-    final double screenHeight = screenSize.height;
+    final screen = MediaQuery.of(context).size;
 
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: const Text(
-          "Clubs",
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text("Clubs", style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: loading
-    ? const Center(
-        child: CircularProgressIndicator(color: Colors.tealAccent),
-      )
-    : RefreshIndicator(
-        color: Colors.tealAccent,
-        backgroundColor: Colors.black,
-        onRefresh: fetchClubs,
-        child: noData
-            ? ListView(
-                
-                children: [
-                  SizedBox(height: screenHeight * 0.25),
-                  const Center(
-                    child: Text(
-                      "No clubs found",
-                      style: TextStyle(color: Colors.white70),
+          ? const Center(
+              child: CircularProgressIndicator(color: Colors.tealAccent),
+            )
+          : RefreshIndicator(
+              onRefresh: fetchClubs,
+              color: Colors.tealAccent,
+              backgroundColor: Colors.black,
+              child: noData
+                  ? ListView(
+                      children: [
+                        SizedBox(height: screen.height * 0.25),
+                        const Center(
+                          child: Text(
+                            "No clubs found",
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Padding(
+                      padding: EdgeInsets.all(screen.width * 0.035),
+                      child: GridView.builder(
+                        itemCount: clubs.length,
+                        gridDelegate:
+                            SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: screen.width * 0.035,
+                          mainAxisSpacing: screen.height * 0.02,
+                          childAspectRatio: 0.70, // stable ratio
+                        ),
+                        itemBuilder: (context, index) {
+                          return ClubGridCard(club: clubs[index]);
+                        },
+                      ),
                     ),
-                  ),
-                ],
-              )
-            : Padding(
-                padding:  EdgeInsets.all(screenWidth * 0.035),
-                child: GridView.builder(
-                  itemCount: clubs.length,
-                  gridDelegate:  SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: screenWidth * 0.035,
-                    mainAxisSpacing: screenHeight * 0.02,
-                    childAspectRatio: 0.75,
-                  ),
-                  itemBuilder: (context, index) {
-                    return ClubGridCard(club: clubs[index]);
-                  },
-                ),
-              ),
-      ),
-
+            ),
     );
   }
 }
+
 class ClubGridCard extends StatelessWidget {
   final Map club;
 
@@ -130,9 +125,7 @@ class ClubGridCard extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => ClubView(clubid: id),
-          ),
+          MaterialPageRoute(builder: (_) => ClubView(clubid: id)),
         );
       },
       child: Container(
@@ -148,55 +141,60 @@ class ClubGridCard extends StatelessWidget {
           ],
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              flex: 6,
+            /// IMAGE
+            AspectRatio(
+              aspectRatio: 1.2,
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(18),
-                ),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(18)),
                 child: imageUrl.isNotEmpty
                     ? Image.network(
                         imageUrl,
-                        width: double.infinity,
                         fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          "lib/assets/images.png",
+                          fit: BoxFit.cover,
+                        ),
                       )
                     : Image.asset(
                         "lib/assets/images.png",
-                        width: double.infinity,
                         fit: BoxFit.cover,
                       ),
               ),
             ),
 
-            /// CONTENT
+            /// CONTENT (SAFE)
             Expanded(
-              flex: 5,
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    /// CLUB NAME
-                    Text(
-                      clubName,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                    /// NAME (flexible)
+                    Flexible(
+                      child: Text(
+                        clubName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
 
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
 
                     /// LOCATION
                     Row(
                       children: [
                         const Icon(
                           Icons.location_on,
-                          size: 14,
+                          size: 13,
                           color: Colors.white54,
                         ),
                         const SizedBox(width: 4),
@@ -207,7 +205,7 @@ class ClubGridCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Colors.white54,
-                              fontSize: 12,
+                              fontSize: 11,
                             ),
                           ),
                         ),
@@ -216,26 +214,28 @@ class ClubGridCard extends StatelessWidget {
 
                     const Spacer(),
 
-                    /// BUTTON
-                    Container(
-                      height: 34,
+                    /// BUTTON (fixed but safe)
+                    SizedBox(
+                      height: 28,
                       width: double.infinity,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF00E0D3),
-                            Color(0xFF00AFA5),
-                          ],
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF00E0D3),
+                              Color(0xFF00AFA5),
+                            ],
+                          ),
                         ),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          "View Club",
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                        child: const Center(
+                          child: Text(
+                            "View Club",
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
@@ -250,5 +250,3 @@ class ClubGridCard extends StatelessWidget {
     );
   }
 }
-
-

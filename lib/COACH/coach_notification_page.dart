@@ -210,51 +210,79 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
   }
 
   // ================= APPROVE CLUB =================
-  Future<void> approveClubRequest(int index) async {
-    final n = notifications[index];
-    n["isLoading"] = true;
-    setState(() {});
+Future<void> approveClubRequest(int index) async {
+  final n = notifications[index];
+  n["isLoading"] = true;
+  setState(() {});
 
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-    if (token == null) return;
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
 
-    final res = await http.post(
-      Uri.parse("$api/api/myskates/club/join/approve/"),
-      headers: {"Authorization": "Bearer $token"},
-      body: {"actor_id": n["actor"].toString()},
-    );
+  print("==== APPROVE CLICKED ====");
+  print("TOKEN: $token");
+  print("DATA: club_id=${n["club_id"]}, user_id=${n["actor"]}");
 
-    if (res.statusCode == 200) {
-      notifications.removeAt(index);
-    }
+  if (token == null) return;
 
-    setState(() {});
+  final res = await http.put(
+    Uri.parse("$api/api/myskates/club/join/approve/"),
+    headers: {
+      "Authorization": "Bearer $token",
+      "Content-Type": "application/json",
+    },
+    body: jsonEncode({
+      "club_id": n["club_id"],
+      "user_id": n["actor"],
+      "status": "approved",
+    }),
+  );
+
+  print("STATUS CODE: ${res.statusCode}");
+  print("RESPONSE BODY: ${res.body}");
+
+  if (res.statusCode == 200) {
+    notifications.removeAt(index);
   }
 
+  setState(() {});
+}
   // ================= REJECT CLUB =================
-  Future<void> rejectClubRequest(int index) async {
-    final n = notifications[index];
-    n["isLoading"] = true;
-    setState(() {});
+ Future<void> rejectClubRequest(int index) async {
+  final n = notifications[index];
+  n["isLoading"] = true;
+  setState(() {});
 
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-    if (token == null) return;
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
 
-    final res = await http.post(
-      Uri.parse("$api/api/myskates/club/join/reject/"),
-      headers: {"Authorization": "Bearer $token"},
-      body: {"actor_id": n["actor"].toString()},
-    );
+  print("==== REJECT CLICKED ====");
+  print("TOKEN: $token");
+  print("DATA: club_id=${n["club_id"]}, user_id=${n["actor"]}");
 
-    if (res.statusCode == 200) {
-      notifications.removeAt(index);
-    }
+  if (token == null) return;
 
-    setState(() {});
+  final res = await http.put(
+    Uri.parse("$api/api/myskates/club/join/approve/"),
+    headers: {
+      "Authorization": "Bearer $token",
+      "Content-Type": "application/json",
+    },
+    body: jsonEncode({
+      "club_id": n["club_id"],
+      "user_id": n["actor"],
+      "status": "rejected",
+    }),
+  );
+
+  print("STATUS CODE: ${res.statusCode}");
+  print("RESPONSE BODY: ${res.body}");
+
+  if (res.statusCode == 200) {
+    notifications.removeAt(index);
   }
 
+  setState(() {});
+}
   // ================= HELPERS =================
   String timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
