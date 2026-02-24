@@ -947,7 +947,7 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                           ),
                         ),
 
-                        const SizedBox(height: 20),
+                        // const SizedBox(height: 20),
 
                         // ================= TITLE =================
                         Padding(
@@ -977,7 +977,7 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                 color: Colors.greenAccent.withOpacity(.2),
                               ),
 
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 10),
 
                               const Text(
                                 "PRODUCT DETAILS",
@@ -1004,16 +1004,13 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
 
                               // ================= VARIANTS =================
                               if (variants.isNotEmpty) ...[
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 20),
-                                  child: Text(
-                                    "AVAILABLE VARIANTS",
-                                    style: TextStyle(
-                                      color: Colors.greenAccent,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1.2,
-                                    ),
+                                Text(
+                                  "AVAILABLE VARIANTS",
+                                  style: TextStyle(
+                                    color: Colors.greenAccent,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.2,
                                   ),
                                 ),
 
@@ -1158,7 +1155,7 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                           ),
                         ),
 
-                        const SizedBox(height: 80),
+                        const SizedBox(height: 30),
                       ],
                     );
                   },
