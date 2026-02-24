@@ -309,6 +309,7 @@ class _UpdateProductVariantState extends State<UpdateProductVariant> {
                   const SizedBox(height: 30),
 
                   _inputField("Title", titleCtrl),
+
                   // _inputFieldmax(
                   //   "Description",
 
@@ -317,7 +318,6 @@ class _UpdateProductVariantState extends State<UpdateProductVariant> {
                   //   maxLength: 100,
                   //   isNumber: false,
                   // ),
-
                   Row(
                     children: [
                       Expanded(
