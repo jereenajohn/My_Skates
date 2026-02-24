@@ -24,16 +24,16 @@ class _UpdateProductVariantState extends State<UpdateProductVariant> {
 
   String? gender;
   String? selectedCountry;
-  String? selectedState; 
-  String? selectedDistrict; 
+  String? selectedState;
+  String? selectedDistrict;
 
   List<Map<String, dynamic>> countryList = [];
   List<Map<String, dynamic>> categoryList = [];
   List<Map<String, dynamic>> allDistricts = [];
   List<Map<String, dynamic>> districtList = [];
 
-  List<File> selectedImages = []; 
-  List<Map<String, dynamic>> existingImages = []; 
+  List<File> selectedImages = [];
+  List<Map<String, dynamic>> existingImages = [];
 
   final ImagePicker _picker = ImagePicker();
 
@@ -96,7 +96,7 @@ class _UpdateProductVariantState extends State<UpdateProductVariant> {
       print("getproductDetails response: ${res.body}");
       if (res.statusCode == 200) {
         final json = jsonDecode(res.body);
-        final data = json["data"]; 
+        final data = json["data"];
         print("Product Details Data:::::::::::::::: $data");
         setState(() {
           titleCtrl.text = data["sku"] ?? "";
@@ -155,7 +155,7 @@ class _UpdateProductVariantState extends State<UpdateProductVariant> {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
 
-        gender = data["gender"]?.toString(); 
+        gender = data["gender"]?.toString();
         selectedCountry = data["country"]?.toString();
         selectedState = data["state"]?.toString();
         selectedDistrict = data["district"]?.toString();
@@ -197,10 +197,10 @@ class _UpdateProductVariantState extends State<UpdateProductVariant> {
       );
 
       request.headers["Authorization"] = "Bearer $token";
-
+      print("Sending DESCRIPTION: ${descriptionCtrl.text}");
       // Add normal text fields
       request.fields["user"] = userId.toString();
-      request.fields["title"] = titleCtrl.text.trim();
+      request.fields["sku"] = titleCtrl.text.trim();
       request.fields["description"] = descriptionCtrl.text.trim();
       request.fields["price"] = priceCtrl.text.trim();
       request.fields["discount"] = discount.text.trim();
@@ -211,12 +211,11 @@ class _UpdateProductVariantState extends State<UpdateProductVariant> {
       }
       print("selectedImages LENGTH: ${selectedImages}");
 
+      print("Sending DESCRIPTIONnn: ${descriptionCtrl.text}");
+
       for (final img in selectedImages) {
         request.files.add(
-          await http.MultipartFile.fromPath(
-            "images", 
-            img.path,
-          ),
+          await http.MultipartFile.fromPath("images", img.path),
         );
       }
 
@@ -310,14 +309,14 @@ class _UpdateProductVariantState extends State<UpdateProductVariant> {
                   const SizedBox(height: 30),
 
                   _inputField("Title", titleCtrl),
-                  _inputFieldmax(
-                    "Description",
+                  // _inputFieldmax(
+                  //   "Description",
 
-                    descriptionCtrl,
-                    maxLines: 4, // description style
-                    maxLength: 100,
-                    isNumber: false,
-                  ),
+                  //   descriptionCtrl,
+                  //   maxLines: 4, // description style
+                  //   maxLength: 100,
+                  //   isNumber: false,
+                  // ),
 
                   Row(
                     children: [
@@ -521,7 +520,7 @@ class _UpdateProductVariantState extends State<UpdateProductVariant> {
 
   Widget _dropdownField({
     required String label,
-    required String? value, 
+    required String? value,
     required List<Map<String, dynamic>> items,
     required Function(String?) onChange,
   }) {
