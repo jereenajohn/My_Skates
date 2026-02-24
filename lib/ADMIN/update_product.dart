@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/dashboard.dart';
+import 'package:my_skates/ADMIN/products_by_user.dart';
 import 'package:my_skates/api.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -165,7 +166,7 @@ class _UpdateProductState extends State<UpdateProduct> {
       request.fields["user"] = userId.toString();
       request.fields["title"] = titleCtrl.text.trim();
       request.fields["description"] = descriptionCtrl.text.trim();
-      request.fields["price"] = priceCtrl.text.trim();
+      request.fields["base_price"] = priceCtrl.text.trim();
 
       if (selectedState != null) {
         request.fields["category"] = selectedState.toString();
@@ -181,7 +182,7 @@ class _UpdateProductState extends State<UpdateProduct> {
       var responseBody = await response.stream.bytesToString();
 
       print("STATUS: ${response.statusCode}");
-      print("BODY: $responseBody");
+      print("BODYrrrrr: $responseBody");
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -190,7 +191,7 @@ class _UpdateProductState extends State<UpdateProduct> {
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => DashboardPage()),
+          MaterialPageRoute(builder: (context) => ProductsByUser()),
         );
       } else {
         ScaffoldMessenger.of(
