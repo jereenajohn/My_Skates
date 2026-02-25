@@ -44,6 +44,9 @@ class _UserNotificationPageState
         },
       );
 
+      print("FETCH NOTIFICATIONS STATUS: ${res.statusCode}");
+      print("FETCH NOTIFICATIONS BODY: ${res.body}");
+
       if (res.statusCode != 200) {
         setState(() => loading = false);
         return;
@@ -148,6 +151,7 @@ class _UserNotificationPageState
     if (diff.inHours < 24) return "${diff.inHours}h";
     return DateFormat("dd MMM").format(dt);
   }
+  
 String notificationText(Map<String, dynamic> n) {
   switch (n["notification_type"]) {
 
@@ -160,7 +164,7 @@ String notificationText(Map<String, dynamic> n) {
     case "follow_back_accepted":
       return "you are now following each other.";
 
-    case "following_each_other":   //  NEW CASE
+    case "following_each_other":   
       return "you are now following each other.";
 
     case "follow_back_request":
@@ -173,7 +177,7 @@ String notificationText(Map<String, dynamic> n) {
       return "requested to join your club.";
 
     case "club_join_approved":
-      return "joined your club.";
+      return "accepted your club join request.";
 
     case "post_like":
       return "liked your post.";

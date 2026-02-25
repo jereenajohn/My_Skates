@@ -106,7 +106,7 @@ class Order {
     required this.createdAt,
     required this.updatedAt,
     this.address,
-    required this.user, 
+    required this.user,
     required this.final_payable,
   });
 
@@ -182,7 +182,7 @@ class _MyordersState extends State<Myorders> {
   List<Order> orders = [];
   bool isLoading = true;
   String? error;
-  
+
   // Status filter
   String _selectedStatusFilter = 'ALL';
 
@@ -207,9 +207,9 @@ class _MyordersState extends State<Myorders> {
     if (_selectedStatusFilter == 'ALL') {
       return orders;
     }
-    return orders.where((order) =>
-      order.status == _selectedStatusFilter
-    ).toList();
+    return orders
+        .where((order) => order.status == _selectedStatusFilter)
+        .toList();
   }
 
   Future<void> fetchOrders() async {
@@ -504,12 +504,16 @@ class _MyordersState extends State<Myorders> {
                           ],
                         ),
                       ),
-                      
+
                       // Orders List
-                      ..._filteredOrders.map((order) => GestureDetector(
-                        onTap: () => _navigateToOrderDetail(order),
-                        child: _buildOrderCard(order),
-                      )).toList(),
+                      ..._filteredOrders
+                          .map(
+                            (order) => GestureDetector(
+                              onTap: () => _navigateToOrderDetail(order),
+                              child: _buildOrderCard(order),
+                            ),
+                          )
+                          .toList(),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -572,7 +576,7 @@ class _MyordersState extends State<Myorders> {
           ),
 
           const SizedBox(height: 12),
-          
+
           // Items section
           // const Text(
           //   'Items:',
@@ -582,7 +586,6 @@ class _MyordersState extends State<Myorders> {
           //     fontWeight: FontWeight.w600,
           //   ),
           // ),
-
           const SizedBox(height: 12),
           ...order.items
               .take(2)
@@ -649,7 +652,7 @@ class _MyordersState extends State<Myorders> {
             Padding(
               padding: const EdgeInsets.only(top: 4, left: 62),
               child: Text(
-                '+${order.items.length -2} more items',
+                '+${order.items.length - 2} more items',
                 style: const TextStyle(
                   color: Colors.white54,
                   fontSize: 12,
@@ -1213,17 +1216,20 @@ class OrderDetailPage extends StatelessWidget {
                   ...order.items
                       .map(
                         (item) => GestureDetector(
-                          onTap: (){
-                            Navigator.push(context,MaterialPageRoute(builder: (context)=>ProductReviewPage(
-                              productId: item.product,
-                              productTitle: item.productTitle,
-                              productImage: item.productImage,
-                              variantId: item.variantId,
-                              variantLabel: item.variantLabel,
-                              variantImage: item.variantImage,
-                              )
-                              )
-                              );
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ProductReviewPage(
+                                  productId: item.product,
+                                  productTitle: item.productTitle,
+                                  productImage: item.productImage,
+                                  variantId: item.variantId,
+                                  variantLabel: item.variantLabel,
+                                  variantImage: item.variantImage,
+                                ),
+                              ),
+                            );
                           },
                           child: Padding(
                             padding: const EdgeInsets.only(bottom: 16),
@@ -1242,13 +1248,14 @@ class OrderDetailPage extends StatelessWidget {
                                     child: _buildProductImage(item),
                                   ),
                                 ),
-                          
+
                                 const SizedBox(width: 16),
-                          
+
                                 // Product Details
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         item.productTitle,
@@ -1266,9 +1273,8 @@ class OrderDetailPage extends StatelessWidget {
                                             vertical: 2,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: Colors.tealAccent.withOpacity(
-                                              0.2,
-                                            ),
+                                            color: Colors.tealAccent
+                                                .withOpacity(0.2),
                                             borderRadius: BorderRadius.circular(
                                               4,
                                             ),

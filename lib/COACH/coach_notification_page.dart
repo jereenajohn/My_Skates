@@ -43,6 +43,9 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
         },
       );
 
+      print("FETCH NOTIFICATIONS STATUS: ${res.statusCode}");
+      print("FETCH NOTIFICATIONS BODY: ${res.body}");
+
       if (res.statusCode != 200) {
         setState(() => loading = false);
         return;
@@ -467,13 +470,23 @@ Future<void> approveClubRequest(int index) async {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                  ),
                   onPressed: () => approveClubRequest(index),
-                  child: const Text("Approve"),
+                  child: const Text("Approve",style: TextStyle(color: Colors.white,fontSize: 10),),
                 ),
                 const SizedBox(width: 6),
                 OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.grey.shade700),
+                  ),
                   onPressed: () => rejectClubRequest(index),
-                  child: const Text("Reject"),
+                  child: const Text("Reject",style: TextStyle(color: Colors.white,fontSize: 10),),
                 ),
               ],
             )
