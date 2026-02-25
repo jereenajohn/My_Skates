@@ -536,7 +536,7 @@ class _MyordersState extends State<Myorders> {
             children: [
               Expanded(
                 child: Text(
-                  'Order #${order.orderNo}',
+                  '${order.orderNo}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -563,7 +563,7 @@ class _MyordersState extends State<Myorders> {
                   order.status,
                   style: TextStyle(
                     color: _getStatusColor(order.status),
-                    fontSize: 11,
+                    fontSize: 9,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -574,14 +574,14 @@ class _MyordersState extends State<Myorders> {
           const SizedBox(height: 12),
           
           // Items section
-          const Text(
-            'Items:',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          // const Text(
+          //   'Items:',
+          //   style: TextStyle(
+          //     color: Colors.white,
+          //     fontSize: 16,
+          //     fontWeight: FontWeight.w600,
+          //   ),
+          // ),
 
           const SizedBox(height: 12),
           ...order.items
@@ -632,24 +632,24 @@ class _MyordersState extends State<Myorders> {
                       ),
 
                       // Price
-                      Text(
-                        '₹${double.parse(item.lineTotal).toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: Colors.tealAccent,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      // Text(
+                      //   '₹${double.parse(item.lineTotal).toStringAsFixed(2)}',
+                      //   style: const TextStyle(
+                      //     color: Colors.tealAccent,
+                      //     fontSize: 14,
+                      //     fontWeight: FontWeight.w600,
+                      //   ),
+                      // ),
                     ],
                   ),
                 ),
               )
               .toList(),
-          if (order.items.length > 2)
+          if (order.items.length > 1)
             Padding(
               padding: const EdgeInsets.only(top: 4, left: 62),
               child: Text(
-                '+${order.items.length - 2} more items',
+                '+${order.items.length -2} more items',
                 style: const TextStyle(
                   color: Colors.white54,
                   fontSize: 12,
@@ -658,7 +658,7 @@ class _MyordersState extends State<Myorders> {
               ),
             ),
 
-          const Divider(color: Colors.white24, height: 24),
+          const Divider(color: Colors.white24, height: 15),
 
           // Total
           Row(
@@ -668,7 +668,7 @@ class _MyordersState extends State<Myorders> {
                 'Total:',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -676,7 +676,7 @@ class _MyordersState extends State<Myorders> {
                 '₹${double.parse(order.final_payable).toStringAsFixed(2)}',
                 style: const TextStyle(
                   color: Colors.tealAccent,
-                  fontSize: 18,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -855,10 +855,10 @@ class OrderDetailPage extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          'Order #${order.orderNo}',
+                          '${order.orderNo}',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -882,7 +882,7 @@ class OrderDetailPage extends StatelessWidget {
                           order.status,
                           style: TextStyle(
                             color: _getStatusColor(order.status),
-                            fontSize: 12,
+                            fontSize: 9,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
