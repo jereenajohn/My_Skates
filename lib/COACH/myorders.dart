@@ -82,6 +82,7 @@ class Order {
   final DateTime updatedAt;
   final String? address;
   final int user;
+  final String final_payable;
 
   Order({
     required this.id,
@@ -105,7 +106,8 @@ class Order {
     required this.createdAt,
     required this.updatedAt,
     this.address,
-    required this.user,
+    required this.user, 
+    required this.final_payable,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -131,6 +133,7 @@ class Order {
       country: json['country'] ?? '',
       note: json['note'],
       subtotal: json['subtotal']?.toString() ?? '0',
+      final_payable: json['final_payable']?.toString() ?? '0',
       discountTotal: json['discount_total']?.toString() ?? '0',
       total: json['total']?.toString() ?? '0',
       createdAt: DateTime.parse(
@@ -670,7 +673,7 @@ class _MyordersState extends State<Myorders> {
                 ),
               ),
               Text(
-                '₹${double.parse(order.total).toStringAsFixed(2)}',
+                '₹${double.parse(order.final_payable).toStringAsFixed(2)}',
                 style: const TextStyle(
                   color: Colors.tealAccent,
                   fontSize: 18,
@@ -1354,7 +1357,7 @@ class OrderDetailPage extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '₹${double.parse(order.total).toStringAsFixed(2)}',
+                        '₹${double.parse(order.final_payable).toStringAsFixed(2)}',
                         style: const TextStyle(
                           color: Colors.tealAccent,
                           fontSize: 22,
