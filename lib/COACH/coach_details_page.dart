@@ -6,9 +6,6 @@ import 'package:my_skates/api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
-import 'package:flutter/services.dart';
 
 const Color accentColor = Color(0xFF00BFA5);
 
@@ -24,6 +21,8 @@ class CoachDetailsPage extends StatefulWidget {
 class _CoachDetailsPageState extends State<CoachDetailsPage> {
   Map<String, dynamic>? coach;
   bool isLoading = true;
+  int? currentUserId;
+  bool isOwnProfile = false;
 
   List<Map<String, dynamic>> achievements = [];
   bool achievementsLoading = true;
@@ -31,7 +30,6 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
   List<Map<String, dynamic>> feeds = [];
   bool feedsLoading = true;
 
-  bool _isPosting = false;
   String? userLocationName;
 
   // Follow status tracking
@@ -45,18 +43,85 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
   }
 
   Future<void> initializeData() async {
+    await getCurrentUserId();
     await fetchCoachDetails();
-    await checkFollowStatus();
 
-    // Only fetch detailed info if follow request is approved
-    if (followStatus == "approved") {
+    // Only check follow status if it's not own profile
+    if (!isOwnProfile) {
+      await checkFollowStatus();
+    }
+
+    // Only fetch detailed info if it's own profile OR follow request is approved
+    if (isOwnProfile || followStatus == "approved") {
       await fetchAchievements();
       await fetchFeed();
     }
+
+    setState(() {
+      isLoading = false;
+    });
   }
 
-  // ==================== CHECK FOLLOW STATUS USING EXISTING APIs ====================
+  // Get current logged-in user ID
+  Future<void> getCurrentUserId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      currentUserId = prefs.getInt("id");
+      print("Current User ID: $currentUserId");
+      print("Coach ID from widget: ${widget.coachId}");
+    } catch (e) {
+      debugPrint("Error getting current user ID: $e");
+    }
+  }
+
+  // Fetch coach details
+  Future<void> fetchCoachDetails() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final res = await http.get(
+        Uri.parse("$api/api/myskates/user/extras/details/${widget.coachId}/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      print("Coach details response: ${res.statusCode}");
+      print("Coach details body: ${res.body}");
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        setState(() {
+          coach = data;
+          // Check if this is the current user's own profile
+          isOwnProfile = currentUserId == widget.coachId;
+          print("Is Own Profile: $isOwnProfile");
+        });
+
+        if (coach?["latitude"] != null && coach?["longitude"] != null) {
+          getPlaceFromLatLong(coach!["latitude"], coach!["longitude"]);
+        }
+      } else {
+        print("Failed to fetch coach details");
+      }
+    } catch (e) {
+      debugPrint("Error fetching Coach: $e");
+    }
+  }
+
+  // Check follow status
   Future<void> checkFollowStatus() async {
+    // Skip if it's own profile
+    if (isOwnProfile) {
+      print("Skipping follow check - this is own profile");
+      setState(() {
+        followStatus = "none";
+      });
+      return;
+    }
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
@@ -66,7 +131,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
         return;
       }
 
-      // Check sent/approved requests to see if already following
+      // Check approved follow requests
       final approvedRes = await http.get(
         Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
         headers: {
@@ -75,7 +140,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
         },
       );
 
-      debugPrint("Approved requests response: ${approvedRes.body}");
+      print("Approved requests response: ${approvedRes.body}");
 
       if (approvedRes.statusCode == 200) {
         final List approved = jsonDecode(approvedRes.body);
@@ -88,6 +153,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
         if (isApproved) {
           setState(() {
             followStatus = "approved";
+            print("Follow status: approved");
           });
           return;
         }
@@ -96,6 +162,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
       // If not approved, set to none
       setState(() {
         followStatus = "none";
+        print("Follow status: none");
       });
     } catch (e) {
       debugPrint("CHECK FOLLOW STATUS ERROR: $e");
@@ -105,7 +172,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     }
   }
 
-  // ==================== SEND FOLLOW REQUEST ====================
+  // Send follow request
   Future<void> sendFollowRequest() async {
     setState(() {
       isFollowLoading = true;
@@ -134,9 +201,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
       if (res.statusCode == 200 || res.statusCode == 201) {
         final data = jsonDecode(res.body);
 
-        // Check if the response indicates status
         if (data["status"] == "approved") {
-          // Request was auto-approved
           setState(() {
             followStatus = "approved";
           });
@@ -152,11 +217,9 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
             ),
           );
 
-          // Fetch the details
           await fetchAchievements();
           await fetchFeed();
         } else {
-          // Request is pending
           setState(() {
             followStatus = "pending";
           });
@@ -171,7 +234,6 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
           );
         }
       } else if (res.statusCode == 400) {
-        // Request might already exist
         final data = jsonDecode(res.body);
 
         if (!mounted) return;
@@ -214,9 +276,8 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     }
   }
 
-  // ==================== UNFOLLOW FUNCTIONALITY ====================
+  // Unfollow coach
   Future<void> unfollowCoach() async {
-    // Show confirmation dialog
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -286,7 +347,6 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
       if (response.statusCode == 200 || response.statusCode == 204) {
         setState(() {
           followStatus = "none";
-          // Clear the data
           achievements = [];
           feeds = [];
         });
@@ -327,7 +387,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     }
   }
 
-  // ==================== FETCH ACHIEVEMENTS ====================
+  // Fetch achievements
   Future<void> fetchAchievements() async {
     try {
       setState(() {
@@ -358,7 +418,6 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
 
       if (res.statusCode == 200) {
         final List data = jsonDecode(res.body);
-
         setState(() {
           achievements = data.cast<Map<String, dynamic>>();
           achievementsLoading = false;
@@ -379,7 +438,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     }
   }
 
-  // ==================== FETCH FEED ====================
+  // Fetch feed
   Future<void> fetchFeed() async {
     try {
       setState(() {
@@ -411,7 +470,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         setState(() {
-          feeds = List<Map<String, dynamic>>.from(decoded["data"]);
+          feeds = List<Map<String, dynamic>>.from(decoded["data"] ?? []);
           feedsLoading = false;
         });
       } else {
@@ -430,54 +489,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     }
   }
 
-  // ==================== FETCH COACH DETAILS ====================
-  Future<void> fetchCoachDetails() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("access");
-
-      final res = await http.get(
-        Uri.parse("$api/api/myskates/user/extras/details/${widget.coachId}/"),
-        headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json",
-        },
-      );
-
-      if (res.statusCode == 200) {
-        setState(() {
-          coach = jsonDecode(res.body);
-        });
-
-        if (coach?["latitude"] != null && coach?["longitude"] != null) {
-          getPlaceFromLatLong(coach!["latitude"], coach!["longitude"]);
-        }
-
-        setState(() {
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      debugPrint("Error fetching Coach: $e");
-      setState(() => isLoading = false);
-    }
-  }
-
-  // ==================== UTILITIES ====================
-  String fullImageUrl(String? path) {
-    if (path == null || path.isEmpty) {
-      return "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-    }
-    if (path.startsWith("http")) {
-      return path;
-    }
-    String cleanBase = api.endsWith("/")
-        ? api.substring(0, api.length - 1)
-        : api;
-    String cleanPath = path.startsWith("/") ? path.substring(1) : path;
-    return "$cleanBase/$cleanPath";
-  }
-
+  // Get location from coordinates
   Future<void> getPlaceFromLatLong(String lat, String long) async {
     try {
       double latitude = double.parse(lat);
@@ -500,6 +512,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     }
   }
 
+  // Open Instagram
   Future<void> openInstagram(String username) async {
     final url = "https://www.instagram.com/$username/";
     if (await canLaunchUrl(Uri.parse(url))) {
@@ -509,6 +522,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     }
   }
 
+  // Open WhatsApp
   Future<void> openWhatsApp(String phone) async {
     final url = "https://wa.me/$phone";
     if (await canLaunchUrl(Uri.parse(url))) {
@@ -518,6 +532,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     }
   }
 
+  // Show connect popup
   void _showConnectPopup() {
     showDialog(
       context: context,
@@ -594,6 +609,22 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     );
   }
 
+  // Full image URL helper
+  String fullImageUrl(String? path) {
+    if (path == null || path.isEmpty) {
+      return "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+    }
+    if (path.startsWith("http")) {
+      return path;
+    }
+    String cleanBase = api.endsWith("/")
+        ? api.substring(0, api.length - 1)
+        : api;
+    String cleanPath = path.startsWith("/") ? path.substring(1) : path;
+    return "$cleanBase/$cleanPath";
+  }
+
+  // Get user type color
   Color getUserTypeColor(String type) {
     switch (type.toLowerCase()) {
       case "coach":
@@ -607,7 +638,6 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     }
   }
 
-  // ==================== BUILD UI ====================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -683,13 +713,13 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
                 ),
                 const SizedBox(height: 25),
 
-                // ==================== ACTION BUTTONS ====================
+                // Action buttons
                 _buildActionButtons(),
 
                 const SizedBox(height: 35),
 
-                // ==================== CONTENT BASED ON FOLLOW STATUS ====================
-                if (followStatus == "approved") ...[
+                // Content based on profile ownership and follow status
+                if (isOwnProfile || followStatus == "approved") ...[
                   _buildDetailsSection(),
                   const SizedBox(height: 25),
                   _buildAchievementsSection(),
@@ -708,10 +738,31 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     );
   }
 
-  // ==================== ACTION BUTTONS ====================
   Widget _buildActionButtons() {
+    if (isOwnProfile) {
+      print("Building Edit Profile button for own profile");
+      return SizedBox(
+        height: 50,
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: () {},
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.grey.shade800,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
+          ),
+          child: const Text(
+            "Edit Profile",
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+        ),
+      );
+    }
+
+    // For other coaches' profiles
     if (followStatus == "approved") {
-      // Show Following button (with unfollow option) and Connect button
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -768,11 +819,9 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
               ),
             ),
           ),
-          const SizedBox(width: 15),
         ],
       );
     } else if (followStatus == "pending") {
-      // Show pending status
       return SizedBox(
         height: 50,
         width: double.infinity,
@@ -796,7 +845,6 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
         ),
       );
     } else {
-      // Show follow request button
       return SizedBox(
         height: 50,
         width: double.infinity,
@@ -827,7 +875,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     }
   }
 
-  // ==================== RESTRICTED CONTENT ====================
+  // Restricted content widget
   Widget _buildRestrictedContent() {
     return Container(
       margin: const EdgeInsets.only(top: 40),
@@ -876,7 +924,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     );
   }
 
-  // ==================== DETAILS SECTION WIDGET ====================
+  // Details section
   Widget _buildDetailsSection() {
     if (coach == null) return const SizedBox.shrink();
 
@@ -1000,7 +1048,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     );
   }
 
-  // ==================== ACHIEVEMENTS SECTION ====================
+  // Achievements section
   Widget _buildAchievementsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1070,7 +1118,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     );
   }
 
-  // ==================== FEED SECTION ====================
+  // Feed section
   Widget _buildFeedSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1124,6 +1172,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     );
   }
 
+  // Feed card widget
   Widget _feedCard(Map<String, dynamic> feed) {
     final images = feed["feed_image"] ?? [];
     final likesCount = feed["likes_count"] ?? 0;
@@ -1193,9 +1242,9 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
           Row(
             children: [
               _count(Icons.favorite_border, likesCount),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               _count(Icons.comment_outlined, commentsCount),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               _count(Icons.repeat, sharesCount),
             ],
           ),
@@ -1218,7 +1267,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
   }
 }
 
-// ==================== ACHIEVEMENT LIST TILE WIDGET ====================
+// Achievement list tile widget
 class _AchievementListTile extends StatelessWidget {
   final Map<String, dynamic> achievement;
 
@@ -1331,7 +1380,7 @@ class _AchievementListTile extends StatelessWidget {
   }
 }
 
-// ==================== INFO ROW WIDGET ====================
+// Info row widget
 class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String text;

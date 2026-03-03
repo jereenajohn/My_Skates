@@ -66,7 +66,7 @@ class _CoachTimelinePageState extends State<CoachTimelinePage> {
   }
 
   Future<void> _handleRefresh() async {
-    // Refresh both profile and feed data
+    
     final profileProvider = context.read<CoachProfileProvider>();
     final feedProvider = context.read<CoachFeedProvider>();
     

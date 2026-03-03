@@ -78,10 +78,8 @@ class _CoachMenuPageState extends State<CoachMenuPage>
 
   Future<int?> getUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    return
-     prefs.getInt("id");
+    return prefs.getInt("id");
   }
-  
 
   Future<void> fetchCoachFollowers() async {
     try {
@@ -226,7 +224,7 @@ class _CoachMenuPageState extends State<CoachMenuPage>
   // ───────────────── BUILD ─────────────────
   @override
   Widget build(BuildContext context) {
-     return Scaffold(
+    return Scaffold(
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
       appBar: _buildAppBar(),
@@ -235,7 +233,6 @@ class _CoachMenuPageState extends State<CoachMenuPage>
           gradient: LinearGradient(
             colors: [Color(0xFF00312D), Color(0xFF000000)],
             begin: Alignment.topLeft,
-            
           ),
         ),
         child: SafeArea(
@@ -333,10 +330,15 @@ class _CoachMenuPageState extends State<CoachMenuPage>
   // ───────────────── APP BAR ─────────────────
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      leading: IconButton(onPressed: (){
-        Navigator.pushReplacement
-        (context, MaterialPageRoute(builder: (_) => const CoachHomepage()));
-      }, icon: Icon(Icons.arrow_back,color: Colors.white,)),
+      leading: IconButton(
+        onPressed: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const CoachHomepage()),
+          );
+        },
+        icon: Icon(Icons.arrow_back, color: Colors.white),
+      ),
       backgroundColor: Colors.transparent,
       title: const Text(
         "",
@@ -357,7 +359,6 @@ class _CoachMenuPageState extends State<CoachMenuPage>
           },
         ),
       ],
-      
     );
   }
 
