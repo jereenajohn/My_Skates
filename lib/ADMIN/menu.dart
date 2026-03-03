@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/add_attributes.dart';
 import 'package:my_skates/ADMIN/add_banner.dart';
 import 'package:my_skates/ADMIN/add_category.dart';
+import 'package:my_skates/ADMIN/add_chat_support_questions.dart';
 import 'package:my_skates/ADMIN/add_country.dart';
 import 'package:my_skates/ADMIN/add_coupon.dart';
 import 'package:my_skates/ADMIN/add_district.dart';
@@ -310,8 +311,24 @@ class _MenuPageState extends State<MenuPage> {
                   );
                 },
               ),
+              if ("Change phone number".toLowerCase().contains(_searchQuery))
+                _divider(),
 
-              Divider(),
+              _menuTile(
+                icon: Icons.chat_bubble_outline,
+                text: "Chat support Questions",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddChatSupportQuestions(),
+                    ),
+                  );
+                },
+              ),
+
+              if ("Chat support Questions".toLowerCase().contains(_searchQuery))
+                _divider(),
               if ("Logout".toLowerCase().contains(_searchQuery))
                 _menuTile(
                   icon: Icons.lock_outline,
