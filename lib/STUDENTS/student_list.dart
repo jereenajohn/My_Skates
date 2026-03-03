@@ -12,10 +12,13 @@ class StudentList extends StatefulWidget {
 }
 
 class _StudentListState extends State<StudentList> {
+  final TextEditingController searchController = TextEditingController();
+
   List<Map<String, dynamic>> students = [];
+  List<Map<String, dynamic>> filteredStudents = [];
+
   bool loading = true;
   bool noData = false;
-  List<int> myRequests = [];
 
   @override
   void initState() {
@@ -25,10 +28,8 @@ class _StudentListState extends State<StudentList> {
 
   Future<void> fetchStudents() async {
     try {
-      setState(() {
-        loading = true;
-      });
-      
+      setState(() => loading = true);
+
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
 
@@ -40,13 +41,10 @@ class _StudentListState extends State<StudentList> {
         },
       );
 
-      print(res.body);
-
       if (res.statusCode == 200) {
         final List decoded = jsonDecode(res.body);
 
-        print("Fetched ${decoded.length} students");
-        print("Raw data: ${res.body}");
+        print("resssssssssss ${res.body}");
 
         setState(() {
           students = decoded
@@ -54,12 +52,10 @@ class _StudentListState extends State<StudentList> {
               .where((student) {
                 final bool isFollowing = student["is_following"] == true;
                 final String? followStatus = student["follow_status"];
-
-                // SHOW ONLY IF NOT FOLLOWED AND NOT PENDING
                 return !isFollowing && followStatus != "pending";
               })
               .toList();
-
+          filteredStudents = students;
           loading = false;
           noData = students.isEmpty;
         });
@@ -70,7 +66,6 @@ class _StudentListState extends State<StudentList> {
         });
       }
     } catch (e) {
-      print("Error fetching students: $e");
       setState(() {
         loading = false;
         noData = true;
@@ -88,14 +83,34 @@ class _StudentListState extends State<StudentList> {
       body: {"following_id": studentId.toString()},
     );
 
-    print("Follow request response: ${response.statusCode} - ${response.body}");
     if (response.statusCode == 200 || response.statusCode == 201) {
       setState(() {
-        students.removeAt(index); // instantly hide student
-        students.removeAt(index);
-        noData = students.isEmpty;
+        final removedStudent = filteredStudents[index];
+
+        students.removeWhere((s) => s["id"] == removedStudent["id"]);
+        filteredStudents.removeAt(index);
+
+        noData = filteredStudents.isEmpty;
       });
     }
+  }
+
+  void filterStudents(String query) {
+    final results = students.where((student) {
+      final firstName = (student["first_name"] ?? "").toString().toLowerCase();
+      final lastName = (student["last_name"] ?? "").toString().toLowerCase();
+      final instagram = (student["instagram"] ?? "").toString().toLowerCase();
+
+      final fullName = "$firstName $lastName";
+
+      return fullName.contains(query.toLowerCase()) ||
+          instagram.contains(query.toLowerCase());
+    }).toList();
+
+    setState(() {
+      filteredStudents = results;
+      noData = filteredStudents.isEmpty;
+    });
   }
 
   @override
@@ -126,147 +141,193 @@ class _StudentListState extends State<StudentList> {
               onRefresh: fetchStudents,
               color: Colors.tealAccent,
               backgroundColor: Colors.black,
-              strokeWidth: 3.0,
-              edgeOffset: 20.0,
-              displacement: 40.0,
               child: noData
                   ? SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: SizedBox(
                         height: MediaQuery.of(context).size.height * 0.8,
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.people_outline,
-                                color: Colors.white54,
-                                size: 60,
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                "No students to follow",
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                "Pull down to refresh",
-                                style: TextStyle(
-                                  color: Colors.tealAccent,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
+                        child: const Center(
+                          child: Text(
+                            "No students to follow",
+                            style: TextStyle(color: Colors.white70),
                           ),
                         ),
                       ),
                     )
-                  : ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: students.length,
-                      itemBuilder: (context, index) {
-                        final student = students[index];
-
-                        final String firstName = student["first_name"] ?? "";
-                        final String lastName = student["last_name"] ?? "";
-                        final String fullName = "$firstName $lastName".trim();
-
-                        final String instagram = student["instagram"] ?? "student";
-
-                        final String? profile = student["profile"];
-                        final String image = profile != null ? "$api$profile" : "";
-                        final int? studentId = student["id"];
-
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          child: Row(
-                            children: [
-                              // Profile image
-                              CircleAvatar(
-                                radius: 26,
-                                backgroundColor: Colors.grey.shade800,
-                                backgroundImage: image.isNotEmpty
-                                    ? NetworkImage(image)
-                                    : null,
-                                child: image.isEmpty
-                                    ? const Icon(Icons.person, color: Colors.white)
-                                    : null,
+                  : Column(
+                      children: [
+                        /// 🔍 SEARCH BAR
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: TextField(
+                            controller: searchController,
+                            onChanged: filterStudents,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              hintText: "Search",
+                              hintStyle: const TextStyle(color: Colors.white54),
+                              prefixIcon: const Icon(
+                                Icons.search,
+                                color: Colors.white54,
                               ),
+                              filled: true,
+                              fillColor: Colors.white10,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(35),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                          ),
+                        ),
 
-                              const SizedBox(width: 12),
+                        /// 👥 STUDENT LIST
+                        Expanded(
+                          child: ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: filteredStudents.length,
+                            itemBuilder: (context, index) {
+                              final student = filteredStudents[index];
 
-                              // Name + subtitle
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                              final String firstName =
+                                  student["first_name"] ?? "";
+                              final String lastName =
+                                  student["last_name"] ?? "";
+                              final String fullName = "$firstName $lastName"
+                                  .trim();
+
+                              final String instagram =
+                                  student["instagram"] ?? "student";
+
+                              final String? profile = student["profile"];
+
+                              final String image =
+                                  profile != null && profile.isNotEmpty
+                                  ? (profile.startsWith("http")
+                                        ? profile
+                                        : "$api$profile")
+                                  : "";
+
+                              final int? studentId = student["id"];
+                              print("PROFILE RAW: $profile");
+                              print("FINAL IMAGE URL: $image");
+
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                child: Row(
                                   children: [
-                                    Text(
-                                      fullName.isNotEmpty ? fullName : "Student",
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
+                                    CircleAvatar(
+                                      radius: 26,
+                                      backgroundColor: Colors.grey.shade800,
+                                      child: ClipOval(
+                                        child: image.isNotEmpty
+                                            ? Image.network(
+                                                image,
+                                                width: 52,
+                                                height: 52,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) =>
+                                                    const Icon(
+                                                      Icons.person,
+                                                      color: Colors.white,
+                                                    ),
+                                              )
+                                            : const Icon(
+                                                Icons.person,
+                                                color: Colors.white,
+                                              ),
                                       ),
                                     ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      "Instagram • $instagram",
-                                      style: TextStyle(
-                                        color: Colors.grey.shade500,
-                                        fontSize: 12,
+                                    const SizedBox(width: 12),
+
+                                    /// NAME + USERNAME
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            fullName.isNotEmpty
+                                                ? fullName
+                                                : "Student",
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            "Instagram • $instagram",
+                                            style: TextStyle(
+                                              color: Colors.grey.shade500,
+                                              fontSize: 12,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
                                       ),
-                                      overflow: TextOverflow.ellipsis,
+                                    ),
+
+                                    /// FOLLOW BUTTON
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        if (studentId == null) return;
+                                        sendFollowRequest(studentId, index);
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.tealAccent,
+                                        foregroundColor: Colors.black,
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 18,
+                                          vertical: 8,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        "Follow",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+
+                                    /// REMOVE ICON
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.close,
+                                        color: Colors.grey,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          final removed =
+                                              filteredStudents[index];
+
+                                          students.removeWhere(
+                                            (s) => s["id"] == removed["id"],
+                                          );
+
+                                          filteredStudents.removeAt(index);
+
+                                          noData = filteredStudents.isEmpty;
+                                        });
+                                      },
                                     ),
                                   ],
                                 ),
-                              ),
-
-                              // Follow button (Teal)
-                              ElevatedButton(
-                                onPressed: () {
-                                  if (studentId == null) return;
-                                  sendFollowRequest(studentId, index);
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.tealAccent,
-                                  foregroundColor: Colors.black,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 18,
-                                    vertical: 8,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: const Text(
-                                  "Follow",
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                              ),
-
-                              const SizedBox(width: 6),
-
-                              // Remove / close
-                              IconButton(
-                                icon: const Icon(Icons.close, color: Colors.grey),
-                                onPressed: () {
-                                  setState(() {
-                                    students.removeAt(index);
-                                    noData = students.isEmpty;
-                                  });
-                                },
-                              ),
-                            ],
+                              );
+                            },
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
             ),
     );

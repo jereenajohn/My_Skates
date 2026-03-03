@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'package:my_skates/COACH/club_detailed_view.dart';
 import 'package:my_skates/COACH/coach_home_feedcard.dart';
+import 'package:my_skates/COACH/coach_timeline_page.dart';
 import 'package:my_skates/Providers/coach_homepage_feed_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
@@ -24,6 +26,7 @@ import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 import 'package:my_skates/STUDENTS/user_settings.dart';
 import 'package:my_skates/bottomnavigation.dart';
+import 'package:shimmer/shimmer.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
@@ -79,17 +82,13 @@ class _CoachHomepageState extends State<CoachHomepage> {
     loadEvents();
     getAllEvents();
     getTrainingSessions();
-  
 
     loadEverything();
-    _timer = Timer.periodic(
-  const Duration(seconds: 10),
-  (timer) {
-    if (mounted) {
-      fetchNotificationCount();
-    }
-  },
-);
+    _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (mounted) {
+        fetchNotificationCount();
+      }
+    });
   }
 
   Future<void> loadEvents() async {
@@ -113,20 +112,20 @@ class _CoachHomepageState extends State<CoachHomepage> {
     super.dispose();
   }
 
-Future<void> _refreshAll() async {
-  await Future.wait([
-    fetchcoachDetails(),
-    getbanner(),
-    fetchNotificationCount(),  
-    fetchClubs(),
-    loadEvents(),
-    getTrainingSessions(),
-    fetchFollowStatus().then((_) async {
-      await fetchCoaches();
-      await fetchStudents();
-    }),
-  ]);
-}
+  Future<void> _refreshAll() async {
+    await Future.wait([
+      fetchcoachDetails(),
+      getbanner(),
+      fetchNotificationCount(),
+      fetchClubs(),
+      loadEvents(),
+      getTrainingSessions(),
+      fetchFollowStatus().then((_) async {
+        await fetchCoaches();
+        await fetchStudents();
+      }),
+    ]);
+  }
 
   void _onBottomNavTap(int index) {
     if (index == _currentIndex) return;
@@ -187,34 +186,34 @@ Future<void> _refreshAll() async {
     return prefs.getInt("id");
   }
 
- Future<void> fetchNotificationCount() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
+  Future<void> fetchNotificationCount() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
 
-    if (token == null) return;
+      if (token == null) return;
 
-    final response = await http.get(
-      Uri.parse("$api/api/myskates/notifications/"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
-    );
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/notifications/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
 
-    if (!mounted) return; // 🔥 IMPORTANT
+      if (!mounted) return; // 🔥 IMPORTANT
 
-    if (response.statusCode == 200) {
-      final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
 
-      setState(() {
-        notificationUnreadCount = decoded["unread_count"] ?? 0;
-      });
+        setState(() {
+          notificationUnreadCount = decoded["unread_count"] ?? 0;
+        });
+      }
+    } catch (e) {
+      print("Notification count error: $e");
     }
-  } catch (e) {
-    print("Notification count error: $e");
   }
-}
 
   List<Map<String, dynamic>> trainingSessions = [];
 
@@ -325,7 +324,7 @@ Future<void> _refreshAll() async {
 
         setState(() {
           studentName = user["first_name"] ?? user["name"] ?? "User";
-          studentRole = user["user_type"] ?? "Student";
+          studentRole = user["u_name"] ?? "User";
           studentImage = user["profile"];
           isLoading = false;
         });
@@ -736,6 +735,98 @@ Future<void> _refreshAll() async {
     Navigator.push(context, slideRightToLeftRoute(page));
   }
 
+  Widget _buildClubShimmer() {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.25,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: 3,
+        itemBuilder: (_, index) => Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey[850]!,
+            highlightColor: Colors.grey[700]!,
+            child: Container(
+              width: 160,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrainingShimmer() {
+    return Column(
+      children: List.generate(
+        2,
+        (index) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey[850]!,
+            highlightColor: Colors.grey[700]!,
+            child: Container(
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventShimmer() {
+    return Column(
+      children: List.generate(
+        2,
+        (index) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey[850]!,
+            highlightColor: Colors.grey[700]!,
+            child: Container(
+              height: 350, // Events are taller
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCoachShimmer() {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.28,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: 3,
+        itemBuilder: (_, index) => Padding(
+          padding: const EdgeInsets.only(right: 10),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey[850]!,
+            highlightColor: Colors.grey[700]!,
+            child: Container(
+              width: 160,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1020,17 +1111,20 @@ Future<void> _refreshAll() async {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        SizedBox(
-                          height: MediaQuery.of(context).size.height * 0.25,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: clubs.length,
-                            itemBuilder: (_, i) => Padding(
-                              padding: const EdgeInsets.only(right: 12),
-                              child: buildClubCardFromApi(clubs[i]),
+                        if (clubs.isEmpty && !noData)
+                          _buildClubShimmer()
+                        else
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.25,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: clubs.length,
+                              itemBuilder: (_, i) => Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: buildClubCardFromApi(context,clubs[i]),
+                              ),
                             ),
                           ),
-                        ),
 
                         const SizedBox(height: 25),
 
@@ -1042,11 +1136,7 @@ Future<void> _refreshAll() async {
                         const SizedBox(height: 15),
 
                         if (trainingLoading)
-                          const Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
-                          )
+                          _buildTrainingShimmer()
                         else if (trainingNoData)
                           const Text(
                             "No training sessions available",
@@ -1089,11 +1179,7 @@ Future<void> _refreshAll() async {
                         const SizedBox(height: 12),
 
                         if (eventsLoading)
-                          const Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
-                          )
+                          _buildEventShimmer()
                         else if (eventsNoData)
                           const Center(
                             child: Text(
@@ -1151,18 +1237,8 @@ Future<void> _refreshAll() async {
                         const SizedBox(height: 15),
                         SizedBox(
                           height: MediaQuery.of(context).size.height * 0.28,
-                          child: !followLoaded
-                              ? const Center(
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : coachesLoading
-                              ? const Center(
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                  ),
-                                )
+                          child: !followLoaded || coachesLoading
+                              ? _buildCoachShimmer()
                               : coachesNoData
                               ? const Center(
                                   child: Text(
@@ -1200,11 +1276,7 @@ Future<void> _refreshAll() async {
                         SizedBox(
                           height: MediaQuery.of(context).size.height * 0.25,
                           child: studentsLoading
-                              ? const Center(
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                  ),
-                                )
+                              ? _buildCoachShimmer() // Reuse coach shimmer for students
                               : studentsNoData
                               ? const Center(
                                   child: Text(
@@ -1242,7 +1314,6 @@ Future<void> _refreshAll() async {
     );
   }
 
-  // BUTTON WIDGET
   Widget buildButton(String title) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1282,7 +1353,7 @@ Future<void> _refreshAll() async {
 }
 
 // CLUB CARD
-Widget buildClubCardFromApi(Map club) {
+Widget buildClubCardFromApi(BuildContext context,Map club) {
   String title = club["club_name"] ?? "Club";
   String? img = club["image"];
   String imageUrl = (img != null && img.isNotEmpty) ? "$api$img" : "";
@@ -1298,11 +1369,16 @@ Widget buildClubCardFromApi(Map club) {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        CircleAvatar(
-          radius: 30,
-          backgroundImage: imageUrl.isNotEmpty
-              ? NetworkImage(imageUrl)
-              : const AssetImage("lib/assets/images.png") as ImageProvider,
+        GestureDetector(
+          onTap: (){
+            Navigator.push(context, MaterialPageRoute(builder: (_) => ClubView(clubid: club["id"])));
+          },
+          child: CircleAvatar(
+            radius: 30,
+            backgroundImage: imageUrl.isNotEmpty
+                ? NetworkImage(imageUrl)
+                : const AssetImage("lib/assets/images.png") as ImageProvider,
+          ),
         ),
         const SizedBox(height: 10),
         Text(
@@ -1584,57 +1660,12 @@ Widget buildEventCardWithImages({
 
         const SizedBox(height: 10),
         // ---------------- IMAGES ----------------
-        if (imageCount == 1)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: GestureDetector(
-              onTap: () => showImagePopup(context, image1),
-              child: Image.network(
-                image1,
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  height: 180,
-                  color: Colors.black26,
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.broken_image, color: Colors.white54),
-                ),
-              ),
-            ),
-          )
-        else if (imageCount >= 2)
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: GestureDetector(
-                    onTap: () => showImagePopup(context, image1),
-                    child: Image.network(
-                      image1,
-                      height: 110,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: GestureDetector(
-                    onTap: () => showImagePopup(context, image2),
-                    child: Image.network(
-                      image2,
-                      height: 110,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        EventImageSlider(
+          images: [
+            if (image1.isNotEmpty) image1,
+            if (image2.isNotEmpty) image2,
+          ],
+        ),
 
         const SizedBox(height: 10),
 
@@ -1700,6 +1731,69 @@ Widget buildEventCardWithImages({
       ],
     ),
   );
+}
+
+class EventImageSlider extends StatefulWidget {
+  final List<String> images;
+
+  const EventImageSlider({super.key, required this.images});
+
+  @override
+  State<EventImageSlider> createState() => _EventImageSliderState();
+}
+
+class _EventImageSliderState extends State<EventImageSlider> {
+  int currentPage = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 200,
+          child: PageView.builder(
+            itemCount: widget.images.length,
+            onPageChanged: (index) {
+              setState(() {
+                currentPage = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  widget.images[index],
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        // 🔵 Dots Indicator
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            widget.images.length,
+            (index) => Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: currentPage == index ? 8 : 6,
+              height: currentPage == index ? 8 : 6,
+              decoration: BoxDecoration(
+                color: currentPage == index
+                    ? Colors.tealAccent
+                    : Colors.white38,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 // --------------------------- COACH CARD ---------------------------
@@ -1909,7 +2003,7 @@ class _StudentFollowCardState extends State<StudentFollowCard> {
     String standard = student["standard"] != null
         ? "Class ${student["standard"]}"
         : "Student";
-        
+
     String institution = student["institution"] ?? "";
 
     String imageUrl =
@@ -1954,24 +2048,18 @@ class _StudentFollowCardState extends State<StudentFollowCard> {
                   institution,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
                 ),
               const SizedBox(height: 2),
               Text(
                 standard,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 10,
-                ),
+                style: const TextStyle(color: Colors.white54, fontSize: 10),
               ),
             ],
           ),
-          
+
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -2110,11 +2198,19 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
         children: [
           Column(
             children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundImage: imageUrl.isNotEmpty
-                    ? NetworkImage(imageUrl)
-                    : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => UserConnectCoaches()),
+                  );
+                },
+                child: CircleAvatar(
+                  radius: 30,
+                  backgroundImage: imageUrl.isNotEmpty
+                      ? NetworkImage(imageUrl)
+                      : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -2132,24 +2228,18 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
                 exp,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 11,
-                ),
+                style: const TextStyle(color: Colors.white70, fontSize: 11),
               ),
               const SizedBox(height: 2),
               Text(
                 city,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 10,
-                ),
+                style: const TextStyle(color: Colors.white54, fontSize: 10),
               ),
             ],
           ),
-          
+
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 8),

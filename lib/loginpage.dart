@@ -42,6 +42,8 @@ class _LoginpageState extends State<Loginpage> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         _showMessage("OTP sent successfully ${response.body}");
 
+        print("resssssss ${response.body}");
+
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => OtpPage(phoneNumber: phone)),

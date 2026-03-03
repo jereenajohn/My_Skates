@@ -4,11 +4,61 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:my_skates/COACH/club_followers_page.dart';
+import 'package:my_skates/COACH/club_rating_approval.dart';
+import 'package:my_skates/COACH/club_reviews_viewpage.dart';
 import 'package:my_skates/COACH/coach_add_events.dart';
 import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+
+class RatingData {
+  final int id;
+  final int rating;
+  final String review;
+  final String userName;
+  final String? userImage;
+  final String createdAt;
+  final String approvalStatus;
+
+  RatingData({
+    required this.id,
+    required this.rating,
+    required this.review,
+    required this.userName,
+    this.userImage,
+    required this.createdAt,
+    required this.approvalStatus,
+  });
+
+  factory RatingData.fromJson(Map<String, dynamic> json) {
+    return RatingData(
+      id: json['id'] ?? 0,
+      rating: json['rating'] ?? 0,
+      review: json['review'] ?? '',
+      userName: json['user_name'] ?? 'User ${json['user']}',
+      userImage: json['user_image'],
+      createdAt: json['created_at'] ?? '',
+      approvalStatus: json['approval_status'] ?? 'pending',
+    );
+  }
+}
+
+class UserRating {
+  final int id;
+  final int rating;
+  final String review;
+
+  UserRating({required this.id, required this.rating, required this.review});
+
+  factory UserRating.fromJson(Map<String, dynamic> json) {
+    return UserRating(
+      id: json['id'] ?? 0,
+      rating: json['rating'] ?? 0,
+      review: json['review'] ?? '',
+    );
+  }
+}
 
 class ClubView extends StatefulWidget {
   final int clubid;
@@ -26,13 +76,34 @@ class _ClubViewState extends State<ClubView> {
   bool isFeedLoading = true;
   int followersCount = 0;
 
+  bool _hasUserRated = false;
+  UserRating? _userRating;
+  bool _isLoadingRating = true;
+  List<RatingData> _recentRatings = [];
+  double _averageRating = 0.0;
+
+  bool _isCoach = false;
+  int? _currentUserId;
+
+  bool _hasSentFollowRequest = false;
+  bool _isFollowing = false;
+  bool _isLoadingFollowStatus = true;
+
+  String? _clubRequestStatus;
+  bool _isClubLoading = true;
+
   @override
   void initState() {
     super.initState();
+    _checkUserRole();
     fetchClubDetails();
     fetchClubEvents();
     fetchFollowersCount();
-    // fetchFeed();
+    _fetchClubRequestStatus();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkUserRating();
+    });
 
     print("Club ID: ${widget.clubid}");
   }
@@ -40,6 +111,550 @@ class _ClubViewState extends State<ClubView> {
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString("access");
+  }
+
+  Future<void> _fetchClubRequestStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) return;
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/club/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> clubs = jsonDecode(response.body);
+
+        final thisClub = clubs.firstWhere(
+          (c) => c['id'] == widget.clubid,
+          orElse: () => null,
+        );
+
+        if (thisClub != null) {
+          setState(() {
+            _clubRequestStatus = thisClub['approval_status'];
+          });
+        }
+      }
+    } catch (e) {
+      print("Error fetching club request status: $e");
+    } finally {
+      setState(() {
+        _isClubLoading = false;
+      });
+    }
+  }
+
+  Future<void> _sendClubJoinRequest() async {
+    final token = await getToken();
+    if (token == null) return;
+
+    try {
+      final response = await http.post(
+        Uri.parse('$api/api/myskates/club/join/${widget.clubid}/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        setState(() {
+          _clubRequestStatus = 'pending';
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Join request sent successfully"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("CLUB JOIN ERROR: $e");
+    }
+  }
+
+  Future<void> _leaveClub() async {
+    final token = await getToken();
+    if (token == null) return;
+
+    try {
+      final response = await http.post(
+        Uri.parse('$api/api/myskates/club/leave/${widget.clubid}/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        setState(() {
+          _clubRequestStatus = null;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Left club successfully"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("CLUB LEAVE ERROR: $e");
+    }
+  }
+
+  // NEW: Confirm leave club dialog
+  Future<bool> _confirmLeaveClub() async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) {
+            return AlertDialog(
+              backgroundColor: const Color.fromARGB(255, 0, 0, 0),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Text(
+                "Leave Club?",
+                style: TextStyle(color: Colors.white),
+              ),
+              content: const Text(
+                "Are you sure you want to leave this club?",
+                style: TextStyle(color: Colors.white70),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text(
+                    "Cancel",
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                  ),
+                  child: const Text(
+                    "Leave",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
+  // NEW: Build club action button (same as homepage)
+  Widget _buildClubActionButton() {
+    String buttonText;
+    Color buttonColor;
+    VoidCallback? onTap;
+
+    if (_clubRequestStatus == 'approved') {
+      buttonText = "Joined";
+      buttonColor = Colors.redAccent;
+      onTap = () async {
+        final confirmed = await _confirmLeaveClub();
+        if (confirmed) {
+          _leaveClub();
+        }
+      };
+    } else if (_clubRequestStatus == 'pending') {
+      buttonText = "Requested";
+      buttonColor = Colors.orange;
+      onTap = null;
+    } else {
+      buttonText = "Join Club";
+      buttonColor = Colors.teal;
+      onTap = _sendClubJoinRequest;
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        decoration: BoxDecoration(
+          color: buttonColor,
+          borderRadius: BorderRadius.circular(25),
+          boxShadow: [
+            BoxShadow(
+              color: buttonColor.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Text(
+          buttonText,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _checkFollowStatus() async {
+    setState(() {
+      _isLoadingFollowStatus = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      final userId = prefs.getInt("id");
+
+      if (token == null || userId == null) {
+        setState(() {
+          _isLoadingFollowStatus = false;
+        });
+        return;
+      }
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/user/follow/clubs/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      print("Follow status response: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final List<dynamic> followedClubs = jsonDecode(response.body);
+
+        final clubFollow = followedClubs.firstWhere(
+          (fc) => fc['club'] == widget.clubid,
+          orElse: () => null,
+        );
+
+        if (clubFollow != null) {
+          setState(() {
+            _hasSentFollowRequest = true;
+            _isFollowing = clubFollow['status'] == 'approved';
+          });
+        }
+      }
+    } catch (e) {
+      print("Error checking follow status: $e");
+    } finally {
+      setState(() {
+        _isLoadingFollowStatus = false;
+      });
+    }
+  }
+
+  Future<void> _checkUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    _currentUserId = prefs.getInt("id");
+    final userType = prefs.getString("user_type");
+
+    setState(() {
+      _isCoach = userType == 'coach';
+      print("User is coach: $_isCoach");
+    });
+  }
+
+  Future<void> _checkUserRating() async {
+    setState(() {
+      _isLoadingRating = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      final userId = prefs.getInt("id");
+
+      if (token == null || userId == null) return;
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/club/rating/${widget.clubid}/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      print("responsee ${response.body}");
+      if (response.statusCode == 200) {
+        final List<dynamic> ratings = jsonDecode(response.body);
+
+        final approvedRatings = ratings
+            .where((r) => r['approval_status'] == 'approved')
+            .toList();
+
+        if (approvedRatings.isNotEmpty) {
+          double total = 0;
+          for (var rating in approvedRatings) {
+            total += rating['rating'] ?? 0;
+          }
+          _averageRating = total / approvedRatings.length;
+        } else {
+          _averageRating = 0.0;
+        }
+
+        final ratingsToDisplay = ratings
+            .where((r) => r['approval_status'] == 'approved')
+            .toList();
+
+        print(
+          "Displaying ${ratingsToDisplay.length} approved ratings out of ${ratings.length} total",
+        );
+
+        List<RatingData> ratingDataList = [];
+
+        for (var rating in ratingsToDisplay) {
+          // Get user data directly from the rating object
+          String firstName = rating['user_first_name'] ?? '';
+          String lastName = rating['user_last_name'] ?? '';
+          String userName = '';
+
+          if (firstName.isNotEmpty && lastName.isNotEmpty) {
+            userName = '$firstName $lastName';
+          } else if (firstName.isNotEmpty) {
+            userName = firstName;
+          } else if (lastName.isNotEmpty) {
+            userName = lastName;
+          } else {
+            userName = 'User ${rating['user']}';
+          }
+
+          String? userImage = rating['profile'];
+          if (userImage != null && userImage.isNotEmpty) {
+            if (!userImage.startsWith('http')) {
+              userImage = userImage.startsWith('/')
+                  ? "$api$userImage"
+                  : "$api/$userImage";
+            }
+          }
+
+          ratingDataList.add(
+            RatingData(
+              id: rating['id'],
+              rating: rating['rating'],
+              review: rating['review'] ?? '',
+              userName: userName,
+              userImage: userImage,
+              createdAt: rating['created_at'] ?? '',
+              approvalStatus: rating['approval_status'] ?? 'pending',
+            ),
+          );
+        }
+
+        setState(() {
+          _recentRatings = ratingDataList;
+        });
+
+        final userRating = ratings.firstWhere(
+          (rating) => rating['user'] == userId,
+          orElse: () => null,
+        );
+
+        if (userRating != null) {
+          setState(() {
+            _hasUserRated = true;
+            _userRating = UserRating(
+              id: userRating['id'],
+              rating: userRating['rating'],
+              review: userRating['review'] ?? '',
+            );
+          });
+
+          if (userRating['approval_status'] == 'pending') {
+            _showPendingRatingMessage();
+          }
+        } else if (!_isCoach) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              _showRatingPopup();
+            }
+          });
+        }
+      }
+    } catch (e) {
+      print("Error checking rating: $e");
+    } finally {
+      setState(() {
+        _isLoadingRating = false;
+      });
+    }
+  }
+
+  void _showPendingRatingMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: Colors.orange,
+        content: Text(
+          "Your rating is pending approval from the club admin",
+          style: TextStyle(color: Colors.white),
+        ),
+      ),
+    );
+  }
+
+  void _showRatingPopup() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return RatingPopup(
+          clubId: widget.clubid,
+          onSubmit: (rating, review) async {
+            await _submitRating(rating, review);
+          },
+          onSkip: () {
+            Navigator.pop(context);
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _submitRating(int rating, String review) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      final userId = prefs.getInt("id");
+
+      if (token == null || userId == null) return;
+
+      final url = Uri.parse("$api/api/myskates/club/rating/${widget.clubid}/");
+
+      final requestBody = {
+        "club": widget.clubid,
+        "rating": rating,
+        "review": review,
+        "user": userId,
+      };
+
+      print("Sending rating request: ${jsonEncode(requestBody)}");
+
+      final response = await http.post(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print("Submit Rating Response: ${response.statusCode}");
+      print("Submit Rating Body: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.teal,
+            content: Text(
+              "Thank you for your rating!",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+
+        _checkUserRating();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to submit rating: ${response.body}")),
+        );
+      }
+    } catch (e) {
+      print("Submit Rating Error: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
+
+  void _showUpdateRatingDialog() {
+    if (_userRating == null) return;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return RatingPopup(
+          clubId: widget.clubid,
+          initialRating: _userRating!.rating,
+          initialReview: _userRating!.review,
+          isUpdate: true,
+          onSubmit: (rating, review) async {
+            await _updateRating(rating, review);
+          },
+          onSkip: () {
+            Navigator.pop(context);
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _updateRating(int rating, String review) async {
+    if (_userRating == null) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      final userId = prefs.getInt("id");
+
+      if (token == null) return;
+
+      final url = Uri.parse(
+        "$api/api/myskates/club/rating/update/${_userRating!.id}/",
+      );
+
+      final requestBody = {
+        "club": widget.clubid,
+        "rating": rating,
+        "review": review,
+        "user": userId,
+      };
+
+      print("Sending update rating request: ${jsonEncode(requestBody)}");
+
+      final response = await http.put(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print("Update Rating Response: ${response.statusCode}");
+      print("Update Rating Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.teal,
+            content: Text(
+              "Rating updated successfully!",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+
+        _checkUserRating();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to update rating: ${response.body}")),
+        );
+      }
+    } catch (e) {
+      print("Update Rating Error: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
   }
 
   Future<void> fetchFollowersCount() async {
@@ -64,7 +679,7 @@ class _ClubViewState extends State<ClubView> {
     }
   }
 
-  // Future<void> fetchFeed() async {
+  // Future<void> submitFeedPost(String text, XFile? imageFile) async {
   //   try {
   //     final prefs = await SharedPreferences.getInstance();
   //     final token = prefs.getString("access");
@@ -72,48 +687,80 @@ class _ClubViewState extends State<ClubView> {
 
   //     if (token == null || userId == null) return;
 
-  //     final url = Uri.parse("$api/api/myskates/feed/view/${widget.clubid}/");
+  //     final url = Uri.parse("$api/api/myskates/feed/add/");
 
-  //     final response = await http.get(
-  //       url,
-  //       headers: {"Authorization": "Bearer $token"},
-  //     );
+  //     final request = http.MultipartRequest("POST", url);
+  //     request.headers["Authorization"] = "Bearer $token";
 
-  //     if (response.statusCode == 200) {
-  //       setState(() {
-  //         feedPosts = jsonDecode(response.body);
-  //         isFeedLoading = false;
-  //       });
+  //     request.fields.addAll({
+  //       "club": widget.clubid.toString(),
+  //       "user": userId.toString(),
+  //       "text": text,
+  //     });
+
+  //     if (imageFile != null) {
+  //       request.files.add(
+  //         await http.MultipartFile.fromPath("image", imageFile.path),
+  //       );
+  //     }
+
+  //     final response = await request.send();
+
+  //     if (response.statusCode == 200 || response.statusCode == 201) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         const SnackBar(
+  //           backgroundColor: Colors.teal,
+  //           content: Text(
+  //             "Posted successfully",
+  //             style: TextStyle(color: Colors.white),
+  //           ),
+  //         ),
+  //       );
   //     } else {
-  //       setState(() {
-  //         isFeedLoading = false;
-  //       });
+  //       ScaffoldMessenger.of(
+  //         context,
+  //       ).showSnackBar(const SnackBar(content: Text("Failed to post")));
   //     }
   //   } catch (e) {
-  //     setState(() {
-  //       isFeedLoading = false;
-  //     });
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(SnackBar(content: Text("Error: $e")));
   //   }
   // }
 
-  Future<void> submitFeedPost(String text, XFile? imageFile) async {
+  Future<void> submitFeedPost(
+    String title,
+    String description,
+    XFile? imageFile,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
-      final userId = prefs.getInt("id");
 
-      if (token == null || userId == null) return;
+      if (token == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Please login to post")));
+        return;
+      }
 
-      final url = Uri.parse("$api/api/myskates/feed/add/");
+      final url = Uri.parse("$api/api/myskates/club/feed/create/");
 
       final request = http.MultipartRequest("POST", url);
-      request.headers["Authorization"] = "Bearer $token";
 
-      request.fields.addAll({
-        "club": widget.clubid.toString(),
-        "user": userId.toString(),
-        "text": text,
-      });
+      request.headers["Authorization"] = "Bearer $token";
+      request.headers["Accept"] = "application/json";
+
+      
+      if (title.isNotEmpty) {
+        request.fields["title"] = title;
+      }
+
+      if (description.isNotEmpty) {
+        request.fields["description"] = description;
+      }
+
+      request.fields["club"] = widget.clubid.toString();
 
       if (imageFile != null) {
         request.files.add(
@@ -122,6 +769,7 @@ class _ClubViewState extends State<ClubView> {
       }
 
       final response = await request.send();
+      final responseData = await response.stream.bytesToString();
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -133,19 +781,25 @@ class _ClubViewState extends State<ClubView> {
             ),
           ),
         );
-
-        // fetchFeed(); // Refresh feed
+        print("ressssssssssss ${response.statusCode}");
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Failed to post")));
+        print("Feed post error: $responseData");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to post: ${response.statusCode}"),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      print("Feed post exception: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+      );
     }
   }
+
+
 
   Future<void> fetchClubDetails() async {
     String? token = await getToken();
@@ -170,12 +824,10 @@ class _ClubViewState extends State<ClubView> {
     } else {
       setState(() {
         loading = false;
-        club = {}; // prevent null crash
+        club = {};
       });
     }
   }
-
-  // ================== EVENT SUBMIT ==================
 
   Future<void> submitEvent(
     String title,
@@ -230,10 +882,10 @@ class _ClubViewState extends State<ClubView> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            backgroundColor: Colors.teal, // TEAL
+            backgroundColor: Colors.teal,
             content: const Text(
               "Event added successfully",
-              style: TextStyle(color: Colors.white), // white text for contrast
+              style: TextStyle(color: Colors.white),
             ),
           ),
         );
@@ -296,7 +948,6 @@ class _ClubViewState extends State<ClubView> {
     final List<String> media = [];
 
     for (var event in clubEvents) {
-      // Main image
       if (event["image"] != null && event["image"].toString().isNotEmpty) {
         media.add(
           event["image"].toString().startsWith("http")
@@ -305,7 +956,6 @@ class _ClubViewState extends State<ClubView> {
         );
       }
 
-      // Gallery images
       if (event["images"] is List) {
         for (var img in event["images"]) {
           if (img["image"] != null && img["image"].toString().isNotEmpty) {
@@ -345,7 +995,7 @@ class _ClubViewState extends State<ClubView> {
           ),
         );
 
-        fetchClubEvents(); // refresh list
+        fetchClubEvents();
       } else {
         ScaffoldMessenger.of(
           context,
@@ -365,7 +1015,7 @@ class _ClubViewState extends State<ClubView> {
         final yyyy = parts[0];
         final mm = parts[1];
         final dd = parts[2];
-        return "$dd/$mm/$yyyy"; // dd/mm/yyyy
+        return "$dd/$mm/$yyyy";
       }
       return date;
     } catch (e) {
@@ -458,7 +1108,6 @@ class _ClubViewState extends State<ClubView> {
               ),
               const SizedBox(height: 20),
 
-              // Gallery Button
               ListTile(
                 leading: const Icon(
                   Icons.photo_library,
@@ -483,7 +1132,6 @@ class _ClubViewState extends State<ClubView> {
                 },
               ),
 
-              // Camera Button
               ListTile(
                 leading: const Icon(
                   Icons.camera_alt,
@@ -548,18 +1196,13 @@ class _ClubViewState extends State<ClubView> {
   }
 
   Widget _eventTile(Map event) {
-    // -----------------------------------------------------
-    // BUILD IMAGE LIST (main image + gallery images)
-    // -----------------------------------------------------
     List<String> images = [];
 
-    // Add main image if exists
     final mainImage = safeString(event["image"]);
     if (mainImage.isNotEmpty) {
       images.add(mainImage);
     }
 
-    // Add gallery images
     if (event["images"] is List) {
       for (var g in event["images"]) {
         final img = safeString(g["image"]);
@@ -567,14 +1210,11 @@ class _ClubViewState extends State<ClubView> {
       }
     }
 
-    // Convert to full URLs
     images = images.map((path) {
       return path.startsWith("http")
           ? path
           : "$api${path.startsWith("/") ? path : "/$path"}";
     }).toList();
-
-    // -----------------------------------------------------
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -586,16 +1226,11 @@ class _ClubViewState extends State<ClubView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // -----------------------------------------------------
-          // IMAGE SECTION (auto adjust)
-          // -----------------------------------------------------
           if (images.isNotEmpty)
             Container(
               height: images.length == 1 ? 170 : 140,
               child: images.length == 1
-                  ?
-                    // ---------- ONE IMAGE (full width) ----------
-                    GestureDetector(
+                  ? GestureDetector(
                       onTap: () => _openSquareMediaViewer(images[0]),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
@@ -606,11 +1241,8 @@ class _ClubViewState extends State<ClubView> {
                         ),
                       ),
                     )
-                  :
-                    // ---------- TWO OR MORE IMAGES ----------
-                    Row(
+                  : Row(
                       children: [
-                        // LEFT IMAGE
                         Expanded(
                           child: GestureDetector(
                             onTap: () => _openSquareMediaViewer(images[0]),
@@ -626,7 +1258,6 @@ class _ClubViewState extends State<ClubView> {
 
                         const SizedBox(width: 8),
 
-                        // RIGHT IMAGE with +N overlay if needed
                         Expanded(
                           child: GestureDetector(
                             onTap: () => _openSquareMediaViewer(images[1]),
@@ -642,7 +1273,6 @@ class _ClubViewState extends State<ClubView> {
                                   ),
                                 ),
 
-                                // More images overlay
                                 if (images.length > 2)
                                   Container(
                                     decoration: BoxDecoration(
@@ -670,9 +1300,6 @@ class _ClubViewState extends State<ClubView> {
 
           const SizedBox(height: 12),
 
-          // -----------------------------------------------------
-          // TITLE
-          // -----------------------------------------------------
           Text(
             safeString(event["title"]),
             style: const TextStyle(
@@ -684,18 +1311,12 @@ class _ClubViewState extends State<ClubView> {
 
           const SizedBox(height: 6),
 
-          // -----------------------------------------------------
-          // DESCRIPTION
-          // -----------------------------------------------------
           Text(
             safeString(event["description"]),
             style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
           const SizedBox(height: 10),
 
-          // -----------------------------------------------------
-          // DATE RANGE
-          // -----------------------------------------------------
           Row(
             children: [
               const Icon(
@@ -713,9 +1334,6 @@ class _ClubViewState extends State<ClubView> {
 
           const SizedBox(height: 5),
 
-          // -----------------------------------------------------
-          // TIME RANGE + MENU
-          // -----------------------------------------------------
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -734,7 +1352,6 @@ class _ClubViewState extends State<ClubView> {
                 ],
               ),
 
-              // OPTIONS (UPDATE / DELETE)
               PopupMenuButton<String>(
                 color: const Color.fromARGB(225, 4, 19, 13),
                 icon: const Icon(Icons.more_vert, color: Colors.white70),
@@ -770,8 +1387,7 @@ class _ClubViewState extends State<ClubView> {
   Widget _fancySwipeEventTile(Map event) {
     return Dismissible(
       key: Key(event["id"].toString()),
-      direction: DismissDirection.horizontal, // right & left
-      // ======== BACKGROUND: SWIPE RIGHT (UPDATE) ========
+      direction: DismissDirection.horizontal,
       background: Container(
         padding: const EdgeInsets.only(left: 20),
         decoration: const BoxDecoration(
@@ -791,7 +1407,6 @@ class _ClubViewState extends State<ClubView> {
         ),
       ),
 
-      // ======== SECONDARY BACKGROUND: SWIPE LEFT (DELETE) ========
       secondaryBackground: Container(
         padding: const EdgeInsets.only(right: 20),
         decoration: const BoxDecoration(
@@ -812,14 +1427,11 @@ class _ClubViewState extends State<ClubView> {
         ),
       ),
 
-      // ======== CONFIRM DISMISS (SWIPE ACTION) ========
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
-          // RIGHT SWIPE = UPDATE
           print("Update clicked");
-          return false; // do not remove card
+          return false;
         } else {
-          // LEFT SWIPE = DELETE → ASK CONFIRMATION
           bool? confirm = await showDialog(
             context: context,
             barrierDismissible: false,
@@ -862,9 +1474,9 @@ class _ClubViewState extends State<ClubView> {
 
           if (confirm == true) {
             _deleteEvent(event["id"]);
-            return true; // allow dismiss
+            return true;
           } else {
-            return false; // do not remove tile
+            return false;
           }
         }
       },
@@ -922,21 +1534,19 @@ class _ClubViewState extends State<ClubView> {
       barrierColor: Colors.black.withOpacity(0.9),
       builder: (context) {
         return GestureDetector(
-          onTap: () => Navigator.pop(context), // close on tap
+          onTap: () => Navigator.pop(context),
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // PINCH-TO-ZOOM VIEWER
               InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 4.0,
                 child: CircleAvatar(
-                  radius: 100, // BIG SIZE like Instagram
+                  radius: 100,
                   backgroundImage: NetworkImage(imageUrl),
                 ),
               ),
 
-              // CLOSE ICON (Top-right)
               Positioned(
                 top: 40,
                 right: 20,
@@ -952,6 +1562,235 @@ class _ClubViewState extends State<ClubView> {
     );
   }
 
+  Widget _buildSingleReview(RatingData rating) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white12,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.grey[800],
+                backgroundImage:
+                    rating.userImage != null && rating.userImage!.isNotEmpty
+                    ? NetworkImage(rating.userImage!)
+                    : null,
+                child: rating.userImage == null || rating.userImage!.isEmpty
+                    ? Text(
+                        rating.userName.isNotEmpty
+                            ? rating.userName[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            rating.userName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00AFA5).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                color: Color(0xFF00AFA5),
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                rating.rating.toString(),
+                                style: const TextStyle(
+                                  color: Color(0xFF00AFA5),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    if (rating.review.isNotEmpty)
+                      Text(
+                        rating.review,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                          height: 1.4,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      )
+                    else
+                      const Text(
+                        "No review provided",
+                        style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 14,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+
+                    const SizedBox(height: 6),
+
+                    Text(
+                      _formatDate(rating.createdAt),
+                      style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'approved':
+        return Colors.teal;
+      case 'rejected':
+        return Colors.orange;
+      case 'pending':
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'approved':
+        return Icons.check_circle;
+      case 'rejected':
+        return Icons.cancel;
+      case 'pending':
+      default:
+        return Icons.pending;
+    }
+  }
+
+  String _formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      final now = DateTime.now();
+      final difference = now.difference(date);
+
+      if (difference.inDays > 365) {
+        return "${(difference.inDays / 365).floor()}y ago";
+      } else if (difference.inDays > 30) {
+        return "${(difference.inDays / 30).floor()}mo ago";
+      } else if (difference.inDays > 0) {
+        return "${difference.inDays}d ago";
+      } else if (difference.inHours > 0) {
+        return "${difference.inHours}h ago";
+      } else if (difference.inMinutes > 0) {
+        return "${difference.inMinutes}m ago";
+      } else {
+        return "Just now";
+      }
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  Widget _buildPendingSummary() {
+    if (!_isCoach) return const SizedBox();
+
+    final pendingCount = _recentRatings
+        .where((r) => r.approvalStatus == 'pending')
+        .length;
+
+    if (pendingCount == 0) return const SizedBox();
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.pending_actions, color: Colors.orange, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                "$pendingCount Pending Review${pendingCount > 1 ? 's' : ''}",
+                style: const TextStyle(
+                  color: Colors.orange,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ClubRatingApprovalPage(
+                    clubId: widget.clubid,
+                    clubName: club?["club_name"] ?? "Club",
+                  ),
+                ),
+              );
+            },
+            child: const Text(
+              "Manage",
+              style: TextStyle(color: Color(0xFF00AFA5)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (loading) {
@@ -960,7 +1799,6 @@ class _ClubViewState extends State<ClubView> {
       );
     }
 
-    // Local non-null map
     final Map<String, dynamic> c = club ?? {};
 
     final String clubName = (c["club_name"] ?? "").toString();
@@ -991,7 +1829,6 @@ class _ClubViewState extends State<ClubView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // BACK ARROW
               GestureDetector(
                 onTap: () => Navigator.pop(context),
                 child: const Icon(
@@ -1002,11 +1839,10 @@ class _ClubViewState extends State<ClubView> {
               ),
 
               const SizedBox(height: 20),
-              // ---------------- TOP HEADER ----------------
+
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // CLUB IMAGE
                   GestureDetector(
                     onTap: () {
                       if (imagePath != null && imagePath!.isNotEmpty) {
@@ -1025,7 +1861,6 @@ class _ClubViewState extends State<ClubView> {
 
                   const SizedBox(width: 15),
 
-                  // CLUB NAME + LOCATION + MEMBERS
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1053,7 +1888,6 @@ class _ClubViewState extends State<ClubView> {
 
                         const SizedBox(height: 6),
 
-                        // 👥 MEMBERS COUNT
                         Text(
                           "$followersCount Members joined",
                           style: const TextStyle(
@@ -1061,11 +1895,65 @@ class _ClubViewState extends State<ClubView> {
                             color: Colors.white60,
                           ),
                         ),
+
+                        // ADDED: Club join/request button
+                        if (!_isClubLoading) ...[
+                          const SizedBox(height: 12),
+                          _buildClubActionButton(),
+                        ],
+
+                        if (_hasUserRated && widget.isApproved) ...[
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: _showUpdateRatingDialog,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFF00AFA5,
+                                ).withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: const Color(
+                                    0xFF00AFA5,
+                                  ).withOpacity(0.3),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.star,
+                                    color: Color(0xFF00AFA5),
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "Your Rating: ${_userRating?.rating}",
+                                    style: const TextStyle(
+                                      color: Color(0xFF00AFA5),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.edit,
+                                    color: Color(0xFF00AFA5),
+                                    size: 14,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
 
-                  // 3 DOT MENU (TOP RIGHT)
                   PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert, color: Colors.white),
                     color: const Color(0xFF06201A),
@@ -1078,23 +1966,79 @@ class _ClubViewState extends State<ClubView> {
                                 ClubFollowersPage(clubId: widget.clubid),
                           ),
                         );
+                      } else if (value == "approvals" && _isCoach) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ClubRatingApprovalPage(
+                              clubId: widget.clubid,
+                              clubName: clubName,
+                            ),
+                          ),
+                        );
                       }
                     },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: "followers",
-                        child: Text(
-                          "View Followers",
-                          style: TextStyle(color: Colors.white),
+                    itemBuilder: (context) {
+                      List<PopupMenuEntry<String>> items = [
+                        const PopupMenuItem(
+                          value: "followers",
+                          child: Text(
+                            "   View Followers",
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
-                      ),
-                    ],
+                      ];
+
+                      if (_isCoach) {
+                        final pendingCount = _recentRatings
+                            .where((r) => r.approvalStatus == 'pending')
+                            .length;
+
+                        items.add(
+                          PopupMenuItem(
+                            value: "approvals",
+                            child: Row(
+                              children: [
+                                const SizedBox(width: 8),
+                                const Text(
+                                  "Manage Approvals",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                if (pendingCount > 0) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      pendingCount.toString(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+
+                      return items;
+                    },
                   ),
                 ],
               ),
-              SizedBox(height: 20),
 
-              // ---------------- OVERVIEW ----------------
+              const SizedBox(height: 20),
+
               const Text(
                 "Overview",
                 style: TextStyle(
@@ -1135,346 +2079,340 @@ class _ClubViewState extends State<ClubView> {
 
               const SizedBox(height: 35),
 
-              if (!widget.isApproved) ...[
-  Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [
-          Color(0xFF1A3A3A), // Dark teal
-          Color(0xFF0A2A2A), // Darker teal
-        ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(
-        color: const Color(0xFF00AFA5).withOpacity(0.3),
-        width: 1,
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: const Color(0xFF00AFA5).withOpacity(0.1),
-          blurRadius: 10,
-          spreadRadius: 2,
-        ),
-      ],
-    ),
-    child: Row(
-      children: [
-        // Animated clock icon
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: const Color(0xFF00AFA5).withOpacity(0.15),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.hourglass_empty,
-            color: Color(0xFF00AFA5),
-            size: 28,
-          ),
-        ),
-        const SizedBox(width: 16),
-        
-        // Text content
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Request Pending",
-                style: TextStyle(
-                  color: Color(0xFF00AFA5),
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              // const Text(
-              //   "Your request to join this club is waiting for coach approval. You can view basic information while you wait.",
-              //   style: TextStyle(
-              //     color: Colors.white70,
-              //     fontSize: 13,
-              //     height: 1.3,
+              // if (!widget.isApproved && !_isCoach) ...[
+              //   Container(
+              //     width: double.infinity,
+              //     padding: const EdgeInsets.all(16),
+              //     decoration: BoxDecoration(
+              //       gradient: const LinearGradient(
+              //         colors: [Color(0xFF1A3A3A), Color(0xFF0A2A2A)],
+              //         begin: Alignment.topLeft,
+              //         end: Alignment.bottomRight,
+              //       ),
+              //       borderRadius: BorderRadius.circular(16),
+              //       border: Border.all(
+              //         color: const Color(0xFF00AFA5).withOpacity(0.3),
+              //         width: 1,
+              //       ),
+              //       boxShadow: [
+              //         BoxShadow(
+              //           color: const Color(0xFF00AFA5).withOpacity(0.1),
+              //           blurRadius: 10,
+              //           spreadRadius: 2,
+              //         ),
+              //       ],
+              //     ),
+              //     child: Row(
+              //       children: [
+              //         Container(
+              //           padding: const EdgeInsets.all(10),
+              //           decoration: BoxDecoration(
+              //             color: const Color(0xFF00AFA5).withOpacity(0.15),
+              //             shape: BoxShape.circle,
+              //           ),
+              //           child: const Icon(
+              //             Icons.hourglass_empty,
+              //             color: Color(0xFF00AFA5),
+              //             size: 28,
+              //           ),
+              //         ),
+              //         const SizedBox(width: 16),
+
+              //         Expanded(
+              //           child: Column(
+              //             crossAxisAlignment: CrossAxisAlignment.start,
+              //             children: [
+              //               const Text(
+              //                 "Request Pending",
+              //                 style: TextStyle(
+              //                   color: Color(0xFF00AFA5),
+              //                   fontSize: 16,
+              //                   fontWeight: FontWeight.bold,
+              //                 ),
+              //               ),
+              //             ],
+              //           ),
+              //         ),
+              //       ],
+              //     ),
               //   ),
-              // ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  ),
-  const SizedBox(height: 24),
-],
+              //   const SizedBox(height: 24),
+              // ],
 
-              // ---------------- CLUB RATING ----------------
-              if (widget.isApproved) ...[
-  const Text(
-    "Club Rating",
-    style: TextStyle(
-      color: Colors.white,
-      fontSize: 22,
-      fontWeight: FontWeight.bold,
-    ),
-  ),
+              // Show Feed, Media, Events sections only if user is coach OR club is approved
+              if (_isCoach || widget.isApproved) ...[
+                const SizedBox(height: 10),
 
-              const SizedBox(height: 10),
-
-              SizedBox(
-                height: 220,
-                child: LineChart(
-                  LineChartData(
-                    borderData: FlBorderData(show: true),
-                    gridData: FlGridData(show: false),
-                    titlesData: FlTitlesData(
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 60,
-                          getTitlesWidget: (value, _) {
-                            switch (value.toInt()) {
-                              case 4:
-                                return const Text(
-                                  "Excellent",
-                                  style: TextStyle(color: Colors.white70),
-                                );
-                              case 3:
-                                return const Text(
-                                  "High",
-                                  style: TextStyle(color: Colors.white70),
-                                );
-                              case 2:
-                                return const Text(
-                                  "Low",
-                                  style: TextStyle(color: Colors.white70),
-                                );
-                            }
-                            return const SizedBox();
-                          },
+                SizedBox(
+                  height: 220,
+                  child: LineChart(
+                    LineChartData(
+                      borderData: FlBorderData(show: true),
+                      gridData: FlGridData(show: false),
+                      titlesData: FlTitlesData(
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 60,
+                            getTitlesWidget: (value, _) {
+                              switch (value.toInt()) {
+                                case 4:
+                                  return const Text(
+                                    "Excellent",
+                                    style: TextStyle(color: Colors.white70),
+                                  );
+                                case 3:
+                                  return const Text(
+                                    "High",
+                                    style: TextStyle(color: Colors.white70),
+                                  );
+                                case 2:
+                                  return const Text(
+                                    "Low",
+                                    style: TextStyle(color: Colors.white70),
+                                  );
+                              }
+                              return const SizedBox();
+                            },
+                          ),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: (value, _) {
+                              switch (value.toInt()) {
+                                case 0:
+                                  return const Text(
+                                    "Aug",
+                                    style: TextStyle(color: Colors.white70),
+                                  );
+                                case 1:
+                                  return const Text(
+                                    "Sept",
+                                    style: TextStyle(color: Colors.white70),
+                                  );
+                                case 2:
+                                  return const Text(
+                                    "Oct",
+                                    style: TextStyle(color: Colors.white70),
+                                  );
+                                case 3:
+                                  return const Text(
+                                    "Nov",
+                                    style: TextStyle(color: Colors.white70),
+                                  );
+                              }
+                              return const SizedBox();
+                            },
+                          ),
                         ),
                       ),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          getTitlesWidget: (value, _) {
-                            switch (value.toInt()) {
-                              case 0:
-                                return const Text(
-                                  "Aug",
-                                  style: TextStyle(color: Colors.white70),
-                                );
-                              case 1:
-                                return const Text(
-                                  "Sept",
-                                  style: TextStyle(color: Colors.white70),
-                                );
-                              case 2:
-                                return const Text(
-                                  "Oct",
-                                  style: TextStyle(color: Colors.white70),
-                                );
-                              case 3:
-                                return const Text(
-                                  "Nov",
-                                  style: TextStyle(color: Colors.white70),
-                                );
-                            }
-                            return const SizedBox();
-                          },
+                      lineBarsData: [
+                        LineChartBarData(
+                          isCurved: true,
+                          color: const Color(0xFF00E5D0),
+                          barWidth: 3,
+                          dotData: FlDotData(show: true),
+                          spots: const [
+                            FlSpot(0, 3),
+                            FlSpot(1, 4),
+                            FlSpot(2, 3),
+                            FlSpot(3, 2),
+                          ],
                         ),
-                      ),
+                      ],
                     ),
-                    lineBarsData: [
-                      LineChartBarData(
-                        isCurved: true,
-                        color: const Color(0xFF00E5D0),
-                        barWidth: 3,
-                        dotData: FlDotData(show: true),
-                        spots: const [
-                          FlSpot(0, 3),
-                          FlSpot(1, 4),
-                          FlSpot(2, 3),
-                          FlSpot(3, 2),
-                        ],
+                  ),
+                ),
+                const SizedBox(height: 35),
+
+                const Text(
+                  "Feed",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 15),
+
+                _feedInputBox(),
+                const SizedBox(height: 20),
+
+                const Text(
+                  "Media",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 15),
+
+                SizedBox(
+                  height: 90,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      ...mediaImages
+                          .take(10)
+                          .map((img) => _mediaItem(img))
+                          .toList(),
+
+                      Container(
+                        width: 70,
+                        margin: const EdgeInsets.only(right: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            "View\nall",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
 
-              const SizedBox(height: 35),
+                const SizedBox(height: 35),
 
-              ],
+                // REVIEWS SECTION
+                const Text(
+                  "Reviews",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
 
-              // ---------------- FEED SECTION ----------------
-              if (widget.isApproved) ...[
-  const Text(
-    "Feed",
-    style: TextStyle(
-      color: Colors.white,
-      fontSize: 22,
-      fontWeight: FontWeight.bold,
-    ),
-  ),
-              const SizedBox(height: 15),
+                const SizedBox(height: 15),
 
-              _feedInputBox(),
-              const SizedBox(height: 20),
-
-              // if (isFeedLoading)
-              //   const Center(child: CircularProgressIndicator(color: Colors.teal))
-              // else if (feedPosts.isEmpty)
-              //   const Text("No posts yet.", style: TextStyle(color: Colors.white70))
-              // else
-              //   Column(
-              //     children: feedPosts.map((post) => _feedTile(post)).toList(),
-              //   ),
-
-              // const SizedBox(height: 35),
-
-              ],
-
-              // ---------------- MEDIA ----------------
-              if (widget.isApproved) ...[
-  const Text(
-    "Media",
-    style: TextStyle(
-      color: Colors.white,
-      fontSize: 22,
-      fontWeight: FontWeight.bold,
-    ),
-  ),
-              const SizedBox(height: 15),
-
-              SizedBox(
-                height: 90,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    ...mediaImages
-                        .take(10)
-                        .map((img) => _mediaItem(img))
-                        .toList(),
-
-                    Container(
-                      width: 70,
-                      margin: const EdgeInsets.only(right: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          "View\nall",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white),
-                        ),
+                if (_recentRatings.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white12,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        "No reviews yet",
+                        style: TextStyle(color: Colors.white54, fontSize: 16),
                       ),
                     ),
-                  ],
-                ),
-              ),
+                  )
+                else
+                  Column(
+                    children: [
+                      _buildPendingSummary(),
 
-              const SizedBox(height: 35),
-              ],
-              // ---------------- COACHES ----------------
-              if (widget.isApproved) ...[
-  const Text(
-    "Coaches",
-    style: TextStyle(
-      color: Colors.white,
-      fontSize: 22,
-      fontWeight: FontWeight.bold,
-    ),
-  ),
+                      const SizedBox(height: 16),
 
-              const SizedBox(height: 10),
+                      ..._recentRatings
+                          .take(3)
+                          .map((rating) => _buildSingleReview(rating))
+                          .toList(),
 
-              _coachTile(
-                "Alex Peter",
-                "https://randomuser.me/api/portraits/men/22.jpg",
-              ),
-              _coachTile(
-                "Mary John",
-                "https://randomuser.me/api/portraits/women/26.jpg",
-              ),
+                      if (_recentRatings.length > 3)
+                        Center(
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ClubReviewsViewPage(
+                                    clubId: widget.clubid,
+                                    clubName: clubName,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              "View All Reviews",
+                              style: TextStyle(
+                                color: Color(0xFF00AFA5),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
 
-              const SizedBox(height: 40),
-              ],
-              // ---------------- EVENTS ----------------
-              if (widget.isApproved) ...[
-  const Text(
-    "Events",
-    style: TextStyle(
-      color: Colors.white,
-      fontSize: 22,
-      fontWeight: FontWeight.bold,
-    ),
-  ),
+                const SizedBox(height: 35),
 
-              const SizedBox(height: 10),
-
-              if (isEventsLoading)
-                const Center(
-                  child: CircularProgressIndicator(color: Colors.teal),
-                )
-              else if (clubEvents.isEmpty)
                 const Text(
-                  "No events found.",
-                  style: TextStyle(color: Colors.white70),
-                )
-              else
-                Column(
-                  children: clubEvents.map((event) {
-                    return _fancySwipeEventTile(event);
-                  }).toList(),
+                  "Events",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
+
+                const SizedBox(height: 10),
+
+                if (isEventsLoading)
+                  const Center(
+                    child: CircularProgressIndicator(color: Colors.teal),
+                  )
+                else if (clubEvents.isEmpty)
+                  const Text(
+                    "No events found.",
+                    style: TextStyle(color: Colors.white70),
+                  )
+                else
+                  Column(
+                    children: clubEvents.map((event) {
+                      return _fancySwipeEventTile(event);
+                    }).toList(),
+                  ),
               ],
+
               const SizedBox(height: 40),
             ],
           ),
         ),
       ),
 
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            heroTag: "media_btn",
+            backgroundColor: const Color(0xFF00AFA5),
+            elevation: 5,
+            child: const Icon(
+              Icons.add_photo_alternate_rounded,
+              color: Color.fromARGB(255, 252, 252, 252),
+              size: 30,
+            ),
+            onPressed: _openAddMediaSheet,
+          ),
+          const SizedBox(height: 12),
 
-      // ---------------- ADD MEDIA BUTTON ----------------
-      // floatingActionButton: Column(
-      //   mainAxisSize: MainAxisSize.min,
-      //   children: [
-      //     // Add Media Button
-      //     FloatingActionButton(
-      //       heroTag: "media_btn",
-      //       backgroundColor: const Color(0xFF00AFA5),
-      //       elevation: 5,
-      //       child: const Icon(
-      //         Icons.add_photo_alternate_rounded,
-      //         color: Color.fromARGB(255, 252, 252, 252),
-      //         size: 30,
-      //       ),
-      //       onPressed: _openAddMediaSheet,
-      //     ),
-      //     const SizedBox(height: 12),
+          FloatingActionButton(
+            heroTag: "event_btn",
+            backgroundColor: const Color(0xFF00AFA5),
+            child: const Icon(Icons.event, color: Colors.white, size: 28),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CoachAddEvents(clubid: widget.clubid),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
 
-      //     // Existing Add Event Button
-      //     FloatingActionButton(
-      //       heroTag: "event_btn",
-      //       backgroundColor: const Color(0xFF00AFA5),
-      //       child: const Icon(Icons.event, color: Colors.white, size: 28),
-      //       onPressed: () {
-      //         Navigator.push(
-      //           context,
-      //           MaterialPageRoute(
-      //             builder: (context) => CoachAddEvents(clubid: widget.clubid),
-      //           ),
-      //         );
-      //       },
-      //     ),
-      //   ],
-      // ),
-
-      // ---------------- BOTTOM NAV ----------------
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.black,
         selectedItemColor: const Color(0xFF00AFA5),
@@ -1545,7 +2483,6 @@ class _ClubViewState extends State<ClubView> {
     );
 
     if (picked != null) {
-      // Convert to 24-hour format
       final now = DateTime.now();
       final dt = DateTime(
         now.year,
@@ -1585,164 +2522,6 @@ class _ClubViewState extends State<ClubView> {
     );
   }
 
-  // ================== ADD EVENT DIALOG ==================
-
-  // void _openAddEventDialog() {
-  //   final TextEditingController titleCtrl = TextEditingController();
-  //   final TextEditingController noteCtrl = TextEditingController();
-  //   final TextEditingController descCtrl = TextEditingController();
-  //   final TextEditingController fromDateCtrl = TextEditingController();
-  //   final TextEditingController toDateCtrl = TextEditingController();
-  //   final TextEditingController fromTimeCtrl = TextEditingController();
-  //   final TextEditingController toTimeCtrl = TextEditingController();
-
-  //   XFile? pickedImage;
-
-  //   showDialog(
-  //     context: context,
-  //     builder: (context) {
-  //       return StatefulBuilder(
-  //         builder: (context, setStateDialog) {
-  //           return Dialog(
-  //             shape: RoundedRectangleBorder(
-  //               borderRadius: BorderRadius.circular(20),
-  //             ),
-  //             child: Container(
-  //               decoration: const BoxDecoration(
-  //                 gradient: LinearGradient(
-  //                   begin: Alignment.topLeft,
-  //                   end: Alignment.bottomRight,
-  //                   colors: [Color(0xFF00332D), Colors.black],
-  //                 ),
-  //                 borderRadius: BorderRadius.all(Radius.circular(20)),
-  //               ),
-  //               padding: const EdgeInsets.all(20),
-  //               child: SingleChildScrollView(
-  //                 child: Column(
-  //                   crossAxisAlignment: CrossAxisAlignment.start,
-  //                   mainAxisSize: MainAxisSize.min,
-  //                   children: [
-  //                     const Text(
-  //                       "Add Event",
-  //                       style: TextStyle(
-  //                         color: Colors.white,
-  //                         fontSize: 20,
-  //                         fontWeight: FontWeight.bold,
-  //                       ),
-  //                     ),
-
-  //                     const SizedBox(height: 20),
-
-  //                     _inputField("Title", titleCtrl),
-  //                     _inputField("Note", noteCtrl),
-  //                     _inputField("Description", descCtrl, maxLines: 3),
-
-  //                     // FROM DATE (with calendar)
-  //                     _dateField(
-  //                       "From Date",
-  //                       fromDateCtrl,
-  //                       () => _pickDate(context, fromDateCtrl),
-  //                     ),
-
-  //                     // TO DATE (with calendar)
-  //                     _dateField(
-  //                       "To Date",
-  //                       toDateCtrl,
-  //                       () => _pickDate(context, toDateCtrl),
-  //                     ),
-
-  //                     GestureDetector(
-  //                       onTap: () => _pickTime(context, fromTimeCtrl),
-  //                       child: AbsorbPointer(
-  //                         child: _timeField("From Time", fromTimeCtrl),
-  //                       ),
-  //                     ),
-  //                     GestureDetector(
-  //                       onTap: () => _pickTime(context, toTimeCtrl),
-  //                       child: AbsorbPointer(
-  //                         child: _timeField("To Time", toTimeCtrl),
-  //                       ),
-  //                     ),
-
-  //                     const SizedBox(height: 10),
-
-  //                     GestureDetector(
-  //                       onTap: () async {
-  //                         final ImagePicker picker = ImagePicker();
-  //                         pickedImage = await picker.pickImage(
-  //                           source: ImageSource.gallery,
-  //                         );
-  //                         setStateDialog(() {});
-  //                       },
-  //                       child: Container(
-  //                         padding: const EdgeInsets.all(12),
-  //                         decoration: BoxDecoration(
-  //                           color: Colors.white12,
-  //                           borderRadius: BorderRadius.circular(10),
-  //                         ),
-  //                         child: Row(
-  //                           children: [
-  //                             const Icon(Icons.image, color: Colors.white70),
-  //                             const SizedBox(width: 10),
-  //                             Text(
-  //                               pickedImage == null
-  //                                   ? "Upload Image"
-  //                                   : "Image Selected",
-  //                               style: const TextStyle(color: Colors.white),
-  //                             ),
-  //                           ],
-  //                         ),
-  //                       ),
-  //                     ),
-
-  //                     const SizedBox(height: 20),
-
-  //                     Row(
-  //                       mainAxisAlignment: MainAxisAlignment.end,
-  //                       children: [
-  //                         TextButton(
-  //                           child: const Text(
-  //                             "Cancel",
-  //                             style: TextStyle(color: Colors.white70),
-  //                           ),
-  //                           onPressed: () => Navigator.pop(context),
-  //                         ),
-  //                         const SizedBox(width: 10),
-  //                         ElevatedButton(
-  //                           style: ElevatedButton.styleFrom(
-  //                             backgroundColor: const Color(0xFF00AFA5),
-  //                           ),
-  //                           child: const Text(
-  //                             "Submit",
-  //                             style: TextStyle(color: Colors.white),
-  //                           ),
-  //                           onPressed: () async {
-  //                             await submitEvent(
-  //                               titleCtrl.text.trim(),
-  //                               noteCtrl.text.trim(),
-  //                               descCtrl.text.trim(),
-  //                               fromDateCtrl.text.trim(),
-  //                               toDateCtrl.text.trim(),
-  //                               fromTimeCtrl.text.trim(),
-  //                               toTimeCtrl.text.trim(),
-  //                               pickedImage,
-  //                             );
-  //                             Navigator.pop(context);
-  //                           },
-  //                         ),
-  //                       ],
-  //                     ),
-  //                   ],
-  //                 ),
-  //               ),
-  //             ),
-  //           );
-  //         },
-  //       );
-  //     },
-  //   );
-  // }
-
   void _openAddEventDialog() {
     Navigator.push(
       context,
@@ -1751,8 +2530,6 @@ class _ClubViewState extends State<ClubView> {
       ),
     );
   }
-
-  // ================== HELPERS ==================
 
   Widget _inputField(
     String label,
@@ -1803,10 +2580,9 @@ class _ClubViewState extends State<ClubView> {
       barrierColor: Colors.black.withOpacity(0.9),
       builder: (context) {
         return GestureDetector(
-          onTap: () => Navigator.pop(context), // close on tap outside
+          onTap: () => Navigator.pop(context),
           child: Stack(
             children: [
-              // FULL SCREEN ZOOM VIEW
               Center(
                 child: InteractiveViewer(
                   minScale: 0.5,
@@ -1823,7 +2599,6 @@ class _ClubViewState extends State<ClubView> {
                 ),
               ),
 
-              // CLOSE BUTTON
               Positioned(
                 top: 40,
                 right: 20,
@@ -1865,7 +2640,8 @@ class _ClubViewState extends State<ClubView> {
 }
 
 Widget _feedInputBox() {
-  final TextEditingController postCtrl = TextEditingController();
+  final TextEditingController titleController = TextEditingController();
+  final TextEditingController descriptionController = TextEditingController();
   XFile? pickedImage;
 
   return StatefulBuilder(
@@ -1879,25 +2655,19 @@ Widget _feedInputBox() {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // const Text(
-            //   "What’s on your mind?",
-            //   style: TextStyle(color: Colors.white70, fontSize: 14),
-            // ),
             const SizedBox(height: 8),
 
-            // Slightly bigger TextField
+            // Title field
             TextField(
-              controller: postCtrl,
-              minLines: 2,
-              maxLines: 3,
+              controller: titleController,
               style: const TextStyle(color: Colors.white, fontSize: 15),
               cursorColor: Colors.white,
               decoration: InputDecoration(
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 12,
-                ), // Larger typing space
-                hintText: "What’s on your mind?",
+                ),
+                hintText: "Title",
                 hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
                 filled: true,
                 fillColor: Colors.white10,
@@ -1911,7 +2681,37 @@ Widget _feedInputBox() {
                 ),
               ),
             ),
-            SizedBox(height: 10),
+            
+            const SizedBox(height: 10),
+
+            TextField(
+              controller: descriptionController,
+              minLines: 2,
+              maxLines: 3,
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+              cursorColor: Colors.white,
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                hintText: "What's on your mind?",
+                hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
+                filled: true,
+                fillColor: Colors.white10,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 10),
+            
             if (pickedImage != null) ...[
               const SizedBox(height: 8),
               ClipRRect(
@@ -1923,6 +2723,39 @@ Widget _feedInputBox() {
                   fit: BoxFit.cover,
                 ),
               ),
+              const SizedBox(height: 8),
+              
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: () {
+                    setStateSB(() {
+                      pickedImage = null;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.close, color: Colors.red, size: 16),
+                        SizedBox(width: 4),
+                        Text(
+                          "Remove",
+                          style: TextStyle(color: Colors.red, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ],
 
             const SizedBox(height: 10),
@@ -1930,36 +2763,82 @@ Widget _feedInputBox() {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Image Picker Icon
+                // Image picker button
                 GestureDetector(
                   onTap: () async {
                     final picker = ImagePicker();
-                    pickedImage = await picker.pickImage(
+                    final image = await picker.pickImage(
                       source: ImageSource.gallery,
                     );
-                    setStateSB(() {});
+                    if (image != null) {
+                      setStateSB(() {
+                        pickedImage = image;
+                      });
+                    }
                   },
-                  child: const Icon(
-                    Icons.image,
-                    color: Color(0xFF00AFA5),
-                    size: 26,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00AFA5).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: const Icon(
+                      Icons.image,
+                      color: Color(0xFF00AFA5),
+                      size: 26,
+                    ),
                   ),
                 ),
 
-                // Post Button
+                // Post button
                 SizedBox(
-                  height: 34,
+                  height: 38,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00AFA5),
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                     ),
                     onPressed: () {
-                      // submitFeedPost(postCtrl.text.trim(), pickedImage);
+                      final title = titleController.text.trim();
+                      final description = descriptionController.text.trim();
+                      
+                      if (title.isEmpty && description.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Please enter a title or description"),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                        return;
+                      }
+
+           
+                      final clubViewState = context.findAncestorStateOfType<_ClubViewState>();
+                      if (clubViewState != null) {
+                        clubViewState.submitFeedPost(
+                          title,
+                          description,
+                          pickedImage,
+                        );
+                        
+                        
+                        titleController.clear();
+                        descriptionController.clear();
+                        setStateSB(() {
+                          pickedImage = null;
+                        });
+                      }
                     },
                     child: const Text(
                       "Post",
-                      style: TextStyle(color: Colors.white, fontSize: 14),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -1987,12 +2866,10 @@ Widget _feedTile(Map post) {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Text
         Text(text, style: const TextStyle(color: Colors.white, fontSize: 15)),
 
         const SizedBox(height: 10),
 
-        // Image if exists
         if (image != null && image.isNotEmpty)
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
@@ -2034,5 +2911,552 @@ class SkeletonBox extends StatelessWidget {
         borderRadius: borderRadius,
       ),
     );
+  }
+}
+
+class RatingPopup extends StatefulWidget {
+  final int clubId;
+  final Function(int, String) onSubmit;
+  final VoidCallback onSkip;
+  final int? initialRating;
+  final String? initialReview;
+  final bool isUpdate;
+
+  const RatingPopup({
+    Key? key,
+    required this.clubId,
+    required this.onSubmit,
+    required this.onSkip,
+    this.initialRating,
+    this.initialReview,
+    this.isUpdate = false,
+  }) : super(key: key);
+
+  @override
+  State<RatingPopup> createState() => _RatingPopupState();
+}
+
+class _RatingPopupState extends State<RatingPopup> {
+  int _rating = 0;
+  final TextEditingController _reviewController = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialRating != null) {
+      _rating = widget.initialRating!;
+    }
+    if (widget.initialReview != null) {
+      _reviewController.text = widget.initialReview!;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF00332D), Colors.black],
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    widget.isUpdate ? "Update Rating" : "Rate this Club",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white70),
+                    onPressed: widget.onSkip,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _rating = index + 1;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        index < _rating ? Icons.star : Icons.star_border,
+                        color: const Color(0xFF00AFA5),
+                        size: 40,
+                      ),
+                    ),
+                  );
+                }),
+              ),
+
+              const SizedBox(height: 10),
+
+              Text(
+                _rating == 0 ? "Tap to rate" : _getRatingText(_rating),
+                style: const TextStyle(color: Colors.white70),
+              ),
+
+              const SizedBox(height: 20),
+
+              TextField(
+                controller: _reviewController,
+                maxLines: 4,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: "Write your review (optional)...",
+                  hintStyle: const TextStyle(color: Colors.white54),
+                  filled: true,
+                  fillColor: Colors.white12,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF00AFA5)),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: _isSubmitting ? null : widget.onSkip,
+                      child: Text(
+                        widget.isUpdate ? "Cancel" : "Skip",
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00AFA5),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: _isSubmitting || _rating == 0
+                          ? null
+                          : () async {
+                              setState(() {
+                                _isSubmitting = true;
+                              });
+                              await widget.onSubmit(
+                                _rating,
+                                _reviewController.text.trim(),
+                              );
+                              setState(() {
+                                _isSubmitting = false;
+                              });
+                            },
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              widget.isUpdate ? "Update" : "Submit",
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _getRatingText(int rating) {
+    switch (rating) {
+      case 1:
+        return "Poor";
+      case 2:
+        return "Fair";
+      case 3:
+        return "Good";
+      case 4:
+        return "Very Good";
+      case 5:
+        return "Excellent";
+      default:
+        return "";
+    }
+  }
+
+  @override
+  void dispose() {
+    _reviewController.dispose();
+    super.dispose();
+  }
+}
+
+class ClubReviewsViewPage extends StatelessWidget {
+  final int clubId;
+  final String clubName;
+
+  const ClubReviewsViewPage({
+    Key? key,
+    required this.clubId,
+    required this.clubName,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          "Reviews - $clubName",
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF00332D), Colors.black],
+          ),
+        ),
+        child: FutureBuilder<List<RatingData>>(
+          future: _fetchAllApprovedRatings(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(color: Colors.teal),
+              );
+            }
+
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.reviews, size: 64, color: Colors.white24),
+                    const SizedBox(height: 16),
+                    const Text(
+                      "No reviews yet",
+                      style: TextStyle(color: Colors.white54, fontSize: 16),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            final reviews = snapshot.data!;
+
+            double avg = 0;
+            for (var r in reviews) {
+              avg += r.rating;
+            }
+            avg = avg / reviews.length;
+
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white12,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00AFA5).withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          avg.toStringAsFixed(1),
+                          style: const TextStyle(
+                            color: Color(0xFF00AFA5),
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Average Rating",
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: List.generate(5, (i) {
+                                return Icon(
+                                  i < avg.floor()
+                                      ? Icons.star
+                                      : i < avg
+                                      ? Icons.star_half
+                                      : Icons.star_border,
+                                  color: const Color(0xFF00AFA5),
+                                  size: 20,
+                                );
+                              }),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "${reviews.length} ${reviews.length == 1 ? 'review' : 'reviews'}",
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                ...reviews.map((review) => _buildReviewCard(review)).toList(),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<List<RatingData>> _fetchAllApprovedRatings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) return [];
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/club/rating/$clubId/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      print("Ratings API Response: ${response.statusCode}");
+      print("Ratings API Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final List<dynamic> ratings = jsonDecode(response.body);
+
+        final approvedRatings = ratings
+            .where((r) => r['approval_status'] == 'approved')
+            .toList();
+
+        List<RatingData> ratingDataList = [];
+
+        for (var rating in approvedRatings) {
+          // Get user data directly from the rating object
+          String firstName = rating['user_first_name'] ?? '';
+          String lastName = rating['user_last_name'] ?? '';
+          String userName = '';
+
+          if (firstName.isNotEmpty && lastName.isNotEmpty) {
+            userName = '$firstName $lastName';
+          } else if (firstName.isNotEmpty) {
+            userName = firstName;
+          } else if (lastName.isNotEmpty) {
+            userName = lastName;
+          } else {
+            userName = 'User ${rating['user']}';
+          }
+
+          String? userImage = rating['profile'];
+          if (userImage != null && userImage.isNotEmpty) {
+            if (!userImage.startsWith('http')) {
+              userImage = userImage.startsWith('/')
+                  ? "$api$userImage"
+                  : "$api/$userImage";
+            }
+          }
+
+          ratingDataList.add(
+            RatingData(
+              id: rating['id'],
+              rating: rating['rating'],
+              review: rating['review'] ?? '',
+              userName: userName,
+              userImage: userImage,
+              createdAt: rating['created_at'] ?? '',
+              approvalStatus: rating['approval_status'] ?? 'pending',
+            ),
+          );
+        }
+
+        return ratingDataList;
+      }
+    } catch (e) {
+      print("Error fetching all ratings: $e");
+    }
+    return [];
+  }
+
+  Widget _buildReviewCard(RatingData rating) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white12,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white24, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.grey[800],
+                backgroundImage:
+                    rating.userImage != null && rating.userImage!.isNotEmpty
+                    ? NetworkImage(rating.userImage!)
+                    : null,
+                child: rating.userImage == null || rating.userImage!.isEmpty
+                    ? Text(
+                        rating.userName.isNotEmpty
+                            ? rating.userName[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      rating.userName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: List.generate(5, (i) {
+                        return Icon(
+                          i < rating.rating ? Icons.star : Icons.star_border,
+                          color: const Color(0xFF00AFA5),
+                          size: 16,
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (rating.review.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                rating.review,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            _formatDate(rating.createdAt),
+            style: const TextStyle(color: Colors.white38, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      final now = DateTime.now();
+      final difference = now.difference(date);
+
+      if (difference.inDays > 365) {
+        return "${(difference.inDays / 365).floor()}y ago";
+      } else if (difference.inDays > 30) {
+        return "${(difference.inDays / 30).floor()}mo ago";
+      } else if (difference.inDays > 0) {
+        return "${difference.inDays}d ago";
+      } else if (difference.inHours > 0) {
+        return "${difference.inHours}h ago";
+      } else if (difference.inMinutes > 0) {
+        return "${difference.inMinutes}m ago";
+      } else {
+        return "Just now";
+      }
+    } catch (e) {
+      return dateString;
+    }
   }
 }

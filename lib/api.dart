@@ -1,2 +1,2 @@
-String api = "https://lazy-melons-buy.loca.lt";
+String api = "https://major-breads-dream.loca.lt/";
 

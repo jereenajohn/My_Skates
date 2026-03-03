@@ -44,6 +44,8 @@ class _AddCategoryState extends State<AddCategory> {
       print("CATEGORY LIST STATUS: ${response.statusCode}");
       print("CATEGORY LIST BODY: ${response.body}");
 
+     
+
       if (response.statusCode == 200) {
         final parsed = jsonDecode(response.body);
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/ADMIN/admin_product_review.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -202,9 +203,9 @@ class _Admin_order_pageState extends State<Admin_order_page> {
     if (_selectedStatusFilter == 'ALL') {
       return orders;
     }
-    return orders.where((order) =>
-      order.status == _selectedStatusFilter
-    ).toList();
+    return orders
+        .where((order) => order.status == _selectedStatusFilter)
+        .toList();
   }
 
   Future<void> fetchOrders() async {
@@ -554,7 +555,9 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                       ),
 
                       // Orders List
-                      ..._filteredOrders.map((order) => _buildOrderCard(order)).toList(),
+                      ..._filteredOrders
+                          .map((order) => _buildOrderCard(order))
+                          .toList(),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -652,7 +655,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
           ),
 
           const SizedBox(height: 12),
-          
+
           // Items section
           const Text(
             'Items:',
@@ -667,69 +670,86 @@ class _Admin_order_pageState extends State<Admin_order_page> {
           ...order.items
               .take(2)
               .map(
-                (item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Product Image
-                      GestureDetector(
-                        onTap: () => _navigateToOrderDetail(order),
-                        child: SizedBox(
-                          width: 50,
-                          height: 50,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: _buildProductImage(item),
-                          ),
+                (item) => GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AdminProductReview(
+                          productId: item.product,
+                          productTitle: item.productTitle,
+                          productImage: item.productImage,
+                          variantId: item.variantId,
+                          variantLabel: item.variantLabel,
+                          variantImage: item.variantImage,
                         ),
                       ),
-
-                      const SizedBox(width: 12),
-
-                      // Product details
-                      Expanded(
-                        child: GestureDetector(
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Product Image
+                        GestureDetector(
                           onTap: () => _navigateToOrderDetail(order),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.productTitle,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Qty: ${item.quantity}',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
+                          child: SizedBox(
+                            width: 50,
+                            height: 50,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: _buildProductImage(item),
+                            ),
                           ),
                         ),
-                      ),
 
-                      // Price
-                      GestureDetector(
-                        onTap: () => _navigateToOrderDetail(order),
-                        child: Text(
-                          '₹${double.parse(item.lineTotal).toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            color: Colors.tealAccent,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                        const SizedBox(width: 12),
+
+                        // Product details
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => _navigateToOrderDetail(order),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.productTitle,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Qty: ${item.quantity}',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+
+                        // Price
+                        GestureDetector(
+                          onTap: () => _navigateToOrderDetail(order),
+                          child: Text(
+                            '₹${double.parse(item.lineTotal).toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: Colors.tealAccent,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               )
@@ -1305,79 +1325,96 @@ class OrderDetailPage extends StatelessWidget {
                   // Items List
                   ...order.items
                       .map(
-                        (item) => Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Product Image
-                              Container(
-                                width: 70,
-                                height: 70,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: _buildProductImage(item),
+                        (item) => GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => AdminProductReview(
+                                  productId: item.product,
+                                  productTitle: item.productTitle,
+                                  productImage: item.productImage,
+                                  variantId: item.variantId,
+                                  variantLabel: item.variantLabel,
+                                  variantImage: item.variantImage,
                                 ),
                               ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Product Image
+                                Container(
+                                  width: 70,
+                                  height: 70,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: _buildProductImage(item),
+                                  ),
+                                ),
 
-                              const SizedBox(width: 16),
+                                const SizedBox(width: 16),
 
-                              // Product Details
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.productTitle,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    if (item.variantLabel.isNotEmpty) ...[
-                                      const SizedBox(height: 4),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.tealAccent.withOpacity(
-                                            0.2,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            4,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          item.variantLabel,
-                                          style: const TextStyle(
-                                            color: Colors.tealAccent,
-                                            fontSize: 11,
-                                          ),
+                                // Product Details
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.productTitle,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                    ],
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          'Qty: ${item.quantity}',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 13,
+                                      if (item.variantLabel.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.tealAccent
+                                                .withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            item.variantLabel,
+                                            style: const TextStyle(
+                                              color: Colors.tealAccent,
+                                              fontSize: 11,
+                                            ),
                                           ),
                                         ),
                                       ],
-                                    ),
-                                  ],
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'Qty: ${item.quantity}',
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       )

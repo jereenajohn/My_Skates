@@ -46,6 +46,9 @@ class _OtpPageState extends State<OtpPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
+        print("FULL OTP RESPONSE: $data");
+        print("USERNAME FROM API: ${data["user"]?["u_name"]}");
+
         // ------------------------------------------------
         // FIX: SAVE DATA USING CORRECT KEYS
         // ------------------------------------------------
@@ -54,6 +57,8 @@ class _OtpPageState extends State<OtpPage> {
         await prefs.setInt("id", data["user"]["id"] ?? 0);
         await prefs.setString("user_type", data["user"]["user_type"] ?? "");
         await prefs.setString("name", data["user"]["name"] ?? "");
+        await prefs.setString("u_name", data["user"]["u_name"] ?? "");
+        await prefs.setString("profile", data["user"]["profile"] ?? "");
         await prefs.setString("phone", widget.phoneNumber);
 
         print("SAVED TOKEN: ${data["access"]}");
