@@ -99,6 +99,7 @@ bool _isCoach = false;
   void initState() {
     super.initState();
 
+
     // Initialize AnimationController
     _animationController = AnimationController(
       vsync: this,
@@ -290,7 +291,7 @@ bool _isCoach = false;
     RenderBox? renderBox =
         _variantImageKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) {
-      debugPrint("⚠️ Variant image key not found");
+      debugPrint("⚠️ Variant image key not founddd");
 
       // still call API without animation
       await _callAddToCartAPI(variantId);
