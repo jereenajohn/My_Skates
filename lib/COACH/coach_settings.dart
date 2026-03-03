@@ -5,6 +5,7 @@ import 'package:my_skates/ADMIN/view_address.dart';
 import 'package:my_skates/COACH/add_club.dart';
 import 'package:my_skates/COACH/coach_add_events.dart';
 import 'package:my_skates/COACH/coach_change_phone_number.dart';
+import 'package:my_skates/COACH/coach_chat_support.dart';
 import 'package:my_skates/COACH/coach_follow_request.dart';
 import 'package:my_skates/COACH/coach_followers_list.dart';
 import 'package:my_skates/COACH/coach_following_list.dart';
@@ -184,6 +185,17 @@ class _CoachSettingsState extends State<CoachSettings> {
                   },
                 ),
 
+              _divider(),
+
+
+               if ("Chat Support".toLowerCase().contains(_searchQuery))
+                _menuTile(
+                  icon: Icons.support_agent_outlined,
+                  text: "Chat Support",
+                  onTap: () {
+                    Navigator.push(context, slideRightToLeftRoute(CoachChatSupport()));
+                  },
+                ),
               _divider(),
               if ("My Orders".toLowerCase().contains(_searchQuery))
                 _menuTile(
