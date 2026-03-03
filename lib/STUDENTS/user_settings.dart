@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/ADMIN/add_address.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
-import 'package:my_skates/COACH/coach_chat_support.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/add_student_achievements.dart';
@@ -222,6 +222,22 @@ class _UserSettingsState extends State<UserSettings> {
                   );
                 },
               ),
+
+               _divider(),
+
+              _menuTile(
+                icon: Icons.home,
+                text: "Add Address",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AddAddress(),
+                    ),
+                  );
+                },
+              ),
+
               _divider(),
 
               _menuTile(

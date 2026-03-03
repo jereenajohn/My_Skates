@@ -6,6 +6,7 @@ import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/COACH/coach_timeline_page.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/student_list.dart';
+import 'package:my_skates/STUDENTS/student_training_page.dart';
 import 'package:my_skates/STUDENTS/user_notification%20page.dart';
 import 'package:my_skates/STUDENTS/user_settings.dart';
 import 'package:my_skates/STUDENTS/user_timeline_page.dart';
@@ -35,6 +36,13 @@ class _UserMenuPageState extends State<UserMenuPage>
   bool studentsLoading = true;
   bool studentsNoData = false;
 
+  List<Map<String, dynamic>> following = [];
+  List<Map<String, dynamic>> followers = [];
+  int get followersCount => followers.length;
+  int get followingCount => followers.length;
+  bool loading = true;
+  bool noData = false;
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +61,8 @@ class _UserMenuPageState extends State<UserMenuPage>
 
     _controller.forward();
     fetchcoachDetails();
+    fetchFollowing();
+    fetchFollowers();
   }
 
   @override
@@ -69,6 +79,94 @@ class _UserMenuPageState extends State<UserMenuPage>
   Future<int?> getUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getInt("id");
+  }
+
+  //===============FETCH FOLLOWING==============
+
+  Future<void> fetchFollowing() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final res = await http.get(
+        Uri.parse("$api/api/myskates/user/following/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      print("==========FETCH FOLLOWING======");
+      print("STATUS: ${res.statusCode}");
+      print("BODY: ${res.body}");
+      print("================================");
+
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body) as Map<String, dynamic>;
+        final List raw = decoded["data"] ?? [];
+
+        setState(() {
+          following = raw
+              .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+              .toList();
+          loading = false;
+        });
+      } else {
+        loading = false;
+      }
+    } catch (e) {
+      print("FOLLOWING ERROR : $e");
+      setState(() => loading = false);
+    }
+  }
+
+  //================FETCH FOLLOWERS=====================
+
+  Future<void> fetchFollowers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/user/followers/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      print(" FOLLOWERS STATUS: ${response.statusCode}");
+      print(" FOLLOWERS BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final List raw = decoded["data"] ?? [];
+
+        final List<Map<String, dynamic>> normalized = raw
+            .map((e) {
+              return {
+                "id": e["follower__id"],
+                "first_name": e["follower__first_name"],
+                "last_name": e["follower__last_name"],
+                "profile": e["follower__profile"],
+                "user_type": e["follower__user_type"],
+              };
+            })
+            .where((e) => e["id"] != null)
+            .toList();
+
+        setState(() {
+          followers = normalized;
+          noData = followers.isEmpty;
+          loading = false;
+        });
+      } else {
+        setState(() {
+          noData = true;
+          loading = false;
+        });
+      }
+    } catch (e) {
+      print(" FOLLOWERS ERROR: $e");
+      setState(() {
+        noData = true;
+        loading = false;
+      });
+    }
   }
 
   Future<void> fetchcoachDetails() async {
@@ -276,51 +374,123 @@ class _UserMenuPageState extends State<UserMenuPage>
         int? userId = await getUserId();
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => UserTimelinePage(
-              // name: studentName,
-              // role: studentRole,
-              // image: studentImage,
-              // coachId: userId,
-            ),
-          ),
+          MaterialPageRoute(builder: (_) => UserTimelinePage()),
         );
       },
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundImage:
-                (studentImage != null &&
-                    studentImage!.isNotEmpty &&
-                    studentImage != "/media/profile_images/none.jpeg")
-                ? NetworkImage("$api$studentImage")
-                : const AssetImage("lib/assets/img.jpg") as ImageProvider,
-          ),
-          const SizedBox(width: 14),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isLoading
-                    ? "Loading..."
-                    : (studentName.isNotEmpty ? studentName : "Coach"),
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 8),
+        child: Row(
+          children: [
+            // PROFILE IMAGE
+            CircleAvatar(
+              radius: 28,
+              backgroundImage:
+                  (studentImage != null &&
+                      studentImage!.isNotEmpty &&
+                      studentImage != "/media/profile_images/none.jpeg")
+                  ? NetworkImage("$api$studentImage")
+                  : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+            ),
+
+            const SizedBox(width: 14),
+
+            // RIGHT CONTENT
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // NAME + ROLE INLINE
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          isLoading
+                              ? "Loading..."
+                              : (studentName.isNotEmpty
+                                    ? studentName
+                                    : "Athlete"),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        studentRole.isNotEmpty
+                            ? _formatRole(studentRole)
+                            : "Athlete",
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // FOLLOWERS / FOLLOWING
+                  Column(
+                    children: [
+                      // COUNTS ROW
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _countText(followersCount),
+                          const SizedBox(width: 48),
+                          _countText(followingCount),
+                        ],
+                      ),
+
+                      const SizedBox(height: 2),
+
+                      // LABELS ROW
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _labelText("Followers"),
+                          const SizedBox(width: 48),
+                          _labelText("Following"),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                studentRole.isNotEmpty
-                    ? _formatRole(studentRole)
-                    : "Certified Skating Coach",
-                style: const TextStyle(fontSize: 13, color: Colors.white70),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _countText(int count) {
+    return SizedBox(
+      width: 60,
+      child: Text(
+        count.toString(),
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+
+  Widget _labelText(String label) {
+    return SizedBox(
+      width: 60,
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: Colors.white54, fontSize: 11),
       ),
     );
   }
@@ -346,39 +516,48 @@ class _UserMenuPageState extends State<UserMenuPage>
   }
 
   // ───────────────── SPORTY GRID ─────────────────
-  Widget _menuGrid() {
-    return Column(
-      children: [
-        _doubleRow(
-          _SportCard(
-            title: "Athletes",
-            subtitle: "Active Skaters",
-            icon: Icons.groups,
-          ),
-          _SportCard(
-            title: "Performance",
-            subtitle: "Speed & Rankings",
-            icon: Icons.trending_up,
-          ),
+// ───────────────── SPORTY GRID ─────────────────
+Widget _menuGrid() {
+  return Column(
+    children: [
+      _doubleRow(
+        _SportCard(
+          title: "Athletes",
+          subtitle: "Active Skaters",
+          icon: Icons.groups,
         ),
-        const SizedBox(height: 14),
-        _doubleRow(
-          _SportCard(
-            title: "Training Plans",
-            subtitle: "Schedules & Drills",
-            icon: Icons.schedule,
-          ),
-          _SportCard(
-            title: "Events",
-            subtitle: "Competitions",
-            icon: Icons.event,
-          ),
+        _SportCard(
+          title: "Performance",
+          subtitle: "Speed & Rankings",
+          icon: Icons.trending_up,
         ),
-        const SizedBox(height: 14),
-        // _statGrid(),
-      ],
-    );
-  }
+      ),
+      const SizedBox(height: 14),
+      _doubleRow(
+        _SportCard(
+          title: "Training Plans",
+          subtitle: "Schedules & Drills",
+          icon: Icons.schedule,
+          onTap:(){  
+            Navigator.push(
+              context, 
+              MaterialPageRoute(
+                builder: (_) => StudentTrainingPage()
+              )
+            );
+          }
+        ),
+        _SportCard(
+          title: "Events",
+          subtitle: "Competitions",
+          icon: Icons.event,
+        ),
+      ),
+      const SizedBox(height: 14),
+      // _statGrid(),
+    ],
+  );
+}
 
   Widget _doubleRow(Widget left, Widget right) {
     return Row(
@@ -421,11 +600,13 @@ class _UserMenuPageState extends State<UserMenuPage>
           case 3:
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const UserNotificationPage()),
+              MaterialPageRoute(
+                builder: (context) => const UserNotificationPage(),
+              ),
             );
             break;
           case 4:
-            break;  
+            break;
         }
       },
       items: const [
@@ -508,10 +689,12 @@ class _ScaleOnTapState extends State<_ScaleOnTap>
 }
 
 // ───────────────── SPORT CARD ─────────────────
+
 class _SportCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
+  final VoidCallback? onTap;
 
   static const Color accentColor = Color(0xFF2EE6A6);
 
@@ -519,13 +702,14 @@ class _SportCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.icon,
+    this.onTap,  
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(18),
-      onTap: () {},
+      onTap: onTap,  
       child: Container(
         height: 120,
         padding: const EdgeInsets.all(16),

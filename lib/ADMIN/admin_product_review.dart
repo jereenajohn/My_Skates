@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:my_skates/api.dart';
 
-class ProductReviewPage extends StatefulWidget {
+class AdminProductReview extends StatefulWidget {
   final int productId;
   final String productTitle;
   final String? productImage;
@@ -12,7 +12,7 @@ class ProductReviewPage extends StatefulWidget {
   final String? variantImage;
   final String variantLabel;
 
-  const ProductReviewPage({
+  const AdminProductReview({
     super.key,
     required this.productId,
     required this.productTitle,
@@ -23,33 +23,19 @@ class ProductReviewPage extends StatefulWidget {
   });
 
   @override
-  State<ProductReviewPage> createState() => _ProductReviewPageState();
+  State<AdminProductReview> createState() => _AdminProductReviewState();
 }
 
-class _ProductReviewPageState extends State<ProductReviewPage> {
+class _AdminProductReviewState extends State<AdminProductReview> {
   double _selectedRating = 0;
   final TextEditingController _reviewController = TextEditingController();
   bool _isSubmitted = false;
   bool _isLoading = false;
-  bool _hasExistingReview = false; 
-  bool _isCheckingReview = true;
-  Map<String, dynamic>? _existingReview; 
 
-  @override
-  void initState() {
-    super.initState();
-    _checkExistingReview();
-  }
-
-  Future<void> _checkExistingReview() async {
+  Future<void> _fetchProductReviews() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
-      final userId = prefs.getInt(
-        'user_id',
-      ); 
-
-      if (token == null) return;
 
       final response = await http.get(
         Uri.parse('$api/api/myskates/products/${widget.productId}/ratings/'),
@@ -57,70 +43,12 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
       );
 
       if (response.statusCode == 200) {
-        final dynamic responseData = json.decode(response.body);
-
-        List<dynamic> reviews = [];
-
-        if (responseData is List) {
-          reviews = responseData;
-        } else if (responseData is Map) {
-          if (responseData.containsKey('data') &&
-              responseData['data'] is List) {
-            reviews = responseData['data'];
-          } else if (responseData.containsKey('results') &&
-              responseData['results'] is List) {
-            reviews = responseData['results'];
-          } else {
-            reviews = responseData.values.whereType<Map>().toList();
-          }
-        }
-
-        print('Fetched reviews: $reviews');
-        print('Current user ID: $userId');
-        print('Current variant ID: ${widget.variantId}');
-
-        if (userId != null) {
-          final userReview = reviews.firstWhere((review) {
-            int reviewUserId;
-            if (review is Map) {
-              if (review['user'] is Map) {
-                reviewUserId = review['user']['id'] ?? 0;
-              } else {
-                reviewUserId = review['user'] ?? 0;
-              }
-
-              int reviewVariantId = review['variant'] ?? 0;
-
-              return reviewUserId == userId &&
-                  reviewVariantId == widget.variantId;
-            }
-            return false;
-          }, orElse: () => null);
-
-          if (userReview != null) {
-            setState(() {
-              _hasExistingReview = true;
-              _existingReview = userReview;
-
-              _selectedRating = (userReview['rating'] ?? 0).toDouble();
-              _reviewController.text = userReview['review'] ?? '';
-            });
-
-            print('Found existing review: $userReview');
-          } else {
-            print('No existing review found for this user and variant');
-          }
-        }
-      } else {
-        print('Failed to fetch reviews: ${response.statusCode}');
+        final data = json.decode(response.body);
+        print('Existing reviews: $data');
       }
     } catch (e) {
-      print('Error checking existing review: $e');
-      print('Stack trace: ${StackTrace.current}');
+      print('Error fetching reviews: $e');
     }
-    setState(() {
-      _isCheckingReview = false;
-    });
   }
 
   Future<void> _submitReview() async {
@@ -142,21 +70,6 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
         setState(() {
           _isLoading = false;
         });
-        return;
-      }
-
-      if (_hasExistingReview) {
-        setState(() {
-          _isSubmitted = true;
-          _isLoading = false;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('You have already reviewed this product'),
-            backgroundColor: Colors.orange,
-          ),
-        );
         return;
       }
 
@@ -186,7 +99,6 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
       if (response.statusCode == 201 || response.statusCode == 200) {
         setState(() {
           _isSubmitted = true;
-          _hasExistingReview = true;
           _isLoading = false;
         });
 
@@ -215,15 +127,6 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
           } else if (errorData['detail'] != null) {
             errorMessage = errorData['detail'];
           }
-
-          if (response.statusCode == 400 &&
-              (errorMessage.contains('already') ||
-                  errorMessage.contains('exists'))) {
-            setState(() {
-              _hasExistingReview = true;
-              _isSubmitted = true;
-            });
-          }
         } catch (e) {}
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -245,14 +148,8 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
     }
   }
 
-  void _goBack() {
-    Navigator.pop(context, _isSubmitted || _hasExistingReview);
-  }
-
   @override
   Widget build(BuildContext context) {
-    bool disableInput = _isSubmitted || _hasExistingReview || _isLoading;
-
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -260,11 +157,11 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: _goBack,
+          onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          _hasExistingReview ? 'Your Review' : 'Write a Review',
-          style: const TextStyle(color: Colors.white, fontSize: 18),
+        title: const Text(
+          'Write a Review',
+          style: TextStyle(color: Colors.white, fontSize: 18),
         ),
       ),
       body: SingleChildScrollView(
@@ -274,59 +171,46 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
           children: [
             const SizedBox(height: 24),
 
-            // Success/Info Message
-            if (_isSubmitted || _hasExistingReview)
+            if (_isSubmitted)
               Container(
                 margin: const EdgeInsets.only(bottom: 24),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: _hasExistingReview
-                      ? Colors.orange.withOpacity(0.1)
-                      : Colors.green.withOpacity(0.1),
+                  color: Colors.green.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _hasExistingReview
-                        ? Colors.orange.withOpacity(0.3)
-                        : Colors.green.withOpacity(0.3),
-                  ),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: _hasExistingReview
-                            ? Colors.orange
-                            : Colors.green,
+                        color: Colors.green,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        _hasExistingReview ? Icons.info : Icons.check,
+                      child: const Icon(
+                        Icons.check,
                         color: Colors.white,
                         size: 20,
                       ),
                     ),
                     const SizedBox(width: 16),
-                    Expanded(
+                    const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _hasExistingReview
-                                ? 'You have already reviewed this product'
-                                : 'Thank you for your Review!',
-                            style: const TextStyle(
+                            'Thank you for your review!',
+                            style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           Text(
-                            _hasExistingReview
-                                ? 'You cannot submit another review for this variant'
-                                : 'Your feedback helps us improve',
-                            style: const TextStyle(
+                            'Your feedback helps us improve',
+                            style: TextStyle(
                               color: Colors.white70,
                               fontSize: 14,
                             ),
@@ -356,7 +240,7 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(5, (index) {
                   return GestureDetector(
-                    onTap: disableInput
+                    onTap: (_isSubmitted || _isLoading)
                         ? null
                         : () {
                             setState(() {
@@ -395,12 +279,10 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
             TextField(
               controller: _reviewController,
               maxLines: 5,
-              enabled: !disableInput,
+              enabled: !_isSubmitted && !_isLoading,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: _hasExistingReview
-                    ? 'Your review is already submitted'
-                    : 'Share your experience about this product...',
+                hintText: 'Share your experience about this product...',
                 hintStyle: const TextStyle(color: Colors.white38),
                 filled: true,
                 fillColor: Colors.white10,
@@ -415,7 +297,7 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
             const SizedBox(height: 24),
 
             // Submit Button or Already Reviewed Message
-            if (!_isSubmitted && !_hasExistingReview)
+            if (!_isSubmitted)
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -472,7 +354,7 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
                         ),
                 ),
               )
-            else if (_hasExistingReview || _isSubmitted)
+            else
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -480,34 +362,14 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
                   color: Colors.white10,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Column(
+                child: const Column(
                   children: [
-                    Icon(
-                      _hasExistingReview
-                          ? Icons.info_outline
-                          : Icons.check_circle,
-                      color: _hasExistingReview ? Colors.orange : Colors.green,
-                      size: 48,
-                    ),
-                    const SizedBox(height: 8),
+                    Icon(Icons.check_circle, color: Colors.green, size: 48),
+                    SizedBox(height: 8),
                     Text(
-                      _hasExistingReview
-                          ? 'You have already reviewed this product'
-                          : 'Review submitted successfully',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
+                      'You have already reviewed this product',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
                       textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _goBack,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.tealAccent,
-                        foregroundColor: Colors.black,
-                      ),
-                      child: const Text('Go Back'),
                     ),
                   ],
                 ),

@@ -15,6 +15,7 @@ import 'package:my_skates/bottomnavigation.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
+import 'package:shimmer/shimmer.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -56,11 +57,14 @@ class _DashboardPageState extends State<DashboardPage> {
         break;
 
       case 3:
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => UserConnectCoaches()))  ;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => UserConnectCoaches()),
+        );
         break;
 
-      case 4: 
-      break; 
+      case 4:
+        break;
     }
   }
 
@@ -74,12 +78,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
     setState(() => isRefreshing = true);
 
-    // Refresh all data
     await Future.wait([fetchStudentDetails(), getbanner()]);
 
     setState(() => isRefreshing = false);
 
-    // Hide snackbar after refresh
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -150,6 +152,99 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
+  // SHIMMER METHODS
+  Widget _buildBannerShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[850]!,
+      highlightColor: Colors.grey[700]!,
+      child: Container(
+        height: 160,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClubShimmer() {
+    return SizedBox(
+      height: 160,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: 3,
+        itemBuilder: (_, index) => Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey[850]!,
+            highlightColor: Colors.grey[700]!,
+            child: Container(
+              width: 160,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[850]!,
+      highlightColor: Colors.grey[700]!,
+      child: Container(
+        height: 200,
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventWithImagesShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[850]!,
+      highlightColor: Colors.grey[700]!,
+      child: Container(
+        height: 300,
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCoachShimmer() {
+    return SizedBox(
+      height: 230,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: 3,
+        itemBuilder: (_, index) => Padding(
+          padding: const EdgeInsets.only(right: 6),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey[850]!,
+            highlightColor: Colors.grey[700]!,
+            child: Container(
+              width: 165,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -163,11 +258,7 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ),
         child: SafeArea(
-          child: isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: Colors.tealAccent),
-                )
-              : RefreshIndicator(
+           child: RefreshIndicator(
                   onRefresh: _refreshData,
                   color: Colors.tealAccent,
                   backgroundColor: Colors.black,
@@ -235,38 +326,30 @@ class _DashboardPageState extends State<DashboardPage> {
 
                         const SizedBox(height: 20),
 
+                        // BANNER SECTION WITH SHIMMER
                         GestureDetector(
                           onTap: () {
                             pushWithSlide(const AddBanner());
                           },
-
                           child: Column(
                             children: [
-                              // MAIN BANNER
-                              Container(
-                                height: 160,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.25),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: banner.isEmpty
-                                      ? Container(
-                                          color: Colors.grey.shade900,
-                                          child: const Center(
-                                            child: CircularProgressIndicator(
-                                              color: Colors.tealAccent,
-                                            ),
+                              banner.isEmpty
+                                  ? _buildBannerShimmer()
+                                  : Container(
+                                      height: 160,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(14),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.25),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
                                           ),
-                                        )
-                                      : FlutterCarousel(
+                                        ],
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: FlutterCarousel(
                                           options: CarouselOptions(
                                             height: 160,
                                             autoPlay: true,
@@ -342,8 +425,8 @@ class _DashboardPageState extends State<DashboardPage> {
                                             );
                                           }).toList(),
                                         ),
-                                ),
-                              ),
+                                      ),
+                                    ),
                             ],
                           ),
                         ),
@@ -357,6 +440,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
                         const SizedBox(height: 25),
 
+                        // BUTTONS
                         buildButton("Approve Coaches"),
                         buildButton("Add Products"),
                         buildButton("Approve Products"),
@@ -377,31 +461,8 @@ class _DashboardPageState extends State<DashboardPage> {
 
                         const SizedBox(height: 25),
 
-                        // HORIZONTAL CLUB SCROLL
-                        SizedBox(
-                          height: 160,
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                buildClubCard(
-                                  "Spark roller skating",
-                                  "lib/assets/images.png",
-                                ),
-                                const SizedBox(width: 12),
-                                buildClubCard(
-                                  "Kimberley skating",
-                                  "lib/assets/imagess.png",
-                                ),
-                                const SizedBox(width: 12),
-                                buildClubCard(
-                                  "City Skate Club",
-                                  "lib/assets/images.png",
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        // CLUB SECTION WITH SHIMMER
+                        _buildClubShimmer(),
 
                         // UPCOMING EVENTS
                         const SizedBox(height: 25),
@@ -412,31 +473,13 @@ class _DashboardPageState extends State<DashboardPage> {
 
                         const SizedBox(height: 15),
 
-                        // EVENT CARD 1
-                        buildEventCard(
-                          clubName: "Langham Skating Club",
-                          date: "November 13, 2025",
-                          location: "Ponnurunni nagar - Kaloor",
-                          title: "Morning training session",
-                          timeLeft: "In 12m",
-                          icon: Icons.thumb_up_alt,
-                        ),
+                        // EVENT CARD 1 WITH SHIMMER
+                        _buildEventShimmer(),
 
                         const SizedBox(height: 12),
 
-                        // EVENT CARD 2 (with images)
-                        buildEventCardWithImages(
-                          clubName: "Strathmore Skating Club",
-                          date: "November 18, 2025",
-                          location: "Kaloor, Kochi",
-                          title: "MG Road Speed Hunters Event",
-                          image1: "lib/assets/skate.jpg",
-                          image2: "lib/assets/skating.png",
-                          description:
-                              "Strathmore skating club conducting skating event on 30th Nov. Join with us!",
-                          icon: Icons.favorite_border,
-                          
-                        ),
+                        // EVENT CARD 2 (with images) WITH SHIMMER
+                        _buildEventWithImagesShimmer(),
 
                         // SUGGESTED COACHES
                         const SizedBox(height: 25),
@@ -451,63 +494,18 @@ class _DashboardPageState extends State<DashboardPage> {
 
                         const SizedBox(height: 15),
 
-                        // HORIZONTAL COACH SCROLL
-                        SizedBox(
-                          height: 230,
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            reverse: true,
-                            child: Row(
-                              children: [
-                                buildCoachCard(
-                                  name: "Alex Peter",
-                                  subtitle: "Spark roller skating",
-                                  city: "Kaloor",
-                                  image: "lib/assets/img.jpg",
-                                ),
-                                buildCoachCard(
-                                  name: "Sundar",
-                                  subtitle: "Eva skating academy",
-                                  city: "Kakkanad",
-                                  image: "lib/assets/img22.jpg",
-                                ),
-                                buildCoachCard(
-                                  name: "Sundar",
-                                  subtitle: "Eva skating academy",
-                                  city: "Kakkanad",
-                                  image: "lib/assets/img22.jpg",
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        // COACH SECTION WITH SHIMMER
+                        _buildCoachShimmer(),
 
                         const SizedBox(height: 20),
 
-                        // EVENT CARD 1
-                        buildEventCard(
-                          clubName: "Langham Skating Club",
-                          date: "November 13, 2025",
-                          location: "Ponnurunni nagar - Kaloor",
-                          title: "Morning training session",
-                          timeLeft: "In 12m",
-                          icon: Icons.thumb_up_alt,
-                        ),
+                        // EVENT CARD 1 WITH SHIMMER
+                        _buildEventShimmer(),
 
                         const SizedBox(height: 12),
 
-                        // EVENT CARD 2 (with images)
-                        buildEventCardWithImages(
-                          clubName: "Strathmore Skating Club",
-                          date: "November 18, 2025",
-                          location: "Kaloor, Kochi",
-                          title: "MG Road Speed Hunters Event",
-                          image1: "lib/assets/skating1.jpg",
-                          image2: "lib/assets/skating2.jpg",
-                          description:
-                              "Strathmore skating club conducting skating event on 30th Nov. Join with us!",
-                          icon: Icons.favorite_border,
-                        ),
+                        // EVENT CARD 2 (with images) WITH SHIMMER
+                        _buildEventWithImagesShimmer(),
                       ],
                     ),
                   ),
@@ -517,9 +515,9 @@ class _DashboardPageState extends State<DashboardPage> {
 
       // BOTTOM NAV
       bottomNavigationBar: AppBottomNav(
-      currentIndex: 0,
-      onTap: _onBottomNavTap,
-),
+        currentIndex: 0,
+        onTap: _onBottomNavTap,
+      ),
     );
   }
 
@@ -799,17 +797,6 @@ Widget buildEventCardWithImages({
     ),
   );
 }
-
-
-
-
-
-
-
-
-
-
-
 
 // COACH CARD (HORIZONTAL)
 Widget buildCoachCard({

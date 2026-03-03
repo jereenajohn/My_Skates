@@ -12,6 +12,8 @@ import 'package:my_skates/COACH/coach_following_list.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_profile_page.dart';
 import 'package:my_skates/COACH/myorders.dart';
+import 'package:my_skates/COACH/product_review_approval_page.dart';
+import 'package:my_skates/COACH/product_review_selection_page.dart';
 import 'package:my_skates/COACH/view_clubs.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/products.dart';
@@ -205,6 +207,15 @@ class _CoachSettingsState extends State<CoachSettings> {
                     Navigator.push(context, slideRightToLeftRoute(Myorders()));
                   },
                 ),
+                // _divider(),
+              // if ("Product Review Approval".toLowerCase().contains(_searchQuery))
+              //   _menuTile(
+              //     icon: Icons.read_more,
+              //     text: "Product Review Approval",
+              //     onTap: () {
+              //       Navigator.push(context, slideRightToLeftRoute(ProductReviewSelectionPage()));
+              //     },
+              //   ),
               _divider(),
               if ("Add Achievements".toLowerCase().contains(_searchQuery))
                 _menuTile(

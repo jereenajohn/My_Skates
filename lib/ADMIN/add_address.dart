@@ -84,7 +84,6 @@ class _AddAddressState extends State<AddAddress> {
         "district": districtId,
       };
 
-      //Remove null values
       body.removeWhere((key, value) => value == null);
 
       final response = await http.post(
@@ -214,31 +213,35 @@ class _AddAddressState extends State<AddAddress> {
       );
 
       List<Map<String, dynamic>> statelist = [];
-      print(
-        "response stateeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee:${response.body}",
-      );
+      print("response state: ${response.body}");
+
       print(response.statusCode);
+
       if (response.statusCode == 200) {
         final parsed = jsonDecode(response.body);
         var productsData = parsed;
 
         for (var productData in productsData) {
-          String imageUrl = "${productData['image']}";
+          int? countryId;
+          if (productData['country_ids'] != null) {
+            countryId = int.tryParse(productData['country_ids'].toString());
+          }
+
           statelist.add({
             'id': productData['id'],
             'name': productData['name'],
             'country_code': productData['country_code'],
             'country': productData['country'],
-            'country_id': int.tryParse(productData['country_ids'].toString()),
+            'country_id': countryId,
           });
         }
         setState(() {
           stat = statelist;
-          print("statelistttttttttttttttttttt:$stat");
+          print("state list: $stat");
         });
       }
     } catch (error) {
-      print("errorrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr:$error");
+      print("error in getstate: $error");
     }
   }
 
@@ -257,29 +260,36 @@ class _AddAddressState extends State<AddAddress> {
         },
       );
 
-      List<Map<String, dynamic>> statelist = [];
-      print("response.bodyyyyyyyyyyyyyyyyy:${response.body}");
+      List<Map<String, dynamic>> districtList = [];
+      print("response district: ${response.body}");
       print(response.statusCode);
+
       if (response.statusCode == 200) {
         final parsed = jsonDecode(response.body);
         var productsData = parsed;
 
         for (var productData in productsData) {
-          String imageUrl = "${productData['image']}";
-          statelist.add({
+          int? stateId;
+          if (productData['state_ids'] != null) {
+            stateId = int.tryParse(productData['state_ids'].toString());
+          }
+
+          districtList.add({
             'id': productData['id'],
             'name': productData['name'],
             'country_code': productData['country_code'],
             'country': productData['country'],
-            'state': int.tryParse(productData['state_ids'].toString()),
+            'state': stateId,
           });
         }
         setState(() {
-          district = statelist;
-          print("distriiiiiiiiiiictssssssss:$district");
+          district = districtList;
+          print("district list: $district");
         });
       }
-    } catch (error) {}
+    } catch (error) {
+      print("error in getdistrict: $error");
+    }
   }
 
   @override
@@ -360,6 +370,12 @@ class _AddAddressState extends State<AddAddress> {
                 controller: fullNameCtrl,
                 style: const TextStyle(color: Colors.white),
                 decoration: _input("Full Name", icon: Icons.person_outline),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter full name';
+                  }
+                  return null;
+                },
               ),
 
               const SizedBox(height: 12),
@@ -369,6 +385,12 @@ class _AddAddressState extends State<AddAddress> {
                 keyboardType: TextInputType.phone,
                 style: const TextStyle(color: Colors.white),
                 decoration: _input("Phone Number", icon: Icons.phone),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter phone number';
+                  }
+                  return null;
+                },
               ),
 
               const SizedBox(height: 12),
@@ -389,6 +411,12 @@ class _AddAddressState extends State<AddAddress> {
                 controller: address1Ctrl,
                 style: const TextStyle(color: Colors.white),
                 decoration: _input("Address Line 1", icon: Icons.home),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter address';
+                  }
+                  return null;
+                },
               ),
 
               const SizedBox(height: 12),
@@ -416,6 +444,12 @@ class _AddAddressState extends State<AddAddress> {
                       controller: cityCtrl,
                       style: const TextStyle(color: Colors.white),
                       decoration: _input("City", icon: Icons.location_city),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter city';
+                        }
+                        return null;
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -425,83 +459,170 @@ class _AddAddressState extends State<AddAddress> {
                       keyboardType: TextInputType.number,
                       style: const TextStyle(color: Colors.white),
                       decoration: _input("Pincode"),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter pincode';
+                        }
+                        return null;
+                      },
                     ),
                   ),
                 ],
               ),
 
-              //               const SizedBox(height: 12),
-
-              // DropdownButtonFormField<int>(
-              //   value: selectedCountryId,
-              //   dropdownColor: const Color(0xFF1A1A1A),
-              //   decoration: _dropdownInput("Country"),
-              //   iconEnabledColor: Colors.tealAccent,
-              //   style: const TextStyle(color: Colors.white),
-              //   items: country.map((c) {
-              //     return DropdownMenuItem<int>(
-              //       value: c['id'],
-              //       child: Text(c['name'], style: const TextStyle(color: Colors.white)),
-              //     );
-              //   }).toList(),
-              //   onChanged: (value) {
-              //     setState(() {
-              //       selectedCountryId = value;
-              //       selectedStateId = null;
-              //       selectedDistrictId = null;
-              //     });
-              //   },
-              // ),
-              // const SizedBox(height: 12),
-
-              // DropdownButtonFormField<int>(
-              //   value: selectedStateId,
-              //   dropdownColor: const Color(0xFF1A1A1A),
-              //   decoration: _dropdownInput("State"),
-              //   iconEnabledColor: Colors.tealAccent,
-              //   style: const TextStyle(color: Colors.white),
-              //   items: stat
-              //       .where((s) => s['country_id'] == selectedCountryId)
-              //       .map((s) {
-              //     return DropdownMenuItem<int>(
-              //       value: s['id'],
-              //       child: Text(s['name'], style: const TextStyle(color: Colors.white)),
-              //     );
-              //   }).toList(),
-              //   onChanged: selectedCountryId == null
-              //       ? null
-              //       : (value) {
-              //           setState(() {
-              //             selectedStateId = value;
-              //             selectedDistrictId = null;
-              //           });
-              //         },
-              // ),
-              // const SizedBox(height: 12),
-
-              // DropdownButtonFormField<int>(
-              //   value: selectedDistrictId,
-              //   dropdownColor: const Color(0xFF1A1A1A),
-              //   decoration: _dropdownInput("District"),
-              //   iconEnabledColor: Colors.tealAccent,
-              //   style: const TextStyle(color: Colors.white),
-              //   items: district
-              //       .where((d) => d['state'] == selectedStateId)
-              //       .map((d) {
-              //     return DropdownMenuItem<int>(
-              //       value: d['id'],
-              //       child: Text(d['name'], style: const TextStyle(color: Colors.white)),
-              //     );
-              //   }).toList(),
-              //   onChanged: selectedStateId == null
-              //       ? null
-              //       : (value) {
-              //           setState(() {
-              //             selectedDistrictId = value;
-              //           });
-              //         },
-              // ),
               const SizedBox(height: 16),
+
+              // COUNTRY DROPDOWN
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: DropdownButtonFormField<int>(
+                  value: selectedCountryId,
+                  dropdownColor: const Color(0xFF1A1A1A),
+                  decoration: const InputDecoration(
+                    labelText: 'Country',
+                    labelStyle: TextStyle(color: Colors.white70),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                  ),
+                  icon: const Icon(
+                    Icons.arrow_drop_down,
+                    color: Colors.tealAccent,
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                  hint: const Text(
+                    'Select Country',
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                  items: country.map((c) {
+                    return DropdownMenuItem<int>(
+                      value: c['id'],
+                      child: Text(
+                        c['name'],
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      selectedCountryId = value;
+                      selectedStateId = null;
+                      selectedDistrictId = null;
+                    });
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // STATE DROPDOWN
+              if (selectedCountryId != null) ...[
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1A1A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: DropdownButtonFormField<int>(
+                    value: selectedStateId,
+                    dropdownColor: const Color(0xFF1A1A1A),
+                    decoration: const InputDecoration(
+                      labelText: 'State',
+                      labelStyle: TextStyle(color: Colors.white70),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.arrow_drop_down,
+                      color: Colors.tealAccent,
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                    hint: const Text(
+                      'Select State',
+                      style: TextStyle(color: Colors.white54),
+                    ),
+                    items: stat
+                        .where((s) => s['country_id'] == selectedCountryId)
+                        .map((s) {
+                          return DropdownMenuItem<int>(
+                            value: s['id'],
+                            child: Text(
+                              s['name'],
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          );
+                        })
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedStateId = value;
+                        selectedDistrictId = null;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              // DISTRICT DROPDOWN
+              if (selectedStateId != null) ...[
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1A1A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: DropdownButtonFormField<int>(
+                    value: selectedDistrictId,
+                    dropdownColor: const Color(0xFF1A1A1A),
+                    decoration: const InputDecoration(
+                      labelText: 'District',
+                      labelStyle: TextStyle(color: Colors.white70),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.arrow_drop_down,
+                      color: Colors.tealAccent,
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                    hint: const Text(
+                      'Select District',
+                      style: TextStyle(color: Colors.white54),
+                    ),
+                    items: district
+                        .where((d) => d['state'] == selectedStateId)
+                        .map((d) {
+                          return DropdownMenuItem<int>(
+                            value: d['id'],
+                            child: Text(
+                              d['name'],
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          );
+                        })
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedDistrictId = value;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // DEFAULT SWITCH
               Container(
@@ -549,10 +670,16 @@ class _AddAddressState extends State<AddAddress> {
                         context: context,
                         fullName: fullNameCtrl.text.trim(),
                         phone: phoneCtrl.text.trim(),
-                        altPhone: altPhoneCtrl.text.trim(),
+                        altPhone: altPhoneCtrl.text.trim().isEmpty
+                            ? null
+                            : altPhoneCtrl.text.trim(),
                         addressLine1: address1Ctrl.text.trim(),
-                        addressLine2: address2Ctrl.text.trim(),
-                        landmark: landmarkCtrl.text.trim(),
+                        addressLine2: address2Ctrl.text.trim().isEmpty
+                            ? null
+                            : address2Ctrl.text.trim(),
+                        landmark: landmarkCtrl.text.trim().isEmpty
+                            ? null
+                            : landmarkCtrl.text.trim(),
                         city: cityCtrl.text.trim(),
                         pincode: pincodeCtrl.text.trim(),
                         addressType: addressType,
