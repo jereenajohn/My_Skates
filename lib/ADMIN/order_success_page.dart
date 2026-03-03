@@ -42,6 +42,11 @@ class _OrderSuccessPageState extends State<OrderSuccessPage>
     // Timer(const Duration(seconds: 4), () {
     //   Navigator.popUntil(context, (route) => route.isFirst);
     // });
+
+
+    print("Order ID: ${widget.orderId}");
+    print("Payment ID: ${widget.paymentId}");
+    print("Amount Paid: ₹${widget.amount}");
   }
 
   @override
@@ -171,7 +176,7 @@ class _OrderSuccessPageState extends State<OrderSuccessPage>
 
                       _infoRow("Order ID", widget.orderId),
                       _infoRow("Payment ID", widget.paymentId),
-                      _infoRow("Amount Paid", "₹${widget.amount}"),
+                      // _infoRow("Amount Paid", "₹${widget.amount}"),
                     ],
                   ),
                 ),

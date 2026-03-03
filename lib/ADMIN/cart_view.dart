@@ -47,7 +47,7 @@ class _cartState extends State<cart> {
   void initState() {
     super.initState();
     fetchCart();
-    fetchCartSummary();
+    // fetchCartSummary();
     fetchAddresses();
     getCoupons();
 
@@ -103,9 +103,9 @@ class _cartState extends State<cart> {
 
         if (decoded["status"] == "success") {
           final data = decoded["data"];
-
+          if (!mounted) return;
           setState(() {
-            bagTotal = data["bag_total"].toString();
+            bagTotal = (data["bag_total"] ?? "0").toString();
             bagSavings = data["bag_savings"].toString();
             subtotal = data["subtotal"].toString();
 
@@ -218,6 +218,7 @@ class _cartState extends State<cart> {
         context,
       ).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
+      if (!mounted) return;
       setState(() => loading = false);
     }
   }
@@ -549,6 +550,7 @@ class _cartState extends State<cart> {
       return false;
     } finally {
       placingOrder = false;
+     
       setState(() => loading = false);
     }
   }
@@ -614,13 +616,19 @@ class _cartState extends State<cart> {
             addressLoading = false;
           });
         } else {
-          addressLoading = false;
+          setState(() {
+            addressLoading = false;
+          });
         }
       } else {
-        addressLoading = false;
+        setState(() {
+          addressLoading = false;
+        });
       }
     } catch (e) {
-      addressLoading = false;
+      setState(() {
+        addressLoading = false;
+      });
     }
   }
 
@@ -696,11 +704,18 @@ class _cartState extends State<cart> {
 
         final cartData = decoded["data"];
         final List items = cartData["items"] ?? [];
-
+        if (!mounted) return;
         setState(() {
           cartItems = items;
+        });
+
+        await fetchCartSummary();
+
+        setState(() {
           loading = false;
         });
+
+        await fetchCartSummary();
       } else {
         setState(() => loading = false);
       }
@@ -1601,6 +1616,7 @@ class _cartState extends State<cart> {
       imageUrl = "$api${variant["first_image"]}";
     }
 
+    final attrs = (variant["attribute_names"] as List?) ?? [];
     return Column(
       children: [
         Padding(
@@ -1671,7 +1687,8 @@ class _cartState extends State<cart> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      (variant["attribute_names"] as List).join(", "),
+                      attrs.isEmpty ? "Default" : attrs.join(", "),
+
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:my_skates/COACH/coach_followers_list.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
@@ -16,11 +17,18 @@ class CoachNotificationPage extends StatefulWidget {
 class _CoachNotificationPageState extends State<CoachNotificationPage> {
   List<Map<String, dynamic>> notifications = [];
   bool loading = true;
+  bool noData = false;
+
+  /// Normalized followers list
+  /// Each item will have:
+  /// id, first_name, last_name, profile, user_type
+  List<Map<String, dynamic>> followers = [];
 
   @override
   void initState() {
     super.initState();
     fetchNotifications();
+    fetchCoachFollowers();
   }
 
   // ================= FETCH =================
@@ -43,6 +51,9 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
         },
       );
 
+      print("FETCH NOTIFICATIONS STATUS: ${res.statusCode}");
+      print("FETCH NOTIFICATIONS BODY: ${res.body}");
+
       if (res.statusCode != 200) {
         setState(() => loading = false);
         return;
@@ -55,7 +66,10 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
           .where((e) {
             final type = e["notification_type"];
 
-            // Hide follow_approved if I am actor
+            // remove duplicate "follow_back_accepted"
+            if (type == "follow_back_accepted") return false;
+
+            // already you have this
             if (type == "follow_approved" && e["actor"] == userId) {
               return false;
             }
@@ -210,79 +224,142 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
   }
 
   // ================= APPROVE CLUB =================
-Future<void> approveClubRequest(int index) async {
-  final n = notifications[index];
-  n["isLoading"] = true;
-  setState(() {});
+  Future<void> approveClubRequest(int index) async {
+    final n = notifications[index];
+    n["isLoading"] = true;
+    setState(() {});
 
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
 
-  print("==== APPROVE CLICKED ====");
-  print("TOKEN: $token");
-  print("DATA: club_id=${n["club_id"]}, user_id=${n["actor"]}");
+    print("==== APPROVE CLICKED ====");
+    print("TOKEN: $token");
+    print("DATA: club_id=${n["club_id"]}, user_id=${n["actor"]}");
 
-  if (token == null) return;
+    if (token == null) return;
 
-  final res = await http.put(
-    Uri.parse("$api/api/myskates/club/join/approve/"),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    },
-    body: jsonEncode({
-      "club_id": n["club_id"],
-      "user_id": n["actor"],
-      "status": "approved",
-    }),
-  );
+    final res = await http.put(
+      Uri.parse("$api/api/myskates/club/join/approve/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "club_id": n["club_id"],
+        "user_id": n["actor"],
+        "status": "approved",
+      }),
+    );
 
-  print("STATUS CODE: ${res.statusCode}");
-  print("RESPONSE BODY: ${res.body}");
+    print("STATUS CODE: ${res.statusCode}");
+    print("RESPONSE BODY: ${res.body}");
 
-  if (res.statusCode == 200) {
-    notifications.removeAt(index);
+    if (res.statusCode == 200) {
+      notifications.removeAt(index);
+    }
+
+    setState(() {});
   }
 
-  setState(() {});
-}
   // ================= REJECT CLUB =================
- Future<void> rejectClubRequest(int index) async {
-  final n = notifications[index];
-  n["isLoading"] = true;
-  setState(() {});
+  Future<void> rejectClubRequest(int index) async {
+    final n = notifications[index];
+    n["isLoading"] = true;
+    setState(() {});
 
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
 
-  print("==== REJECT CLICKED ====");
-  print("TOKEN: $token");
-  print("DATA: club_id=${n["club_id"]}, user_id=${n["actor"]}");
+    print("==== REJECT CLICKED ====");
+    print("TOKEN: $token");
+    print("DATA: club_id=${n["club_id"]}, user_id=${n["actor"]}");
 
-  if (token == null) return;
+    if (token == null) return;
 
-  final res = await http.put(
-    Uri.parse("$api/api/myskates/club/join/approve/"),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    },
-    body: jsonEncode({
-      "club_id": n["club_id"],
-      "user_id": n["actor"],
-      "status": "rejected",
-    }),
-  );
+    final res = await http.put(
+      Uri.parse("$api/api/myskates/club/join/approve/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "club_id": n["club_id"],
+        "user_id": n["actor"],
+        "status": "rejected",
+      }),
+    );
 
-  print("STATUS CODE: ${res.statusCode}");
-  print("RESPONSE BODY: ${res.body}");
+    print("STATUS CODE: ${res.statusCode}");
+    print("RESPONSE BODY: ${res.body}");
 
-  if (res.statusCode == 200) {
-    notifications.removeAt(index);
+    if (res.statusCode == 200) {
+      notifications.removeAt(index);
+    }
+
+    setState(() {});
   }
 
-  setState(() {});
-}
+
+  Future<void> fetchCoachFollowers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/user/followers/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      print("COACH FOLLOWERS STATUS: ${response.statusCode}");
+      print("COACH FOLLOWERS BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final List raw = decoded["data"] ?? [];
+
+        /// 🔹 Normalize API response here
+        final List<Map<String, dynamic>> normalized = raw
+            .map((e) {
+              return {
+                "id": e["follower__id"],
+                "first_name": e["follower__first_name"],
+                "last_name": e["follower__last_name"],
+                "profile": e["follower__profile"],
+                "user_type": e["follower__user_type"],
+                "is_mutual": e["is_mutual"] ?? false,
+
+                // 🔥 USE BACKEND TRUTH
+                "follow_requested":
+                    e["has_requested"] == true &&
+                    e["request_status"] == "pending",
+
+                "isLoading": false,
+              };
+            })
+            .where((e) => e["id"] != null)
+            .toList();
+
+        setState(() {
+          followers = normalized;
+          noData = followers.isEmpty;
+          loading = false;
+        });
+      } else {
+        setState(() {
+          noData = true;
+          loading = false;
+        });
+      }
+    } catch (e) {
+      print("COACH FOLLOWERS ERROR: $e");
+      setState(() {
+        noData = true;
+        loading = false;
+      });
+    }
+  }
+
+
   // ================= HELPERS =================
   String timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
@@ -312,11 +389,11 @@ Future<void> approveClubRequest(int index) async {
       case "event_like":
         return "liked your event.";
 
-      case "club_join_request":
-        return "requested to join your club.";
+       case "club_join_request":
+      return "requested to join ${n["club_name"] ?? "your club"}.";
 
-      case "club_join_approved":
-        return "joined your club.";
+    case "club_join_approved":
+      return "joined ${n["club_name"] ?? "your club"}.";
 
       case "post_like":
         return "liked your post.";
@@ -418,7 +495,10 @@ Future<void> approveClubRequest(int index) async {
                   onPressed: n["isLoading"]
                       ? null
                       : () => confirmFollowRequest(index),
-                  child: const Text("Confirm", style: TextStyle(fontSize: 12)),
+                  child: const Text(
+                    "Confirm",
+                    style: TextStyle(fontSize: 12, color: Colors.white),
+                  ),
                 ),
                 const SizedBox(width: 6),
                 OutlinedButton(
@@ -428,7 +508,10 @@ Future<void> approveClubRequest(int index) async {
                   onPressed: n["isLoading"]
                       ? null
                       : () => ignoreFollowRequest(index),
-                  child: const Text("Cancel"),
+                  child: const Text(
+                    "Cancel",
+                    style: TextStyle(fontSize: 12, color: Colors.white),
+                  ),
                 ),
               ],
             )
@@ -448,7 +531,10 @@ Future<void> approveClubRequest(int index) async {
                   onPressed: n["isLoading"]
                       ? null
                       : () => confirmFollowBackRequest(index),
-                  child: const Text("Confirm", style: TextStyle(fontSize: 12)),
+                  child: const Text(
+                    "Confirm",
+                    style: TextStyle(fontSize: 12, color: Colors.white),
+                  ),
                 ),
                 const SizedBox(width: 6),
                 OutlinedButton(
@@ -458,7 +544,10 @@ Future<void> approveClubRequest(int index) async {
                   onPressed: n["isLoading"]
                       ? null
                       : () => cancelFollowBackRequest(index),
-                  child: const Text("Cancel"),
+                  child: const Text(
+                    "Cancel",
+                    style: TextStyle(fontSize: 12, color: Colors.white),
+                  ),
                 ),
               ],
             )
@@ -467,13 +556,29 @@ Future<void> approveClubRequest(int index) async {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                  ),
                   onPressed: () => approveClubRequest(index),
-                  child: const Text("Approve"),
+                  child: const Text(
+                    "Approve",
+                    style: TextStyle(color: Colors.white, fontSize: 10),
+                  ),
                 ),
                 const SizedBox(width: 6),
                 OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.grey.shade700),
+                  ),
                   onPressed: () => rejectClubRequest(index),
-                  child: const Text("Reject"),
+                  child: const Text(
+                    "Reject",
+                    style: TextStyle(color: Colors.white, fontSize: 10),
+                  ),
                 ),
               ],
             )
@@ -505,20 +610,96 @@ Future<void> approveClubRequest(int index) async {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
         ),
       ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : notifications.isEmpty
-          ? const Center(
-              child: Text(
-                "No notifications",
-                style: TextStyle(color: Colors.grey),
+     body: loading
+    ? const Center(child: CircularProgressIndicator(color: Colors.white))
+    : Column(
+        children: [
+
+          // 🔵 TOP FOLLOW REQUEST DESIGN (STATIC / CLICKABLE)
+          if (followers.isNotEmpty)
+          InkWell(
+            onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CoachFollowersList()),
+            );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey.shade900),
+                ),
               ),
-            )
-          : ListView.builder(
-              itemCount: notifications.length,
-              itemBuilder: (context, index) =>
-                  notificationTile(notifications[index], index),
+              child: Row(
+                children: [
+                  // ICON / AVATAR
+                  const CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Colors.teal,
+                    child: Icon(Icons.person_add, color: Colors.white),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  // TEXT
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Follow Back",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          "Tap to view followers",
+                          style: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // BLUE DOT
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.tealAccent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  const Icon(Icons.chevron_right, color: Colors.grey),
+                ],
+              ),
             ),
+          ),
+
+          // 🔽 YOUR EXISTING LIST (UNCHANGED)
+          Expanded(
+            child: notifications.isEmpty
+                ? const Center(
+                    child: Text(
+                      "No notifications",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: notifications.length,
+                    itemBuilder: (context, index) =>
+                        notificationTile(notifications[index], index),
+                  ),
+          ),
+        ],
+    ),
     );
   }
 }

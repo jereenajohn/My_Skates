@@ -82,6 +82,7 @@ class Order {
   final DateTime updatedAt;
   final String? address;
   final int user;
+  final String final_payable;
 
   Order({
     required this.id,
@@ -106,6 +107,7 @@ class Order {
     required this.updatedAt,
     this.address,
     required this.user,
+    required this.final_payable,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -131,6 +133,7 @@ class Order {
       country: json['country'] ?? '',
       note: json['note'],
       subtotal: json['subtotal']?.toString() ?? '0',
+      final_payable: json['final_payable']?.toString() ?? '0',
       discountTotal: json['discount_total']?.toString() ?? '0',
       total: json['total']?.toString() ?? '0',
       createdAt: DateTime.parse(
@@ -179,7 +182,7 @@ class _MyordersState extends State<Myorders> {
   List<Order> orders = [];
   bool isLoading = true;
   String? error;
-  
+
   // Status filter
   String _selectedStatusFilter = 'ALL';
 
@@ -204,9 +207,9 @@ class _MyordersState extends State<Myorders> {
     if (_selectedStatusFilter == 'ALL') {
       return orders;
     }
-    return orders.where((order) =>
-      order.status == _selectedStatusFilter
-    ).toList();
+    return orders
+        .where((order) => order.status == _selectedStatusFilter)
+        .toList();
   }
 
   Future<void> fetchOrders() async {
@@ -501,12 +504,16 @@ class _MyordersState extends State<Myorders> {
                           ],
                         ),
                       ),
-                      
+
                       // Orders List
-                      ..._filteredOrders.map((order) => GestureDetector(
-                        onTap: () => _navigateToOrderDetail(order),
-                        child: _buildOrderCard(order),
-                      )).toList(),
+                      ..._filteredOrders
+                          .map(
+                            (order) => GestureDetector(
+                              onTap: () => _navigateToOrderDetail(order),
+                              child: _buildOrderCard(order),
+                            ),
+                          )
+                          .toList(),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -533,7 +540,7 @@ class _MyordersState extends State<Myorders> {
             children: [
               Expanded(
                 child: Text(
-                  'Order #${order.orderNo}',
+                  '${order.orderNo}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -560,7 +567,7 @@ class _MyordersState extends State<Myorders> {
                   order.status,
                   style: TextStyle(
                     color: _getStatusColor(order.status),
-                    fontSize: 11,
+                    fontSize: 9,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -569,17 +576,16 @@ class _MyordersState extends State<Myorders> {
           ),
 
           const SizedBox(height: 12),
-          
-          // Items section
-          const Text(
-            'Items:',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
 
+          // Items section
+          // const Text(
+          //   'Items:',
+          //   style: TextStyle(
+          //     color: Colors.white,
+          //     fontSize: 16,
+          //     fontWeight: FontWeight.w600,
+          //   ),
+          // ),
           const SizedBox(height: 12),
           ...order.items
               .take(2)
@@ -629,20 +635,20 @@ class _MyordersState extends State<Myorders> {
                       ),
 
                       // Price
-                      Text(
-                        '₹${double.parse(item.lineTotal).toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: Colors.tealAccent,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      // Text(
+                      //   '₹${double.parse(item.lineTotal).toStringAsFixed(2)}',
+                      //   style: const TextStyle(
+                      //     color: Colors.tealAccent,
+                      //     fontSize: 14,
+                      //     fontWeight: FontWeight.w600,
+                      //   ),
+                      // ),
                     ],
                   ),
                 ),
               )
               .toList(),
-          if (order.items.length > 2)
+          if (order.items.length > 1)
             Padding(
               padding: const EdgeInsets.only(top: 4, left: 62),
               child: Text(
@@ -655,7 +661,7 @@ class _MyordersState extends State<Myorders> {
               ),
             ),
 
-          const Divider(color: Colors.white24, height: 24),
+          const Divider(color: Colors.white24, height: 15),
 
           // Total
           Row(
@@ -665,15 +671,15 @@ class _MyordersState extends State<Myorders> {
                 'Total:',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                '₹${double.parse(order.total).toStringAsFixed(2)}',
+                '₹${double.parse(order.final_payable).toStringAsFixed(2)}',
                 style: const TextStyle(
                   color: Colors.tealAccent,
-                  fontSize: 18,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -852,10 +858,10 @@ class OrderDetailPage extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          'Order #${order.orderNo}',
+                          '${order.orderNo}',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -879,7 +885,7 @@ class OrderDetailPage extends StatelessWidget {
                           order.status,
                           style: TextStyle(
                             color: _getStatusColor(order.status),
-                            fontSize: 12,
+                            fontSize: 9,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -1210,17 +1216,20 @@ class OrderDetailPage extends StatelessWidget {
                   ...order.items
                       .map(
                         (item) => GestureDetector(
-                          onTap: (){
-                            Navigator.push(context,MaterialPageRoute(builder: (context)=>ProductReviewPage(
-                              productId: item.product,
-                              productTitle: item.productTitle,
-                              productImage: item.productImage,
-                              variantId: item.variantId,
-                              variantLabel: item.variantLabel,
-                              variantImage: item.variantImage,
-                              )
-                              )
-                              );
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ProductReviewPage(
+                                  productId: item.product,
+                                  productTitle: item.productTitle,
+                                  productImage: item.productImage,
+                                  variantId: item.variantId,
+                                  variantLabel: item.variantLabel,
+                                  variantImage: item.variantImage,
+                                ),
+                              ),
+                            );
                           },
                           child: Padding(
                             padding: const EdgeInsets.only(bottom: 16),
@@ -1239,13 +1248,14 @@ class OrderDetailPage extends StatelessWidget {
                                     child: _buildProductImage(item),
                                   ),
                                 ),
-                          
+
                                 const SizedBox(width: 16),
-                          
+
                                 // Product Details
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         item.productTitle,
@@ -1263,9 +1273,8 @@ class OrderDetailPage extends StatelessWidget {
                                             vertical: 2,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: Colors.tealAccent.withOpacity(
-                                              0.2,
-                                            ),
+                                            color: Colors.tealAccent
+                                                .withOpacity(0.2),
                                             borderRadius: BorderRadius.circular(
                                               4,
                                             ),
@@ -1354,7 +1363,7 @@ class OrderDetailPage extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '₹${double.parse(order.total).toStringAsFixed(2)}',
+                        '₹${double.parse(order.final_payable).toStringAsFixed(2)}',
                         style: const TextStyle(
                           color: Colors.tealAccent,
                           fontSize: 22,

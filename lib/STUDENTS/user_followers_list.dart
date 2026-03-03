@@ -225,6 +225,7 @@ Widget _buildFollowerTile(Map<String, dynamic> follower) {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
+                            color: Colors.white,
                           ),
                         ),
                 ),
