@@ -17,11 +17,18 @@ class CoachNotificationPage extends StatefulWidget {
 class _CoachNotificationPageState extends State<CoachNotificationPage> {
   List<Map<String, dynamic>> notifications = [];
   bool loading = true;
+  bool noData = false;
+
+  /// Normalized followers list
+  /// Each item will have:
+  /// id, first_name, last_name, profile, user_type
+  List<Map<String, dynamic>> followers = [];
 
   @override
   void initState() {
     super.initState();
     fetchNotifications();
+    fetchCoachFollowers();
   }
 
   // ================= FETCH =================
@@ -292,6 +299,67 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     setState(() {});
   }
 
+
+  Future<void> fetchCoachFollowers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/user/followers/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      print("COACH FOLLOWERS STATUS: ${response.statusCode}");
+      print("COACH FOLLOWERS BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final List raw = decoded["data"] ?? [];
+
+        /// 🔹 Normalize API response here
+        final List<Map<String, dynamic>> normalized = raw
+            .map((e) {
+              return {
+                "id": e["follower__id"],
+                "first_name": e["follower__first_name"],
+                "last_name": e["follower__last_name"],
+                "profile": e["follower__profile"],
+                "user_type": e["follower__user_type"],
+                "is_mutual": e["is_mutual"] ?? false,
+
+                // 🔥 USE BACKEND TRUTH
+                "follow_requested":
+                    e["has_requested"] == true &&
+                    e["request_status"] == "pending",
+
+                "isLoading": false,
+              };
+            })
+            .where((e) => e["id"] != null)
+            .toList();
+
+        setState(() {
+          followers = normalized;
+          noData = followers.isEmpty;
+          loading = false;
+        });
+      } else {
+        setState(() {
+          noData = true;
+          loading = false;
+        });
+      }
+    } catch (e) {
+      print("COACH FOLLOWERS ERROR: $e");
+      setState(() {
+        noData = true;
+        loading = false;
+      });
+    }
+  }
+
+
   // ================= HELPERS =================
   String timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
@@ -548,6 +616,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
         children: [
 
           // 🔵 TOP FOLLOW REQUEST DESIGN (STATIC / CLICKABLE)
+          if (followers.isNotEmpty)
           InkWell(
             onTap: () {
             Navigator.push(
