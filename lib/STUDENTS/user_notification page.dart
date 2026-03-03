@@ -17,11 +17,16 @@ class UserNotificationPage extends StatefulWidget {
 class _UserNotificationPageState extends State<UserNotificationPage> {
   List<Map<String, dynamic>> notifications = [];
   bool loading = true;
+  bool noData = false;
+  List followers = [];
+  bool showFollowBack = false; // determines whether to show the follow-back banner
 
   @override
   void initState() {
     super.initState();
     fetchNotifications();
+
+    fetchFollowers();
   }
 
   // ================= FETCH =================
@@ -143,6 +148,58 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
     setState(() {});
   }
 
+  Future<void> fetchFollowers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/user/followers/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final List raw = decoded["data"] ?? [];
+
+        // show the follow-back container only if the API returned at least one follower
+        showFollowBack = raw.isNotEmpty;
+
+        final normalized = raw.map<Map<String, dynamic>>((e) {
+          return {
+            "id": e["follower__id"],
+            "first_name": e["follower__first_name"],
+            "last_name": e["follower__last_name"],
+            "profile": e["follower__profile"],
+            "user_type": e["follower__user_type"],
+            "is_mutual": e["is_mutual"] ?? false,
+            "follow_requested":
+                e["has_requested"] == true && e["request_status"] == "pending",
+            "isLoading": false,
+          };
+        }).toList();
+
+        setState(() {
+          followers = normalized;
+          noData = followers.isEmpty;
+          loading = false;
+        });
+      } else {
+        setState(() {
+          noData = true;
+          loading = false;
+          showFollowBack = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        noData = true;
+        loading = false;
+        showFollowBack = false;
+      });
+    }
+  }
+
   // ================= HELPERS =================
   String timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
@@ -229,181 +286,204 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
           style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
         ),
       ),
-     body: loading
-    ? const Center(child: CircularProgressIndicator())
-    : Column(
-        children: [
-
-          // 🔵 TOP FOLLOW REQUEST DESIGN
-          InkWell(
-            onTap: () {
-             Navigator.push(context, MaterialPageRoute(builder: (context)=>UserFollowersList()));
-              // 👉 navigate wherever you want later
-            },
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade900),
-              ),
-              child: Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 22,
-                    backgroundColor: Colors.teal,
-                    child: Icon(Icons.person_add, color: Colors.white),
-                  ),
-                  const SizedBox(width: 12),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Follow Back ",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                // 🔵 TOP FOLLOW REQUEST DESIGN
+                // show banner only when server data indicated followers > 0
+                if (showFollowBack)
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => UserFollowersList(),
+                        ),
+                      );
+                      // 👉 navigate wherever you want later
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade900),
+                      ),
+                      child: Row(
+                        children: [
+                          const CircleAvatar(
+                            radius: 22,
+                            backgroundColor: Colors.teal,
+                            child: Icon(Icons.person_add, color: Colors.white),
                           ),
-                        ),
-                        Text(
-                          "Tap to view followers",
-                          style: TextStyle(
-                            color: Colors.grey.shade400,
-                            fontSize: 12,
+                          const SizedBox(width: 12),
+
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Follow Back ",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Text(
+                                  "Tap to view followers",
+                                  style: TextStyle(
+                                    color: Colors.grey.shade400,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+
+                          // dot
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Colors.tealAccent,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+
+                          const SizedBox(width: 8),
+                          const Icon(Icons.chevron_right, color: Colors.grey),
+                        ],
+                      ),
                     ),
                   ),
 
-                  // dot
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Colors.tealAccent,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+                // 🔽 EXISTING LIST (UNCHANGED)
+                Expanded(
+                  child: notifications.isEmpty
+                      ? const Center(
+                          child: Text(
+                            "No notifications",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: notifications.length,
+                          itemBuilder: (context, index) {
+                            final n = notifications[index];
+                            final name =
+                                "${n['actor_first_name'] ?? ""} ${n['actor_last_name'] ?? ""}"
+                                    .trim();
 
-                  const SizedBox(width: 8),
-                  const Icon(Icons.chevron_right, color: Colors.grey),
-                ],
-              ),
-            ),
-          ),
-
-          // 🔽 EXISTING LIST (UNCHANGED)
-          Expanded(
-            child: notifications.isEmpty
-                ? const Center(
-                    child: Text(
-                      "No notifications",
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: notifications.length,
-                    itemBuilder: (context, index) {
-                      final n = notifications[index];
-                      final name =
-                          "${n['actor_first_name'] ?? ""} ${n['actor_last_name'] ?? ""}"
-                              .trim();
-
-                      return Container(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            avatar(n['actor_profile'], name),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
+                            return Container(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  RichText(
-                                    text: TextSpan(
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                      ),
+                                  avatar(n['actor_profile'], name),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        TextSpan(
-                                          text: name,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
+                                        RichText(
+                                          text: TextSpan(
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                            ),
+                                            children: [
+                                              TextSpan(
+                                                text: name,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              TextSpan(
+                                                text:
+                                                    " ${notificationText(n)} ",
+                                              ),
+                                              TextSpan(
+                                                text:
+                                                    "• ${timeAgo(n['created_at'])}",
+                                                style: const TextStyle(
+                                                  color: Colors.grey,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        TextSpan(
-                                            text:
-                                                " ${notificationText(n)} "),
-                                        TextSpan(
-                                          text:
-                                              "• ${timeAgo(n['created_at'])}",
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 12,
+
+                                        if (n["status_ui"] == "request_pending")
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 10,
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                ElevatedButton(
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                        backgroundColor: Colors
+                                                            .tealAccent
+                                                            .shade700,
+                                                        foregroundColor:
+                                                            Colors.white,
+                                                      ),
+                                                  onPressed: n["isLoading"]
+                                                      ? null
+                                                      : () =>
+                                                            confirmFollowRequest(
+                                                              index,
+                                                            ),
+                                                  child: const Text("Confirm"),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                OutlinedButton(
+                                                  onPressed: n["isLoading"]
+                                                      ? null
+                                                      : () =>
+                                                            ignoreFollowRequest(
+                                                              index,
+                                                            ),
+                                                  child: const Text(
+                                                    "Ignore",
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
                                       ],
                                     ),
                                   ),
-
-                                  if (n["status_ui"] == "request_pending")
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 10),
-                                      child: Row(
-                                        children: [
-                                          ElevatedButton(
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors
-                                                  .tealAccent
-                                                  .shade700,
-                                              foregroundColor: Colors.white,
-                                            ),
-                                            onPressed: n["isLoading"]
-                                                ? null
-                                                : () =>
-                                                    confirmFollowRequest(index),
-                                            child: const Text("Confirm"),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          OutlinedButton(
-                                            onPressed: n["isLoading"]
-                                                ? null
-                                                : () =>
-                                                    ignoreFollowRequest(index),
-                                            child: const Text(
-                                              "Ignore",
-                                              style: TextStyle(
-                                                  color: Colors.white),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
                                 ],
                               ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
+                ),
+              ],
+            ),
     );
   }
 }
