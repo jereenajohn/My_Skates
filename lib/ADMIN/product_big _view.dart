@@ -589,6 +589,9 @@ bool _isCoach = false;
         headers: {"Authorization": "Bearer $token"},
       );
 
+      print("Product details status: ${res.statusCode}");
+      print("Product details response: ${res.body}");
+
       if (res.statusCode == 200) {
         final json = jsonDecode(res.body);
 
@@ -903,6 +906,8 @@ bool _isCoach = false;
                     final displayDescription =
                         selectedVariant?["description"] ??
                         product!["description"];
+
+                        print("imageeeeeeeeeee: $displayImage");
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

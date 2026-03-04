@@ -291,6 +291,9 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
         },
       );
 
+      print("Categories status: ${response.statusCode}");
+      print("Categories response: ${response.body}");
+
       if (response.statusCode == 200) {
         final parsed = jsonDecode(response.body);
 
