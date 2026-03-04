@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.my_skates"
+    namespace = "com.myskates.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -23,7 +23,7 @@ android {
 
 
     defaultConfig {
-    applicationId = "com.example.my_skates"
+    applicationId = "com.myskates.app"
     minSdk = flutter.minSdkVersion
     targetSdk = flutter.targetSdkVersion
     versionCode = flutter.versionCode
