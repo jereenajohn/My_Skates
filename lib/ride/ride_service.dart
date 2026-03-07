@@ -14,7 +14,17 @@ class RideService {
     }
     if (perm == LocationPermission.deniedForever) return false;
 
-    return perm == LocationPermission.whileInUse || perm == LocationPermission.always;
+    return perm == LocationPermission.whileInUse ||
+        perm == LocationPermission.always;
+  }
+
+  Future<Position?> getCurrentPosition() async {
+    final ok = await ensurePermission();
+    if (!ok) return null;
+
+    return Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.bestForNavigation,
+    );
   }
 
   Future<void> start({
@@ -25,10 +35,12 @@ class RideService {
 
     const settings = LocationSettings(
       accuracy: LocationAccuracy.bestForNavigation,
-      distanceFilter: 3, // small like Strava
+      distanceFilter: 3,
     );
 
-    _sub = Geolocator.getPositionStream(locationSettings: settings).listen(
+    _sub = Geolocator.getPositionStream(
+      locationSettings: settings,
+    ).listen(
       onData,
       onError: onError,
       cancelOnError: false,

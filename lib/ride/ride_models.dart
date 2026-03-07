@@ -4,7 +4,8 @@ enum RideUIState {
   readyCompact,      // screenshot 1 after selecting ride
   readyExpanded,     // screenshot 3
   tracking,          // screenshot 4
-  autoPaused,        // screenshot 5
+  autoPaused, 
+   paused,       // screenshot 5
   stopped,           // screenshot 6/7 (same layout, different primary button)
   saveActivity,      // screenshot 8
 }

@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'ride_provider.dart';
 import 'ride_models.dart';
 import 'ride_math.dart';
+import 'ride_service.dart';
 import 'save_activity_screen.dart';
 import 'widgets.dart';
 
@@ -17,118 +18,160 @@ class RideMapScreen extends StatefulWidget {
 
 class _RideMapScreenState extends State<RideMapScreen> {
   GoogleMapController? _map;
+  final RideService _rideService = RideService();
+
+  bool _didOpenSave = false;
+  bool _initialCentered = false;
+  int _lastAnimatedRouteCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentLocation();
+  }
+
+  Future<void> _loadCurrentLocation() async {
+    final pos = await _rideService.getCurrentPosition();
+    if (!mounted || pos == null) return;
+
+    final ride = context.read<RideProvider>();
+    ride.currentPosition = pos;
+    ride.notifyListeners();
+
+    if (_map != null) {
+      await _animateTo(pos.latitude, pos.longitude, zoom: 17.2);
+      _initialCentered = true;
+    }
+  }
+
+  Future<void> _animateTo(
+    double lat,
+    double lng, {
+    double zoom = 17,
+    double tilt = 0,
+    double bearing = 0,
+  }) async {
+    await _map?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: LatLng(lat, lng),
+          zoom: zoom,
+          tilt: tilt,
+          bearing: bearing,
+        ),
+      ),
+    );
+  }
+
+  void _handleMapFollow(RideProvider ride) {
+    final pos = ride.currentPosition;
+    if (_map == null || pos == null) return;
+
+    if (!_initialCentered) {
+      _animateTo(pos.latitude, pos.longitude, zoom: 17.2);
+      _initialCentered = true;
+      return;
+    }
+
+    final shouldFollow =
+        ride.uiState == RideUIState.tracking ||
+        ride.uiState == RideUIState.autoPaused ||
+        ride.uiState == RideUIState.stopped ||
+        ride.uiState == RideUIState.paused;
+
+   if (shouldFollow) {
+  if (ride.route.length != _lastAnimatedRouteCount || ride.currentSpeedKmh > 0) {
+    _lastAnimatedRouteCount = ride.route.length;
+    _animateTo(
+      pos.latitude,
+      pos.longitude,
+      zoom: 17.2,
+      tilt: 45,
+      bearing: pos.heading.isFinite ? pos.heading : 0,
+    );
+  }
+}
+  }
 
   @override
   Widget build(BuildContext context) {
     final ride = context.watch<RideProvider>();
 
-    // Navigate to Save screen when state becomes saveActivity
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (ride.uiState == RideUIState.saveActivity) {
+      if (ride.uiState == RideUIState.saveActivity && !_didOpenSave) {
+        _didOpenSave = true;
         Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => const SaveActivityScreen()))
+            .push(
+              MaterialPageRoute(
+                builder: (_) => const SaveActivityScreen(),
+              ),
+            )
             .then((_) {
-              // when back, go to initial map
+              _didOpenSave = false;
               ride.stopAll();
               ride.uiState = RideUIState.initialMap;
               ride.notifyListeners();
             });
       }
+
+      _handleMapFollow(ride);
     });
+
+    final List<LatLng> routePoints = ride.route
+        .map((position) => LatLng(position.latitude, position.longitude))
+        .toList();
 
     final polyline = Polyline(
       polylineId: const PolylineId("route"),
       width: 7,
       color: const Color(0xFF7A5CFF),
-      points: ride.route.map((p) => LatLng(p.latitude, p.longitude)).toList(),
+      points: routePoints,
     );
+
+    final LatLng initialTarget = ride.currentPosition != null
+        ? LatLng(
+            ride.currentPosition!.latitude,
+            ride.currentPosition!.longitude,
+          )
+        : const LatLng(9.9312, 76.2673);
 
     return Scaffold(
       body: Stack(
         children: [
           GoogleMap(
-            initialCameraPosition: const CameraPosition(
-              target: LatLng(9.9312, 76.2673),
-              zoom: 16,
+            initialCameraPosition: CameraPosition(
+              target: initialTarget,
+              zoom: 16.5,
             ),
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             compassEnabled: true,
             polylines: {polyline},
-            onMapCreated: (c) => _map = c,
+            onMapCreated: (controller) async {
+              _map = controller;
+              final pos = ride.currentPosition;
+              if (pos != null) {
+                await _animateTo(pos.latitude, pos.longitude, zoom: 17.2);
+                _initialCentered = true;
+              }
+            },
           ),
-
-          // top-left back arrow circle
-          // Positioned(
-          //   top: 48,
-          //   left: 16,
-          //   child: _CircleIcon(
-          //     icon: Icons.keyboard_arrow_down,
-          //     onTap: () {
-          //       // you can pop screen if needed
-          //     },
-          //   ),
-          // ),
-
-          // right side controls (layers + 3D + locate)
-          // Positioned(
-          //   top: 320,
-          //   right: 14,
-          //   child: Column(
-          //     children: [
-          //       _CircleIcon(icon: Icons.layers, badge: "4", onTap: () {}),
-          //       const SizedBox(height: 12),
-          //       _CircleIcon(icon: Icons.threed_rotation, label: "3D", onTap: () {}),
-          //       const SizedBox(height: 12),
-          //       _CircleIcon(
-          //         icon: Icons.gps_fixed,
-          //         onTap: () async {
-          //           // center map to current location if available
-          //           if (ride.route.isNotEmpty) {
-          //             final last = ride.route.last;
-          //             await _map?.animateCamera(
-          //               CameraUpdate.newLatLng(LatLng(last.latitude, last.longitude)),
-          //             );
-          //           }
-          //         },
-          //       ),
-          //     ],
-          //   ),
-          // ),
-
-          // Heatmap banner (dummy UI like screenshot)
-          // Positioned(
-          //   top: 54,
-          //   left: 75,
-          //   right: 20,
-          //   child: Container(
-          //     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          //     decoration: BoxDecoration(
-          //       color: const Color(0xFF141416),
-          //       borderRadius: BorderRadius.circular(18),
-          //       border: Border.all(color: Colors.orange.withOpacity(0.5)),
-          //     ),
-          //     child: Row(
-          //       children: const [
-          //         Icon(Icons.lock, color: Colors.white70, size: 18),
-          //         SizedBox(width: 10),
-          //         Expanded(
-          //           child: Column(
-          //             crossAxisAlignment: CrossAxisAlignment.start,
-          //             children: [
-          //               Text("See what’s popular", style: TextStyle(fontWeight: FontWeight.w800)),
-          //               SizedBox(height: 2),
-          //               Text("Tap to add weekly Heatmap", style: TextStyle(color: Colors.white70)),
-          //             ],
-          //           ),
-          //         ),
-          //       ],
-          //     ),
-          //   ),
-          // ),
-
-          // bottom panel
+          Positioned(
+            top: 56,
+            right: 16,
+            child: _CircleIcon(
+              icon: Icons.my_location,
+              onTap: () async {
+                final pos =
+                    ride.currentPosition ??
+                    await _rideService.getCurrentPosition();
+                if (pos != null) {
+                  await _animateTo(pos.latitude, pos.longitude, zoom: 17.2);
+                }
+              },
+            ),
+          ),
           Align(
             alignment: Alignment.bottomCenter,
             child: _bottomPanel(context, ride),
@@ -139,7 +182,6 @@ class _RideMapScreenState extends State<RideMapScreen> {
   }
 
   Widget _bottomPanel(BuildContext context, RideProvider ride) {
-    // Screen 1 base and Screen 1 after choosing ride share similar UI
     if (ride.uiState == RideUIState.chooseSport) {
       return _chooseSportSheet(context, ride);
     }
@@ -156,22 +198,23 @@ class _RideMapScreenState extends State<RideMapScreen> {
       return _autoPausedPanel(context, ride);
     }
 
+    if (ride.uiState == RideUIState.paused) {
+      return _pausedPanel(context, ride);
+    }
+
     if (ride.uiState == RideUIState.stopped) {
       return _stoppedPanel(context, ride);
     }
 
-    // initialMap OR readyCompact
     return _initialOrReadyPanel(context, ride);
   }
 
-  // Screenshot 1 panel
   Widget _initialOrReadyPanel(BuildContext context, RideProvider ride) {
     return PanelContainer(
-      padding: const EdgeInsets.symmetric(vertical: 8), // ↓ reduced
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          /// STAT CARD
           StatTripletCard(
             title: ride.selectedSport.isCycle
                 ? "Ride"
@@ -186,29 +229,24 @@ class _RideMapScreenState extends State<RideMapScreen> {
                 ? ride.toggleExpandReady
                 : null,
           ),
-
-          const SizedBox(height: 8), // ↓ reduced from 14
-          /// BUTTON ROW
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _SmallModeButton(
                 selected: true,
                 icon: Icons.directions_bike,
-
                 label: ride.selectedSport.isCycle
                     ? "Ride"
                     : ride.selectedSport.label,
-                onTap: () => ride.openChooseSport(),
+                onTap: ride.openChooseSport,
               ),
-
               _BigStartButton(
                 label: "Start",
                 onTap: () async {
                   await ride.startPressed();
                 },
               ),
-
               _SmallModeButton(
                 selected: false,
                 icon: Icons.alt_route,
@@ -217,14 +255,12 @@ class _RideMapScreenState extends State<RideMapScreen> {
               ),
             ],
           ),
-
-          const SizedBox(height: 50), // ↓ reduced from 30
+          const SizedBox(height: 50),
         ],
       ),
     );
   }
 
-  // Screenshot 2
   Widget _chooseSportSheet(BuildContext context, RideProvider ride) {
     return PanelContainer(
       child: SizedBox(
@@ -236,7 +272,11 @@ class _RideMapScreenState extends State<RideMapScreen> {
                 const Expanded(
                   child: Text(
                     "Choose a Sport",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900,color: Colors.white),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -293,28 +333,22 @@ class _RideMapScreenState extends State<RideMapScreen> {
     );
   }
 
-  Widget _sportRow(RideProvider ride, SportType s, IconData icon) {
-    final selected = ride.selectedSport == s;
+  Widget _sportRow(RideProvider ride, SportType sport, IconData icon) {
+    final selected = ride.selectedSport == sport;
     return ListTile(
-      leading: Icon(
-        icon,
-        color: selected ? Colors.teal : Colors.white,
-      ),
+      leading: Icon(icon, color: selected ? Colors.teal : Colors.white),
       title: Text(
-        s.label,
+        sport.label,
         style: TextStyle(
           fontWeight: FontWeight.w800,
           color: selected ? Colors.teal : Colors.white,
         ),
       ),
-      trailing: selected
-          ? const Icon(Icons.check, color: Colors.teal)
-          : null,
-      onTap: () => ride.selectSport(s),
+      trailing: selected ? const Icon(Icons.check, color: Colors.teal) : null,
+      onTap: () => ride.selectSport(sport),
     );
   }
 
-  // Screenshot 3
   Widget _expandedStatsPanel(BuildContext context, RideProvider ride) {
     return PanelContainer(
       child: SizedBox(
@@ -362,8 +396,6 @@ class _RideMapScreenState extends State<RideMapScreen> {
               ),
             ),
             const Spacer(),
-
-            // bottom like screenshot 3
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -388,45 +420,12 @@ class _RideMapScreenState extends State<RideMapScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      "Stay safe and send a text to start\nsharing your location.",
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  OutlinedButton(
-                    onPressed: () {},
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.teal,
-                      side: const BorderSide(color: Colors.teal),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                    child: const Text("Send Beacon Text"),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  // Screenshot 4
   Widget _trackingPanel(BuildContext context, RideProvider ride) {
     return PanelContainer(
       child: Column(
@@ -442,26 +441,75 @@ class _RideMapScreenState extends State<RideMapScreen> {
             midLabel: "Speed (km/h)",
             rightValue: ride.distanceKm.toStringAsFixed(2),
             rightLabel: "Distance (km)",
-            onExpand: () {}, // Strava shows expand on tracking too; optional
           ),
           const SizedBox(height: 14),
-          OrangePrimaryButton(
-            text: "Pause",
-            icon: Icons.pause,
-            onTap: ride.pausePressed,
+          DualButtons(
+            leftText: "Pause",
+            leftIcon: Icons.pause,
+            onLeft: ride.pausePressed,
+            rightText: "Stop",
+            rightIcon: Icons.stop,
+            onRight: ride.stopPressed,
           ),
         ],
       ),
     );
   }
 
-  // Screenshot 5 (Auto-paused + Stop/Finish)
+  Widget _pausedPanel(BuildContext context, RideProvider ride) {
+    return PanelContainer(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE3B100),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Center(
+              child: Text(
+                "Paused",
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          StatTripletCard(
+            title: ride.selectedSport.isCycle
+                ? "Ride"
+                : ride.selectedSport.label,
+            leftValue: _mmss(ride.moving),
+            leftLabel: "Time",
+            midValue: ride.avgSpeedKmh.toStringAsFixed(1),
+            midLabel: "Avg. speed (km/h)",
+            rightValue: ride.distanceKm.toStringAsFixed(2),
+            rightLabel: "Distance (km)",
+          ),
+          const SizedBox(height: 14),
+          DualButtons(
+            leftText: "Resume",
+            leftIcon: Icons.play_arrow,
+            onLeft: ride.resumePressed,
+            rightText: "Stop",
+            rightIcon: Icons.stop,
+            onRight: ride.stopPressed,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _autoPausedPanel(BuildContext context, RideProvider ride) {
     return PanelContainer(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // yellow header
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -481,7 +529,6 @@ class _RideMapScreenState extends State<RideMapScreen> {
             ),
           ),
           const SizedBox(height: 10),
-
           StatTripletCard(
             title: ride.selectedSport.isCycle
                 ? "Ride"
@@ -494,11 +541,10 @@ class _RideMapScreenState extends State<RideMapScreen> {
             rightLabel: "Distance (km)",
           ),
           const SizedBox(height: 14),
-
           DualButtons(
             leftText: "Stop",
             leftIcon: Icons.stop,
-            onLeft: ride.pausePressed, // same as stopped
+            onLeft: ride.stopPressed,
             rightText: "Finish",
             rightIcon: Icons.flag,
             onRight: ride.finishPressed,
@@ -508,10 +554,7 @@ class _RideMapScreenState extends State<RideMapScreen> {
     );
   }
 
-  // Screenshot 6/7 (Stopped/Resume/Finish)
   Widget _stoppedPanel(BuildContext context, RideProvider ride) {
-    final title = ride.isAutoPaused ? "Auto-paused" : "Stopped";
-
     return PanelContainer(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -523,10 +566,10 @@ class _RideMapScreenState extends State<RideMapScreen> {
               color: const Color(0xFFE3B100),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Center(
+            child: const Center(
               child: Text(
-                title,
-                style: const TextStyle(
+                "Stopped",
+                style: TextStyle(
                   color: Colors.black,
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
@@ -535,7 +578,6 @@ class _RideMapScreenState extends State<RideMapScreen> {
             ),
           ),
           const SizedBox(height: 10),
-
           StatTripletCard(
             title: ride.selectedSport.isCycle
                 ? "Ride"
@@ -548,7 +590,6 @@ class _RideMapScreenState extends State<RideMapScreen> {
             rightLabel: "Distance (km)",
           ),
           const SizedBox(height: 14),
-
           DualButtons(
             leftText: "Resume",
             leftIcon: Icons.play_arrow,
@@ -562,19 +603,19 @@ class _RideMapScreenState extends State<RideMapScreen> {
     );
   }
 
-  static String _mmss(Duration d) {
-    final mm = (d.inMinutes % 60).toString().padLeft(2, '0');
-    final ss = (d.inSeconds % 60).toString().padLeft(2, '0');
+  static String _mmss(Duration duration) {
+    final mm = (duration.inMinutes % 60).toString().padLeft(2, '0');
+    final ss = (duration.inSeconds % 60).toString().padLeft(2, '0');
     return "$mm:$ss";
   }
 }
 
-// ---------- small ui widgets ----------
 class _CircleIcon extends StatelessWidget {
   final IconData icon;
   final String? label;
   final String? badge;
   final VoidCallback onTap;
+
   const _CircleIcon({
     required this.icon,
     required this.onTap,
@@ -636,6 +677,7 @@ class _SmallModeButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+
   const _SmallModeButton({
     required this.selected,
     required this.icon,
@@ -656,21 +698,17 @@ class _SmallModeButton extends StatelessWidget {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: selected
-                    ? const Color(0xFF232325)
-                    : const Color(0xFF232325),
+                color: const Color(0xFF232325),
                 borderRadius: BorderRadius.circular(999),
               ),
-              child: Icon(
-                icon,
-                color: selected ? Colors.teal : Colors.teal,
-              ),
+              child: Icon(icon, color: Colors.teal),
             ),
             const SizedBox(height: 8),
             Text(
               label,
-              style: TextStyle(
-                color: selected ? Colors.teal : Colors.teal,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.teal,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -684,7 +722,11 @@ class _SmallModeButton extends StatelessWidget {
 class _BigStartButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
-  const _BigStartButton({required this.label, required this.onTap});
+
+  const _BigStartButton({
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -694,13 +736,20 @@ class _BigStartButton extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 50,
-            height: 50,
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
               color: Colors.teal,
               borderRadius: BorderRadius.circular(999),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black38,
+                  blurRadius: 14,
+                  offset: Offset(0, 6),
+                ),
+              ],
             ),
-            child: const Icon(Icons.play_arrow, size: 38, color: Colors.white),
+            child: const Icon(Icons.play_arrow, size: 42, color: Colors.white),
           ),
           const SizedBox(height: 8),
           Text(
