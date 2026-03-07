@@ -9,17 +9,15 @@ import 'ride_service.dart';
 class RideProvider extends ChangeNotifier {
   final RideService _service = RideService();
 
-  // UI
   RideUIState uiState = RideUIState.initialMap;
   SportType selectedSport = SportType.ride;
 
-  // Tracking
   bool isRunning = false;
-  bool isManualPaused = false; // user pressed Stop / Pause
+  bool isManualPaused = false;
   bool isAutoPaused = false;
 
-  Duration elapsed = Duration.zero;  // wall clock since start
-  Duration moving = Duration.zero;   // Strava-like moving time
+  Duration elapsed = Duration.zero;
+  Duration moving = Duration.zero;
   Timer? _ticker;
 
   double distanceKm = 0.0;
@@ -27,16 +25,42 @@ class RideProvider extends ChangeNotifier {
   double avgSpeedKmh = 0.0;
 
   Position? _lastPos;
+  Position? currentPosition;
+
   int _stoppedSeconds = 0;
 
-  // simple route polyline
+  DateTime? startedAt;
+  DateTime? endedAt;
+
   final List<Position> route = [];
 
-  // thresholds (tune as you wish)
-  double get autoPauseSpeedThresholdKmh => selectedSport.isCycle ? 1.2 : 0.8;
-  int get autoPauseAfterSeconds => 8;
+  double get autoPauseSpeedThresholdKmh => selectedSport.isCycle ? 2.2 : 1.0;
+  int get autoPauseAfterSeconds => 5;
 
-  // ---------- UI actions (exact flow) ----------
+  double get maxSpeedKmh {
+    double max = 0;
+    for (int i = 1; i < route.length; i++) {
+      final prev = route[i - 1];
+      final next = route[i];
+
+      final dt =
+          (next.timestamp?.difference(prev.timestamp ?? DateTime.now()).inSeconds ??
+              1);
+      if (dt <= 0) continue;
+
+      final meters = Geolocator.distanceBetween(
+        prev.latitude,
+        prev.longitude,
+        next.latitude,
+        next.longitude,
+      );
+
+      final speed = RideMath.msToKmh(meters / dt);
+      if (speed > max) max = speed;
+    }
+    return max;
+  }
+
   void openChooseSport() {
     uiState = RideUIState.chooseSport;
     notifyListeners();
@@ -44,13 +68,13 @@ class RideProvider extends ChangeNotifier {
 
   void selectSport(SportType sport) {
     selectedSport = sport;
-    uiState = RideUIState.readyCompact; // screenshot 1 panel after selection
+    uiState = RideUIState.readyCompact;
     notifyListeners();
   }
 
   void toggleExpandReady() {
     if (uiState == RideUIState.readyCompact) {
-      uiState = RideUIState.readyExpanded; // screenshot 3
+      uiState = RideUIState.readyExpanded;
     } else if (uiState == RideUIState.readyExpanded) {
       uiState = RideUIState.readyCompact;
     }
@@ -59,25 +83,27 @@ class RideProvider extends ChangeNotifier {
 
   Future<void> startPressed() async {
     final ok = await _service.ensurePermission();
-    if (!ok) {
-      // stay same but you can show snackbar in UI
-      return;
-    }
+    if (!ok) return;
 
-    // reset tracking
     isRunning = true;
     isManualPaused = false;
     isAutoPaused = false;
+
     elapsed = Duration.zero;
     moving = Duration.zero;
     distanceKm = 0;
     currentSpeedKmh = 0;
     avgSpeedKmh = 0;
+
     route.clear();
     _lastPos = null;
+    currentPosition = null;
     _stoppedSeconds = 0;
 
-    uiState = RideUIState.tracking; // screenshot 4
+    startedAt = DateTime.now();
+    endedAt = null;
+
+    uiState = RideUIState.tracking;
     _startTicker();
 
     await _service.start(
@@ -89,9 +115,28 @@ class RideProvider extends ChangeNotifier {
   }
 
   void pausePressed() {
-    // screenshot 4 "Pause" → we interpret as "manual pause"
     isManualPaused = true;
-    uiState = RideUIState.stopped; // looks like screenshot 7 (stopped)
+    isAutoPaused = false;
+    currentSpeedKmh = 0;
+    uiState = RideUIState.paused;
+    notifyListeners();
+  }
+
+  void stopPressed() {
+    isManualPaused = true;
+    isAutoPaused = false;
+    currentSpeedKmh = 0;
+    uiState = RideUIState.stopped;
+    notifyListeners();
+  }
+
+  void finishPressed() {
+    isRunning = false;
+    currentSpeedKmh = 0;
+    endedAt = DateTime.now();
+    _ticker?.cancel();
+    _ticker = null;
+    uiState = RideUIState.saveActivity;
     notifyListeners();
   }
 
@@ -99,12 +144,8 @@ class RideProvider extends ChangeNotifier {
     isManualPaused = false;
     isAutoPaused = false;
     _stoppedSeconds = 0;
-    uiState = RideUIState.tracking; // screenshot 4 with pause button
-    notifyListeners();
-  }
-
-  void finishPressed() {
-    uiState = RideUIState.saveActivity; // screenshot 8
+    currentSpeedKmh = 0;
+    uiState = RideUIState.tracking;
     notifyListeners();
   }
 
@@ -115,10 +156,57 @@ class RideProvider extends ChangeNotifier {
     isRunning = false;
     isManualPaused = false;
     isAutoPaused = false;
+    currentSpeedKmh = 0;
     notifyListeners();
   }
 
-  // ---------- ticker ----------
+  Map<String, dynamic> buildActivityPayload({
+    required String title,
+    required String description,
+    String? activityTag,
+    String? feeling,
+    String? privateNote,
+  }) {
+    final Position? first = route.isNotEmpty ? route.first : null;
+    final Position? last = route.isNotEmpty ? route.last : null;
+
+    return {
+      "title": title,
+      "description": description,
+      "sport": selectedSport.label,
+      "sport_key": selectedSport.name,
+      "activity_log": activityTag ?? "",
+      "feeling": feeling ?? "",
+      "private_note": privateNote ?? "",
+      "started_at": startedAt?.toIso8601String(),
+      "ended_at": endedAt?.toIso8601String(),
+      "elapsed_seconds": elapsed.inSeconds,
+      "moving_seconds": moving.inSeconds,
+      "distance_km": double.parse(distanceKm.toStringAsFixed(2)),
+      "average_speed_kmh": double.parse(avgSpeedKmh.toStringAsFixed(2)),
+      "current_speed_kmh": double.parse(currentSpeedKmh.toStringAsFixed(2)),
+      "max_speed_kmh": double.parse(maxSpeedKmh.toStringAsFixed(2)),
+      "is_auto_paused": isAutoPaused,
+      "start_latitude": first != null ? first.latitude.toString() : null,
+      "start_longitude": first != null ? first.longitude.toString() : null,
+      "end_latitude": last != null ? last.latitude.toString() : null,
+      "end_longitude": last != null ? last.longitude.toString() : null,
+      "route_points": route
+          .map(
+            (p) => {
+              "latitude": p.latitude,
+              "longitude": p.longitude,
+              "accuracy": p.accuracy,
+              "altitude": p.altitude,
+              "speed": p.speed,
+              "heading": p.heading,
+              "timestamp": p.timestamp?.toIso8601String(),
+            },
+          )
+          .toList(),
+    };
+  }
+
   void _startTicker() {
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -127,21 +215,27 @@ class RideProvider extends ChangeNotifier {
       elapsed += const Duration(seconds: 1);
 
       final pausedNow = isManualPaused || isAutoPaused;
-      if (!pausedNow) moving += const Duration(seconds: 1);
+      if (!pausedNow) {
+        moving += const Duration(seconds: 1);
+      }
 
       final movingHrs = moving.inSeconds / 3600.0;
-      if (movingHrs > 0) avgSpeedKmh = distanceKm / movingHrs;
+      avgSpeedKmh = movingHrs > 0 ? distanceKm / movingHrs : 0;
 
       notifyListeners();
     });
   }
 
-  // ---------- GPS ----------
   void _onPosition(Position p) {
     if (!isRunning) return;
 
-    // ignore poor accuracy
-    if (p.accuracy > 25) return;
+    currentPosition = p;
+
+    // Strong accuracy filter
+    if (p.accuracy <= 0 || p.accuracy > 12) {
+      notifyListeners();
+      return;
+    }
 
     if (_lastPos == null) {
       _lastPos = p;
@@ -157,48 +251,83 @@ class RideProvider extends ChangeNotifier {
       p.longitude,
     );
 
-    final dt = (p.timestamp?.difference(_lastPos!.timestamp ?? DateTime.now()).inSeconds ?? 1);
+    final dt =
+        (p.timestamp?.difference(_lastPos!.timestamp ?? DateTime.now()).inSeconds ??
+            1);
+
     if (dt <= 0) return;
 
-    // reject small drift
-    if (meters < 2) return;
+    final rawSpeedKmh = RideMath.msToKmh(meters / dt);
 
-    final speedMs = meters / dt;
-    final speedKmh = RideMath.msToKmh(speedMs);
+    // Reject impossible spikes
+    if (selectedSport.isCycle && rawSpeedKmh > 65) {
+      _lastPos = p;
+      notifyListeners();
+      return;
+    }
+    if (!selectedSport.isCycle && rawSpeedKmh > 25) {
+      _lastPos = p;
+      notifyListeners();
+      return;
+    }
 
-    // reject crazy jumps
-    if (selectedSport.isCycle && speedKmh > 80) return;
-    if (!selectedSport.isCycle && speedKmh > 35) return;
+    // Stationary / GPS drift
+    final bool likelyDrift =
+        meters < 4 || (meters < 7 && rawSpeedKmh < autoPauseSpeedThresholdKmh);
 
-    currentSpeedKmh = RideMath.smooth(currentSpeedKmh, speedKmh, alpha: 0.2);
+    if (likelyDrift) {
+      currentSpeedKmh = 0;
+      _lastPos = p;
 
-    final pausedNow = isManualPaused || isAutoPaused;
-
-    // auto pause detection
-    if (!isManualPaused) {
-      if (currentSpeedKmh < autoPauseSpeedThresholdKmh) {
+      if (!isManualPaused) {
         _stoppedSeconds++;
         if (_stoppedSeconds >= autoPauseAfterSeconds) {
           isAutoPaused = true;
-          uiState = RideUIState.autoPaused; // screenshot 6
-        }
-      } else {
-        _stoppedSeconds = 0;
-        if (isAutoPaused) {
-          isAutoPaused = false;
-          uiState = RideUIState.tracking;
+          uiState = RideUIState.autoPaused;
         }
       }
+
+      notifyListeners();
+      return;
     }
 
-    // add distance only if not paused
-    if (!pausedNow && currentSpeedKmh > autoPauseSpeedThresholdKmh) {
-      distanceKm += RideMath.metersToKm(meters);
+    currentSpeedKmh = RideMath.smooth(
+      currentSpeedKmh,
+      rawSpeedKmh,
+      alpha: 0.35,
+    );
+
+    final bool realMovement =
+        meters >= 5 &&
+        rawSpeedKmh >= autoPauseSpeedThresholdKmh &&
+        p.accuracy <= 12;
+
+    if (realMovement) {
+      _stoppedSeconds = 0;
+
+      if (isAutoPaused) {
+        isAutoPaused = false;
+        uiState = RideUIState.tracking;
+      }
+
+      final pausedNow = isManualPaused || isAutoPaused;
+
+      if (!pausedNow) {
+        distanceKm += RideMath.metersToKm(meters);
+        route.add(p);
+      }
+    } else {
+      if (!isManualPaused) {
+        _stoppedSeconds++;
+        if (_stoppedSeconds >= autoPauseAfterSeconds) {
+          isAutoPaused = true;
+          uiState = RideUIState.autoPaused;
+        }
+      }
+      currentSpeedKmh = 0;
     }
 
-    route.add(p);
     _lastPos = p;
-
     notifyListeners();
   }
 }
