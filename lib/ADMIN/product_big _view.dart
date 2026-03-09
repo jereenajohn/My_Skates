@@ -61,7 +61,6 @@ class Review {
   }
 }
 
-
 class big_view extends StatefulWidget {
   final int productId;
   const big_view({super.key, required this.productId});
@@ -77,7 +76,6 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
   Map<String, dynamic>? selectedVariant;
   List<Review> allReviews = [];
   List<Review> approvedReviews = [];
-  
 
   // Review variables
   List<Review> reviews = [];
@@ -94,11 +92,12 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
   final GlobalKey _variantImageKey = GlobalKey();
   final GlobalKey _cartIconKey = GlobalKey();
 
-bool _isCoach = false;
+  bool _isCoach = false;
+  bool _isAdmin = false;
+
   @override
   void initState() {
     super.initState();
-
 
     // Initialize AnimationController
     _animationController = AnimationController(
@@ -117,6 +116,8 @@ bool _isCoach = false;
     // Call API methods
     getproductDetails();
     fetchProductReviews();
+
+    _checkUserRole();
   }
 
   @override
@@ -145,7 +146,6 @@ bool _isCoach = false;
           builder: (context, child) {
             double progress = _animationController.value;
 
-            // Calculate current position (linear interpolation)
             double currentX =
                 startPosition.dx +
                 (cartPosition.dx - startPosition.dx + 20) * progress;
@@ -153,44 +153,39 @@ bool _isCoach = false;
                 startPosition.dy +
                 (cartPosition.dy - startPosition.dy - 10) * progress;
 
-            // Add a slight arc to the motion
             double arcOffset = sin(progress * pi) * 50;
             currentY -= arcOffset;
             return Positioned(
               left: currentX - 30,
               top: currentY - 30,
-              child: Opacity(
-                opacity: 1.0 - progress,
-                child: Transform.scale(
-                  scale: 1.0 + (0.2 * sin(progress * pi)),
-                  child: Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.tealAccent.withOpacity(0.5),
-                          blurRadius: 10,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey[900],
-                            child: const Icon(
-                              Icons.broken_image,
-                              color: Colors.white54,
-                            ),
-                          );
-                        },
+              child: Transform.scale(
+                scale: 1.0 + (0.2 * sin(progress * pi)),
+                child: Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.tealAccent.withOpacity(0.5),
+                        blurRadius: 10,
+                        spreadRadius: 2,
                       ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[900],
+                          child: const Icon(
+                            Icons.broken_image,
+                            color: Colors.white54,
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -213,6 +208,8 @@ bool _isCoach = false;
   }
 
   void _animateCartIcon() {}
+
+  
 
   Future<void> fetchProductReviews() async {
     setState(() {
@@ -244,12 +241,10 @@ bool _isCoach = false;
               .toList();
         }
 
-        // Filter only approved reviews for display
         final approved = fetchedReviews
             .where((r) => r.approvalStatus == 'approved')
             .toList();
 
-        // Calculate average rating from approved reviews only
         if (approved.isNotEmpty) {
           double total = 0;
           for (var review in approved) {
@@ -285,6 +280,31 @@ bool _isCoach = false;
     return allReviews.where((r) => r.approvalStatus == 'pending').length;
   }
 
+  Future<void> _checkUserRole() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userType = prefs.getString('user_type') ?? '';
+      final isStaff = prefs.getBool('is_staff') ?? false;
+
+      final userId = prefs.getInt('id');
+
+      setState(() {
+        _isCoach = userType == 'coach' || isStaff;
+        _isAdmin = isStaff;
+      });
+
+      print(
+        'User role check - isCoach: $_isCoach, isAdmin: $_isAdmin, userType: $userType',
+      );
+    } catch (e) {
+      print('Error checking user role: $e');
+    }
+  }
+
+  bool _canManageReviews() {
+    return _isCoach || _isAdmin;
+  }
+
   Future<void> addToCart(int variantId) async {
     if (_isAnimating) return;
 
@@ -293,7 +313,6 @@ bool _isCoach = false;
     if (renderBox == null) {
       debugPrint("⚠️ Variant image key not founddd");
 
-      // still call API without animation
       await _callAddToCartAPI(variantId);
       return;
     }
@@ -595,6 +614,8 @@ bool _isCoach = false;
       if (res.statusCode == 200) {
         final json = jsonDecode(res.body);
 
+        print("resss ${res.body}");
+
         setState(() {
           product = json["data"];
           isInWishlist = product!["is_in_wishlist"] == true;
@@ -656,7 +677,6 @@ bool _isCoach = false;
       ),
     );
   }
-
 
   void _showAllReviewsDialog() {
     showModalBottomSheet(
@@ -885,13 +905,13 @@ bool _isCoach = false;
                 controller: _scrollController,
                 child: Builder(
                   builder: (context) {
-                    // ✅ SAFE VARIABLES (product is guaranteed here)
-
                     final displayImage =
                         (selectedVariant?["images"] != null &&
                             selectedVariant!["images"].isNotEmpty)
                         ? selectedVariant!["images"][0]["image"]
                         : product!["image"];
+
+                    print("DISPLAY IMAGE URLLLLLLLL: $displayImage");
 
                     final displayPrice =
                         selectedVariant?["price"] ?? product!["base_price"];
@@ -1143,6 +1163,8 @@ bool _isCoach = false;
                                     ? variant["images"][0]["image"]
                                     : product!["image"];
 
+                                print("VARIANT IMAGE URL: $imageUrl");
+
                                 final bool isSelected =
                                     selectedVariantId == variant["id"];
 
@@ -1304,217 +1326,288 @@ bool _isCoach = false;
 
                         SizedBox(height: 10),
                         // ================= USER REVIEWS =================
-                        /// USER REVIEWS SECTION
-                        const Text(
-                          "CUSTOMER REVIEWS",
-                          style: TextStyle(
-                            color: Colors.greenAccent,
-                            fontSize: 12,
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
+                        // Replace the Reviews section in the build method (around line 950) with this:
 
-                        const SizedBox(height: 14),
-
-                        // Write Review Button
-                        if (!_isCoach)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            child: ElevatedButton.icon(
-                              onPressed: () async {
-                                if (selectedVariantId == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Please select a variant first',
-                                      ),
-                                      backgroundColor: Colors.orange,
-                                    ),
-                                  );
-                                  return;
-                                }
-
-                                final result = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ProductReviewPage(
-                                      productId: widget.productId,
-                                      productTitle: product!["title"],
-                                      productImage: product!["image"],
-                                      variantId: selectedVariantId!,
-                                      variantImage:
-                                          selectedVariant?["images"]?[0]?["image"],
-                                      variantLabel:
-                                          selectedVariant?["sku"] ?? 'Variant',
-                                    ),
-                                  ),
-                                );
-
-                                if (result == true) {
-                                  fetchProductReviews();
-                                }
-                              },
-                              icon: const Icon(
-                                Icons.rate_review,
-                                color: Colors.black,
+                        // ================= USER REVIEWS =================
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 20),
+                              Divider(
+                                color: Colors.greenAccent.withOpacity(.2),
                               ),
-                              label: const Text(
-                                'Write a Review',
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.greenAccent,
-                                foregroundColor: Colors.black,
-                                minimumSize: const Size(double.infinity, 45),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ),
+                              const SizedBox(height: 10),
 
-                        // Pending Summary for Coaches
-                        if (_isCoach && _getPendingReviewCount() > 0)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.orange.withOpacity(0.3),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.pending_actions,
-                                      color: Colors.orange,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      "${_getPendingReviewCount()} Pending Review${_getPendingReviewCount() > 1 ? 's' : ''}",
-                                      style: const TextStyle(
-                                        color: Colors.orange,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            ProductReviewApprovalPage(
-                                              productId: widget.productId,
-                                              productName:
-                                                  product!["title"] ??
-                                                  "Product",
-                                            ),
-                                      ),
-                                    ).then((_) => fetchProductReviews());
-                                  },
-                                  child: const Text(
-                                    "Manage",
-                                    style: TextStyle(color: Color(0xFF00AFA5)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                        if (approvedReviews.isEmpty)
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.white12,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Center(
-                              child: Column(
+                              // Reviews Header with conditional pending badge
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Icon(
-                                    Icons.reviews_outlined,
-                                    size: 48,
-                                    color: Colors.white24,
-                                  ),
-                                  SizedBox(height: 12),
-                                  Text(
-                                    "No reviews yet",
+                                  const Text(
+                                    "CUSTOMER REVIEWS",
                                     style: TextStyle(
-                                      color: Colors.white54,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    "Be the first to review this product",
-                                    style: TextStyle(
-                                      color: Colors.white38,
+                                      color: Colors.greenAccent,
                                       fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.2,
                                     ),
                                   ),
-                                ],
-                              ),
-                            ),
-                          )
-                        else ...[
-                          // Rating Summary
-                          RatingSummary(
-                            averageRating: averageRating,
-                            totalReviews: totalReviews,
-                          ),
 
-                          const SizedBox(height: 14),
-
-                          // Reviews List
-                          if (reviewsLoading)
-                            const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(20),
-                                child: CircularProgressIndicator(
-                                  color: Colors.greenAccent,
-                                ),
-                              ),
-                            )
-                          else
-                            Column(
-                              children: [
-                                ...approvedReviews
-                                    .take(3)
-                                    .map((review) => ReviewCard(review: review))
-                                    .toList(),
-
-                                if (approvedReviews.length > 3)
-                                  Center(
-                                    child: TextButton(
-                                      onPressed: () {
-                                        _showAllReviewsDialog();
+                                  // Show pending badge ONLY for coaches and admins
+                                  if (_canManageReviews() &&
+                                      _getPendingReviewCount() > 0)
+                                    GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                ProductReviewApprovalPage(
+                                                  productId: widget.productId,
+                                                  productName:
+                                                      product?["title"] ??
+                                                      "Product",
+                                                ),
+                                          ),
+                                        ).then((_) => fetchProductReviews());
                                       },
-                                      child: Text(
-                                        'View all ${approvedReviews.length} reviews',
-                                        style: const TextStyle(
-                                          color: Colors.greenAccent,
-                                          fontWeight: FontWeight.w600,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.orange.withOpacity(
+                                              0.3,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.pending_actions,
+                                              color: Colors.orange,
+                                              size: 14,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              "${_getPendingReviewCount()} Pending",
+                                              style: const TextStyle(
+                                                color: Colors.orange,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 14),
+
+                              // Admin/Coach Review Management Card
+                              if (_canManageReviews() &&
+                                  _getPendingReviewCount() > 0)
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.orange.withOpacity(0.15),
+                                        Colors.transparent,
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Colors.orange.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "${_getPendingReviewCount()} Review${_getPendingReviewCount() > 1 ? 's' : ''} Pending Approval",
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            const Text(
+                                              "Tap to manage reviews",
+                                              style: TextStyle(
+                                                color: Colors.white54,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  ProductReviewApprovalPage(
+                                                    productId: widget.productId,
+                                                    productName:
+                                                        product!["title"] ??
+                                                        "Product",
+                                                  ),
+                                            ),
+                                          ).then((reviewUpdated) {
+
+                                            fetchProductReviews();
+
+                                            
+                                            if (reviewUpdated == true) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  backgroundColor: Colors.green,
+                                                  content: const Text(
+                                                    "Reviews updated successfully",
+                                                  ),
+                                                  duration: const Duration(
+                                                    seconds: 2,
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          });
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.orange,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                          ),
+                                        ),
+                                        child: const Text("Manage"),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                              // Reviews Content
+                              if (approvedReviews.isEmpty)
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white12,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Center(
+                                    child: Column(
+                                      children: [
+                                        Icon(
+                                          Icons.reviews_outlined,
+                                          size: 48,
+                                          color: Colors.white24,
+                                        ),
+                                        const SizedBox(height: 12),
+                                        const Text(
+                                          "No reviews yet",
+                                          style: TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        if (!_canManageReviews())
+                                          const Text(
+                                            "Be the first to review this product",
+                                            style: TextStyle(
+                                              color: Colors.white38,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              else ...[
+                                // Rating Summary
+                                RatingSummary(
+                                  averageRating: averageRating,
+                                  totalReviews: totalReviews,
+                                  onViewAllPressed: () =>
+                                      _showAllReviewsDialog(),
+                                ),
+
+                                const SizedBox(height: 14),
+
+                                // Reviews List
+                                if (reviewsLoading)
+                                  const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(20),
+                                      child: CircularProgressIndicator(
+                                        color: Colors.greenAccent,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  Column(
+                                    children: [
+                                      ...approvedReviews
+                                          .take(3)
+                                          .map(
+                                            (review) => Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 12,
+                                              ),
+                                              child: ReviewCard(review: review),
+                                            ),
+                                          )
+                                          .toList(),
+
+                                      if (approvedReviews.length > 3)
+                                        Center(
+                                          child: TextButton(
+                                            onPressed: () =>
+                                                _showAllReviewsDialog(),
+                                            style: TextButton.styleFrom(
+                                              foregroundColor:
+                                                  Colors.greenAccent,
+                                            ),
+                                            child: Text(
+                                              'View all ${approvedReviews.length} reviews',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                               ],
-                            ),
-                        ],
+                            ],
+                          ),
+                        ),
                       ],
                     );
                   },
@@ -1621,6 +1714,7 @@ class ReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (review.approvalStatus != 'approved') return const SizedBox();
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1726,11 +1820,13 @@ class ReviewCard extends StatelessWidget {
 class RatingSummary extends StatelessWidget {
   final double averageRating;
   final int totalReviews;
+  final VoidCallback onViewAllPressed;
 
   const RatingSummary({
     super.key,
     required this.averageRating,
     required this.totalReviews,
+    required this.onViewAllPressed,
   });
 
   @override
@@ -1751,11 +1847,11 @@ class RatingSummary extends StatelessWidget {
                 averageRating.toStringAsFixed(1),
                 style: const TextStyle(
                   color: Colors.greenAccent,
-                  fontSize: 24,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1766,14 +1862,14 @@ class RatingSummary extends StatelessWidget {
                         index < averageRating.round()
                             ? Icons.star
                             : Icons.star_border,
-                        color: Colors.greenAccent,
+                        color: Colors.amber,
                         size: 16,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
-                    '$totalReviews reviews',
+                    '$totalReviews ${totalReviews == 1 ? 'review' : 'reviews'}',
                     style: const TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                 ],
@@ -1781,12 +1877,10 @@ class RatingSummary extends StatelessWidget {
             ],
           ),
           TextButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.arrow_forward, color: Colors.greenAccent),
-            label: const Text(
-              'View All',
-              style: TextStyle(color: Colors.greenAccent),
-            ),
+            onPressed: onViewAllPressed,
+            icon: const Icon(Icons.arrow_forward, size: 16),
+            label: const Text('View All'),
+            style: TextButton.styleFrom(foregroundColor: Colors.greenAccent),
           ),
         ],
       ),

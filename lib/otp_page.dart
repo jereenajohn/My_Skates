@@ -57,6 +57,7 @@ class _OtpPageState extends State<OtpPage> {
         await prefs.setInt("id", data["user"]["id"] ?? 0);
         await prefs.setString("user_type", data["user"]["user_type"] ?? "");
         await prefs.setString("name", data["user"]["name"] ?? "");
+        // await prefs.setString("u_name", data["user"]["u_name"] ?? "");
         await prefs.setString("u_name", data["user"]["u_name"] ?? "");
         await prefs.setString("profile", data["user"]["profile"] ?? "");
         await prefs.setString("phone", widget.phoneNumber);

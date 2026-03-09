@@ -1102,31 +1102,31 @@ class _CoachHomepageState extends State<CoachHomepage> {
                         // SizedBox(height: 20),
 
                         // CLUBS
-                        const Text(
-                          "Recommended Clubs near you",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        if (clubs.isEmpty && !noData)
-                          _buildClubShimmer()
-                        else
-                          SizedBox(
-                            height: MediaQuery.of(context).size.height * 0.25,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: clubs.length,
-                              itemBuilder: (_, i) => Padding(
-                                padding: const EdgeInsets.only(right: 12),
-                                child: buildClubCardFromApi(context,clubs[i]),
-                              ),
-                            ),
-                          ),
+                        // const Text(
+                        //   "Recommended Clubs near you",
+                        //   style: TextStyle(
+                        //     color: Colors.white,
+                        //     fontSize: 16,
+                        //     fontWeight: FontWeight.w600,
+                        //   ),
+                        // ),
+                        // const SizedBox(height: 10),
+                        // if (clubs.isEmpty && !noData)
+                        //   _buildClubShimmer()
+                        // else
+                        //   SizedBox(
+                        //     height: MediaQuery.of(context).size.height * 0.25,
+                        //     child: ListView.builder(
+                        //       scrollDirection: Axis.horizontal,
+                        //       itemCount: clubs.length,
+                        //       itemBuilder: (_, i) => Padding(
+                        //         padding: const EdgeInsets.only(right: 12),
+                        //         child: buildClubCardFromApi(context,clubs[i]),
+                        //       ),
+                        //     ),
+                        //   ),
 
-                        const SizedBox(height: 25),
+                        // const SizedBox(height: 20),
 
                         const Text(
                           "Upcoming Training Sessions",

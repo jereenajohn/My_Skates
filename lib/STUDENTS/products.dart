@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/add_product.dart';
 import 'package:my_skates/ADMIN/cart_view.dart';
 import 'package:my_skates/ADMIN/product_big%20_view.dart';
+// import 'package:my_skates/ADMIN/product_big%20_view.dart';
 import 'package:my_skates/ADMIN/products_by_user.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/update_product.dart';

@@ -40,7 +40,7 @@ class _UpdateProductState extends State<UpdateProduct> {
   final TextEditingController titleCtrl = TextEditingController();
   final TextEditingController descriptionCtrl = TextEditingController();
   final TextEditingController priceCtrl = TextEditingController();
-
+  
   @override
   void initState() {
     super.initState();
@@ -67,16 +67,17 @@ class _UpdateProductState extends State<UpdateProduct> {
       print("getproductDetails response: ${res.body}");
       if (res.statusCode == 200) {
         final json = jsonDecode(res.body);
-        final data = json["data"]; // ✅ IMPORTANT
+        final data = json["data"]; 
 
         setState(() {
           titleCtrl.text = data["title"] ?? "";
           descriptionCtrl.text = data["description"] ?? "";
           priceCtrl.text = data["base_price"]?.toString() ?? "";
+         
 
           selectedState = data["category"]?.toString();
 
-          // show existing image
+          
           if (data["image"] != null && data["image"] != "") {
             profileNetworkImage = "$api${data["image"]}";
           }
@@ -167,6 +168,7 @@ class _UpdateProductState extends State<UpdateProduct> {
       request.fields["title"] = titleCtrl.text.trim();
       request.fields["description"] = descriptionCtrl.text.trim();
       request.fields["base_price"] = priceCtrl.text.trim();
+      
 
       if (selectedState != null) {
         request.fields["category"] = selectedState.toString();
@@ -367,6 +369,8 @@ class _UpdateProductState extends State<UpdateProduct> {
                   ),
 
                   _inputField("Price", priceCtrl),
+
+                  
 
                   const SizedBox(height: 20),
 

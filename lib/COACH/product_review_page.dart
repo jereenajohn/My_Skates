@@ -31,9 +31,9 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
   final TextEditingController _reviewController = TextEditingController();
   bool _isSubmitted = false;
   bool _isLoading = false;
-  bool _hasExistingReview = false; 
+  bool _hasExistingReview = false;
   bool _isCheckingReview = true;
-  Map<String, dynamic>? _existingReview; 
+  Map<String, dynamic>? _existingReview;
 
   @override
   void initState() {
@@ -45,9 +45,7 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
-      final userId = prefs.getInt(
-        'user_id',
-      ); 
+      final userId = prefs.getInt('user_id');
 
       if (token == null) return;
 
@@ -90,6 +88,11 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
               }
 
               int reviewVariantId = review['variant'] ?? 0;
+
+              
+              print(
+                "Review Variant: $reviewVariantId  Widget Variant: ${widget.variantId}",
+              );
 
               return reviewUserId == userId &&
                   reviewVariantId == widget.variantId;
