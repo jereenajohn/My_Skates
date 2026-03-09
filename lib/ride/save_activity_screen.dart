@@ -91,6 +91,9 @@ Future<void> _saveActivity(RideProvider ride) async {
       body: jsonEncode(payload),
     );
 
+    print("Save response status: ${response.statusCode}");
+    print("Save response body: ${response.body}");
+
     if (!mounted) return;
 
     if (response.statusCode == 200 || response.statusCode == 201) {
@@ -223,7 +226,7 @@ Future<void> _saveActivity(RideProvider ride) async {
             controller: title,
             hint: "Activity title",
             maxLines: 1,
-            prefixIcon: Icons.edit_outlined,
+            prefixIcon: Icons.edit_road,
           ),
           const SizedBox(height: 12),
           _field(
