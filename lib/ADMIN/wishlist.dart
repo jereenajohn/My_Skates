@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/add_product.dart';
 import 'package:my_skates/ADMIN/cart_view.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
+import 'package:my_skates/ADMIN/product_big%20_view.dart';
 // import 'package:my_skates/ADMIN/product_big%20_view.dart';
 import 'package:my_skates/ADMIN/products_by_user.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
@@ -517,12 +518,12 @@ class _WishlistState extends State<Wishlist> {
             children: [
               GestureDetector(
                 onTap: () {
-                  // Navigator.push(
-                  //   context,
-                  //   MaterialPageRoute(
-                  //     builder: (context) => big_view(productId: p['id']),
-                  //   ),
-                  // );
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => big_view(productId: p['id']),
+                    ),
+                  );
                 },
 
                 child: Container(

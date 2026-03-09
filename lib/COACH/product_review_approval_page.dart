@@ -59,14 +59,15 @@ class ProductReviewApprovalPage extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<ProductReviewApprovalPage> createState() => _ProductReviewApprovalPageState();
+  State<ProductReviewApprovalPage> createState() =>
+      _ProductReviewApprovalPageState();
 }
 
 class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
   List<ProductReviewData> _pendingReviews = [];
   List<ProductReviewData> _approvedReviews = [];
   List<ProductReviewData> _rejectedReviews = [];
-  
+
   bool _isLoading = true;
   int _selectedTab = 0;
 
@@ -91,13 +92,13 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
         Uri.parse("$api/api/myskates/products/${widget.productId}/ratings/"),
         headers: {"Authorization": "Bearer $token"},
       );
-      
+
       print("Product reviews response: ${response.body}");
       print("resssssssssss ${response.body}");
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
-       
+
         List<dynamic> reviews;
         if (jsonResponse is List) {
           reviews = jsonResponse;
@@ -112,13 +113,14 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
         List<ProductReviewData> rejected = [];
 
         for (var review in reviews) {
-      
           String userName = '';
           String? firstName = review['user_first_name'] as String?;
           String? lastName = review['user_last_name'] as String?;
 
-          if (firstName != null && firstName.isNotEmpty && 
-              lastName != null && lastName.isNotEmpty) {
+          if (firstName != null &&
+              firstName.isNotEmpty &&
+              lastName != null &&
+              lastName.isNotEmpty) {
             userName = '$firstName $lastName';
           } else if (firstName != null && firstName.isNotEmpty) {
             userName = firstName;
@@ -129,23 +131,13 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
             userName = username ?? 'User ${review['user']}';
           }
 
-          
-          String? userImage = review['profile'] as String?;
+          String? userImage = review['user_profile'] as String?;
 
           if (userImage != null && userImage.isNotEmpty) {
             if (!userImage.startsWith('http')) {
               userImage = userImage.startsWith('/')
                   ? "$api$userImage"
                   : "$api/$userImage";
-            }
-          } else {
-            userImage = review['user_image'] as String?;
-            if (userImage != null && userImage.isNotEmpty) {
-              if (!userImage.startsWith('http')) {
-                userImage = userImage.startsWith('/')
-                    ? "$api$userImage"
-                    : "$api/$userImage";
-              }
             }
           }
 
@@ -184,7 +176,9 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
           _isLoading = false;
         });
 
-        print("Pending: ${pending.length}, Approved: ${approved.length}, Rejected: ${rejected.length}");
+        print(
+          "Pending: ${pending.length}, Approved: ${approved.length}, Rejected: ${rejected.length}",
+        );
       } else {
         print("Error response: ${response.statusCode}");
         setState(() {
@@ -216,9 +210,11 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
         },
         body: jsonEncode({"approval_status": status}),
       );
-      
+
       print("Update response: ${response.body}");
-      
+      print("Status Code: ${response.statusCode}");
+      print("URL: $url");
+
       if (response.statusCode == 200) {
         String message = status == 'approved' ? "approved" : "rejected";
         Color bgColor = status == 'approved' ? Colors.teal : Colors.orange;
@@ -233,7 +229,9 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
           ),
         );
 
-        _fetchAllReviews();
+        await _fetchAllReviews();
+
+        Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Failed to update review: ${response.body}")),
@@ -273,9 +271,7 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
               onPressed: () => Navigator.of(context).pop(),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
               child: const Text(
                 "Approve",
                 style: TextStyle(color: Colors.white),
@@ -317,9 +313,7 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
               onPressed: () => Navigator.of(context).pop(),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
               child: const Text(
                 "Reject",
                 style: TextStyle(color: Colors.white),
@@ -395,10 +389,7 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
             ),
             Text(
               widget.productName!,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
           ],
         ),
@@ -451,7 +442,7 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
 
   Widget _buildTabButton(String title, int count, int tabIndex) {
     final isSelected = _selectedTab == tabIndex;
-    
+
     return Expanded(
       child: GestureDetector(
         onTap: () {
@@ -482,9 +473,7 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? Colors.white
-                        : _getStatusColor(
-                            title.toLowerCase(),
-                          ).withOpacity(0.2),
+                        : _getStatusColor(title.toLowerCase()).withOpacity(0.2),
                     shape: BoxShape.circle,
                   ),
                   child: Text(
@@ -537,8 +526,8 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
               _selectedTab == 0
                   ? Icons.pending_actions
                   : _selectedTab == 1
-                      ? Icons.check_circle
-                      : Icons.cancel,
+                  ? Icons.check_circle
+                  : Icons.cancel,
               size: 64,
               color: Colors.white24,
             ),
@@ -573,8 +562,11 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: _getStatusColor(
-            isPending ? 'pending' : 
-            _selectedTab == 1 ? 'approved' : 'rejected',
+            isPending
+                ? 'pending'
+                : _selectedTab == 1
+                ? 'approved'
+                : 'rejected',
           ).withOpacity(0.3),
           width: 1,
         ),
@@ -590,7 +582,7 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
                 backgroundImage: review.userImage != null
                     ? NetworkImage(review.userImage!)
                     : const AssetImage("lib/assets/placeholder.png")
-                        as ImageProvider,
+                          as ImageProvider,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -610,9 +602,7 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
                       children: [
                         ...List.generate(5, (i) {
                           return Icon(
-                            i < review.rating
-                                ? Icons.star
-                                : Icons.star_border,
+                            i < review.rating ? Icons.star : Icons.star_border,
                             color: const Color(0xFF00AFA5),
                             size: 16,
                           );
@@ -625,8 +615,11 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
                           ),
                           decoration: BoxDecoration(
                             color: _getStatusColor(
-                              isPending ? 'pending' : 
-                              _selectedTab == 1 ? 'approved' : 'rejected',
+                              isPending
+                                  ? 'pending'
+                                  : _selectedTab == 1
+                                  ? 'approved'
+                                  : 'rejected',
                             ).withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -634,12 +627,15 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
                             _selectedTab == 0
                                 ? "PENDING"
                                 : _selectedTab == 1
-                                    ? "APPROVED"
-                                    : "REJECTED",
+                                ? "APPROVED"
+                                : "REJECTED",
                             style: TextStyle(
                               color: _getStatusColor(
-                                isPending ? 'pending' : 
-                                _selectedTab == 1 ? 'approved' : 'rejected',
+                                isPending
+                                    ? 'pending'
+                                    : _selectedTab == 1
+                                    ? 'approved'
+                                    : 'rejected',
                               ),
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -708,10 +704,8 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                       ),
-                      onPressed: () => _showApprovalDialog(
-                        review.id,
-                        review.userName,
-                      ),
+                      onPressed: () =>
+                          _showApprovalDialog(review.id, review.userName),
                       child: const Text(
                         "Approve",
                         style: TextStyle(color: Colors.white, fontSize: 12),
@@ -729,10 +723,8 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                       ),
-                      onPressed: () => _showRejectDialog(
-                        review.id,
-                        review.userName,
-                      ),
+                      onPressed: () =>
+                          _showRejectDialog(review.id, review.userName),
                       child: const Text(
                         "Reject",
                         style: TextStyle(color: Colors.white, fontSize: 12),

@@ -68,27 +68,28 @@ class _HomePageState extends State<HomePage> {
       GlobalKey<RefreshIndicatorState>();
 
   @override
-  initState() {
-    super.initState();
-    fetchStudentDetails();
-    fetchClubs();
-    loadEvents();
-    refreshUserProfile().then((_) => fetchStudentDetails());
-    getbanner();
-    getTrainingSessions();
-    fetchRegisteredTrainings();
-    loadUserData();
+initState() {
+  super.initState();
 
-    loadEverything();
+  fetchStudentDetails().then((_) {
+    refreshUserProfile();
+  });
 
-    fetchNotificationCount();
 
-    _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      if (mounted) {
-        fetchNotificationCount();
-      }
-    });
-  }
+  fetchClubs();
+  loadEvents();
+  getbanner();
+  getTrainingSessions();
+  fetchRegisteredTrainings();
+  loadEverything();
+  fetchNotificationCount();
+
+  _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
+    if (mounted) {
+      fetchNotificationCount();
+    }
+  });
+}
 
   @override
   void dispose() {
@@ -97,9 +98,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> loadUserData() async {
-  await refreshUserProfile();  
-  fetchStudentDetails();     
-}
+    await refreshUserProfile();
+    fetchStudentDetails();
+  }
 
   Future<void> _refreshData() async {
     await Future.wait([
@@ -120,7 +121,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> loadEverything() async {
-    await fetchFollowStatus(); 
+    await fetchFollowStatus();
     await fetchCoaches();
     await fetchStudents();
     setState(() {});
@@ -140,12 +141,6 @@ class _HomePageState extends State<HomePage> {
       setState(() {});
     }
   }
-
-  // Future<void> initLoad() async {
-  //   await fetchFollowStatus();
-  //   await fetchCoaches();
-  //   setState(() {});
-  // }
 
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -256,8 +251,7 @@ class _HomePageState extends State<HomePage> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // 🔁 THIS IS THE IMPORTANT LINE
-        await fetchClubs(); // ← HERE
+        await fetchClubs();
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -285,7 +279,6 @@ class _HomePageState extends State<HomePage> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // 🔁 REFRESH CLUB LIST FROM BACKEND
         await fetchClubs();
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -310,7 +303,6 @@ class _HomePageState extends State<HomePage> {
     final bool wasLiked = events[index]["is_liked"] == true;
     final int currentLikes = events[index]["likes_count"] ?? 0;
 
-    //  Optimistic UI update
     setState(() {
       events[index]["is_liked"] = !wasLiked;
       events[index]["likes_count"] = wasLiked
@@ -327,7 +319,6 @@ class _HomePageState extends State<HomePage> {
         },
       );
 
-      //  Revert if API fails
       if (response.statusCode != 200 && response.statusCode != 201) {
         setState(() {
           events[index]["is_liked"] = wasLiked;
@@ -335,7 +326,6 @@ class _HomePageState extends State<HomePage> {
         });
       }
     } catch (e) {
-      //  Revert on exception
       setState(() {
         events[index]["is_liked"] = wasLiked;
         events[index]["likes_count"] = currentLikes;
@@ -361,7 +351,6 @@ class _HomePageState extends State<HomePage> {
         if (decoded is List) {
           setState(() {
             students = decoded.where((s) => s["id"] != loggedInUserId).toList();
-
             studentsNoData = students.isEmpty;
             studentsLoading = false;
           });
@@ -388,7 +377,6 @@ class _HomePageState extends State<HomePage> {
 
       print("================ FETCH FOLLOW STATUS START ================");
 
-      // 1) FETCH PENDING REQUESTS
       var rPending = await http.get(
         Uri.parse("$api/api/myskates/user/follow/sent/"),
         headers: {"Authorization": "Bearer $token"},
@@ -402,7 +390,6 @@ class _HomePageState extends State<HomePage> {
         );
       }
 
-      // 2) FETCH APPROVED SENT REQUESTS
       var rApproved = await http.get(
         Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
         headers: {"Authorization": "Bearer $token"},
@@ -436,40 +423,81 @@ class _HomePageState extends State<HomePage> {
     print(response.body);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      // Force update cached pending list
       myRequests.add(coachId);
       setState(() {});
     }
   }
 
-  Future<void> refreshUserProfile() async {
-    String? token = await getToken();
-    final res = await http.get(
-      Uri.parse("$api/api/myskates/profile/"),
-      headers: {"Authorization": "Bearer $token"},
-    );
+Future<void> refreshUserProfile() async {
+  String? token = await getToken();
+  
+  // Use the correct endpoint that returns student data
+  final res = await http.get(
+    Uri.parse("$api/api/myskates/student/details/"),
+    headers: {"Authorization": "Bearer $token"},
+  );
 
-    print("PROFILE STATUS: ${res.statusCode}");
-    print("PROFILE BODY: ${res.body}");
-    if (res.statusCode == 200) {
-      final data = jsonDecode(res.body);
+  print("PROFILE STATUS: ${res.statusCode}");
+  print("PROFILE BODY: ${res.body}");
 
-      print("API USERNAME: ${data["u_name"]}");
-
-      final user = data is List ? data[0] : data;
-
-      final prefs = await SharedPreferences.getInstance();
-      prefs.setString("name", data["name"] ?? "");
-      // prefs.setString("user_type", data["user_type"] ?? "");
-      prefs.setString("u_name", data["u_name"] ?? "");
-      prefs.setString("profile", data["profile"] ?? "");
-      prefs.setInt("user_id", data["id"]);
-      await prefs.setString("u_name", data["u_name"] ?? "");
-
-      print("USERNAME FROM PREFS: ${prefs.getString("u_name")}");
+  if (res.statusCode == 200) {
+    final List data = jsonDecode(res.body);
+    
+    
+    final prefs = await SharedPreferences.getInstance();
+    final currentUserId = prefs.getInt("user_id") ?? prefs.getInt("id");
+    
+    print("Current User ID from prefs: $currentUserId");
+    
+    
+    Map<String, dynamic>? userData;
+    if (currentUserId != null) {
+      try {
+        userData = data.firstWhere(
+          (student) => student["id"] == currentUserId,
+          orElse: () => null,
+        );
+      } catch (e) {
+        print("Error finding user: $e");
+      }
     }
     
+    userData ??= data.isNotEmpty ? data[0] : {};
+    
+    if (userData!.isNotEmpty) {
+      print("API USERNAME: ${userData["u_name"]}");
+      print("API FIRST NAME: ${userData["first_name"]}");
+      print("API LAST NAME: ${userData["last_name"]}");
+
+      String firstName = userData["first_name"] ?? "";
+      String lastName = userData["last_name"] ?? "";
+      String fullName = "$firstName $lastName".trim();
+      String username = userData["u_name"] ?? "";
+
+    
+      await prefs.setString("name", fullName.isEmpty ? "User" : fullName);
+      await prefs.setString("u_name", username);
+      await prefs.setString("profile", userData["profile"] ?? "");
+      await prefs.setInt("user_id", userData["id"] ?? 0);
+      await prefs.setInt("id", userData["id"] ?? 0); 
+
+      print("USERNAME SAVED TO PREFS: '$username'");
+      print("FULL NAME SAVED TO PREFS: '$fullName'");
+      
+      if (mounted) {
+        setState(() {
+          studentName = fullName.isEmpty ? "User" : fullName;
+          studentRole = username;
+          studentImage = userData!["profile"] ?? "";
+          loggedInUserId = userData["id"] ?? 0;
+          isLoading = false;
+        });
+      }
+    }
+  } else {
+    print("Failed to load profile: ${res.statusCode}");
   }
+}
 
   List<Map<String, dynamic>> banner = [];
 
@@ -546,20 +574,28 @@ class _HomePageState extends State<HomePage> {
   }
 
   // FETCH USER
-  Future<void> fetchStudentDetails() async {
+Future<void> fetchStudentDetails() async {
+  try {
     final prefs = await SharedPreferences.getInstance();
 
     setState(() {
       studentName = prefs.getString("name") ?? "User";
       studentRole = prefs.getString("u_name") ?? "";
       studentImage = prefs.getString("profile");
-      loggedInUserId = prefs.getInt("id");
+      loggedInUserId = prefs.getInt("user_id") ?? prefs.getInt("id");
       isLoading = false;
 
-      print("USERNAME FROM PREFS: $studentRole");
+      print("USERNAME FROM PREFS: '$studentRole'");
+      print("NAME FROM PREFS: '$studentName'");
+      print("USER ID FROM PREFS: $loggedInUserId");
+    });
+  } catch (e) {
+    print("Error loading from SharedPreferences: $e");
+    setState(() {
+      isLoading = false;
     });
   }
-
+}
   // FETCH CLUBS
   Future<void> fetchClubs() async {
     String? token = await getToken();
@@ -737,7 +773,6 @@ class _HomePageState extends State<HomePage> {
 
       if (response.statusCode == 200) {
         final parsed = jsonDecode(response.body);
-
         final List data = parsed['data'] ?? [];
 
         setState(() {
@@ -958,7 +993,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              "@${studentRole.isNotEmpty ? studentRole : ""}",
+                              studentRole.isNotEmpty ? "$studentRole" : "",
                               style: const TextStyle(
                                 fontSize: 14,
                                 color: Colors.tealAccent,
@@ -977,8 +1012,7 @@ class _HomePageState extends State<HomePage> {
                                   context,
                                   slideRightToLeftRoute(UserNotificationPage()),
                                 );
-
-                                fetchNotificationCount(); // refresh when coming back
+                                fetchNotificationCount();
                               },
                               icon: const Icon(
                                 Icons.notifications_none,
@@ -1018,14 +1052,12 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
 
-                // CONTENT
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // BANNER
                         Container(
                           height: 160,
                           decoration: BoxDecoration(
@@ -1107,7 +1139,6 @@ class _HomePageState extends State<HomePage> {
 
                         const SizedBox(height: 25),
 
-                        // BUTTONS
                         buildButton("Connect Coaches"),
                         buildButton("Connect Students"),
                         buildButton("Find Clubs"),
@@ -1116,7 +1147,6 @@ class _HomePageState extends State<HomePage> {
 
                         const SizedBox(height: 25),
 
-                        // CLUBS
                         const Text(
                           "Recommended Clubs near you",
                           style: TextStyle(
@@ -1187,14 +1217,13 @@ class _HomePageState extends State<HomePage> {
                                 onRegister: () {
                                   confirmRegister(
                                     session['id'],
-                                  ); // ✅ POPUP + REGISTER
+                                  );
                                 },
                               );
                             }).toList(),
                           ),
                         SizedBox(height: 25),
 
-                        // EVENTS
                         const Text(
                           "Upcoming Events",
                           style: TextStyle(
@@ -1249,7 +1278,6 @@ class _HomePageState extends State<HomePage> {
 
                         const SizedBox(height: 12),
 
-                        // COACHES
                         const Text(
                           "Suggested Coaches",
                           style: TextStyle(
@@ -1288,7 +1316,6 @@ class _HomePageState extends State<HomePage> {
 
                         SizedBox(height: 20),
 
-                        // STUDENTS
                         const Text(
                           "Suggested Students",
                           style: TextStyle(
@@ -1334,12 +1361,11 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       bottomNavigationBar: const AppBottomNav_student(
-        currentIndex: 0, // Home tab
+        currentIndex: 0,
       ),
     );
   }
 
-  // BUTTON
   Widget buildButton(String title, {VoidCallback? onTap}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1408,11 +1434,9 @@ String formatDateTimeToAmPm(String date, String time) {
   return "$hour:$minute $period";
 }
 
-// --------------------------- EVENT CARD 2 ---------------------------
 Widget buildEventCardWithImages({
   required String clubName,
   required String clubImage,
-
   required String location,
   required String title,
   required String image1,
@@ -1424,7 +1448,6 @@ Widget buildEventCardWithImages({
   required int eventId,
   required int likesCount,
   required bool isLiked,
-
   required Function(int) onLike,
 }) {
   print("FROM DATE: $fromDate");
@@ -1740,7 +1763,6 @@ Widget buildClubCardFromApi(
   );
 }
 
-// EVENT CARD 1
 Widget buildEventCard({
   required String clubName,
   required String date,
@@ -1829,8 +1851,6 @@ Widget buildEventCard({
   );
 }
 
-// POPUP FUNCTION
-
 void showImagePopup(BuildContext context, String imageUrl) {
   showDialog(
     context: context,
@@ -1875,7 +1895,6 @@ void showImagePopup(BuildContext context, String imageUrl) {
   );
 }
 
-// EVENT CARD WITH DYNAMIC IMAGES + POPUP
 Widget buildEventCardWithDynamicImages({
   required String clubName,
   required String date,
@@ -1985,7 +2004,6 @@ Widget buildEventCardWithDynamicImages({
   );
 }
 
-// UPDATED COACH FOLLOW CARD - MATCHING CLUB CARD STYLE
 class CoachFollowCard extends StatefulWidget {
   final Map coach;
   final List<int> myFollowing;
@@ -2030,21 +2048,20 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
 
     return Container(
       width: 160,
-      height: 200, // Fixed height to match club cards
+      height: 200,
       margin: const EdgeInsets.only(right: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white10, // Same as club cards
-        borderRadius: BorderRadius.circular(16), // Same as club cards
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Profile section
           Column(
             children: [
               CircleAvatar(
-                radius: 30, // Same size as club cards
+                radius: 30,
                 backgroundImage: imageUrl.isNotEmpty
                     ? NetworkImage(imageUrl)
                     : const AssetImage("lib/assets/img.jpg") as ImageProvider,
@@ -2080,13 +2097,12 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
             ],
           ),
 
-          // Follow button - styled like club card's follow button
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.teal, // Same as club cards
-              borderRadius: BorderRadius.circular(20), // Same as club cards
+              color: Colors.teal,
+              borderRadius: BorderRadius.circular(20),
             ),
             child: _buildButton(coachId),
           ),
@@ -2163,7 +2179,6 @@ class _CoachFollowCardState extends State<CoachFollowCard> {
   }
 }
 
-// UPDATED STUDENT FOLLOW CARD - MATCHING CLUB CARD STYLE
 class StudentFollowCard extends StatefulWidget {
   final Map student;
   final List<int> myFollowing;
@@ -2214,21 +2229,20 @@ class _StudentFollowCardState extends State<StudentFollowCard> {
 
     return Container(
       width: 160,
-      height: 200, // Fixed height to match club cards
+      height: 200,
       margin: const EdgeInsets.only(right: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white10, // Same as club cards
-        borderRadius: BorderRadius.circular(16), // Same as club cards
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Profile section
           Column(
             children: [
               CircleAvatar(
-                radius: 30, // Same size as club cards
+                radius: 30,
                 backgroundImage: imageUrl.isNotEmpty
                     ? NetworkImage(imageUrl)
                     : const AssetImage("lib/assets/img.jpg") as ImageProvider,
@@ -2265,13 +2279,12 @@ class _StudentFollowCardState extends State<StudentFollowCard> {
             ],
           ),
 
-          // Follow button - styled like club card's follow button
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.teal, // Same as club cards
-              borderRadius: BorderRadius.circular(20), // Same as club cards
+              color: Colors.teal,
+              borderRadius: BorderRadius.circular(20),
             ),
             child: _buildButton(userId),
           ),
@@ -2373,7 +2386,7 @@ Widget buildTrainingSessionRow({
   required String startTime,
   required String endTime,
   required String imageUrl,
-  VoidCallback? onRegister, // 👈 NEW
+  VoidCallback? onRegister,
   required bool isRegistered,
   required trainingId,
 }) {
@@ -2387,7 +2400,6 @@ Widget buildTrainingSessionRow({
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // LEFT IMAGE
         ClipRRect(
           borderRadius: BorderRadius.circular(10),
           child: imageUrl.isNotEmpty
@@ -2403,7 +2415,6 @@ Widget buildTrainingSessionRow({
 
         const SizedBox(width: 12),
 
-        // RIGHT CONTENT
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2471,30 +2482,15 @@ Widget buildTrainingSessionRow({
 
               const SizedBox(height: 4),
 
-              // Row(
-              //   children: [
-              //     const Icon(
-              //       Icons.access_time,
-              //       size: 12,
-              //       color: Colors.tealAccent,
-              //     ),
-              //     const SizedBox(width: 6),
-              //     Text(
-              //       "${formatDisplayTime(startTime)} - ${formatDisplayTime(endTime)}",
-              //       style: const TextStyle(color: Colors.white70, fontSize: 11),
-              //     ),
-              //   ],
-              // ),
               const SizedBox(height: 10),
 
-              // ✅ REGISTER BUTTON
               Align(
                 alignment: Alignment.centerRight,
                 child: SizedBox(
                   height: 34,
                   child: isRegistered
                       ? OutlinedButton(
-                          onPressed: null, // ✅ DISABLED
+                          onPressed: null,
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Colors.green),
                           ),

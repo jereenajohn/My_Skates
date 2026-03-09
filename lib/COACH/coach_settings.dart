@@ -13,7 +13,6 @@ import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_profile_page.dart';
 import 'package:my_skates/COACH/myorders.dart';
 import 'package:my_skates/COACH/product_review_approval_page.dart';
-import 'package:my_skates/COACH/product_review_selection_page.dart';
 import 'package:my_skates/COACH/view_clubs.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/products.dart';
@@ -22,7 +21,6 @@ import 'package:my_skates/COACH/add_coach_achievements.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 
 class CoachSettings extends StatefulWidget {
   const CoachSettings({super.key});
@@ -44,24 +42,22 @@ class _CoachSettingsState extends State<CoachSettings> {
     Navigator.push(context, slideRightToLeftRoute(page));
   }
 
-  // ADD THIS INSIDE _UserSettingsState
-
   Future<void> logoutUser() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Debug check before logout
+  
     print("Token BEFORE logout: ${prefs.getString('token')}");
     print("ID BEFORE logout: ${prefs.getInt('id')}");
 
-    // Remove saved login data
+  
     await prefs.remove('token');
     await prefs.remove('id');
 
-    // Debug check after logout
+    
     print("Token AFTER logout: ${prefs.getString('token')}");
     print("ID AFTER logout: ${prefs.getInt('id')}");
 
-    // Snackbar message[]
+   
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
@@ -73,15 +69,14 @@ class _CoachSettingsState extends State<CoachSettings> {
       ),
     );
 
-    // Delay slightly so snackbar is visible before redirect
+  
     await Future.delayed(const Duration(milliseconds: 600));
 
-    // Navigate to Login Page & clear all previous screens
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
         builder: (_) => const Loginpage(),
-      ), // <-- your login page
+      ), 
       (route) => false,
     );
   }
@@ -189,13 +184,15 @@ class _CoachSettingsState extends State<CoachSettings> {
 
               _divider(),
 
-
-               if ("Chat Support".toLowerCase().contains(_searchQuery))
+              if ("Chat Support".toLowerCase().contains(_searchQuery))
                 _menuTile(
                   icon: Icons.support_agent_outlined,
                   text: "Chat Support",
                   onTap: () {
-                    Navigator.push(context, slideRightToLeftRoute(CoachChatSupport()));
+                    Navigator.push(
+                      context,
+                      slideRightToLeftRoute(CoachChatSupport()),
+                    );
                   },
                 ),
               _divider(),
@@ -207,15 +204,26 @@ class _CoachSettingsState extends State<CoachSettings> {
                     Navigator.push(context, slideRightToLeftRoute(Myorders()));
                   },
                 ),
-                // _divider(),
-              // if ("Product Review Approval".toLowerCase().contains(_searchQuery))
-              //   _menuTile(
-              //     icon: Icons.read_more,
-              //     text: "Product Review Approval",
-              //     onTap: () {
-              //       Navigator.push(context, slideRightToLeftRoute(ProductReviewSelectionPage()));
-              //     },
-              //   ),
+              _divider(),
+              if ("Product Review Approval".toLowerCase().contains(
+                _searchQuery,
+              ))
+                _menuTile(
+                  icon: Icons.read_more,
+                  text: "Product Review Approval",
+
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      slideRightToLeftRoute(
+                        ProductReviewApprovalPage(
+                          productId: 0,
+                          productName: "All Products",
+                        ),
+                      ),
+                    );
+                  },
+                ),
               _divider(),
               if ("Add Achievements".toLowerCase().contains(_searchQuery))
                 _menuTile(

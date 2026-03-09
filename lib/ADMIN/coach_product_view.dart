@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/add_product.dart';
 import 'package:my_skates/ADMIN/cart_view.dart';
+import 'package:my_skates/ADMIN/product_big%20_view.dart';
 // import 'package:my_skates/ADMIN/product_big%20_view.dart';
 import 'package:my_skates/ADMIN/products_by_user.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
@@ -15,6 +16,8 @@ import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:animations/animations.dart';
 
 class UserApprovedProducts extends StatefulWidget {
   const UserApprovedProducts({super.key});
@@ -265,8 +268,12 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
             'id': productData['id'],
             'title': productData['title'],
             'image': imageUrl,
+
+            
           });
         }
+        
+
         setState(() {
           banner = statelist;
         });
@@ -333,6 +340,8 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
           'Content-Type': 'application/json',
         },
       );
+
+      print("resssss ${response.body}" );
 
       if (response.statusCode == 200) {
         final List<dynamic> dataList = jsonDecode(response.body);
@@ -1220,142 +1229,220 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
     );
   }
 
-  Widget _productCard(Map<String, dynamic> p) {
-    final bool isWishlisted = p['is_wishlisted'] == true;
 
-    return GestureDetector(
-      onTap: () {
-        // Navigator.push(
-        //   context,
-        //   slideRightToLeftRoute(big_view(productId: p['id'])),
-        // );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.20),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white12),
+Widget _productCard(Map<String, dynamic> p) {
+  final bool isWishlisted = p['is_wishlisted'] == true;
+
+  return OpenContainer(
+    transitionDuration: const Duration(milliseconds: 400),
+    transitionType: ContainerTransitionType.fadeThrough,
+    openElevation: 0,
+    closedElevation: 0,
+    closedColor: Colors.transparent,
+    openColor: Colors.transparent,
+    middleColor: Colors.transparent,
+    closedShape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(20),
+    ),
+    openBuilder: (context, _) => big_view(productId: p['id']),
+    closedBuilder: (context, openContainer) {
+      return FadeScaleTransition(
+        animation: CurvedAnimation(
+          parent: const AlwaysStoppedAnimation(1),
+          curve: Curves.easeOutQuart,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
+        child: GestureDetector(
+          onTap: openContainer, 
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.22),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white10, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  height: 150,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Hero(
-                    tag: "product_${p['id']}",
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child: Image.network(
-                        p['image'],
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            const Icon(Icons.broken_image, color: Colors.grey),
+                // ── Image + Wishlist ──────────────────────────────
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                      child: SizedBox(
+                        height: 150,
+                        width: double.infinity,
+                        child: Image.network(
+                          p['image'],
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const ColoredBox(
+                            color: Colors.white10,
+                            child: Center(
+                              child: Icon(Icons.broken_image, color: Colors.grey),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Gradient overlay
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(20),
+                          ),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.15),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Wishlist button
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: GestureDetector(
+                        onTap: () async {
+                          await addwishlist(p['id'], context);
+                          setState(() {
+                            p['is_wishlisted'] = !isWishlisted;
+                          });
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          curve: Curves.easeOut,
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: isWishlisted
+                                ? Colors.tealAccent.withOpacity(0.15)
+                                : Colors.black.withOpacity(0.55),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isWishlisted
+                                  ? Colors.tealAccent.withOpacity(0.5)
+                                  : Colors.white24,
+                              width: 1,
+                            ),
+                          ),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 150),
+                            switchInCurve: Curves.easeOutBack,
+                            switchOutCurve: Curves.easeIn,
+                            transitionBuilder: (child, anim) =>
+                                ScaleTransition(scale: anim, child: child),
+                            child: Icon(
+                              isWishlisted
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              key: ValueKey(isWishlisted),
+                              color: isWishlisted
+                                  ? Colors.tealAccent
+                                  : Colors.white70,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // ── Text content ──────────────────────────────────
+                const SizedBox(height: 10),
+
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(
+                      p['title'],
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
+                        height: 1.3,
                       ),
                     ),
                   ),
                 ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: GestureDetector(
-                    onTap: () async {
-                      await addwishlist(p['id'], context);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.6),
-                        shape: BoxShape.circle,
-                      ),
-                      child: AnimatedScale(
-                        scale: isWishlisted ? 1.2 : 1.0,
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOut,
-                        child: Icon(
-                          isWishlisted ? Icons.favorite : Icons.favorite_border,
-                          color: isWishlisted
-                              ? Colors.tealAccent
-                              : Colors.white,
-                          size: 18,
-                        ),
-                      ),
+
+                const SizedBox(height: 3),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    p['category_name'],
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.45),
+                      fontSize: 11.5,
+                      fontFamily: 'Poppins',
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 6),
+
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                  child: Text(
+                    "₹${p['price']}",
+                    style: const TextStyle(
+                      color: Colors.tealAccent,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
+                      letterSpacing: 0.2,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text(
-                p['title'],
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text(
-                p['category_name'],
-                style: const TextStyle(
-                  color: Colors.grey,
-                  fontSize: 12,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text(
-                "₹${p['price']}",
-                style: const TextStyle(
-                  color: Colors.tealAccent,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
+}
 
   void _handleUpdateProduct() {
     Navigator.push(context, slideRightToLeftRoute(Wishlist()));
   }
 
-  Widget _productGridSkeleton() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: 6,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisExtent: 250,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemBuilder: (_, __) {
-        return Container(
+Widget _productGridSkeleton() {
+  return GridView.builder(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    itemCount: 6,
+    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 2,
+      mainAxisExtent: 250,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+    ),
+    itemBuilder: (_, __) {
+      return Shimmer.fromColors(
+        baseColor: Colors.grey.shade900,
+        highlightColor: const Color(0xFF1A3A35),
+        child: Container(
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.grey.shade900,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: Colors.white10),
           ),
@@ -1366,11 +1453,12 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
                 height: 150,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade900,
+                  color: Colors.grey.shade800,
                   borderRadius: BorderRadius.circular(18),
                 ),
               ),
               const SizedBox(height: 12),
+
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Container(
@@ -1382,7 +1470,9 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 8),
+
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Container(
@@ -1394,24 +1484,27 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 8),
+
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Container(
                   height: 14,
                   width: 60,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade700,
+                    color: Colors.grey.shade800,
                     borderRadius: BorderRadius.circular(6),
                   ),
                 ),
               ),
             ],
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   Widget _categorySkeleton() {
     return SingleChildScrollView(

@@ -27,6 +27,7 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   String studentName = "";
   String studentRole = "";
+  String studentUName = "";
   String? studentImage;
   bool isLoading = true;
   bool isRefreshing = false;
@@ -69,9 +70,23 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _loadInitialData() async {
-    await Future.wait([fetchStudentDetails(), getbanner()]);
-    setState(() => isLoading = false);
+  
+  setState(() => isLoading = true);
+  
+  try {
+    
+    await Future.wait([
+      fetchStudentDetails(),  
+      getbanner()
+    ]);
+  } catch (e) {
+    print("Error loading initial data: $e");
+  } finally {
+    if (mounted) {
+      setState(() => isLoading = false);
+    }
   }
+}
 
   Future<void> _refreshData() async {
     if (!mounted || isRefreshing) return;
@@ -142,15 +157,101 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  Future<void> fetchStudentDetails() async {
-    final prefs = await SharedPreferences.getInstance();
+ Future<void> fetchStudentDetails() async {
+  final prefs = await SharedPreferences.getInstance();
 
-    setState(() {
-      studentName = prefs.getString("name") ?? "User";
-      studentRole = prefs.getString("user_type") ?? "";
-      studentImage = prefs.getString("profile");
-    });
+  print("Stored u_name: ${prefs.getString("u_name")}");
+  print("Stored name: ${prefs.getString("name")}");
+
+  
+  String name = prefs.getString("name") ?? "User";
+  String role = prefs.getString("user_type") ?? "user_type";
+  String uName = prefs.getString("u_name") ?? "";
+  String? image = prefs.getString("profile");
+
+  if (uName.isEmpty) {
+    print("🔄 u_name not in prefs, fetching from API...");
+    
+    final userData = await fetchDetailsSection();
+    
+    if (userData != null) {
+      print(" Got user data from API: $userData");
+      
+      
+      uName = userData['u_name'] ?? '';
+      name = userData['first_name'] ?? userData['name'] ?? name;
+      role = userData['user_type'] ?? role;
+      image = userData['profile'] ?? image;
+      
+      
+      if (uName.isNotEmpty) {
+        await prefs.setString('u_name', uName);
+        print(" Saved u_name to prefs: $uName");
+      }
+      if (name.isNotEmpty) {
+        await prefs.setString('name', name);
+      }
+      if (role.isNotEmpty) {
+        await prefs.setString('user_type', role);
+      }
+      if (image != null && image.isNotEmpty) {
+        await prefs.setString('profile', image);
+      }
+    } else {
+      print("Failed to fetch user data from API");
+    }
+  } else {
+    print(" Using u_name from prefs: $uName");
   }
+
+  setState(() {
+    studentName = name;
+    studentRole = role;
+    studentUName = uName;
+    studentImage = image;
+  });
+  
+  print(' Final display - Name: $name, u_name: "$uName"');
+}
+
+
+
+  Future<Map<String, dynamic>?> fetchDetailsSection() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    if (token == null) {
+      debugPrint("ACCESS TOKEN IS NULL");
+      return null;
+    }
+
+    final res = await http.get(
+      Uri.parse("$api/api/myskates/profile/user/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
+
+    if (res.statusCode == 200) {
+      final decoded = jsonDecode(res.body);
+
+     
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+    } else {
+      debugPrint("API ERROR: ${res.statusCode}");
+    }
+  } catch (e) {
+    debugPrint("FETCH PERSON DETAILS ERROR: $e");
+  }
+
+  return null;
+}
+
+  
 
   // SHIMMER METHODS
   Widget _buildBannerShimmer() {
@@ -258,258 +359,259 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ),
         child: SafeArea(
-           child: RefreshIndicator(
-                  onRefresh: _refreshData,
-                  color: Colors.tealAccent,
-                  backgroundColor: Colors.black,
-                  strokeWidth: 3.0,
-                  displacement: 40.0,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // PROFILE ROW
-                        Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                pushWithSlide(const ProfilePage());
-                              },
-                              child: CircleAvatar(
-                                radius: 28,
-                                backgroundImage:
-                                    studentImage != null &&
-                                        studentImage!.isNotEmpty
-                                    ? NetworkImage("$api$studentImage")
-                                    : const AssetImage("lib/assets/img.jpg")
-                                          as ImageProvider,
-                              ),
-                            ),
-
-                            const SizedBox(width: 12),
-
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  studentName,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                Text(
-                                  studentRole,
-                                  style: const TextStyle(color: Colors.white70),
-                                ),
-                              ],
-                            ),
-
-                            const Spacer(),
-
-                            // MENU BUTTON
-                            IconButton(
-                              onPressed: () {
-                                pushWithSlide(MenuPage());
-                              },
-                              icon: const Icon(
-                                Icons.menu,
-                                color: Colors.tealAccent,
-                                size: 28,
-                              ),
-                            ),
-                          ],
+          child: RefreshIndicator(
+            onRefresh: _refreshData,
+            color: Colors.tealAccent,
+            backgroundColor: Colors.black,
+            strokeWidth: 3.0,
+            displacement: 40.0,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // PROFILE ROW
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          pushWithSlide(const ProfilePage());
+                        },
+                        child: CircleAvatar(
+                          radius: 28,
+                          backgroundImage:
+                              studentImage != null && studentImage!.isNotEmpty
+                              ? NetworkImage("$api$studentImage")
+                              : const AssetImage("lib/assets/img.jpg")
+                                    as ImageProvider,
                         ),
+                      ),
 
-                        const SizedBox(height: 20),
+                      const SizedBox(width: 12),
 
-                        // BANNER SECTION WITH SHIMMER
-                        GestureDetector(
-                          onTap: () {
-                            pushWithSlide(const AddBanner());
-                          },
-                          child: Column(
-                            children: [
-                              banner.isEmpty
-                                  ? _buildBannerShimmer()
-                                  : Container(
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            studentName,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+
+                          Text(
+                            studentUName.isNotEmpty
+                                ? "$studentUName"
+                                : studentRole,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                          // Text(
+                          //   studentRole,
+                          //   style: const TextStyle(color: Colors.white70),
+                          // ),
+                        ],
+                      ),
+
+                      const Spacer(),
+
+                      // MENU BUTTON
+                      IconButton(
+                        onPressed: () {
+                          pushWithSlide(MenuPage());
+                        },
+                        icon: const Icon(
+                          Icons.menu,
+                          color: Colors.tealAccent,
+                          size: 28,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // BANNER SECTION WITH SHIMMER
+                  GestureDetector(
+                    onTap: () {
+                      pushWithSlide(const AddBanner());
+                    },
+                    child: Column(
+                      children: [
+                        banner.isEmpty
+                            ? _buildBannerShimmer()
+                            : Container(
+                                height: 160,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.25),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: FlutterCarousel(
+                                    options: CarouselOptions(
                                       height: 160,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(14),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(0.25),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
+                                      autoPlay: true,
+                                      autoPlayInterval: const Duration(
+                                        seconds: 3,
                                       ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(14),
-                                        child: FlutterCarousel(
-                                          options: CarouselOptions(
-                                            height: 160,
-                                            autoPlay: true,
-                                            autoPlayInterval: const Duration(
-                                              seconds: 3,
-                                            ),
-                                            viewportFraction: 1,
-                                            showIndicator: true,
-                                            slideIndicator:
-                                                const CircularSlideIndicator(),
-                                          ),
-                                          items: banner.map((item) {
-                                            return Stack(
-                                              children: [
-                                                Positioned.fill(
-                                                  child: Image.network(
-                                                    item["image"] ?? "",
-                                                    fit: BoxFit.cover,
-                                                    loadingBuilder:
-                                                        (
-                                                          context,
-                                                          child,
-                                                          progress,
-                                                        ) {
-                                                          if (progress == null)
-                                                            return child;
-                                                          return Container(
-                                                            color: Colors
-                                                                .grey
-                                                                .shade900,
-                                                            alignment: Alignment
-                                                                .center,
-                                                            child:
-                                                                const CircularProgressIndicator(),
-                                                          );
-                                                        },
-                                                    errorBuilder:
-                                                        (
-                                                          context,
-                                                          error,
-                                                          stackTrace,
-                                                        ) => Container(
-                                                          color: Colors.black,
-                                                          alignment:
-                                                              Alignment.center,
-                                                          child: const Icon(
-                                                            Icons.broken_image,
-                                                            color:
-                                                                Colors.white54,
-                                                            size: 40,
-                                                          ),
-                                                        ),
-                                                  ),
-                                                ),
-                                                Positioned.fill(
-                                                  child: Container(
-                                                    decoration: BoxDecoration(
-                                                      gradient: LinearGradient(
-                                                        begin:
-                                                            Alignment.topCenter,
-                                                        end: Alignment
-                                                            .bottomCenter,
-                                                        colors: [
-                                                          Colors.transparent,
-                                                          Colors.black
-                                                              .withOpacity(0.6),
-                                                        ],
-                                                      ),
+                                      viewportFraction: 1,
+                                      showIndicator: true,
+                                      slideIndicator:
+                                          const CircularSlideIndicator(),
+                                    ),
+                                    items: banner.map((item) {
+                                      return Stack(
+                                        children: [
+                                          Positioned.fill(
+                                            child: Image.network(
+                                              item["image"] ?? "",
+                                              fit: BoxFit.cover,
+                                              loadingBuilder:
+                                                  (context, child, progress) {
+                                                    if (progress == null)
+                                                      return child;
+                                                    return Container(
+                                                      color:
+                                                          Colors.grey.shade900,
+                                                      alignment:
+                                                          Alignment.center,
+                                                      child:
+                                                          const CircularProgressIndicator(),
+                                                    );
+                                                  },
+                                              errorBuilder:
+                                                  (
+                                                    context,
+                                                    error,
+                                                    stackTrace,
+                                                  ) => Container(
+                                                    color: Colors.black,
+                                                    alignment: Alignment.center,
+                                                    child: const Icon(
+                                                      Icons.broken_image,
+                                                      color: Colors.white54,
+                                                      size: 40,
                                                     ),
                                                   ),
+                                            ),
+                                          ),
+                                          Positioned.fill(
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  begin: Alignment.topCenter,
+                                                  end: Alignment.bottomCenter,
+                                                  colors: [
+                                                    Colors.transparent,
+                                                    Colors.black.withOpacity(
+                                                      0.6,
+                                                    ),
+                                                  ],
                                                 ),
-                                              ],
-                                            );
-                                          }).toList(),
-                                        ),
-                                      ),
-                                    ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 22),
-
-                        const Text(
-                          "Weeee offer training and an e-commerce platform\nthat connects students and coaches.",
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-
-                        const SizedBox(height: 25),
-
-                        // BUTTONS
-                        buildButton("Approve Coaches"),
-                        buildButton("Add Products"),
-                        buildButton("Approve Products"),
-                        buildButton("Buy and Sell products"),
-
-                        const SizedBox(height: 25),
-
-                        // RECOMMENDED CLUBS TITLE
-                        const Text(
-                          "Recommended Clubs near you",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-
-                        const SizedBox(height: 25),
-
-                        // CLUB SECTION WITH SHIMMER
-                        _buildClubShimmer(),
-
-                        // UPCOMING EVENTS
-                        const SizedBox(height: 25),
-                        const Text(
-                          "Inspired to push your limits every day.",
-                          style: TextStyle(color: Colors.white, fontSize: 14),
-                        ),
-
-                        const SizedBox(height: 15),
-
-                        // EVENT CARD 1 WITH SHIMMER
-                        _buildEventShimmer(),
-
-                        const SizedBox(height: 12),
-
-                        // EVENT CARD 2 (with images) WITH SHIMMER
-                        _buildEventWithImagesShimmer(),
-
-                        // SUGGESTED COACHES
-                        const SizedBox(height: 25),
-                        const Text(
-                          "Suggested Coaches",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-
-                        const SizedBox(height: 15),
-
-                        // COACH SECTION WITH SHIMMER
-                        _buildCoachShimmer(),
-
-                        const SizedBox(height: 20),
-
-                        // EVENT CARD 1 WITH SHIMMER
-                        _buildEventShimmer(),
-
-                        const SizedBox(height: 12),
-
-                        // EVENT CARD 2 (with images) WITH SHIMMER
-                        _buildEventWithImagesShimmer(),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ),
                       ],
                     ),
                   ),
-                ),
+
+                  const SizedBox(height: 22),
+
+                  const Text(
+                    "Weeee offer training and an e-commerce platform\nthat connects students and coaches.",
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  // BUTTONS
+                  buildButton("Approve Coaches"),
+                  buildButton("Add Products"),
+                  buildButton("Approve Products"),
+                  buildButton("Buy and Sell products"),
+
+                  const SizedBox(height: 25),
+
+                  // RECOMMENDED CLUBS TITLE
+                  const Text(
+                    "Recommended Clubs near you",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  // CLUB SECTION WITH SHIMMER
+                  _buildClubShimmer(),
+
+                  // UPCOMING EVENTS
+                  const SizedBox(height: 25),
+                  const Text(
+                    "Inspired to push your limits every day.",
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  // EVENT CARD 1 WITH SHIMMER
+                  _buildEventShimmer(),
+
+                  const SizedBox(height: 12),
+
+                  // EVENT CARD 2 (with images) WITH SHIMMER
+                  _buildEventWithImagesShimmer(),
+
+                  // SUGGESTED COACHES
+                  const SizedBox(height: 25),
+                  const Text(
+                    "Suggested Coaches",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  // COACH SECTION WITH SHIMMER
+                  _buildCoachShimmer(),
+
+                  const SizedBox(height: 20),
+
+                  // EVENT CARD 1 WITH SHIMMER
+                  _buildEventShimmer(),
+
+                  const SizedBox(height: 12),
+
+                  // EVENT CARD 2 (with images) WITH SHIMMER
+                  _buildEventWithImagesShimmer(),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
 

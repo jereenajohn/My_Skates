@@ -100,6 +100,7 @@ class _ClubViewState extends State<ClubView> {
     fetchClubEvents();
     fetchFollowersCount();
     _fetchClubRequestStatus();
+    fetchClubFeeds();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkUserRating();
@@ -208,7 +209,6 @@ class _ClubViewState extends State<ClubView> {
     }
   }
 
-  // NEW: Confirm leave club dialog
   Future<bool> _confirmLeaveClub() async {
     return await showDialog<bool>(
           context: context,
@@ -252,7 +252,6 @@ class _ClubViewState extends State<ClubView> {
         false;
   }
 
-  // NEW: Build club action button (same as homepage)
   Widget _buildClubActionButton() {
     String buttonText;
     Color buttonColor;
@@ -409,7 +408,6 @@ class _ClubViewState extends State<ClubView> {
         List<RatingData> ratingDataList = [];
 
         for (var rating in ratingsToDisplay) {
-          // Get user data directly from the rating object
           String firstName = rating['user_first_name'] ?? '';
           String lastName = rating['user_last_name'] ?? '';
           String userName = '';
@@ -679,125 +677,267 @@ class _ClubViewState extends State<ClubView> {
     }
   }
 
-  // Future<void> submitFeedPost(String text, XFile? imageFile) async {
-  //   try {
-  //     final prefs = await SharedPreferences.getInstance();
-  //     final token = prefs.getString("access");
-  //     final userId = prefs.getInt("id");
+Future<void> fetchClubFeeds() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
 
-  //     if (token == null || userId == null) return;
+    if (token == null) {
+      print("No token found");
+      setState(() {
+        isFeedLoading = false;
+      });
+      return;
+    }
 
-  //     final url = Uri.parse("$api/api/myskates/feed/add/");
+    final url = Uri.parse("$api/api/myskates/club/${widget.clubid}/feeds/");
 
-  //     final request = http.MultipartRequest("POST", url);
-  //     request.headers["Authorization"] = "Bearer $token";
+    final response = await http.get(
+      url,
+      headers: {
+        "Authorization": "Bearer $token",
+        "Accept": "application/json",
+      },
+    );
 
-  //     request.fields.addAll({
-  //       "club": widget.clubid.toString(),
-  //       "user": userId.toString(),
-  //       "text": text,
-  //     });
+    if (response.statusCode == 200) {
+      final dynamic data = jsonDecode(response.body);
+      
+      print("FEED RAW RESPONSE: $data");
+      
+      if (data is Map && data['status'] == 'success' && data['data'] != null) {
+        final postsData = data['data'];
+        
+        if (postsData is List) {
+          setState(() {
+            feedPosts = postsData;
+            isFeedLoading = false;
+          });
+          print("Feed data fetched: ${postsData.length} posts");
+          
+        
+          if (postsData.isNotEmpty) {
+            print("FIRST POST STRUCTURE: ${postsData[0]}");
+          }
+        } else {
+          setState(() {
+            feedPosts = [];
+            isFeedLoading = false;
+          });
+          print("Posts data is not a List: ${postsData.runtimeType}");
+        }
+      } else {
+      
+        print("Unexpected response format: $data");
+        setState(() {
+          feedPosts = [];
+          isFeedLoading = false;
+        });
+      }
+    } else {
+      print("GET Error: ${response.statusCode}");
+      print(response.body);
+      setState(() {
+        isFeedLoading = false;
+      });
+    }
+  } catch (e) {
+    print("GET Exception: $e");
+    setState(() {
+      isFeedLoading = false;
+    });
+  }
+}
 
-  //     if (imageFile != null) {
-  //       request.files.add(
-  //         await http.MultipartFile.fromPath("image", imageFile.path),
-  //       );
-  //     }
 
-  //     final response = await request.send();
 
-  //     if (response.statusCode == 200 || response.statusCode == 201) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         const SnackBar(
-  //           backgroundColor: Colors.teal,
-  //           content: Text(
-  //             "Posted successfully",
-  //             style: TextStyle(color: Colors.white),
-  //           ),
-  //         ),
-  //       );
-  //     } else {
-  //       ScaffoldMessenger.of(
-  //         context,
-  //       ).showSnackBar(const SnackBar(content: Text("Failed to post")));
-  //     }
-  //   } catch (e) {
-  //     ScaffoldMessenger.of(
-  //       context,
-  //     ).showSnackBar(SnackBar(content: Text("Error: $e")));
-  //   }
-  // }
 
   Future<void> submitFeedPost(
-    String title,
-    String description,
-    XFile? imageFile,
-  ) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("access");
+  String title,
+  String description,
+  XFile? imageFile,
+) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
 
-      if (token == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Please login to post")));
-        return;
-      }
+    if (token == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Please login to post")));
+      return;
+    }
 
-      final url = Uri.parse("$api/api/myskates/club/feed/create/");
+    print("Submitting feed post with image: ${imageFile?.path}");
 
-      final request = http.MultipartRequest("POST", url);
+    final url = Uri.parse("$api/api/myskates/club/feed/create/");
 
-      request.headers["Authorization"] = "Bearer $token";
-      request.headers["Accept"] = "application/json";
+    final request = http.MultipartRequest("POST", url);
 
-      
-      if (title.isNotEmpty) {
-        request.fields["title"] = title;
-      }
+    request.headers["Authorization"] = "Bearer $token";
+    request.headers["Accept"] = "application/json";
 
-      if (description.isNotEmpty) {
-        request.fields["description"] = description;
-      }
+    if (title.isNotEmpty) {
+      request.fields["title"] = title;
+    }
 
-      request.fields["club"] = widget.clubid.toString();
+    if (description.isNotEmpty) {
+      request.fields["description"] = description;
+    }
 
-      if (imageFile != null) {
+    request.fields["club"] = widget.clubid.toString();
+
+    if (imageFile != null) {
+     
+      final file = File(imageFile.path);
+      if (await file.exists()) {
+        print("File exists: ${file.lengthSync()} bytes");
         request.files.add(
-          await http.MultipartFile.fromPath("image", imageFile.path),
-        );
-      }
+          await http.MultipartFile.fromPath("images", imageFile.path),
 
-      final response = await request.send();
-      final responseData = await response.stream.bytesToString();
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: Colors.teal,
-            content: Text(
-              "Posted successfully",
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
         );
-        print("ressssssssssss ${response.statusCode}");
       } else {
-        print("Feed post error: $responseData");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Failed to post: ${response.statusCode}"),
-            backgroundColor: Colors.red,
-          ),
-        );
+        print("File does not exist: ${imageFile.path}");
       }
-    } catch (e) {
-      print("Feed post exception: $e");
+    }
+
+    final response = await request.send();
+    final responseData = await response.stream.bytesToString();
+    
+    print("Feed post response status: ${response.statusCode}");
+    print("Feed post response body: $responseData");
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        const SnackBar(
+          backgroundColor: Colors.teal,
+          content: Text(
+            "Posted successfully",
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+      
+      // Refresh the feed after posting
+      await fetchClubFeeds();
+      
+      print("Post successful: ${response.statusCode}");
+    } else {
+      print("Feed post error: $responseData");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to post: ${response.statusCode}"),
+          backgroundColor: Colors.red,
+        ),
       );
     }
+  } catch (e) {
+    print("Feed post exception: $e");
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+    );
   }
+}
+
+
+
+  Future<void> _deleteFeedPost(int postId) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please login to delete")),
+      );
+      return;
+    }
+
+    // Show confirmation dialog
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF06201A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: const Text(
+            "Delete Post?",
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            "Are you sure you want to delete this post?",
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              child: const Text(
+                "Cancel",
+                style: TextStyle(color: Colors.white70),
+              ),
+              onPressed: () => Navigator.of(context).pop(false),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              child: const Text(
+                "Delete",
+                style: TextStyle(color: Colors.white),
+              ),
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    print("Deleting feed post with ID: $postId");
+    
+    final url = Uri.parse("$api/api/myskates/club/feed/$postId/");
+    
+    final response = await http.delete(
+      url,
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
+
+    print("Delete response status: ${response.statusCode}");
+    print("Delete response body: ${response.body}");
+
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Colors.teal,
+          content: Text(
+            "Post deleted successfully",
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+      
+      // Refresh the feed after deletion
+      await fetchClubFeeds();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to delete post: ${response.statusCode}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  } catch (e) {
+    print("Delete feed post error: $e");
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+    );
+  }
+}
 
 
 
@@ -1791,6 +1931,202 @@ class _ClubViewState extends State<ClubView> {
     );
   }
 
+Widget _buildFeedPost(Map<String, dynamic> post) {
+  print("BUILDING FEED POST: $post");
+  
+  int postId = post['id'] ?? 0;
+  int postUserId = post['user'] ?? 0;
+  
+  // Check if current user is the post owner or a coach
+  bool canDelete = _isCoach || (_currentUserId == postUserId);
+  
+  // Get user details directly from the post data
+  String userName = post['user_name'] ?? 'User $postUserId';
+  String? userProfile = post['user_profile'];
+  
+  String title = post['title'] ?? '';
+  String description = post['description'] ?? '';
+  String createdAt = post['created_at'] ?? '';
+
+  // Handle profile image URL
+  if (userProfile != null && userProfile.isNotEmpty) {
+    if (!userProfile.startsWith('http')) {
+      userProfile = userProfile.startsWith('/') ? "$api$userProfile" : "$api/$userProfile";
+    }
+  }
+
+  // Handle post images
+  String? imageUrl;
+  if (post['images'] != null && post['images'] is List) {
+    var imagesList = post['images'] as List;
+    if (imagesList.isNotEmpty) {
+      var firstImage = imagesList.first;
+      if (firstImage is Map && firstImage['image'] != null) {
+        imageUrl = firstImage['image'].toString();
+        if (!imageUrl.startsWith('http')) {
+          imageUrl = imageUrl.startsWith('/') ? "$api$imageUrl" : "$api/$imageUrl";
+        }
+      }
+    }
+  }
+
+  return Container(
+    margin: const EdgeInsets.only(bottom: 16),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.white12,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.white24, width: 0.5),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // User info row with delete option
+        Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: Colors.grey[800],
+              backgroundImage: userProfile != null && userProfile.isNotEmpty
+                  ? NetworkImage(userProfile)
+                  : null,
+              child: userProfile == null || userProfile.isEmpty
+                  ? Text(
+                      userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    userName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  Text(
+                    _formatDate(createdAt),
+                    style: const TextStyle(
+                      color: Colors.white38,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (canDelete)
+              PopupMenuButton<String>(
+                color: const Color(0xFF06201A),
+                icon: const Icon(Icons.more_vert, color: Colors.white70, size: 20),
+                onSelected: (value) {
+                  if (value == "delete") {
+                    _deleteFeedPost(postId);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: "delete",
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, color: Colors.red, size: 18),
+                        SizedBox(width: 8),
+                        Text("Delete", style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // Title
+        if (title.isNotEmpty)
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        
+        const SizedBox(height: 8),
+        
+        // Description
+        if (description.isNotEmpty)
+          Text(
+            description,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+        
+        const SizedBox(height: 12),
+        
+        // Image
+        if (imageUrl != null && imageUrl.isNotEmpty)
+          GestureDetector(
+            onTap: () => _openSquareMediaViewer(imageUrl!),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                imageUrl!,
+                width: double.infinity,
+                height: 200,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    height: 200,
+                    color: Colors.grey[900],
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded / 
+                              loadingProgress.expectedTotalBytes!
+                            : null,
+                        color: Colors.teal,
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  print("IMAGE LOAD ERROR: $error");
+                  return Container(
+                    height: 200,
+                    color: Colors.grey[900],
+                    child: const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.broken_image, color: Colors.white54),
+                          SizedBox(height: 8),
+                          Text(
+                            "Failed to load image",
+                            style: TextStyle(color: Colors.white54),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
   @override
   Widget build(BuildContext context) {
     if (loading) {
@@ -1896,7 +2232,6 @@ class _ClubViewState extends State<ClubView> {
                           ),
                         ),
 
-                        // ADDED: Club join/request button
                         if (!_isClubLoading) ...[
                           const SizedBox(height: 12),
                           _buildClubActionButton(),
@@ -2079,67 +2414,6 @@ class _ClubViewState extends State<ClubView> {
 
               const SizedBox(height: 35),
 
-              // if (!widget.isApproved && !_isCoach) ...[
-              //   Container(
-              //     width: double.infinity,
-              //     padding: const EdgeInsets.all(16),
-              //     decoration: BoxDecoration(
-              //       gradient: const LinearGradient(
-              //         colors: [Color(0xFF1A3A3A), Color(0xFF0A2A2A)],
-              //         begin: Alignment.topLeft,
-              //         end: Alignment.bottomRight,
-              //       ),
-              //       borderRadius: BorderRadius.circular(16),
-              //       border: Border.all(
-              //         color: const Color(0xFF00AFA5).withOpacity(0.3),
-              //         width: 1,
-              //       ),
-              //       boxShadow: [
-              //         BoxShadow(
-              //           color: const Color(0xFF00AFA5).withOpacity(0.1),
-              //           blurRadius: 10,
-              //           spreadRadius: 2,
-              //         ),
-              //       ],
-              //     ),
-              //     child: Row(
-              //       children: [
-              //         Container(
-              //           padding: const EdgeInsets.all(10),
-              //           decoration: BoxDecoration(
-              //             color: const Color(0xFF00AFA5).withOpacity(0.15),
-              //             shape: BoxShape.circle,
-              //           ),
-              //           child: const Icon(
-              //             Icons.hourglass_empty,
-              //             color: Color(0xFF00AFA5),
-              //             size: 28,
-              //           ),
-              //         ),
-              //         const SizedBox(width: 16),
-
-              //         Expanded(
-              //           child: Column(
-              //             crossAxisAlignment: CrossAxisAlignment.start,
-              //             children: [
-              //               const Text(
-              //                 "Request Pending",
-              //                 style: TextStyle(
-              //                   color: Color(0xFF00AFA5),
-              //                   fontSize: 16,
-              //                   fontWeight: FontWeight.bold,
-              //                 ),
-              //               ),
-              //             ],
-              //           ),
-              //         ),
-              //       ],
-              //     ),
-              //   ),
-              //   const SizedBox(height: 24),
-              // ],
-
-              // Show Feed, Media, Events sections only if user is coach OR club is approved
               if (_isCoach || widget.isApproved) ...[
                 const SizedBox(height: 10),
 
@@ -2236,8 +2510,45 @@ class _ClubViewState extends State<ClubView> {
                 ),
                 const SizedBox(height: 15),
 
-                _feedInputBox(),
+                _feedInputBox(
+                  onSubmit: (title, description, image) {
+                    submitFeedPost(title, description, image);
+                  },
+                ),
                 const SizedBox(height: 20),
+
+                // Feed Posts Display
+                if (isFeedLoading)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20.0),
+                      child: CircularProgressIndicator(color: Colors.teal),
+                    ),
+                  )
+                else if (feedPosts.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white12,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        "No posts yet. Be the first to post!",
+                        style: TextStyle(color: Colors.white54, fontSize: 14),
+                      ),
+                    ),
+                  )
+                else
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: feedPosts.length,
+                    itemBuilder: (context, index) {
+                      return _buildFeedPost(feedPosts[index]);
+                    },
+                  ),
+                const SizedBox(height: 25),
 
                 const Text(
                   "Media",
@@ -2381,7 +2692,7 @@ class _ClubViewState extends State<ClubView> {
         ),
       ),
 
-      floatingActionButton: Column(
+      floatingActionButton: _isCoach ? Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           FloatingActionButton(
@@ -2411,7 +2722,9 @@ class _ClubViewState extends State<ClubView> {
             },
           ),
         ],
-      ),
+      
+      )
+      :null,
 
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.black,
@@ -2639,7 +2952,9 @@ class _ClubViewState extends State<ClubView> {
   }
 }
 
-Widget _feedInputBox() {
+Widget _feedInputBox({
+  required Function(String, String, XFile?) onSubmit,
+}) {
   final TextEditingController titleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   XFile? pickedImage;
@@ -2681,7 +2996,7 @@ Widget _feedInputBox() {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 10),
 
             TextField(
@@ -2709,9 +3024,9 @@ Widget _feedInputBox() {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 10),
-            
+
             if (pickedImage != null) ...[
               const SizedBox(height: 8),
               ClipRRect(
@@ -2724,7 +3039,7 @@ Widget _feedInputBox() {
                 ),
               ),
               const SizedBox(height: 8),
-              
+
               Align(
                 alignment: Alignment.centerRight,
                 child: GestureDetector(
@@ -2804,33 +3119,26 @@ Widget _feedInputBox() {
                     onPressed: () {
                       final title = titleController.text.trim();
                       final description = descriptionController.text.trim();
-                      
+
                       if (title.isEmpty && description.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text("Please enter a title or description"),
+                            content: Text(
+                              "Please enter a title or description",
+                            ),
                             backgroundColor: Colors.orange,
                           ),
                         );
                         return;
                       }
 
-           
-                      final clubViewState = context.findAncestorStateOfType<_ClubViewState>();
-                      if (clubViewState != null) {
-                        clubViewState.submitFeedPost(
-                          title,
-                          description,
-                          pickedImage,
-                        );
-                        
-                        
-                        titleController.clear();
-                        descriptionController.clear();
-                        setStateSB(() {
-                          pickedImage = null;
-                        });
-                      }
+                      onSubmit(title, description, pickedImage);
+
+                      titleController.clear();
+                      descriptionController.clear();
+                      setStateSB(() {
+                        pickedImage = null;
+                      });
                     },
                     child: const Text(
                       "Post",
@@ -3302,7 +3610,6 @@ class ClubReviewsViewPage extends StatelessWidget {
         List<RatingData> ratingDataList = [];
 
         for (var rating in approvedRatings) {
-          // Get user data directly from the rating object
           String firstName = rating['user_first_name'] ?? '';
           String lastName = rating['user_last_name'] ?? '';
           String userName = '';
