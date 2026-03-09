@@ -16,6 +16,7 @@ import 'package:my_skates/STUDENTS/user_followers_list.dart';
 import 'package:my_skates/STUDENTS/user_following.dart';
 import 'package:my_skates/STUDENTS/user_view_events.dart';
 import 'package:my_skates/ride/ride_map_screen.dart';
+import 'package:my_skates/ride/user_activities.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UserSettings extends StatefulWidget {
@@ -167,6 +168,20 @@ class _UserSettingsState extends State<UserSettings> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => const RideMapScreen(),
+                    ),
+                  );
+                },
+              ),
+              _divider(),
+
+               _menuTile(
+                icon: Icons.local_activity_outlined,
+                text: "Activities",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const UserActivities(),
                     ),
                   );
                 },
