@@ -176,7 +176,7 @@ class _UserSettingsState extends State<UserSettings> {
 
                _menuTile(
                 icon: Icons.local_activity_outlined,
-                text: "Activities",
+                text: "Activitiess",
                 onTap: () {
                   Navigator.push(
                     context,
