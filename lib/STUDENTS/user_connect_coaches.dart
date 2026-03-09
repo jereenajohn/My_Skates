@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/COACH/coach_details_page.dart';
 import 'package:my_skates/api.dart';
@@ -18,18 +17,27 @@ class UserConnectCoaches extends StatefulWidget {
 class _UserConnectCoachesState extends State<UserConnectCoaches> {
   LatLng? userLocation;
   List coaches = [];
-  List<Marker> markers = [];
+
+  Set<Marker> markers = {};
+  Set<Circle> circles = {};
+
   bool isLoading = true;
   double selectedRadiusKm = 5.0;
 
-  final Distance dist = const Distance();
-  final MapController mapController = MapController();
+  GoogleMapController? mapController;
   final TextEditingController searchCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     initPage();
+  }
+
+  @override
+  void dispose() {
+    searchCtrl.dispose();
+    mapController?.dispose();
+    super.dispose();
   }
 
   Future<void> initPage() async {
@@ -43,8 +51,9 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
-      await Geolocator.requestPermission();
+      permission = await Geolocator.requestPermission();
     }
+
     Position pos = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
@@ -79,93 +88,84 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     }
   }
 
+  double distanceInKm(LatLng a, LatLng b) {
+    final meters = Geolocator.distanceBetween(
+      a.latitude,
+      a.longitude,
+      b.latitude,
+      b.longitude,
+    );
+    return meters / 1000;
+  }
+
+  void updateRadiusCircle() {
+    if (userLocation == null) return;
+
+    circles = {
+      Circle(
+        circleId: const CircleId("user_radius"),
+        center: userLocation!,
+        radius: selectedRadiusKm * 1000,
+        fillColor: Colors.teal.withOpacity(0.09),
+        strokeColor: Colors.teal,
+        strokeWidth: 2,
+      ),
+    };
+  }
+
   // ADD ALL COACH MARKERS (Default)
   void addCoachMarkers() {
-    markers = [];
+    if (userLocation == null) return;
+
+    final Set<Marker> newMarkers = {};
     final double maxKm = selectedRadiusKm;
 
     for (var coach in coaches) {
       if (coach["latitude"] == null || coach["longitude"] == null) continue;
 
-      double lat = double.parse("${coach["latitude"]}");
-      double lng = double.parse("${coach["longitude"]}");
+      final double? lat = double.tryParse("${coach["latitude"]}");
+      final double? lng = double.tryParse("${coach["longitude"]}");
 
-      LatLng coachPos = LatLng(lat, lng);
-      double km = dist.as(LengthUnit.Kilometer, userLocation!, coachPos);
+      if (lat == null || lng == null) continue;
+
+      final LatLng coachPos = LatLng(lat, lng);
+      final double km = distanceInKm(userLocation!, coachPos);
 
       if (km <= maxKm) {
-        markers.add(
+        newMarkers.add(
           Marker(
-            point: coachPos,
-            width: 140,
-            height: 140,
-            child: GestureDetector(
-              onTap: () => showCoachBottomSheet(coach, km),
-              child: Column(
-                children: [
-                  // IMAGE + NAME ROW
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircleAvatar(
-                        radius: 12,
-                        backgroundImage: coach["profile"] != null
-                            ? NetworkImage("$api${coach["profile"]}")
-                            : null,
-                        backgroundColor: Colors.grey,
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          "${coach['first_name']}",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  const Icon(
-                    Icons.location_on,
-                    size: 45,
-                    color: Colors.redAccent,
-                  ),
-                ],
-              ),
+            markerId: MarkerId("coach_${coach["id"]}"),
+            position: coachPos,
+            infoWindow: InfoWindow(
+              title: "${coach['first_name']} ${coach['last_name'] ?? ''}".trim(),
+              snippet: "${km.toStringAsFixed(2)} km away",
             ),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueRed,
+            ),
+            onTap: () => showCoachBottomSheet(coach, km),
           ),
         );
       }
     }
 
-    // USER MARKER
-    markers.add(
+    newMarkers.add(
       Marker(
-        point: userLocation!,
-        width: 120,
-        height: 120,
-        child: const Icon(
-          Icons.person_pin_circle,
-          size: 48,
-          color: Colors.blueAccent,
+        markerId: const MarkerId("user_location"),
+        position: userLocation!,
+        infoWindow: const InfoWindow(title: "You"),
+        icon: BitmapDescriptor.defaultMarkerWithHue(
+          BitmapDescriptor.hueAzure,
         ),
       ),
     );
+
+    markers = newMarkers;
+    updateRadiusCircle();
   }
 
-  // 🎯 SEARCH LOGIC
-  void filterSearch(String query) {
+  // SEARCH LOGIC
+  void filterSearch(String query) async {
     if (query.isEmpty) {
       addCoachMarkers();
       setState(() {});
@@ -173,7 +173,8 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     }
 
     List result = coaches.where((coach) {
-      final name = "${coach['first_name']} ${coach['last_name']}".toLowerCase();
+      final name = "${coach['first_name']} ${coach['last_name']}"
+          .toLowerCase();
       return name.contains(query.toLowerCase());
     }).toList();
 
@@ -185,49 +186,43 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
 
     final coach = result.first;
 
-    double lat = double.parse(coach["latitude"].toString());
-    double lng = double.parse(coach["longitude"].toString());
-    LatLng target = LatLng(lat, lng);
+    final double? lat = double.tryParse(coach["latitude"].toString());
+    final double? lng = double.tryParse(coach["longitude"].toString());
 
-    mapController.move(target, 16);
+    if (lat == null || lng == null) return;
 
-    markers = [
+    final LatLng target = LatLng(lat, lng);
+
+    await mapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: target, zoom: 16),
+      ),
+    );
+
+    markers = {
       Marker(
-        point: target,
-        width: 160,
-        height: 160,
-        child: GestureDetector(
-          onTap: () => showCoachBottomSheet(coach, 0),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundImage: coach["profile"] != null
-                        ? NetworkImage("$api${coach["profile"]}")
-                        : null,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    coach["first_name"],
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              const Icon(Icons.location_on, size: 45, color: Colors.redAccent),
-            ],
+        markerId: MarkerId("search_coach_${coach["id"]}"),
+        position: target,
+        infoWindow: InfoWindow(
+          title: "${coach["first_name"]} ${coach["last_name"] ?? ""}".trim(),
+        ),
+        icon: BitmapDescriptor.defaultMarkerWithHue(
+          BitmapDescriptor.hueRed,
+        ),
+        onTap: () => showCoachBottomSheet(coach, 0),
+      ),
+      if (userLocation != null)
+        Marker(
+          markerId: const MarkerId("user_location"),
+          position: userLocation!,
+          infoWindow: const InfoWindow(title: "You"),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueAzure,
           ),
         ),
-      ),
-    ];
+    };
 
+    updateRadiusCircle();
     setState(() {});
   }
 
@@ -246,7 +241,6 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // IMAGE + NAME + EYE ICON
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -258,12 +252,15 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
                     backgroundColor: Colors.grey.shade800,
                   ),
                   const SizedBox(width: 14),
-                  Text(
-                    "${coach["first_name"]} ${coach["last_name"]}",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
+                  Flexible(
+                    child: Text(
+                      "${coach["first_name"]} ${coach["last_name"]}",
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -285,13 +282,13 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
                   ),
                 ],
               ),
-
-              // const SizedBox(height: 14),
               Text(
                 "${km.toStringAsFixed(2)} km away",
-                style: const TextStyle(color: Colors.tealAccent, fontSize: 16),
+                style: const TextStyle(
+                  color: Colors.tealAccent,
+                  fontSize: 16,
+                ),
               ),
-
               const SizedBox(height: 35),
             ],
           ),
@@ -300,10 +297,10 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     );
   }
 
-  //  SEARCH BAR UI
+  // SEARCH BAR UI
   Widget buildSearchBar() {
     return Positioned(
-      top: 120, // moved higher
+      top: 120,
       left: 20,
       right: 20,
       child: Container(
@@ -317,6 +314,13 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
               Colors.teal.withOpacity(0.8),
             ],
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.25),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -386,7 +390,7 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     );
   }
 
-  //  ZOOM BUTTONS (bottom right)
+  // ZOOM BUTTONS (bottom right)
   Widget buildZoomButtons() {
     return Positioned(
       bottom: 40,
@@ -397,22 +401,26 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
             heroTag: "zoom_in",
             mini: true,
             backgroundColor: Colors.teal,
-            child: const Icon(Icons.add),
-            onPressed: () => mapController.move(
-              userLocation!,
-              mapController.camera.zoom + 1,
-            ),
+            child: const Icon(Icons.add,color: Colors.white,),
+            onPressed: () async {
+              final currentZoom = await mapController?.getZoomLevel() ?? 14.0;
+              await mapController?.animateCamera(
+                CameraUpdate.zoomTo(currentZoom + 1),
+              );
+            },
           ),
           const SizedBox(height: 10),
           FloatingActionButton(
             heroTag: "zoom_out",
             mini: true,
             backgroundColor: Colors.teal,
-            child: const Icon(Icons.remove),
-            onPressed: () => mapController.move(
-              userLocation!,
-              mapController.camera.zoom - 1,
-            ),
+            child: const Icon(Icons.remove,color: Colors.white),
+            onPressed: () async {
+              final currentZoom = await mapController?.getZoomLevel() ?? 14.0;
+              await mapController?.animateCamera(
+                CameraUpdate.zoomTo(currentZoom - 1),
+              );
+            },
           ),
         ],
       ),
@@ -431,33 +439,23 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // MAP
-          FlutterMap(
-            mapController: mapController,
-            options: MapOptions(initialCenter: userLocation!, initialZoom: 14),
-            children: [
-              TileLayer(
-                urlTemplate:
-                    "https://tile.jawg.io/jawg-dark/{z}/{x}/{y}.png?access-token=2B7dgDmr4GbsgqSaMLKgFwKHXVuhFAcIAJ7sD1TgNjB9Mmto5m9L4rcDGNKHl4GQ",
-                userAgentPackageName: "my_skates",
-              ),
-              MarkerLayer(markers: markers),
-              CircleLayer(
-                circles: [
-                  CircleMarker(
-                    point: userLocation!,
-                    radius: selectedRadiusKm * 1000,
-                    useRadiusInMeter: true,
-                    color: Colors.teal.withOpacity(0.09),
-                    borderColor: Colors.teal,
-                    borderStrokeWidth: 2,
-                  ),
-                ],
-              ),
-            ],
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: userLocation!,
+              zoom: 14,
+            ),
+            onMapCreated: (controller) {
+              mapController = controller;
+            },
+            myLocationEnabled: false,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            mapToolbarEnabled: false,
+            compassEnabled: true,
+            markers: markers,
+            circles: circles,
           ),
 
-          // HEADING
           const Positioned(
             top: 60,
             left: 0,
