@@ -41,7 +41,6 @@ class _SaveActivityScreenState extends State<SaveActivityScreen> {
     "Very Hard",
   ];
 
-  // replace this with your actual API constant if you already have one
  static String saveRideApi = "$api/api/myskates/user/activities/";
 
   @override
@@ -143,6 +142,7 @@ Future<void> _saveActivity(RideProvider ride) async {
     }
   }
 }
+
   @override
   Widget build(BuildContext context) {
     final ride = context.watch<RideProvider>();
