@@ -74,6 +74,7 @@ dev_dependencies:
   animations: ^2.1.1
   custom_refresh_indicator: ^4.0.1
   
+  
 
 
 
@@ -103,6 +104,7 @@ flutter:
      - lib/assets/skating1.jpg
      - lib/assets/skating2.jpg
      - lib/assets/img.jpg
+     - lib/assets/map_styles/black_white_map.json
      
 
 
