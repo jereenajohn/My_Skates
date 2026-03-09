@@ -15,6 +15,7 @@ import 'package:my_skates/STUDENTS/user_follow_requests.dart';
 import 'package:my_skates/STUDENTS/user_followers_list.dart';
 import 'package:my_skates/STUDENTS/user_following.dart';
 import 'package:my_skates/STUDENTS/user_view_events.dart';
+import 'package:my_skates/ride/ride_map_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UserSettings extends StatefulWidget {
@@ -157,6 +158,20 @@ class _UserSettingsState extends State<UserSettings> {
               ),
 
               const SizedBox(height: 12),
+
+              _menuTile(
+                icon: Icons.shopping_bag,
+                text: "Ride",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const RideMapScreen(),
+                    ),
+                  );
+                },
+              ),
+              _divider(),
               _menuTile(
                 icon: Icons.shopping_bag,
                 text: "Change Phone Number",

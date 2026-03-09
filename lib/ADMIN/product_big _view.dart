@@ -608,6 +608,9 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
         headers: {"Authorization": "Bearer $token"},
       );
 
+      print("Product details status: ${res.statusCode}");
+      print("Product details response: ${res.body}");
+
       if (res.statusCode == 200) {
         final json = jsonDecode(res.body);
 
@@ -923,6 +926,8 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                     final displayDescription =
                         selectedVariant?["description"] ??
                         product!["description"];
+
+                        print("imageeeeeeeeeee: $displayImage");
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

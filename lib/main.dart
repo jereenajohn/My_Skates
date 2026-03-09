@@ -8,11 +8,15 @@ import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 
 import 'package:app_links/app_links.dart';
+import 'package:provider/provider.dart';
+
+// ✅ Ride tracking provider
+import 'package:my_skates/ride/ride_provider.dart';
 
 // 🔑 REQUIRED FOR DEEP LINKS (PRODUCTION)
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // ✅ Professional error screen (no red/yellow)
@@ -25,8 +29,7 @@ void main() {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline,
-                  color: Colors.redAccent, size: 60),
+              const Icon(Icons.error_outline, color: Colors.redAccent, size: 60),
               const SizedBox(height: 12),
               const Text(
                 "Oops! Something went wrong",
@@ -62,7 +65,6 @@ void main() {
   runApp(const MyApp());
 }
 
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -74,7 +76,9 @@ class MyApp extends StatelessWidget {
     final token = prefs.getString("access");
     final userType = prefs.getString("user_type");
 
+    // ignore: avoid_print
     print("User Type from prefs: $userType");
+
     if (token != null && token.isNotEmpty) {
       final normalizedUserType = userType?.toLowerCase().trim();
       if (normalizedUserType == "admin") {
@@ -91,26 +95,29 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
+    return ChangeNotifierProvider(
+      create: (_) => RideProvider(),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
 
-      // REQUIRED FOR DEEP LINK NAVIGATION
-      navigatorKey: navigatorKey,
+        // REQUIRED FOR DEEP LINK NAVIGATION
+        navigatorKey: navigatorKey,
 
-      home: _DeepLinkWrapper(
-        child: FutureBuilder<Widget>(
-          future: checkLoginStatus(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                body: Center(
-                  child: CircularProgressIndicator(color: Colors.teal),
-                ),
-              );
-            }
+        home: _DeepLinkWrapper(
+          child: FutureBuilder<Widget>(
+            future: checkLoginStatus(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(
+                    child: CircularProgressIndicator(color: Colors.teal),
+                  ),
+                );
+              }
 
-            return snapshot.data ?? Loginpage();
-          },
+              return snapshot.data ?? Loginpage();
+            },
+          ),
         ),
       ),
     );
@@ -140,16 +147,14 @@ class _DeepLinkWrapperState extends State<_DeepLinkWrapper> {
       if (uri != null) _handleLink(uri);
     });
 
-    //
     // App in background / foreground
-   _appLinks.uriLinkStream.listen((uri) {
-  try {
-    _handleLink(uri);
-  } catch (e) {
-    debugPrint("Deep Link Error: $e");
-  }
-});
-
+    _appLinks.uriLinkStream.listen((uri) {
+      try {
+        _handleLink(uri);
+      } catch (e) {
+        debugPrint("Deep Link Error: $e");
+      }
+    });
   }
 
   void _handleLink(Uri uri) {
