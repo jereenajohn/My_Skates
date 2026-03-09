@@ -14,7 +14,8 @@ class UserConnectCoaches extends StatefulWidget {
   State<UserConnectCoaches> createState() => _UserConnectCoachesState();
 }
 
-class _UserConnectCoachesState extends State<UserConnectCoaches> {
+class _UserConnectCoachesState extends State<UserConnectCoaches>
+    with SingleTickerProviderStateMixin {
   LatLng? userLocation;
   List coaches = [];
 
@@ -27,9 +28,16 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
   GoogleMapController? mapController;
   final TextEditingController searchCtrl = TextEditingController();
 
+  late final AnimationController _shimmerController;
+
   @override
   void initState() {
     super.initState();
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+
     initPage();
   }
 
@@ -37,14 +45,22 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
   void dispose() {
     searchCtrl.dispose();
     mapController?.dispose();
+    _shimmerController.dispose();
     super.dispose();
   }
 
   Future<void> initPage() async {
-    await getUserCurrentLocation();
-    await fetchCoaches();
-    addCoachMarkers();
-    setState(() => isLoading = false);
+    try {
+      await getUserCurrentLocation();
+      await fetchCoaches();
+      addCoachMarkers();
+    } catch (e) {
+      debugPrint("INIT PAGE ERROR: $e");
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
   }
 
   Future<void> getUserCurrentLocation() async {
@@ -60,7 +76,7 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
 
     userLocation = LatLng(pos.latitude, pos.longitude);
 
-    print("USER LOCATION → Lat:${pos.latitude}, Lng:${pos.longitude}");
+    debugPrint("USER LOCATION → Lat:${pos.latitude}, Lng:${pos.longitude}");
   }
 
   Future<void> fetchCoaches() async {
@@ -79,12 +95,12 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
 
       if (res.statusCode == 200) {
         coaches = jsonDecode(res.body);
-        print("COACHES FETCHED: ${coaches.length}");
+        debugPrint("COACHES FETCHED: ${coaches.length}");
       } else {
-        print("FAILED TO FETCH COACHES → ${res.statusCode}");
+        debugPrint("FAILED TO FETCH COACHES → ${res.statusCode}");
       }
     } catch (e) {
-      print("API ERROR → $e");
+      debugPrint("API ERROR → $e");
     }
   }
 
@@ -113,7 +129,6 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     };
   }
 
-  // ADD ALL COACH MARKERS (Default)
   void addCoachMarkers() {
     if (userLocation == null) return;
 
@@ -164,7 +179,6 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     updateRadiusCircle();
   }
 
-  // SEARCH LOGIC
   void filterSearch(String query) async {
     if (query.isEmpty) {
       addCoachMarkers();
@@ -173,8 +187,7 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     }
 
     List result = coaches.where((coach) {
-      final name = "${coach['first_name']} ${coach['last_name']}"
-          .toLowerCase();
+      final name = "${coach['first_name']} ${coach['last_name']}".toLowerCase();
       return name.contains(query.toLowerCase());
     }).toList();
 
@@ -199,6 +212,10 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
       ),
     );
 
+    final double km = userLocation != null
+        ? distanceInKm(userLocation!, target)
+        : 0.0;
+
     markers = {
       Marker(
         markerId: MarkerId("search_coach_${coach["id"]}"),
@@ -209,7 +226,7 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
         icon: BitmapDescriptor.defaultMarkerWithHue(
           BitmapDescriptor.hueRed,
         ),
-        onTap: () => showCoachBottomSheet(coach, 0),
+        onTap: () => showCoachBottomSheet(coach, km),
       ),
       if (userLocation != null)
         Marker(
@@ -226,7 +243,6 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     setState(() {});
   }
 
-  // COACH DETAIL POPUP
   void showCoachBottomSheet(dynamic coach, double km) {
     showModalBottomSheet(
       backgroundColor: Colors.black87,
@@ -297,48 +313,53 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
     );
   }
 
-  // SEARCH BAR UI
   Widget buildSearchBar() {
     return Positioned(
       top: 120,
       left: 20,
       right: 20,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        height: 55,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(30),
-          gradient: LinearGradient(
-            colors: [
-              Colors.tealAccent.withOpacity(0.8),
-              Colors.teal.withOpacity(0.8),
-            ],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.25),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.search, color: Colors.white, size: 24),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: searchCtrl,
-                onChanged: filterSearch,
-                style: const TextStyle(color: Colors.white, fontSize: 18),
-                decoration: const InputDecoration(
-                  hintText: "Search coach",
-                  hintStyle: TextStyle(color: Colors.white70),
-                  border: InputBorder.none,
-                ),
+      child: IgnorePointer(
+        ignoring: isLoading,
+        child: Opacity(
+          opacity: isLoading ? 0.75 : 1,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            height: 55,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              gradient: LinearGradient(
+                colors: [
+                  Colors.tealAccent.withOpacity(0.8),
+                  Colors.teal.withOpacity(0.8),
+                ],
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
-          ],
+            child: Row(
+              children: [
+                const Icon(Icons.search, color: Colors.white, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: searchCtrl,
+                    onChanged: filterSearch,
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                    decoration: InputDecoration(
+                      hintText: isLoading ? "Loading coaches..." : "Search coach",
+                      hintStyle: const TextStyle(color: Colors.white70),
+                      border: InputBorder.none,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -349,111 +370,284 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
       bottom: 145,
       left: 40,
       right: 40,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.75),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              "${selectedRadiusKm.toInt()} km radius",
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+      child: IgnorePointer(
+        ignoring: isLoading,
+        child: Opacity(
+          opacity: isLoading ? 0.75 : 1,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.75),
+              borderRadius: BorderRadius.circular(16),
             ),
-            SizedBox(
-              height: 26,
-              child: Slider(
-                value: selectedRadiusKm,
-                min: 1,
-                max: 50,
-                divisions: 49,
-                activeColor: Colors.tealAccent,
-                inactiveColor: Colors.grey,
-                label: "${selectedRadiusKm.toInt()} km",
-                onChanged: (value) {
-                  setState(() {
-                    selectedRadiusKm = value;
-                    addCoachMarkers();
-                  });
-                },
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  isLoading
+                      ? "Loading nearby coaches..."
+                      : "${selectedRadiusKm.toInt()} km radius",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(
+                  height: 26,
+                  child: Slider(
+                    value: selectedRadiusKm,
+                    min: 1,
+                    max: 50,
+                    divisions: 49,
+                    activeColor: Colors.tealAccent,
+                    inactiveColor: Colors.grey,
+                    label: "${selectedRadiusKm.toInt()} km",
+                    onChanged: (value) {
+                      setState(() {
+                        selectedRadiusKm = value;
+                        addCoachMarkers();
+                      });
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  // ZOOM BUTTONS (bottom right)
   Widget buildZoomButtons() {
     return Positioned(
       bottom: 40,
       right: 20,
-      child: Column(
-        children: [
-          FloatingActionButton(
-            heroTag: "zoom_in",
-            mini: true,
-            backgroundColor: Colors.teal,
-            child: const Icon(Icons.add,color: Colors.white,),
-            onPressed: () async {
-              final currentZoom = await mapController?.getZoomLevel() ?? 14.0;
-              await mapController?.animateCamera(
-                CameraUpdate.zoomTo(currentZoom + 1),
-              );
-            },
+      child: IgnorePointer(
+        ignoring: isLoading,
+        child: Opacity(
+          opacity: isLoading ? 0.75 : 1,
+          child: Column(
+            children: [
+              FloatingActionButton(
+                heroTag: "zoom_in",
+                mini: true,
+                backgroundColor: Colors.teal,
+                child: const Icon(Icons.add, color: Colors.white),
+                onPressed: () async {
+                  final currentZoom = await mapController?.getZoomLevel() ?? 14.0;
+                  await mapController?.animateCamera(
+                    CameraUpdate.zoomTo(currentZoom + 1),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              FloatingActionButton(
+                heroTag: "zoom_out",
+                mini: true,
+                backgroundColor: Colors.teal,
+                child: const Icon(Icons.remove, color: Colors.white),
+                onPressed: () async {
+                  final currentZoom = await mapController?.getZoomLevel() ?? 14.0;
+                  await mapController?.animateCamera(
+                    CameraUpdate.zoomTo(currentZoom - 1),
+                  );
+                },
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          FloatingActionButton(
-            heroTag: "zoom_out",
-            mini: true,
-            backgroundColor: Colors.teal,
-            child: const Icon(Icons.remove,color: Colors.white),
-            onPressed: () async {
-              final currentZoom = await mapController?.getZoomLevel() ?? 14.0;
-              await mapController?.animateCamera(
-                CameraUpdate.zoomTo(currentZoom - 1),
-              );
-            },
-          ),
-        ],
+        ),
       ),
+    );
+  }
+
+ Widget buildMapSkeleton() {
+  return AnimatedBuilder(
+    animation: _shimmerController,
+    builder: (context, child) {
+      final double value = _shimmerController.value;
+
+      return Container(
+        color: const Color(0xFFF8F9FB),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _MapGridPainter(),
+              ),
+            ),
+
+            Positioned(
+              top: -120,
+              left: -80 + (220 * value),
+              child: Transform.rotate(
+                angle: 0.25,
+                child: Container(
+                  width: 140,
+                  height: MediaQuery.of(context).size.height * 1.4,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        Colors.white.withOpacity(0.00),
+                        Colors.white.withOpacity(0.35),
+                        Colors.white.withOpacity(0.55),
+                        Colors.white.withOpacity(0.35),
+                        Colors.white.withOpacity(0.00),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            Positioned(
+              top: 210,
+              left: 80,
+              child: _fakeMarker(Colors.redAccent),
+            ),
+            Positioned(
+              top: 300,
+              right: 90,
+              child: _fakeMarker(Colors.redAccent),
+            ),
+            Positioned(
+              top: 430,
+              left: 150,
+              child: _fakeMarker(Colors.redAccent),
+            ),
+            Positioned(
+              top: 360,
+              left: MediaQuery.of(context).size.width / 2 - 18,
+              child: Column(
+                children: [
+                  Container(
+                    width: 110,
+                    height: 110,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.teal.withOpacity(0.08),
+                      border: Border.all(
+                        color: Colors.teal.withOpacity(0.25),
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _fakeMarker(Colors.lightBlue),
+                ],
+              ),
+            ),
+
+            Positioned(
+              bottom: 95,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.92),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.teal,
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Text(
+                        "Loading map and nearby coaches...",
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+ Widget _fakeMarker(Color color) {
+  return Column(
+    children: [
+      Container(
+        width: 18,
+        height: 18,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.20),
+              blurRadius: 8,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+      ),
+      Container(
+        width: 3,
+        height: 12,
+        color: color.withOpacity(0.75),
+      ),
+    ],
+  );
+}
+  Widget buildRealMap() {
+    return GoogleMap(
+      initialCameraPosition: CameraPosition(
+        target: userLocation!,
+        zoom: 14,
+      ),
+      onMapCreated: (controller) {
+        mapController = controller;
+      },
+      myLocationEnabled: false,
+      myLocationButtonEnabled: false,
+      zoomControlsEnabled: false,
+      mapToolbarEnabled: false,
+      compassEnabled: true,
+      markers: markers,
+      circles: circles,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading || userLocation == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: Colors.teal)),
-      );
-    }
+    final bool mapReady = !isLoading && userLocation != null;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: userLocation!,
-              zoom: 14,
-            ),
-            onMapCreated: (controller) {
-              mapController = controller;
-            },
-            myLocationEnabled: false,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            mapToolbarEnabled: false,
-            compassEnabled: true,
-            markers: markers,
-            circles: circles,
+          Positioned.fill(
+            child: mapReady ? buildRealMap() : buildMapSkeleton(),
           ),
 
           const Positioned(
@@ -466,8 +660,8 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
                   "Find a coach near you",
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 22,
-                    color: Colors.white,
+                    fontSize: 18,
+                    color: Colors.black,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -482,4 +676,97 @@ class _UserConnectCoachesState extends State<UserConnectCoaches> {
       ),
     );
   }
+}
+
+class _MapGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint roadPaint = Paint()
+      ..color = const Color(0xFFD9DEE5)
+      ..strokeWidth = 1.6
+      ..style = PaintingStyle.stroke;
+
+    final Paint roadPaint2 = Paint()
+      ..color = const Color(0xFFE9EDF2)
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    final Path p1 = Path()
+      ..moveTo(0, size.height * 0.18)
+      ..quadraticBezierTo(
+        size.width * 0.30,
+        size.height * 0.12,
+        size.width * 0.62,
+        size.height * 0.23,
+      )
+      ..quadraticBezierTo(
+        size.width * 0.82,
+        size.height * 0.29,
+        size.width,
+        size.height * 0.22,
+      );
+
+    final Path p2 = Path()
+      ..moveTo(0, size.height * 0.58)
+      ..quadraticBezierTo(
+        size.width * 0.22,
+        size.height * 0.47,
+        size.width * 0.48,
+        size.height * 0.56,
+      )
+      ..quadraticBezierTo(
+        size.width * 0.78,
+        size.height * 0.68,
+        size.width,
+        size.height * 0.60,
+      );
+
+    final Path p3 = Path()
+      ..moveTo(size.width * 0.22, 0)
+      ..quadraticBezierTo(
+        size.width * 0.28,
+        size.height * 0.25,
+        size.width * 0.18,
+        size.height * 0.52,
+      )
+      ..quadraticBezierTo(
+        size.width * 0.10,
+        size.height * 0.76,
+        size.width * 0.18,
+        size.height,
+      );
+
+    final Path p4 = Path()
+      ..moveTo(size.width * 0.78, 0)
+      ..quadraticBezierTo(
+        size.width * 0.66,
+        size.height * 0.22,
+        size.width * 0.73,
+        size.height * 0.48,
+      )
+      ..quadraticBezierTo(
+        size.width * 0.82,
+        size.height * 0.74,
+        size.width * 0.72,
+        size.height,
+      );
+
+    final Path p5 = Path()
+      ..moveTo(size.width * 0.08, size.height * 0.34)
+      ..lineTo(size.width * 0.92, size.height * 0.82);
+
+    final Path p6 = Path()
+      ..moveTo(size.width * 0.12, size.height * 0.85)
+      ..lineTo(size.width * 0.88, size.height * 0.35);
+
+    canvas.drawPath(p1, roadPaint);
+    canvas.drawPath(p2, roadPaint);
+    canvas.drawPath(p3, roadPaint);
+    canvas.drawPath(p4, roadPaint);
+    canvas.drawPath(p5, roadPaint2);
+    canvas.drawPath(p6, roadPaint2);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

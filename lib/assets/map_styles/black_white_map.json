@@ -1,0 +1,41 @@
+[
+  {
+    "elementType": "geometry",
+    "stylers": [
+      { "saturation": -100 },
+      { "lightness": 10 }
+    ]
+  },
+  {
+    "elementType": "labels.text.fill",
+    "stylers": [
+      { "saturation": -100 },
+      { "color": "#444444" }
+    ]
+  },
+  {
+    "elementType": "labels.text.stroke",
+    "stylers": [
+      { "color": "#ffffff" }
+    ]
+  },
+  {
+    "featureType": "poi",
+    "stylers": [
+      { "saturation": -100 }
+    ]
+  },
+  {
+    "featureType": "road",
+    "stylers": [
+      { "saturation": -100 }
+    ]
+  },
+  {
+    "featureType": "water",
+    "stylers": [
+      { "saturation": -100 },
+      { "lightness": 20 }
+    ]
+  }
+]
