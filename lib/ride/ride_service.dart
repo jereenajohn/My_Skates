@@ -18,6 +18,7 @@ class RideService {
         perm == LocationPermission.always;
   }
 
+
   Future<Position?> getCurrentPosition() async {
     final ok = await ensurePermission();
     if (!ok) return null;
