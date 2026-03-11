@@ -1,19 +1,11 @@
-import 'package:flutter/foundation.dart';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/add_attributes.dart';
-import 'package:my_skates/ADMIN/add_banner.dart';
-import 'package:my_skates/ADMIN/add_category.dart';
 import 'package:my_skates/ADMIN/add_chat_support_questions.dart';
-import 'package:my_skates/ADMIN/add_country.dart';
-import 'package:my_skates/ADMIN/add_coupon.dart';
-import 'package:my_skates/ADMIN/add_district.dart';
 import 'package:my_skates/ADMIN/add_product_banner.dart';
 import 'package:my_skates/ADMIN/add_skaters_type.dart';
-import 'package:my_skates/ADMIN/add_state.dart';
 import 'package:my_skates/ADMIN/add_values.dart';
 import 'package:my_skates/ADMIN/admin_change_phone_number.dart';
-import 'package:my_skates/ADMIN/admin_orders_page.dart';
-import 'package:my_skates/COACH/add_club.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,396 +17,241 @@ class MenuPage extends StatefulWidget {
 }
 
 class _MenuPageState extends State<MenuPage> {
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-  }
-
   TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
 
   Future<void> logoutUser() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Debug check before logout
-    print("Token BEFORE logout: ${prefs.getString('token')}");
-    print("ID BEFORE logout: ${prefs.getInt('id')}");
-
-    // Remove saved login data
     await prefs.remove('token');
     await prefs.remove('id');
 
-    // Debug check after logout
-    print("Token AFTER logout: ${prefs.getString('token')}");
-    print("ID AFTER logout: ${prefs.getInt('id')}");
-
-    // Snackbar message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          "Logout successfully",
-          style: TextStyle(color: Colors.white, fontSize: 16),
-        ),
-        backgroundColor: Colors.teal,
-        duration: Duration(seconds: 2),
-      ),
-    );
-
-    // Delay slightly so snackbar is visible before redirect
-    await Future.delayed(const Duration(milliseconds: 600));
-
-    // Navigate to Login Page & clear all previous screens
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(
-        builder: (_) => const Loginpage(),
-      ), // <-- your login page
+      MaterialPageRoute(builder: (_) => const Loginpage()),
       (route) => false,
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0F0F0F),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Settings and activity",
-          style: TextStyle(color: Colors.white, fontSize: 20),
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: Colors.black,
+    body: Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFF001F1D),
+            Color(0xFF003A36),
+            Colors.black,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomCenter,
         ),
       ),
+      child: SafeArea(
+        child: Column(
+          children: [
 
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 10),
+            /// HEADER (same style as dashboard)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
 
-              // Search Box
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                height: 45,
-                decoration: BoxDecoration(
-                  color: Colors.grey[900],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  style: TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: "Search",
-                    hintStyle: TextStyle(
-                      color: const Color.fromARGB(192, 255, 255, 255),
-                    ),
-                    icon: Icon(Icons.search, color: Colors.white60),
-                    border: InputBorder.none,
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back,
+                        color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
                   ),
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value.toLowerCase();
-                    });
-                  },
+
+                  const SizedBox(width: 6),
+
+                  const Text(
+                    "Admin Settings",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                ],
+              ),
+            ),
+
+            /// BODY
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+
+                    _buildSearch(),
+
+                    const SizedBox(height: 25),
+
+                    sectionTitle("Product Management"),
+
+                    sectionCard([
+                      sectionTile(
+                        icon: Icons.tune,
+                        title: "Attributes",
+                        page: const attributes(),
+                      ),
+                      sectionTile(
+                        icon: Icons.data_object,
+                        title: "Values",
+                        page: const AddValues(),
+                      ),
+                      sectionTile(
+                        icon: Icons.photo_library,
+                        title: "Product Banners",
+                        page: const AddproductBanner(),
+                      ),
+                    ]),
+
+                    const SizedBox(height: 20),
+
+                    sectionTitle("User Settings"),
+
+                    sectionCard([
+                      sectionTile(
+                        icon: Icons.sports_handball,
+                        title: "Skaters Type",
+                        page: const AddSkatersType(),
+                      ),
+                      sectionTile(
+                        icon: Icons.phone_android,
+                        title: "Change Phone Number",
+                        page: const AdminChangePhoneNumber(),
+                      ),
+                    ]),
+
+                    const SizedBox(height: 20),
+
+                    sectionTitle("Support"),
+
+                    sectionCard([
+                      sectionTile(
+                        icon: Icons.chat,
+                        title: "Chat Support Questions",
+                        page: const AddChatSupportQuestions(),
+                      ),
+                    ]),
+
+                    const SizedBox(height: 20),
+
+                    sectionTitle("System"),
+
+                    sectionCard([
+                      logoutTile(),
+                    ]),
+
+                    const SizedBox(height: 40),
+                  ],
                 ),
               ),
-
-              const SizedBox(height: 12),
-              if ("Country".toLowerCase().contains(_searchQuery))
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AddCountry(),
-                      ),
-                    );
-                  },
-
-                  child: _menuTile(
-                    icon: Icons.bookmark_outline,
-                    text: "Country",
-                  ),
-                ),
-              if ("Country".toLowerCase().contains(_searchQuery)) _divider(),
-              if ("Orders".toLowerCase().contains(_searchQuery))
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const Admin_order_page(),
-                      ),
-                    );
-                  },
-                  child: _menuTile(
-                    icon: Icons.bookmark_outline,
-                    text: "Orders",
-                  ),
-                ),
-              if ("Orders".toLowerCase().contains(_searchQuery)) _divider(),
-              if ("State".toLowerCase().contains(_searchQuery))
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const state()),
-                    );
-                  },
-                  child: _menuTile(icon: Icons.bookmark_outline, text: "State"),
-                ),
-              if ("State".toLowerCase().contains(_searchQuery)) _divider(),
-
-              if ("District".toLowerCase().contains(_searchQuery))
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const district()),
-                    );
-                  },
-                  child: _menuTile(icon: Icons.history, text: "District"),
-                ),
-              if ("District".toLowerCase().contains(_searchQuery)) _divider(),
-
-              if ("SkatersType".toLowerCase().contains(_searchQuery))
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AddSkatersType(),
-                      ),
-                    );
-                  },
-                  child: _menuTile(
-                    icon: Icons.bookmark_outline,
-                    text: "Skaters Type",
-                  ),
-                ),
-              if ("Skaters Type".toLowerCase().contains(_searchQuery))
-                _divider(),
-
-              if ("Category".toLowerCase().contains(_searchQuery))
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AddCategory(),
-                      ),
-                    );
-                  },
-                  child: _menuTile(icon: Icons.history, text: "Category"),
-                ),
-              if ("Category".toLowerCase().contains(_searchQuery)) _divider(),
-
-              if ("Attributes".toLowerCase().contains(_searchQuery))
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const attributes(),
-                      ),
-                    );
-                  },
-                  child: _menuTile(icon: Icons.history, text: "Attributes"),
-                ),
-              if ("Attributes".toLowerCase().contains(_searchQuery)) _divider(),
-
-              if ("Values".toLowerCase().contains(_searchQuery))
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AddValues(),
-                      ),
-                    );
-                  },
-                  child: _menuTile(icon: Icons.history, text: "values"),
-                ),
-              if ("Values".toLowerCase().contains(_searchQuery)) _divider(),
-
-              if ("Add Coupon".toLowerCase().contains(_searchQuery))
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AddCoupon(),
-                      ),
-                    );
-                  },
-                  child: _menuTile(
-                    icon: Icons.show_chart_outlined,
-                    text: "Add Coupon",
-                  ),
-                ),
-              if ("Add Coupon".toLowerCase().contains(_searchQuery)) _divider(),
-
-              if ("Add Banners".toLowerCase().contains(_searchQuery))
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AddBanner(),
-                      ),
-                    );
-                  },
-                  child: _menuTile(
-                    icon: Icons.notifications_outlined,
-                    text: "Add Banners",
-                  ),
-                ),
-              if ("Add Banners".toLowerCase().contains(_searchQuery))
-                _divider(),
-
-              if ("Product Banners".toLowerCase().contains(_searchQuery))
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AddproductBanner(),
-                      ),
-                    );
-                  },
-                  child: _menuTile(
-                    icon: Icons.notifications_outlined,
-                    text: "Product Banners",
-                  ),
-                ),
-              if ("Product Banners".toLowerCase().contains(_searchQuery))
-                _divider(),
-
-              // _menuTile(icon: Icons.access_time, text: "Time management"),
-              // _divider(),
-              _menuTile(
-                icon: Icons.phone_android_outlined,
-                text: "Change phone number",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AdminChangePhoneNumber(),
-                    ),
-                  );
-                },
-              ),
-              if ("Change phone number".toLowerCase().contains(_searchQuery))
-                _divider(),
-
-              _menuTile(
-                icon: Icons.chat_bubble_outline,
-                text: "Chat support Questions",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AddChatSupportQuestions(),
-                    ),
-                  );
-                },
-              ),
-
-              if ("Chat support Questions".toLowerCase().contains(_searchQuery))
-                _divider(),
-              if ("Logout".toLowerCase().contains(_searchQuery))
-                _menuTile(
-                  icon: Icons.lock_outline,
-                  text: "Logout",
-                  onTap: logoutUser,
-                ),
-
-              const SizedBox(height: 25),
-
-              // SECTION: WHO CAN SEE YOUR CONTENT
-              // const Text(
-              //   "Who can see your content",
-              //   style: TextStyle(
-              //     color: Colors.white70,
-              //     fontSize: 15,
-              //     fontWeight: FontWeight.bold,
-              //   ),
-              // ),
-
-              // const SizedBox(height: 12),
-              // _menuTile(
-              //   icon: Icons.lock_outline,
-              //   text: "Account privacy",
-              //   trailingText: "Private",
-              // ),
-              // _divider(),
-              // _menuTile(icon: Icons.star_outline, text: "Close Friends"),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
+    ),
+  );
+}
+
+  Widget _buildSearch() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      height: 48,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: const TextStyle(color: Colors.white),
+        decoration: const InputDecoration(
+          hintText: "Search settings",
+          hintStyle: TextStyle(color: Colors.white60),
+          icon: Icon(Icons.search, color: Colors.tealAccent),
+          border: InputBorder.none,
+        ),
+        onChanged: (value) {
+          setState(() {
+            _searchQuery = value.toLowerCase();
+          });
+        },
       ),
     );
   }
 
-  // MENU TILE WIDGET
-  Widget _menuTile({
-    required IconData icon,
-    required String text,
-    String? subtitle,
-    String? trailingText,
-    VoidCallback? onTap,
-  }) {
-    return Column(
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(icon, color: Colors.white, size: 26),
-          title: Text(
-            text,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-          ),
-
-          subtitle: subtitle != null
-              ? Text(
-                  subtitle,
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
-                )
-              : null,
-
-          onTap: onTap,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (trailingText != null)
-                Text(
-                  trailingText,
-                  style: const TextStyle(color: Colors.white54, fontSize: 14),
-                ),
-              const SizedBox(width: 5),
-              const Icon(
-                Icons.arrow_forward_ios,
-                color: Colors.white38,
-                size: 16,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // DIVIDER
-  Widget _divider() {
+  Widget sectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 50),
-      child: Divider(color: Colors.grey[800], thickness: 0.6),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(
+        title,
+        style: const TextStyle(
+          color: Colors.white70,
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1,
+        ),
+      ),
+    );
+  }
+
+  Widget sectionCard(List<Widget> children) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget sectionTile({
+    required IconData icon,
+    required String title,
+    required Widget page,
+  }) {
+    return ListTile(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+      },
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF00AFA5),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: Colors.white),
+      ),
+      title: Text(title, style: const TextStyle(color: Colors.white)),
+      trailing: const Icon(
+        Icons.arrow_forward_ios,
+        color: Colors.white38,
+        size: 16,
+      ),
+    );
+  }
+
+  Widget logoutTile() {
+    return ListTile(
+      onTap: logoutUser,
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.redAccent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(Icons.logout, color: Colors.white),
+      ),
+      title: const Text("Logout", style: TextStyle(color: Colors.white)),
     );
   }
 }
