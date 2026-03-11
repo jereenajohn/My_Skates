@@ -152,7 +152,8 @@ class _UserConnectCoachesState extends State<UserConnectCoaches>
             markerId: MarkerId("coach_${coach["id"]}"),
             position: coachPos,
             infoWindow: InfoWindow(
-              title: "${coach['first_name']} ${coach['last_name'] ?? ''}".trim(),
+              title: "${coach['first_name']} ${coach['last_name'] ?? ''}"
+                  .trim(),
               snippet: "${km.toStringAsFixed(2)} km away",
             ),
             icon: BitmapDescriptor.defaultMarkerWithHue(
@@ -169,9 +170,7 @@ class _UserConnectCoachesState extends State<UserConnectCoaches>
         markerId: const MarkerId("user_location"),
         position: userLocation!,
         infoWindow: const InfoWindow(title: "You"),
-        icon: BitmapDescriptor.defaultMarkerWithHue(
-          BitmapDescriptor.hueAzure,
-        ),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
       ),
     );
 
@@ -207,9 +206,7 @@ class _UserConnectCoachesState extends State<UserConnectCoaches>
     final LatLng target = LatLng(lat, lng);
 
     await mapController?.animateCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(target: target, zoom: 16),
-      ),
+      CameraUpdate.newCameraPosition(CameraPosition(target: target, zoom: 16)),
     );
 
     final double km = userLocation != null
@@ -223,9 +220,7 @@ class _UserConnectCoachesState extends State<UserConnectCoaches>
         infoWindow: InfoWindow(
           title: "${coach["first_name"]} ${coach["last_name"] ?? ""}".trim(),
         ),
-        icon: BitmapDescriptor.defaultMarkerWithHue(
-          BitmapDescriptor.hueRed,
-        ),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
         onTap: () => showCoachBottomSheet(coach, km),
       ),
       if (userLocation != null)
@@ -300,10 +295,7 @@ class _UserConnectCoachesState extends State<UserConnectCoaches>
               ),
               Text(
                 "${km.toStringAsFixed(2)} km away",
-                style: const TextStyle(
-                  color: Colors.tealAccent,
-                  fontSize: 16,
-                ),
+                style: const TextStyle(color: Colors.tealAccent, fontSize: 16),
               ),
               const SizedBox(height: 35),
             ],
@@ -351,7 +343,9 @@ class _UserConnectCoachesState extends State<UserConnectCoaches>
                     onChanged: filterSearch,
                     style: const TextStyle(color: Colors.white, fontSize: 18),
                     decoration: InputDecoration(
-                      hintText: isLoading ? "Loading coaches..." : "Search coach",
+                      hintText: isLoading
+                          ? "Loading coaches..."
+                          : "Search coach",
                       hintStyle: const TextStyle(color: Colors.white70),
                       border: InputBorder.none,
                     ),
@@ -435,7 +429,8 @@ class _UserConnectCoachesState extends State<UserConnectCoaches>
                 backgroundColor: Colors.teal,
                 child: const Icon(Icons.add, color: Colors.white),
                 onPressed: () async {
-                  final currentZoom = await mapController?.getZoomLevel() ?? 14.0;
+                  final currentZoom =
+                      await mapController?.getZoomLevel() ?? 14.0;
                   await mapController?.animateCamera(
                     CameraUpdate.zoomTo(currentZoom + 1),
                   );
@@ -448,7 +443,8 @@ class _UserConnectCoachesState extends State<UserConnectCoaches>
                 backgroundColor: Colors.teal,
                 child: const Icon(Icons.remove, color: Colors.white),
                 onPressed: () async {
-                  final currentZoom = await mapController?.getZoomLevel() ?? 14.0;
+                  final currentZoom =
+                      await mapController?.getZoomLevel() ?? 14.0;
                   await mapController?.animateCamera(
                     CameraUpdate.zoomTo(currentZoom - 1),
                   );
@@ -461,170 +457,160 @@ class _UserConnectCoachesState extends State<UserConnectCoaches>
     );
   }
 
- Widget buildMapSkeleton() {
-  return AnimatedBuilder(
-    animation: _shimmerController,
-    builder: (context, child) {
-      final double value = _shimmerController.value;
+  Widget buildMapSkeleton() {
+    return AnimatedBuilder(
+      animation: _shimmerController,
+      builder: (context, child) {
+        final double value = _shimmerController.value;
 
-      return Container(
-        color: const Color(0xFFF8F9FB),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _MapGridPainter(),
+        return Container(
+          color: const Color(0xFFF8F9FB),
+          child: Stack(
+            children: [
+              Positioned.fill(child: CustomPaint(painter: _MapGridPainter())),
+
+              Positioned(
+                top: -120,
+                left: -80 + (220 * value),
+                child: Transform.rotate(
+                  angle: 0.25,
+                  child: Container(
+                    width: 140,
+                    height: MediaQuery.of(context).size.height * 1.4,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          Colors.white.withOpacity(0.00),
+                          Colors.white.withOpacity(0.35),
+                          Colors.white.withOpacity(0.55),
+                          Colors.white.withOpacity(0.35),
+                          Colors.white.withOpacity(0.00),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
 
-            Positioned(
-              top: -120,
-              left: -80 + (220 * value),
-              child: Transform.rotate(
-                angle: 0.25,
-                child: Container(
-                  width: 140,
-                  height: MediaQuery.of(context).size.height * 1.4,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        Colors.white.withOpacity(0.00),
-                        Colors.white.withOpacity(0.35),
-                        Colors.white.withOpacity(0.55),
-                        Colors.white.withOpacity(0.35),
-                        Colors.white.withOpacity(0.00),
+              Positioned(
+                top: 210,
+                left: 80,
+                child: _fakeMarker(Colors.redAccent),
+              ),
+              Positioned(
+                top: 300,
+                right: 90,
+                child: _fakeMarker(Colors.redAccent),
+              ),
+              Positioned(
+                top: 430,
+                left: 150,
+                child: _fakeMarker(Colors.redAccent),
+              ),
+              Positioned(
+                top: 360,
+                left: MediaQuery.of(context).size.width / 2 - 18,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 110,
+                      height: 110,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.teal.withOpacity(0.08),
+                        border: Border.all(
+                          color: Colors.teal.withOpacity(0.25),
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _fakeMarker(Colors.lightBlue),
+                  ],
+                ),
+              ),
+
+              Positioned(
+                bottom: 95,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.92),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.teal,
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          "Loading map and nearby coaches...",
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
-            Positioned(
-              top: 210,
-              left: 80,
-              child: _fakeMarker(Colors.redAccent),
-            ),
-            Positioned(
-              top: 300,
-              right: 90,
-              child: _fakeMarker(Colors.redAccent),
-            ),
-            Positioned(
-              top: 430,
-              left: 150,
-              child: _fakeMarker(Colors.redAccent),
-            ),
-            Positioned(
-              top: 360,
-              left: MediaQuery.of(context).size.width / 2 - 18,
-              child: Column(
-                children: [
-                  Container(
-                    width: 110,
-                    height: 110,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.teal.withOpacity(0.08),
-                      border: Border.all(
-                        color: Colors.teal.withOpacity(0.25),
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _fakeMarker(Colors.lightBlue),
-                ],
+  Widget _fakeMarker(Color color) {
+    return Column(
+      children: [
+        Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.20),
+                blurRadius: 8,
+                spreadRadius: 1,
               ),
-            ),
-
-            Positioned(
-              bottom: 95,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.92),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.teal,
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        "Loading map and nearby coaches...",
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      );
-    },
-  );
-}
+        Container(width: 3, height: 12, color: color.withOpacity(0.75)),
+      ],
+    );
+  }
 
- Widget _fakeMarker(Color color) {
-  return Column(
-    children: [
-      Container(
-        width: 18,
-        height: 18,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.20),
-              blurRadius: 8,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
-      ),
-      Container(
-        width: 3,
-        height: 12,
-        color: color.withOpacity(0.75),
-      ),
-    ],
-  );
-}
   Widget buildRealMap() {
     return GoogleMap(
-      initialCameraPosition: CameraPosition(
-        target: userLocation!,
-        zoom: 14,
-      ),
+      initialCameraPosition: CameraPosition(target: userLocation!, zoom: 14),
       onMapCreated: (controller) {
         mapController = controller;
       },
