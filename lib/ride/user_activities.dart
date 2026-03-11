@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/STUDENTS/bottomnavigation_student.dart';
 import 'package:my_skates/api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
@@ -20,6 +21,9 @@ class _UserActivitiesState extends State<UserActivities>
   bool isRefreshingData = false;
   bool isLoadingMore = false;
 
+  double totalDistanceKm = 0;
+  bool hasDistanceBadge = false;
+
   List<Map<String, dynamic>> activities = [];
   String? errorMessage;
 
@@ -29,6 +33,8 @@ class _UserActivitiesState extends State<UserActivities>
   String? previousPageUrl;
   bool hasMore = true;
 
+  String userName = "";
+
   final ScrollController _scrollController = ScrollController();
   final String apiUrl = "$api/api/myskates/user/activities/";
 
@@ -37,7 +43,7 @@ class _UserActivitiesState extends State<UserActivities>
   static const Color softCardColor = Color(0xFF10252E);
   static const Color accentColor = Color(0xFF1FC8B4);
   static const Color textPrimary = Colors.white;
-  static const Color textSecondary = Color(0xFFB7C9CF);
+  static const Color textSecondary = Color(0xFF94A3B8);
 
   late final AnimationController _shimmerController;
 
@@ -51,8 +57,8 @@ class _UserActivitiesState extends State<UserActivities>
     )..repeat();
 
     _scrollController.addListener(_onScroll);
-
     getActivities(initial: true, refresh: true);
+    getActivityStats();
   }
 
   @override
@@ -69,51 +75,51 @@ class _UserActivitiesState extends State<UserActivities>
   bool isTablet(BuildContext context) => sw(context) >= 700;
 
   double responsiveHorizontalPadding(BuildContext context) {
-    if (isTablet(context)) return 28;
+    if (isTablet(context)) return 32;
     if (isSmallPhone(context)) return 12;
-    return 16;
+    return 20;
   }
 
   double responsiveCardRadius(BuildContext context) {
-    if (isTablet(context)) return 30;
-    if (isSmallPhone(context)) return 20;
-    return 26;
+    if (isTablet(context)) return 32;
+    if (isSmallPhone(context)) return 22;
+    return 24;
   }
 
   double responsiveMapHeight(BuildContext context) {
-    if (isTablet(context)) return 260;
-    if (isSmallPhone(context)) return 170;
-    return 190;
+    if (isTablet(context)) return 280;
+    if (isSmallPhone(context)) return 180;
+    return 200;
   }
 
   double responsiveAvatarSize(BuildContext context) {
-    if (isTablet(context)) return 68;
-    if (isSmallPhone(context)) return 50;
-    return 58;
+    if (isTablet(context)) return 56;
+    if (isSmallPhone(context)) return 42;
+    return 48;
   }
 
   double responsiveTitleFont(BuildContext context) {
-    if (isTablet(context)) return 24;
+    if (isTablet(context)) return 22;
     if (isSmallPhone(context)) return 18;
     return 20;
   }
 
   double responsiveNameFont(BuildContext context) {
-    if (isTablet(context)) return 24;
-    if (isSmallPhone(context)) return 18;
-    return 22;
+    if (isTablet(context)) return 20;
+    if (isSmallPhone(context)) return 16;
+    return 18;
   }
 
   double responsiveBodyFont(BuildContext context) {
-    if (isTablet(context)) return 15;
+    if (isTablet(context)) return 16;
     if (isSmallPhone(context)) return 13;
     return 14;
   }
 
   double responsiveHeaderFont(BuildContext context) {
-    if (isTablet(context)) return 26;
-    if (isSmallPhone(context)) return 20;
-    return 22;
+    if (isTablet(context)) return 28;
+    if (isSmallPhone(context)) return 22;
+    return 24;
   }
 
   void _onScroll() {
@@ -169,6 +175,13 @@ class _UserActivitiesState extends State<UserActivities>
 
       if (response.statusCode == 200) {
         final parsed = jsonDecode(response.body);
+
+        if (parsed["data"] is Map) {
+          final stats = parsed["data"];
+          totalDistanceKm =
+              double.tryParse(stats["total_distance_km"].toString()) ?? 0;
+          hasDistanceBadge = totalDistanceKm >= 0.2;
+        }
 
         List rawList = [];
 
@@ -241,6 +254,41 @@ class _UserActivitiesState extends State<UserActivities>
     }
   }
 
+  Future<void> getActivityStats() async {
+    try {
+      final token = await getTokenFromPrefs();
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/activity/stats/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+      final parsed = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && parsed["data"] != null) {
+        final stats = parsed["data"];
+
+        setState(() {
+          totalDistanceKm =
+              double.tryParse(stats["total_distance_km"].toString()) ?? 0;
+          hasDistanceBadge = totalDistanceKm >= 0.2;
+          userName =
+              "${stats["user_first_name"] ?? ""} ${stats["user_last_name"]}"
+                  .trim();
+        });
+
+        print("TOTAL KM: $totalDistanceKm");
+        print("BADGE: $hasDistanceBadge");
+      } else {
+        print("Failed to fetch stats: ${response.body}");
+      }
+    } catch (e) {
+      print("STATS ERROR: $e");
+    }
+  }
+
   String? normalizePaginationUrl(dynamic rawUrl) {
     if (rawUrl == null) return null;
 
@@ -256,8 +304,9 @@ class _UserActivitiesState extends State<UserActivities>
         host: baseUri.host,
         port: baseUri.hasPort ? baseUri.port : null,
         path: rawUri.path,
-        queryParameters:
-            rawUri.queryParameters.isEmpty ? null : rawUri.queryParameters,
+        queryParameters: rawUri.queryParameters.isEmpty
+            ? null
+            : rawUri.queryParameters,
       );
 
       return fixedUri.toString();
@@ -298,7 +347,7 @@ class _UserActivitiesState extends State<UserActivities>
     final s = total % 60;
 
     if (h > 0) {
-      return "${h}h ${m}m ${s}s";
+      return "${h}h ${m}m";
     } else if (m > 0) {
       return "${m}m ${s}s";
     } else {
@@ -308,12 +357,15 @@ class _UserActivitiesState extends State<UserActivities>
 
   String formatDistance(dynamic km) {
     final double value = double.tryParse("${km ?? 0}") ?? 0.0;
+    if (value < 0.1) {
+      return "${(value * 1000).toStringAsFixed(0)} m";
+    }
     return "${value.toStringAsFixed(2)} km";
   }
 
   String formatSpeed(dynamic kmh) {
     final double value = double.tryParse("${kmh ?? 0}") ?? 0.0;
-    return value.toStringAsFixed(2);
+    return value.toStringAsFixed(1);
   }
 
   IconData getSportIcon(String? sportKey) {
@@ -394,10 +446,24 @@ class _UserActivitiesState extends State<UserActivities>
           color: softCardColor,
           borderRadius: BorderRadius.circular(18),
         ),
-        child: const Center(
-          child: Text(
-            "No route data available",
-            style: TextStyle(color: textSecondary, fontSize: 14),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.map_outlined,
+                size: 32,
+                color: textSecondary.withOpacity(0.5),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "No route data",
+                style: TextStyle(
+                  color: textSecondary.withOpacity(0.7),
+                  fontSize: 14,
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -417,11 +483,13 @@ class _UserActivitiesState extends State<UserActivities>
         markerId: MarkerId("start_${activity["id"]}"),
         position: points.first,
         infoWindow: const InfoWindow(title: "Start"),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
       ),
       Marker(
         markerId: MarkerId("end_${activity["id"]}"),
         position: points.last,
         infoWindow: const InfoWindow(title: "End"),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
       ),
     };
 
@@ -429,24 +497,61 @@ class _UserActivitiesState extends State<UserActivities>
       height: mapHeight,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
-        child: GoogleMap(
-          initialCameraPosition: getInitialCamera(activity),
-          myLocationButtonEnabled: false,
-          zoomControlsEnabled: false,
-          mapToolbarEnabled: false,
-          compassEnabled: false,
-          rotateGesturesEnabled: false,
-          tiltGesturesEnabled: false,
-          polylines: polylines,
-          markers: markers,
-          onMapCreated: (GoogleMapController controller) async {
-            if (points.length > 1) {
-              await Future.delayed(const Duration(milliseconds: 250));
-              controller.animateCamera(
-                CameraUpdate.newLatLngBounds(boundsFromLatLngList(points), 40),
-              );
-            }
-          },
+        child: Stack(
+          children: [
+            GoogleMap(
+              initialCameraPosition: getInitialCamera(activity),
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              mapToolbarEnabled: false,
+              compassEnabled: false,
+              rotateGesturesEnabled: false,
+              tiltGesturesEnabled: false,
+              polylines: polylines,
+              markers: markers,
+              onMapCreated: (GoogleMapController controller) async {
+                if (points.length > 1) {
+                  await Future.delayed(const Duration(milliseconds: 250));
+                  controller.animateCamera(
+                    CameraUpdate.newLatLngBounds(
+                      boundsFromLatLngList(points),
+                      40,
+                    ),
+                  );
+                }
+              },
+            ),
+            Positioned(
+              top: 12,
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.terrain_rounded, size: 14, color: accentColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      "${points.length} points",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -455,212 +560,265 @@ class _UserActivitiesState extends State<UserActivities>
   Widget buildTopHeader() {
     final hPad = responsiveHorizontalPadding(context);
     final headerFont = responsiveHeaderFont(context);
-    final tabFont = isTablet(context)
-        ? 18.0
-        : (isSmallPhone(context) ? 14.0 : 16.0);
 
     return Container(
-      padding: EdgeInsets.fromLTRB(hPad, 10, hPad, 8),
+      padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 16),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1),
+        ),
+      ),
       child: Column(
         children: [
           Row(
             children: [
+              // Profile avatar
               Container(
-                height: isTablet(context) ? 46 : 42,
-                width: isTablet(context) ? 46 : 42,
+                height: 50,
+                width: 50,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(.06),
-                  border: Border.all(color: Colors.white.withOpacity(.06)),
+                  gradient: LinearGradient(
+                    colors: [accentColor.withOpacity(0.2), accentColor],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(
+                    color: accentColor.withOpacity(0.3),
+                    width: 2,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  color: Colors.white70,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  "You",
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: textPrimary,
-                    fontSize: headerFont,
-                    fontWeight: FontWeight.w700,
+                child: Center(
+                  child: Text(
+                    userName.isNotEmpty ? userName[0].toUpperCase() : "U",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
+              // User name and badge
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          userName.isNotEmpty ? userName : "You",
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontSize: headerFont,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (hasDistanceBadge) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withOpacity(0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.emoji_events,
+                              color: Colors.amber,
+                              size: 16,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: accentColor.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.straighten_rounded,
+                                size: 14,
+                                color: accentColor,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                "${totalDistanceKm.toStringAsFixed(2)} km total",
+                                style: TextStyle(
+                                  color: accentColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // if (hasDistanceBadge) ...[
+                        //   const SizedBox(width: 8),
+                        //   Container(
+                        //     padding: const EdgeInsets.all(4),
+                        //     decoration: BoxDecoration(
+                        //       color: Colors.amber.withOpacity(0.15),
+                        //       shape: BoxShape.circle,
+                        //     ),
+                        //     child: const Icon(
+                        //       Icons.emoji_events,
+                        //       color: Colors.amber,
+                        //       size: 16,
+                        //     ),
+                        //   ),
+                        // ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Action icons
               Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _headerIcon(Icons.add_rounded),
+                  _buildActionIcon(Icons.add_rounded),
                   const SizedBox(width: 8),
-                  _headerIcon(Icons.settings_outlined),
+                  _buildActionIcon(Icons.settings),
                 ],
               ),
             ],
           ),
-          SizedBox(height: isTablet(context) ? 28 : 24),
+          const SizedBox(height: 20),
+          // Tab indicator
           Row(
             children: [
               Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      "Progress",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: accentColor, width: 3),
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      "Activities",
                       style: TextStyle(
-                        color: Colors.white.withOpacity(.72),
-                        fontSize: tabFont,
+                        color: textPrimary,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Container(height: 3, color: Colors.transparent),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      "Activities",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: textPrimary,
-                        fontSize: tabFont,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Container(
-                      height: 3,
-                      margin: EdgeInsets.symmetric(
-                        horizontal: isSmallPhone(context) ? 8 : 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: accentColor,
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: accentColor.withOpacity(.35),
-                            blurRadius: 10,
-                            spreadRadius: 1,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
+          // Activity count
           if (activities.isNotEmpty)
-            Text(
-              "${activities.length} / $totalCount activities",
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: textSecondary,
-                fontSize: isTablet(context) ? 15 : 14,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Recent activities",
+                  style: TextStyle(
+                    color: textSecondary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: softCardColor,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    "${activities.length} of $totalCount",
+                    style: TextStyle(
+                      color: textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
         ],
       ),
     );
   }
 
-  Widget _headerIcon(IconData icon) {
-    final size = isTablet(context)
-        ? 42.0
-        : (isSmallPhone(context) ? 34.0 : 38.0);
-    final iconSize = isTablet(context)
-        ? 22.0
-        : (isSmallPhone(context) ? 18.0 : 20.0);
-
+  Widget _buildActionIcon(IconData icon) {
     return Container(
-      height: size,
-      width: size,
+      height: 42,
+      width: 42,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white.withOpacity(.04),
-        border: Border.all(color: Colors.white.withOpacity(.08)),
+        color: Colors.white.withOpacity(0.03),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
-      child: Icon(icon, color: Colors.white, size: iconSize),
+      child: Icon(icon, color: Colors.white.withOpacity(0.8), size: 20),
     );
   }
 
   Widget buildStatTile(String title, String value, IconData icon) {
-    final titleFont = isTablet(context)
-        ? 13.0
-        : (isSmallPhone(context) ? 11.0 : 12.0);
-    final valueFont = isTablet(context)
-        ? 17.0
-        : (isSmallPhone(context) ? 14.0 : 16.0);
-
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: isSmallPhone(context) ? 10 : 12,
-        vertical: isSmallPhone(context) ? 12 : 14,
-      ),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: softCardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(.04)),
+        border: Border.all(color: Colors.white.withOpacity(0.03)),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            height: isSmallPhone(context) ? 30 : 34,
-            width: isSmallPhone(context) ? 30 : 34,
-            decoration: BoxDecoration(
-              color: accentColor.withOpacity(.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              size: isSmallPhone(context) ? 16 : 18,
-              color: accentColor,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 14, color: accentColor),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
                   title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: textSecondary,
-                    fontSize: titleFont,
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  value,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: textPrimary,
-                    fontSize: valueFont,
-                    fontWeight: FontWeight.w700,
-                    height: 1.2,
-                  ),
                 ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: TextStyle(
+              color: textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -678,36 +836,45 @@ class _UserActivitiesState extends State<UserActivities>
     final maxSpeed = formatSpeed(activity["max_speed_kmh"]);
     final description = (activity["description"] ?? "").toString().trim();
 
+    final List appreciations = activity["appreciations"] ?? [];
+
+    String appreciationTitle = "";
+    String badgeKey = "";
+
+    if (appreciations.isNotEmpty) {
+      appreciationTitle = appreciations[0]["title"] ?? "";
+      badgeKey = appreciations[0]["badge_key"] ?? "";
+    }
+
     final radius = responsiveCardRadius(context);
     final avatarSize = responsiveAvatarSize(context);
     final titleFont = responsiveTitleFont(context);
-    final nameFont = responsiveNameFont(context);
     final bodyFont = responsiveBodyFont(context);
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutCubic,
       builder: (context, value, child) {
         return Opacity(
           opacity: value,
           child: Transform.translate(
-            offset: Offset(0, 14 * (1 - value)),
+            offset: Offset(0, 20 * (1 - value)),
             child: child,
           ),
         );
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 20),
-        padding: EdgeInsets.all(isTablet(context) ? 20 : 16),
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: Colors.white.withOpacity(.05)),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(.22),
-              blurRadius: 22,
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 20,
+              spreadRadius: 0,
               offset: const Offset(0, 10),
             ),
           ],
@@ -715,110 +882,222 @@ class _UserActivitiesState extends State<UserActivities>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: avatarSize,
-                  width: avatarSize,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(.08),
-                  ),
-                  child: Center(
-                    child: Text(
-                      userName.isNotEmpty ? userName[0].toUpperCase() : "U",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: isTablet(context)
-                            ? 30
-                            : (isSmallPhone(context) ? 22 : 28),
-                        fontWeight: FontWeight.w700,
+            // Header section
+            Padding(
+              padding: EdgeInsets.all(isTablet(context) ? 20 : 16),
+              child: Row(
+                children: [
+                  // Avatar
+                  Container(
+                    height: avatarSize,
+                    width: avatarSize,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [
+                          accentColor.withOpacity(0.2),
+                          accentColor.withOpacity(0.1),
+                        ],
                       ),
                     ),
-                  ),
-                ),
-                SizedBox(width: isSmallPhone(context) ? 10 : 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        userName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    child: Center(
+                      child: Text(
+                        userName.isNotEmpty ? userName[0].toUpperCase() : "U",
                         style: TextStyle(
-                          color: textPrimary,
-                          fontSize: nameFont,
+                          color: Colors.white,
+                          fontSize: avatarSize * 0.45,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "$date • $sport",
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: textSecondary,
-                          fontSize: bodyFont,
-                          fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  // User info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          userName,
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontSize: responsiveNameFont(context),
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              getSportIcon(sport),
+                              size: 14,
+                              color: accentColor,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                date,
+                                style: TextStyle(
+                                  color: textSecondary,
+                                  fontSize: bodyFont - 1,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Sport tag
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: accentColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      sport.toUpperCase(),
+                      style: TextStyle(
+                        color: accentColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Title and description
+            if (title.isNotEmpty ||
+                description.isNotEmpty ||
+                appreciations.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet(context) ? 20 : 16,
+                  vertical: 12,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    /// TITLE + DESCRIPTION
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (title.isNotEmpty)
+                            Text(
+                              title,
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontSize: titleFont,
+                                fontWeight: FontWeight.w800,
+                                height: 1.3,
+                              ),
+                            ),
+
+                          if (description.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              description,
+                              style: TextStyle(
+                                color: textSecondary,
+                                fontSize: bodyFont,
+                                height: 1.4,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    /// BADGE
+                    if (appreciations.isNotEmpty) ...[
+                      const SizedBox(width: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.amber.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.emoji_events,
+                              color: Colors.amber,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              appreciationTitle,
+                              style: const TextStyle(
+                                color: Colors.amber,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: isTablet(context) ? 24 : 20),
-            Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: textPrimary,
-                fontSize: titleFont,
-                fontWeight: FontWeight.w800,
-                height: 1.2,
-              ),
-            ),
-            if (description.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(isTablet(context) ? 16 : 14),
-                decoration: BoxDecoration(
-                  color: softCardColor,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  description,
-                  style: TextStyle(
-                    color: textSecondary,
-                    fontSize: bodyFont,
-                    height: 1.4,
-                  ),
+                  ],
                 ),
               ),
-            ],
-            const SizedBox(height: 18),
-            GridView.count(
-              shrinkWrap: true,
-              crossAxisCount: isTablet(context) ? 4 : 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: isTablet(context)
-                  ? 1.6
-                  : (isSmallPhone(context) ? 1.25 : 1.45),
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                buildStatTile("Distance", distance, Icons.route_rounded),
-                buildStatTile("Avg km/h", avgSpeed, Icons.speed_rounded),
-                buildStatTile("Time", duration, Icons.timer_outlined),
-                buildStatTile("Max km/h", maxSpeed, Icons.bolt_rounded),
-              ],
+
+            // Stats grid
+            Padding(
+              padding: EdgeInsets.all(isTablet(context) ? 20 : 16),
+              child: GridView.count(
+                shrinkWrap: true,
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.55,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  buildStatTile("Distance", distance, Icons.route_rounded),
+                  buildStatTile("Duration", duration, Icons.timer_outlined),
+                  buildStatTile(
+                    "Avg Speed",
+                    "$avgSpeed km/h",
+                    Icons.speed_rounded,
+                  ),
+                  buildStatTile(
+                    "Max Speed",
+                    "$maxSpeed km/h",
+                    Icons.bolt_rounded,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 18),
-            buildMapPreview(activity),
+
+            // Map preview
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                isTablet(context) ? 20 : 16,
+                0,
+                isTablet(context) ? 20 : 16,
+                isTablet(context) ? 20 : 16,
+              ),
+              child: buildMapPreview(activity),
+            ),
           ],
         ),
       ),
@@ -882,56 +1161,47 @@ class _UserActivitiesState extends State<UserActivities>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _skeletonBox(height: 20, width: 120, radius: 8),
+                    _skeletonBox(height: 20, width: 150, radius: 8),
                     const SizedBox(height: 10),
-                    _skeletonBox(height: 14, width: 190, radius: 8),
-                    const SizedBox(height: 10),
-                    _skeletonBox(height: 14, width: 220, radius: 8),
+                    _skeletonBox(height: 14, width: 200, radius: 8),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 22),
-          _skeletonBox(height: 28, width: 180, radius: 8),
-          const SizedBox(height: 18),
+          const SizedBox(height: 20),
+          _skeletonBox(height: 24, width: 180, radius: 8),
+          const SizedBox(height: 16),
+          _skeletonBox(height: 40, width: double.infinity, radius: 12),
+          const SizedBox(height: 20),
           GridView.count(
             shrinkWrap: true,
-            crossAxisCount: isTablet(context) ? 4 : 2,
+            crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: isTablet(context)
-                ? 1.6
-                : (isSmallPhone(context) ? 1.25 : 1.45),
+            childAspectRatio: 1.8,
             physics: const NeverScrollableScrollPhysics(),
             children: List.generate(
               4,
-              (index) => _skeletonBox(height: 82, radius: 16),
+              (index) => _skeletonBox(height: 70, radius: 12),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 20),
           _skeletonBox(height: mapHeight, radius: 18),
         ],
       ),
     );
   }
 
-  Widget buildSkeletonList({int count = 4}) {
+  Widget buildSkeletonList({int count = 3}) {
     final hPad = responsiveHorizontalPadding(context);
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: isTablet(context) ? 820 : double.infinity,
-        ),
-        child: ListView.builder(
-          controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 24),
-          itemCount: count,
-          itemBuilder: (context, index) => buildSkeletonCard(),
-        ),
-      ),
+    return ListView.builder(
+      controller: _scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 24),
+      itemCount: count,
+      itemBuilder: (context, index) => buildSkeletonCard(),
     );
   }
 
@@ -942,33 +1212,30 @@ class _UserActivitiesState extends State<UserActivities>
       padding: const EdgeInsets.only(top: 4, bottom: 24),
       child: Center(
         child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: isSmallPhone(context) ? 12 : 14,
-            vertical: 10,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: BoxDecoration(
             color: softCardColor,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withOpacity(.05)),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: Colors.white.withOpacity(0.05)),
           ),
-          child: Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(
-                height: 16,
-                width: 16,
+                height: 18,
+                width: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: accentColor,
+                  valueColor: AlwaysStoppedAnimation<Color>(accentColor),
                 ),
               ),
+              const SizedBox(width: 12),
               Text(
                 "Loading more...",
                 style: TextStyle(
                   color: textSecondary,
-                  fontSize: isSmallPhone(context) ? 12 : 13,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
@@ -1000,17 +1267,17 @@ class _UserActivitiesState extends State<UserActivities>
               child: Transform.scale(
                 scale: 0.90 + (value * 0.20),
                 child: Container(
-                  height: 44,
-                  width: 44,
+                  height: 46,
+                  width: 46,
                   decoration: BoxDecoration(
-                    color: cardColor.withOpacity(.96),
+                    color: cardColor,
                     shape: BoxShape.circle,
-                    border: Border.all(color: accentColor.withOpacity(.35)),
+                    border: Border.all(color: accentColor, width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: accentColor.withOpacity(.16),
-                        blurRadius: 18,
-                        spreadRadius: 1,
+                        color: accentColor.withOpacity(0.3),
+                        blurRadius: 12,
+                        spreadRadius: 0,
                       ),
                     ],
                   ),
@@ -1019,10 +1286,10 @@ class _UserActivitiesState extends State<UserActivities>
                       angle: controller.isLoading
                           ? (_shimmerController.value * 4)
                           : 0,
-                      child: const Icon(
-                        Icons.roller_skating,
+                      child: Icon(
+                        Icons.refresh_rounded,
                         color: accentColor,
-                        size: 20,
+                        size: 22,
                       ),
                     ),
                   ),
@@ -1039,39 +1306,50 @@ class _UserActivitiesState extends State<UserActivities>
   Widget buildActivitiesList() {
     final hPad = responsiveHorizontalPadding(context);
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: isTablet(context) ? 820 : double.infinity,
-        ),
-        child: ListView.builder(
-          controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 24),
-          itemCount: activities.length + 1,
-          itemBuilder: (context, index) {
-            if (index == activities.length) {
-              if (errorMessage != null && !isLoadingMore) {
-                return Padding(
-                  padding: const EdgeInsets.only(top: 6, bottom: 24),
-                  child: Center(
-                    child: Text(
-                      errorMessage!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: textSecondary,
-                        fontSize: 13,
-                      ),
-                    ),
+    return ListView.builder(
+      controller: _scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 24),
+      itemCount: activities.length + 1,
+      itemBuilder: (context, index) {
+        if (index == activities.length) {
+          if (errorMessage != null && !isLoadingMore) {
+            return Padding(
+              padding: const EdgeInsets.only(top: 20, bottom: 24),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: softCardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withOpacity(0.05)),
                   ),
-                );
-              }
-              return buildBottomPaginationLoader();
-            }
-            return buildActivityCard(activities[index], index);
-          },
-        ),
-      ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.error_outline_rounded,
+                        size: 40,
+                        color: Colors.red.withOpacity(0.5),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+          return buildBottomPaginationLoader();
+        }
+        return buildActivityCard(activities[index], index);
+      },
     );
   }
 
@@ -1086,41 +1364,73 @@ class _UserActivitiesState extends State<UserActivities>
 
     if (errorMessage != null) {
       return buildRefreshWrapper(
-        child: ListView(
-          controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            SizedBox(
-              height: sh(context) * .55,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    errorMessage!,
-                    style: const TextStyle(color: textPrimary, fontSize: 16),
-                    textAlign: TextAlign.center,
-                  ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.wifi_off_rounded,
+                  size: 60,
+                  color: textSecondary.withOpacity(0.5),
                 ),
-              ),
+                const SizedBox(height: 16),
+                Text(
+                  errorMessage!,
+                  style: const TextStyle(color: textPrimary, fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: refreshActivities,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accentColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: const Text("Try Again"),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       );
     }
 
     return buildRefreshWrapper(
-      child: ListView(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(height: 180),
-          Center(
-            child: Text(
-              "No activities found",
-              style: TextStyle(color: textSecondary, fontSize: 16),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.sports_score_rounded,
+              size: 60,
+              color: textSecondary.withOpacity(0.5),
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            const Text(
+              "No activities yet",
+              style: TextStyle(
+                color: textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Start your first activity to see it here",
+              style: TextStyle(color: textSecondary, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1130,22 +1440,35 @@ class _UserActivitiesState extends State<UserActivities>
     return Scaffold(
       backgroundColor: bgColor,
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF0A1A22), Color(0xFF07141A), Color(0xFF041015)],
+            colors: [
+              const Color(0xFF0A1A22),
+              const Color(0xFF07141A),
+              const Color(0xFF041015),
+            ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
+            stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
               buildTopHeader(),
-              Expanded(child: buildBody()),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                  child: buildBody(),
+                ),
+              ),
             ],
           ),
         ),
       ),
+
     );
   }
 }

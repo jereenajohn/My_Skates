@@ -192,19 +192,19 @@ class _EventsState extends State<Events> {
       setState(() {
         loadingEvents = true;
       });
-      
+
       final token = await getToken();
       final userId = await getUserId();
 
       if (token == null || userId == null) return;
-      
+
       final url = Uri.parse("$api/api/myskates/events/add/");
 
       final response = await http.get(
         url,
         headers: {"Authorization": "Bearer $token"},
       );
-      
+
       if (response.statusCode == 200) {
         setState(() {
           clubEvents = jsonDecode(response.body);
@@ -678,12 +678,17 @@ class _EventsState extends State<Events> {
           backgroundColor: Colors.black,
           title: Text(
             clubDetails?["club_name"] ?? "My Club Events",
-            style: const TextStyle(color: Colors.white, fontSize: 20
-            ),
+            style: const TextStyle(color: Colors.white, fontSize: 20),
           ),
-          leading: IconButton(onPressed: (){
-            Navigator.push(context, MaterialPageRoute(builder: (_) => CoachHomepage()));
-          }, icon: Icon(Icons.arrow_back,color: Colors.white,)),
+          leading: IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => CoachHomepage()),
+              );
+            },
+            icon: Icon(Icons.arrow_back, color: Colors.white),
+          ),
         ),
         body: (loadingEvents)
             ? const Center(child: CircularProgressIndicator(color: Colors.teal))
@@ -746,9 +751,7 @@ class _EventsState extends State<Events> {
                         },
                       ),
               ),
-        bottomNavigationBar: const AppBottomNav(
-          currentIndex: 4,
-        ),
+        bottomNavigationBar: const AppBottomNav(currentIndex: 4),
       ),
     );
   }
@@ -783,7 +786,6 @@ class _EventsState extends State<Events> {
   ) {
     final String bannerImagePath = event["image"] ?? "";
     final List<dynamic> gallery = event["images"] ?? [];
-    final List<dynamic> firstTwoImages = gallery.take(2).toList();
 
     final fromDate = formatDate(event["from_date"] ?? "");
     final toDate = formatDate(event["to_date"] ?? "");
@@ -798,6 +800,7 @@ class _EventsState extends State<Events> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          /// CLUB HEADER
           Row(
             children: [
               CircleAvatar(
@@ -819,7 +822,10 @@ class _EventsState extends State<Events> {
               ),
             ],
           ),
+
           const SizedBox(height: 10),
+
+          /// DATE & TIME
           Row(
             children: [
               const Icon(Icons.calendar_month, color: Colors.white70, size: 18),
@@ -830,35 +836,15 @@ class _EventsState extends State<Events> {
               ),
             ],
           ),
+
           const SizedBox(height: 10),
 
-          if (firstTwoImages.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                children: firstTwoImages.map<Widget>((img) {
-                  return Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      child: AspectRatio(
-                        aspectRatio: 1,
-                        child: GestureDetector(
-                          onTap: () {
-                            _showFullImage(buildImageUrl(img["image"]));
-                          },
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.network(
-                              buildImageUrl(img["image"]),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
+          /// IMAGE SECTION
+          if (gallery.isNotEmpty)
+            EventImageSlider(
+              images: gallery
+                  .map<String>((img) => buildImageUrl(img["image"]))
+                  .toList(),
             )
           else if (bannerImagePath.isNotEmpty)
             ClipRRect(
@@ -866,10 +852,14 @@ class _EventsState extends State<Events> {
               child: Image.network(
                 buildImageUrl(bannerImagePath),
                 fit: BoxFit.cover,
+                width: double.infinity,
+                height: 200,
               ),
             ),
 
           const SizedBox(height: 10),
+
+          /// EVENT TITLE
           Text(
             event["title"] ?? "",
             style: const TextStyle(
@@ -878,7 +868,10 @@ class _EventsState extends State<Events> {
               fontWeight: FontWeight.bold,
             ),
           ),
+
           const SizedBox(height: 5),
+
+          /// DESCRIPTION
           Text(
             event["description"] ?? "",
             style: const TextStyle(color: Colors.white70, fontSize: 14),
@@ -906,6 +899,95 @@ class _EventsState extends State<Events> {
           ),
         );
       },
+    );
+  }
+}
+class EventImageSlider extends StatefulWidget {
+  final List<String> images;
+
+  const EventImageSlider({super.key, required this.images});
+
+  @override
+  State<EventImageSlider> createState() => _EventImageSliderState();
+}
+
+class _EventImageSliderState extends State<EventImageSlider> {
+
+  int currentPage = 0;
+  final PageController controller = PageController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+
+        SizedBox(
+          height: 200,
+          child: PageView.builder(
+            controller: controller,
+            itemCount: widget.images.length,
+            onPageChanged: (index) {
+              setState(() {
+                currentPage = index;
+              });
+            },
+            itemBuilder: (context, index) {
+
+              final image = widget.images[index];
+
+              return GestureDetector(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) {
+                      return Dialog(
+                        backgroundColor: Colors.black,
+                        child: InteractiveViewer(
+                          child: Image.network(
+                            image,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    image,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            widget.images.length,
+            (index) {
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: currentPage == index ? 10 : 6,
+                height: currentPage == index ? 10 : 6,
+                decoration: BoxDecoration(
+                  color: currentPage == index
+                      ? Colors.tealAccent
+                      : Colors.white38,
+                  shape: BoxShape.circle,
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

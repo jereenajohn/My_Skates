@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/ADMIN/menu.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 
@@ -228,16 +229,23 @@ class _AddChatSupportQuestionsState extends State<AddChatSupportQuestions> {
             padding: const EdgeInsets.symmetric(vertical: 16),
             children: [
               /// HEADER
-              const Padding(
+               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  "Manage Support FAQs",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                child: Row(
+                  children: [
+                    IconButton(onPressed: (){
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => MenuPage()));
+                    }, icon: Icon(Icons.arrow_back,color: Colors.white,)),
+                    Text(
+                    "Manage Support FAQs",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
+                  ]
                 ),
               ),
 

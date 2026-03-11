@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/live_tracking.dart';
+import 'package:my_skates/COACH/coach_chat_support.dart';
 import 'package:my_skates/COACH/coach_event_list.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/COACH/coach_menu_page.dart';
@@ -39,7 +40,7 @@ class AppBottomNav extends StatelessWidget {
       case 2:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const CoachNotificationPage()),
+          MaterialPageRoute(builder: (_) => const CoachChatSupport(from: "coach",)),
         );
         break;
 
