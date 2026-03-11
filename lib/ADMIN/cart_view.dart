@@ -7,6 +7,7 @@ import 'package:my_skates/ADMIN/order_success_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class cart extends StatefulWidget {
   const cart({super.key});
@@ -373,7 +374,7 @@ class _cartState extends State<cart> {
     required String orderId,
   }) {
     var options = {
-      'key': 'rzp_test_S8mkawKvbCtNbt',
+      'key': dotenv.env['RAZORPAY_KEY'],
       'amount': amountInPaise,
       'name': 'My Skates',
       'description': 'Order Payment',
@@ -550,7 +551,7 @@ class _cartState extends State<cart> {
       return false;
     } finally {
       placingOrder = false;
-     
+
       setState(() => loading = false);
     }
   }
