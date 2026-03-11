@@ -4,6 +4,7 @@ import 'package:my_skates/ADMIN/live_tracking.dart';
 import 'package:my_skates/COACH/coach_event_list.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
+import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/products.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 
@@ -19,7 +20,7 @@ class AppBottomNav_student extends StatelessWidget {
       case 0:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const CoachHomepage()),
+          MaterialPageRoute(builder: (_) => const HomePage()),
         );
         break;
 

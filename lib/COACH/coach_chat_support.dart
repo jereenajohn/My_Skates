@@ -1,11 +1,15 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/ADMIN/dashboard.dart';
+import 'package:my_skates/COACH/coach_homepage.dart';
+import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 
 class CoachChatSupport extends StatefulWidget {
-  const CoachChatSupport({super.key});
+  final String from;
+  const CoachChatSupport({super.key,required this.from});
 
   @override
   State<CoachChatSupport> createState() => _CoachChatSupportState();
@@ -149,101 +153,123 @@ class _CoachChatSupportState extends State<CoachChatSupport> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF00312D),
-              Color(0xFF000000),
-            ],
+    return WillPopScope(
+      onWillPop: () async {
+
+      if (widget.from == "coach") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const CoachHomepage()),
+        );
+      } else if (widget.from == "admin") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DashboardPage()),
+        );
+      }else if (widget.from == "student") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePage()),
+        );
+
+      }return false;
+    },
+      child: Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF00312D),
+                Color(0xFF000000),
+              ],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              /// Header
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: const [
-                    Icon(Icons.support_agent, color: Colors.white),
-                    SizedBox(width: 10),
-                    Text(
-                      "MySkates Support",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              /// Chat List
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    return buildMessageBubble(messages[index]);
-                  },
-                ),
-              ),
-
-              if (sending)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 10),
-                  child: CircularProgressIndicator(color: Colors.white),
-                ),
-
-              /// Input Field
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.15),
-                    ),
-                  ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                /// Header
+                Padding(
+                  padding: const EdgeInsets.all(16),
                   child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: messageController,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: const InputDecoration(
-                            hintText: "Ask something...",
-                            hintStyle:
-                                TextStyle(color: Colors.white70),
-                            border: InputBorder.none,
-                          ),
-                          onSubmitted: (_) => sendMessage(),
-                        ),
-                      ),
-                      Container(
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Color(0xFF00312D),
-                        ),
-                        child: IconButton(
-                          icon:
-                              const Icon(Icons.send, color: Colors.white),
-                          onPressed: sendMessage,
+                    children: const [
+                      Icon(Icons.support_agent, color: Colors.white),
+                      SizedBox(width: 10),
+                      Text(
+                        "MySkates Support",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
-            ],
+      
+                /// Chat List
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) {
+                      return buildMessageBubble(messages[index]);
+                    },
+                  ),
+                ),
+      
+                if (sending)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 10),
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
+      
+                /// Input Field
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.15),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: messageController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: const InputDecoration(
+                              hintText: "Ask something...",
+                              hintStyle:
+                                  TextStyle(color: Colors.white70),
+                              border: InputBorder.none,
+                            ),
+                            onSubmitted: (_) => sendMessage(),
+                          ),
+                        ),
+                        Container(
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFF00312D),
+                          ),
+                          child: IconButton(
+                            icon:
+                                const Icon(Icons.send, color: Colors.white),
+                            onPressed: sendMessage,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

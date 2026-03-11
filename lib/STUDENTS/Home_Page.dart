@@ -996,7 +996,7 @@ Future<void> fetchStudentDetails() async {
                               studentRole.isNotEmpty ? "$studentRole" : "",
                               style: const TextStyle(
                                 fontSize: 14,
-                                color: Colors.tealAccent,
+                                color: Colors.white70,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),

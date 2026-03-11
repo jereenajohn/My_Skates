@@ -8,6 +8,7 @@ import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/menu.dart';
 import 'package:my_skates/ADMIN/productapprove_tab.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
+import 'package:my_skates/COACH/coach_chat_support.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
@@ -53,7 +54,7 @@ class _DashboardPageState extends State<DashboardPage> {
       case 2:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const AdminNotificationpage()),
+          MaterialPageRoute(builder: (_) => const CoachChatSupport(from: "admin",)),
         );
         break;
 
@@ -256,8 +257,8 @@ class _DashboardPageState extends State<DashboardPage> {
   // SHIMMER METHODS
   Widget _buildBannerShimmer() {
     return Shimmer.fromColors(
-      baseColor: Colors.grey[850]!,
-      highlightColor: Colors.grey[700]!,
+      baseColor: const Color(0xFF001A18),
+      highlightColor: const Color(0xFF00AFA5).withOpacity(0.25),
       child: Container(
         height: 160,
         decoration: BoxDecoration(
@@ -277,8 +278,8 @@ class _DashboardPageState extends State<DashboardPage> {
         itemBuilder: (_, index) => Padding(
           padding: const EdgeInsets.only(right: 12),
           child: Shimmer.fromColors(
-            baseColor: Colors.grey[850]!,
-            highlightColor: Colors.grey[700]!,
+            baseColor: const Color(0xFF001A18),
+            highlightColor: const Color(0xFF00AFA5).withOpacity(0.25),
             child: Container(
               width: 160,
               decoration: BoxDecoration(
@@ -294,8 +295,8 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildEventShimmer() {
     return Shimmer.fromColors(
-      baseColor: Colors.grey[850]!,
-      highlightColor: Colors.grey[700]!,
+      baseColor: const Color(0xFF001A18),
+      highlightColor: const Color(0xFF00AFA5).withOpacity(0.25),
       child: Container(
         height: 200,
         margin: const EdgeInsets.only(bottom: 12),
@@ -309,8 +310,8 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildEventWithImagesShimmer() {
     return Shimmer.fromColors(
-      baseColor: Colors.grey[850]!,
-      highlightColor: Colors.grey[700]!,
+      baseColor: const Color(0xFF001A18),
+      highlightColor: const Color(0xFF00AFA5).withOpacity(0.25),
       child: Container(
         height: 300,
         margin: const EdgeInsets.only(bottom: 12),
@@ -331,8 +332,8 @@ class _DashboardPageState extends State<DashboardPage> {
         itemBuilder: (_, index) => Padding(
           padding: const EdgeInsets.only(right: 6),
           child: Shimmer.fromColors(
-            baseColor: Colors.grey[850]!,
-            highlightColor: Colors.grey[700]!,
+            baseColor: const Color(0xFF001A18),
+            highlightColor: const Color(0xFF00AFA5).withOpacity(0.25),
             child: Container(
               width: 165,
               decoration: BoxDecoration(

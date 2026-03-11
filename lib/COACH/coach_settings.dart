@@ -191,7 +191,7 @@ class _CoachSettingsState extends State<CoachSettings> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      slideRightToLeftRoute(CoachChatSupport()),
+                      slideRightToLeftRoute(CoachChatSupport(from: "coach",)),
                     );
                   },
                 ),

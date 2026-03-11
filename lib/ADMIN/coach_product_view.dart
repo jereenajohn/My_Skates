@@ -1441,8 +1441,8 @@ Widget _productGridSkeleton() {
     ),
     itemBuilder: (_, __) {
       return Shimmer.fromColors(
-        baseColor: Colors.grey.shade900,
-        highlightColor: const Color(0xFF1A3A35),
+        baseColor: const Color(0xFF001A18),
+        highlightColor: const Color(0xFF00AFA5).withOpacity(0.25),
         child: Container(
           decoration: BoxDecoration(
             color: Colors.grey.shade900,

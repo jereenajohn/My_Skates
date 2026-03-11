@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:my_skates/COACH/club_detailed_view.dart';
+import 'package:my_skates/COACH/coach_chat_support.dart';
 import 'package:my_skates/COACH/coach_home_feedcard.dart';
 import 'package:my_skates/COACH/coach_timeline_page.dart';
 import 'package:my_skates/Providers/coach_homepage_feed_provider.dart';
@@ -147,7 +148,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
       case 2:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const CoachNotificationPage()),
+          MaterialPageRoute(builder: (_) => const CoachChatSupport(from: "coach")),
         );
         break;
 
@@ -201,7 +202,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
         },
       );
 
-      if (!mounted) return; // 🔥 IMPORTANT
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -706,7 +707,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
     print(response.body);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      // Force update cached pending list
+      
       myRequests.add(coachId);
       setState(() {});
     }
@@ -725,9 +726,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
     print("UNFOLLOW: ${res.body}");
 
     setState(() {
-      myFollowing.remove(coachId); // remove following
-      myApprovedSent.remove(coachId); // remove approved
-      myRequests.remove(coachId); // remove pending (IMPORTANT FIX)
+      myFollowing.remove(coachId); 
+      myApprovedSent.remove(coachId); 
+      myRequests.remove(coachId); 
     });
   }
 
@@ -744,8 +745,8 @@ class _CoachHomepageState extends State<CoachHomepage> {
         itemBuilder: (_, index) => Padding(
           padding: const EdgeInsets.only(right: 12),
           child: Shimmer.fromColors(
-            baseColor: Colors.grey[850]!,
-            highlightColor: Colors.grey[700]!,
+            baseColor: const Color(0xFF001A18),
+            highlightColor: const Color(0xFF001A18),
             child: Container(
               width: 160,
               decoration: BoxDecoration(
@@ -766,8 +767,8 @@ class _CoachHomepageState extends State<CoachHomepage> {
         (index) => Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Shimmer.fromColors(
-            baseColor: Colors.grey[850]!,
-            highlightColor: Colors.grey[700]!,
+            baseColor: const Color(0xFF001A18),
+            highlightColor: const Color(0xFF00AFA5).withOpacity(0.25),
             child: Container(
               height: 120,
               decoration: BoxDecoration(
@@ -788,10 +789,10 @@ class _CoachHomepageState extends State<CoachHomepage> {
         (index) => Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Shimmer.fromColors(
-            baseColor: Colors.grey[850]!,
-            highlightColor: Colors.grey[700]!,
+            baseColor: const Color(0xFF001A18),
+            highlightColor: const Color(0xFF00AFA5).withOpacity(0.25),
             child: Container(
-              height: 350, // Events are taller
+              height: 350, 
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -812,8 +813,8 @@ class _CoachHomepageState extends State<CoachHomepage> {
         itemBuilder: (_, index) => Padding(
           padding: const EdgeInsets.only(right: 10),
           child: Shimmer.fromColors(
-            baseColor: Colors.grey[850]!,
-            highlightColor: Colors.grey[700]!,
+            baseColor: const Color(0xFF001A18),
+            highlightColor: const Color(0xFF00AFA5).withOpacity(0.25),
             child: Container(
               width: 160,
               decoration: BoxDecoration(
@@ -915,7 +916,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                   ),
                                 );
 
-                                fetchNotificationCount(); // refresh when coming back
+                                fetchNotificationCount();
                               },
                               icon: const Icon(
                                 Icons.notifications_none,
@@ -1019,7 +1020,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                       ),
                                     ),
 
-                                    // Gradient Overlay (bottom fade)
+                                    
                                     Positioned.fill(
                                       child: Container(
                                         decoration: BoxDecoration(
@@ -1127,7 +1128,6 @@ class _CoachHomepageState extends State<CoachHomepage> {
                         //   ),
 
                         // const SizedBox(height: 20),
-
                         const Text(
                           "Upcoming Training Sessions",
                           style: TextStyle(color: Colors.white, fontSize: 14),
@@ -1276,7 +1276,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                         SizedBox(
                           height: MediaQuery.of(context).size.height * 0.25,
                           child: studentsLoading
-                              ? _buildCoachShimmer() // Reuse coach shimmer for students
+                              ? _buildCoachShimmer() 
                               : studentsNoData
                               ? const Center(
                                   child: Text(
@@ -1353,7 +1353,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
 }
 
 // CLUB CARD
-Widget buildClubCardFromApi(BuildContext context,Map club) {
+Widget buildClubCardFromApi(BuildContext context, Map club) {
   String title = club["club_name"] ?? "Club";
   String? img = club["image"];
   String imageUrl = (img != null && img.isNotEmpty) ? "$api$img" : "";
@@ -1370,8 +1370,11 @@ Widget buildClubCardFromApi(BuildContext context,Map club) {
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
         GestureDetector(
-          onTap: (){
-            Navigator.push(context, MaterialPageRoute(builder: (_) => ClubView(clubid: club["id"])));
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ClubView(clubid: club["id"])),
+            );
           },
           child: CircleAvatar(
             radius: 30,
