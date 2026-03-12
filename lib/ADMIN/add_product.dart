@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:ui';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/dashboard.dart';
@@ -53,6 +54,16 @@ class _AddProductState extends State<AddProduct> {
   void initState() {
     super.initState();
     loadAllData();
+  }
+
+  @override
+  void dispose() {
+    stockCtrl.dispose();
+    discount.dispose();
+    titleCtrl.dispose();
+    descriptionCtrl.dispose();
+    priceCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> loadAllData() async {
@@ -195,267 +206,295 @@ class _AddProductState extends State<AddProduct> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 0, 0, 0),
+      backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF00312D), Color(0xFF000000)],
+            colors: [
+              Color(0xFF001F1D),
+              Color(0xFF003A36),
+              Colors.black,
+            ],
             begin: Alignment.topLeft,
+            end: Alignment.bottomCenter,
           ),
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: Form(
               key: _formKey,
-              child: Column(
-                children: [
-                  Align(
-                    alignment: Alignment.topLeft,
-                    child: GestureDetector(
-                      onTap: () async {
-                        final prefs = await SharedPreferences.getInstance();
-                        final userType = prefs.getString("user_type");
-
-                        if (userType == "admin") {
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => DashboardPage(),
-                            ),
-                            (route) => false,
-                          );
-                        } else if (userType == "student") {
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const HomePage(),
-                            ),
-                            (route) => false,
-                          );
-                        } else if (userType == "coach") {
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const CoachHomepage(),
-                            ),
-                            (route) => false,
-                          );
-                        } else {
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const HomePage(),
-                            ),
-                            (route) => false,
-                          );
-                        }
-                      },
-                      child: Container(
-                        height: 42,
-                        width: 42,
-                        decoration: BoxDecoration(
-                          color: const Color.fromARGB(
-                            255,
-                            134,
-                            134,
-                            134,
-                          ).withOpacity(0.15),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white24),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white.withOpacity(0.10)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.20),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
                         ),
-                        child: const Icon(
-                          Icons.keyboard_arrow_left_rounded,
-                          color: Color.fromARGB(255, 78, 78, 78),
-                          size: 28,
-                        ),
-                      ),
+                      ],
                     ),
-                  ),
+                    child: Column(
+                      children: [
+                        Align(
+                          alignment: Alignment.topLeft,
+                          child: GestureDetector(
+                            onTap: () async {
+                              final prefs = await SharedPreferences.getInstance();
+                              final userType = prefs.getString("user_type");
 
-                  SizedBox(height: 20),
-
-                  GestureDetector(
-                    onTap: () async {
-                      final pick = await _picker.pickImage(
-                        source: ImageSource.gallery,
-                      );
-                      if (pick != null) {
-                        setState(() {
-                          profileImage = File(pick.path);
-                        });
-                      }
-                    },
-                    child: Container(
-                      height: 180,
-                      width: MediaQuery.of(context).size.width * 0.9,
-                      decoration: BoxDecoration(
-                        color: const Color.fromARGB(195, 30, 29, 29),
-                        borderRadius: BorderRadius.circular(15),
-                        border: Border.all(
-                          color: const Color.fromARGB(172, 90, 90, 90),
-                          width: 1,
-                        ),
-                      ),
-
-                      // SHOW IMAGE IF SELECTED
-                      child: profileImage == null
-                          ? Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color.fromARGB(244, 55, 55, 55),
-                                  borderRadius: BorderRadius.circular(25),
-                                ),
-                                child: const Text(
-                                  "Upload Image",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
+                              if (userType == "admin") {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => DashboardPage(),
                                   ),
-                                ),
+                                  (route) => false,
+                                );
+                              } else if (userType == "student") {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const HomePage(),
+                                  ),
+                                  (route) => false,
+                                );
+                              } else if (userType == "coach") {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const CoachHomepage(),
+                                  ),
+                                  (route) => false,
+                                );
+                              } else {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const HomePage(),
+                                  ),
+                                  (route) => false,
+                                );
+                              }
+                            },
+                            child: Container(
+                              height: 42,
+                              width: 42,
+                              decoration: BoxDecoration(
+                                color: const Color.fromARGB(255, 134, 134, 134)
+                                    .withOpacity(0.15),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white24),
                               ),
-                            )
-                          : ClipRRect(
-                              borderRadius: BorderRadius.circular(15),
-                              child: Image.file(
-                                profileImage!,
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                height: double.infinity,
+                              child: const Icon(
+                                Icons.keyboard_arrow_left_rounded,
+                                color: Colors.white70,
+                                size: 28,
                               ),
                             ),
-                    ),
-                  ),
+                          ),
+                        ),
 
-                  const SizedBox(height: 30),
+                        const SizedBox(height: 20),
 
-                  _inputField("Title", titleCtrl),
-                  _inputFieldmax(
-                    "Description",
+                        GestureDetector(
+                          onTap: () async {
+                            final pick = await _picker.pickImage(
+                              source: ImageSource.gallery,
+                            );
+                            if (pick != null) {
+                              setState(() {
+                                profileImage = File(pick.path);
+                              });
+                            }
+                          },
+                          child: Container(
+                            height: 180,
+                            width: MediaQuery.of(context).size.width * 0.9,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.12),
+                                width: 1,
+                              ),
+                            ),
+                            child: profileImage == null
+                                ? Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.08),
+                                        borderRadius: BorderRadius.circular(25),
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.10),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        "Upload Image",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : ClipRRect(
+                                    borderRadius: BorderRadius.circular(18),
+                                    child: Image.file(
+                                      profileImage!,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                    ),
+                                  ),
+                          ),
+                        ),
 
-                    descriptionCtrl,
-                    maxLines: 4,
-                    maxLength: 100,
-                    isNumber: false,
-                  ),
+                        const SizedBox(height: 30),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _dropdownField(
-                          label: "category",
-                          value: selectedState,
-                          items: categoryList,
+                        _inputField("Title", titleCtrl),
+                        _inputFieldmax(
+                          "Description",
+                          descriptionCtrl,
+                          maxLines: 4,
+                          maxLength: 100,
+                          isNumber: false,
+                        ),
+
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _dropdownField(
+                                label: "category",
+                                value: selectedState,
+                                items: categoryList,
+                                onChange: (v) {
+                                  selectedState = v;
+
+                                  districtList = allDistricts
+                                      .where(
+                                        (d) =>
+                                            d["state"] ==
+                                            categoryList.firstWhere(
+                                              (s) => s["id"].toString() == v,
+                                            )["name"],
+                                      )
+                                      .toList();
+
+                                  selectedDistrict = null;
+                                  setState(() {});
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        _dropdownField(
+                          label: "Product Type",
+                          value: productType,
+                          items: productTypeList,
                           onChange: (v) {
-                            selectedState = v;
-
-                            districtList = allDistricts
-                                .where(
-                                  (d) =>
-                                      d["state"] ==
-                                      categoryList.firstWhere(
-                                        (s) => s["id"].toString() == v,
-                                      )["name"],
-                                )
-                                .toList();
-
-                            selectedDistrict = null;
-                            setState(() {});
+                            setState(() {
+                              productType = v;
+                              if (productType != "single") {
+                                stockCtrl.clear();
+                              }
+                            });
                           },
                         ),
-                      ),
-                    ],
-                  ),
-                  _dropdownField(
-                    label: "Product Type",
-                    value: productType,
-                    items: productTypeList,
-                    onChange: (v) {
-                      setState(() {
-                        productType = v;
-                        if (productType != "single") {
-                          stockCtrl.clear(); // reset stock if not single
-                        }
-                      });
-                    },
-                  ),
-                  if (productType == "single")
-                    _inputField("Stock", stockCtrl, isNumber: true),
-                  if (productType == "single")
-                    _inputField("Discount", discount, isNumber: true),
 
-                  _inputField("Price", priceCtrl),
+                        if (productType == "single")
+                          _inputField("Stock", stockCtrl, isNumber: true),
 
-                  const SizedBox(height: 20),
+                        if (productType == "single")
+                          _inputField("Discount", discount, isNumber: true),
 
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (!_formKey.currentState!.validate()) return;
+                        _inputField("Price", priceCtrl),
 
-                        if (dob == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Date of Birth is required"),
-                            ),
-                          );
-                          return;
-                        }
+                        const SizedBox(height: 20),
 
-                        if (productType == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Product Type is required"),
-                            ),
-                          );
-                          return;
-                        }
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              if (!_formKey.currentState!.validate()) return;
 
-                        if (productType == "single" &&
-                            stockCtrl.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                "Stock is required for single product",
+                              if (dob == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Date of Birth is required"),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (productType == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Product Type is required"),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (productType == "single" &&
+                                  stockCtrl.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "Stock is required for single product",
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+                              if (productType == "single" &&
+                                  discount.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "discount is required for single product",
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              submitProduct();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal,
+                              padding: const EdgeInsets.symmetric(vertical: 15),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
                               ),
                             ),
-                          );
-                          return;
-                        }
-                        if (productType == "single" &&
-                            discount.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                "discount is required for single product",
+                            child: const Text(
+                              "Submit",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
                               ),
                             ),
-                          );
-                          return;
-                        }
-
-                        submitProduct();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.teal,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
-                      ),
-                      child: const Text(
-                        "Submit",
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -487,8 +526,8 @@ class _AddProductState extends State<AddProduct> {
         style: TextStyle(color: readOnly ? Colors.white70 : Colors.white),
         decoration: _dec(label).copyWith(
           fillColor: readOnly
-              ? const Color.fromARGB(172, 30, 29, 29)
-              : const Color(0xFF1E1E1E),
+              ? Colors.white.withOpacity(0.05)
+              : Colors.white.withOpacity(0.05),
         ),
         validator: (v) {
           final value = v?.trim() ?? "";
@@ -514,7 +553,7 @@ class _AddProductState extends State<AddProduct> {
     bool readOnly = false,
     bool isNumber = false,
     int? maxLength,
-    int maxLines = 1, 
+    int maxLines = 1,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -522,26 +561,20 @@ class _AddProductState extends State<AddProduct> {
         controller: controller,
         readOnly: readOnly,
         autovalidateMode: AutovalidateMode.onUserInteraction,
-
         keyboardType: maxLines > 1
             ? TextInputType.multiline
             : (isNumber ? TextInputType.number : TextInputType.text),
-
         maxLines: maxLines,
-
         inputFormatters: [
           if (isNumber && maxLines == 1) FilteringTextInputFormatter.digitsOnly,
           if (maxLength != null) LengthLimitingTextInputFormatter(maxLength),
         ],
-
         style: TextStyle(color: readOnly ? Colors.white70 : Colors.white),
-
         decoration: _dec(label).copyWith(
           fillColor: readOnly
-              ? const Color.fromARGB(172, 30, 29, 29)
-              : const Color(0xFF1E1E1E),
+              ? Colors.white.withOpacity(0.05)
+              : Colors.white.withOpacity(0.05),
         ),
-
         validator: (v) {
           final value = v?.trim() ?? "";
 
@@ -552,7 +585,6 @@ class _AddProductState extends State<AddProduct> {
             if (!regex.hasMatch(value)) return "Enter valid email";
           }
 
-          // Only validate phone length if the field is SINGLE LINE
           if (label == "Alt Phone" && maxLines == 1 && value.length != 10) {
             return "Alt Phone must be 10 digits";
           }
@@ -569,14 +601,14 @@ class _AddProductState extends State<AddProduct> {
       labelStyle: const TextStyle(color: Colors.white60),
       floatingLabelStyle: const TextStyle(color: Colors.white60),
       filled: true,
-      fillColor: const Color(0xFF1E1E1E),
+      fillColor: Colors.white.withOpacity(0.05),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: Colors.white24),
+        borderSide: BorderSide(color: Colors.white.withOpacity(0.12)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: Colors.white24),
+        borderSide: BorderSide(color: Colors.white.withOpacity(0.18)),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(20),
@@ -606,7 +638,10 @@ class _AddProductState extends State<AddProduct> {
         items: items.map((e) {
           return DropdownMenuItem<String>(
             value: e["id"].toString(),
-            child: Text(e["name"]),
+            child: Text(
+              e["name"],
+              style: const TextStyle(color: Colors.white),
+            ),
           );
         }).toList(),
         onChanged: onChange,
