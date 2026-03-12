@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,6 +26,12 @@ class _AddSkatersTypeState extends State<AddSkatersType> {
   void initState() {
     super.initState();
     GetSkatersType();
+  }
+
+  @override
+  void dispose() {
+    skatersTypeCtrl.dispose();
+    super.dispose();
   }
 
   // FETCH SKATERS TYPE LIST
@@ -167,59 +174,109 @@ class _AddSkatersTypeState extends State<AddSkatersType> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Product Categories",
-          style: TextStyle(color: Colors.white, fontSize: 20),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add, color: Colors.white, size: 28),
-            onPressed: () {
-              setState(() {
-                if (showForm) {
-                  showForm = false;
-                  isEditMode = false;
-                  skatersTypeCtrl.clear();
-                } else {
-                  showForm = true;
-                  isEditMode = false;
-                  skatersTypeCtrl.clear();
-                }
-              });
-            },
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF001F1D),
+              Color(0xFF003A36),
+              Colors.black,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomCenter,
           ),
-        ],
-      ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 4),
+                    const Expanded(
+                      child: Text(
+                        "Product Categories",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add, color: Colors.white, size: 28),
+                      onPressed: () {
+                        setState(() {
+                          if (showForm) {
+                            showForm = false;
+                            isEditMode = false;
+                            skatersTypeCtrl.clear();
+                          } else {
+                            showForm = true;
+                            isEditMode = false;
+                            skatersTypeCtrl.clear();
+                          }
+                        });
+                      },
+                    ),
+                  ],
+                ),
 
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (showForm) ...[
-                _label("Category Name"),
-                _inputField(skatersTypeCtrl),
+                const SizedBox(height: 14),
 
-                const SizedBox(height: 20),
+                if (showForm)
+                  _glassBox(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _label("Category Name"),
+                        _inputField(skatersTypeCtrl),
+                        const SizedBox(height: 20),
+                        _submitButton(),
+                      ],
+                    ),
+                  ),
 
-                _submitButton(),
+                const SizedBox(height: 18),
+
+                _categoryList(),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-              const SizedBox(height: 30),
-
-              // _label("Categories"),
-              // const SizedBox(height: 10),
-              _categoryList(),
+  Widget _glassBox({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.10)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.20),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
             ],
           ),
+          child: child,
         ),
       ),
     );
@@ -244,14 +301,18 @@ class _AddSkatersTypeState extends State<AddSkatersType> {
       height: 55,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
       alignment: Alignment.center,
       child: TextField(
         controller: controller,
         style: const TextStyle(color: Colors.white),
-        decoration: const InputDecoration(border: InputBorder.none),
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          isCollapsed: true,
+        ),
       ),
     );
   }
@@ -321,8 +382,9 @@ class _AddSkatersTypeState extends State<AddSkatersType> {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
+            color: Colors.white.withOpacity(0.05),
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
           ),
           child: Row(
             children: [
@@ -336,7 +398,6 @@ class _AddSkatersTypeState extends State<AddSkatersType> {
                   ),
                 ),
               ),
-
               GestureDetector(
                 onTap: () {
                   setState(() {
