@@ -31,6 +31,12 @@ class _AddproductBannerState extends State<AddproductBanner> {
     getBanner();
   }
 
+  @override
+  void dispose() {
+    bannerNameCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> pickImageFromGallery() async {
     final XFile? img = await picker.pickImage(source: ImageSource.gallery);
 
@@ -160,10 +166,9 @@ class _AddproductBannerState extends State<AddproductBanner> {
           editingBannerId = null;
         });
 
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const AddproductBanner()),
-        );
+        await getBanner();
+
+       
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -269,20 +274,25 @@ class _AddproductBannerState extends State<AddproductBanner> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
+            colors: [
+              Color(0xFF001F1D),
+              Color(0xFF003A36),
+              Colors.black,
+            ],
             begin: Alignment.topLeft,
-            end: Alignment.center,
-            colors: [Color(0xFF0A332E), Colors.black],
+            end: Alignment.bottomCenter,
           ),
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // BACK BUTTON
                 Row(
                   children: [
                     InkWell(
@@ -299,12 +309,22 @@ class _AddproductBannerState extends State<AddproductBanner> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        "Product Banners",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
 
                 const SizedBox(height: 20),
 
-                // UPLOAD PHOTO
                 Center(
                   child: Column(
                     children: [
@@ -354,7 +374,6 @@ class _AddproductBannerState extends State<AddproductBanner> {
 
                 const SizedBox(height: 22),
 
-                // CREATE CLUB BUTTON
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -367,7 +386,6 @@ class _AddproductBannerState extends State<AddproductBanner> {
                         }
                       }
                     },
-
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00C9B8),
                       shape: RoundedRectangleBorder(
@@ -399,7 +417,6 @@ class _AddproductBannerState extends State<AddproductBanner> {
 
                 const SizedBox(height: 10),
 
-                // DISPLAY BANNERS LIST
                 Column(
                   children: Banner.map((item) {
                     return bannerItem(item);
@@ -480,11 +497,9 @@ class _AddproductBannerState extends State<AddproductBanner> {
                           editingBannerId = item['id'];
                           bannerNameCtrl.text = item['title'] ?? "";
                           existingBannerImage = item['image'];
-                          pickedImage =
-                              null; // user will choose new image only if needed
+                          pickedImage = null;
                         });
                       },
-
                       child: Container(
                         padding: EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -542,6 +557,7 @@ class _AddproductBannerState extends State<AddproductBanner> {
       decoration: BoxDecoration(
         color: const Color.fromARGB(157, 37, 37, 37),
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white10),
       ),
       child: TextField(
         controller: controller,
