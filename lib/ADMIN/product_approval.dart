@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:shimmer/shimmer.dart';
 
 class Approveproduct extends StatefulWidget {
   const Approveproduct({super.key});
@@ -14,6 +16,8 @@ class Approveproduct extends StatefulWidget {
 
 class _ApproveproductState extends State<Approveproduct> {
   List<Map<String, dynamic>> coach = [];
+  bool isLoading = true;
+  bool isRefreshing = false;
 
   @override
   void initState() {
@@ -70,7 +74,6 @@ class _ApproveproductState extends State<Approveproduct> {
           ),
         );
 
-        // Reset form
         setState(() {});
         getproduct("pending");
       }
@@ -80,69 +83,90 @@ class _ApproveproductState extends State<Approveproduct> {
   }
 
   Future<void> getproduct(var status) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
+    try {
+      setState(() {
+        isLoading = true;
+      });
 
-    final response = await http.get(
-      Uri.parse('$api/api/myskates/products/status/view/$status/'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
 
-    print("COACH STATUS: ${response.statusCode}");
-    print("COACH BODY: ${response.body}");
+      final response = await http.get(
+        Uri.parse('$api/api/myskates/products/status/view/$status/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
 
-    if (response.statusCode == 200) {
-      final decoded = jsonDecode(response.body);
+      print("COACH STATUS: ${response.statusCode}");
+      print("COACH BODY: ${response.body}");
 
-      final List<dynamic> parsed = decoded['data'] ?? [];
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
 
-      coach = [];
+        final List<dynamic> parsed = decoded['data'] ?? [];
 
-      for (final c in parsed) {
-        coach.add({
-          'id': c['id'],
-          'title': c['title'] ?? "",
-          'image': c['image'] != null ? '$api${c['image']}' : "",
-          'category_name': c['category_name'] ?? "",
-          'price': c['base_price']?.toString() ?? "",
-          'description': c['description'] ?? "",
-          'user': c['user']?.toString() ?? "",
-          'variants': c['variants'] ?? [],
-        });
+        coach = [];
+
+        for (final c in parsed) {
+          coach.add({
+            'id': c['id'],
+            'title': c['title'] ?? "",
+            'image': c['image'] != null ? '$api${c['image']}' : "",
+            'category_name': c['category_name'] ?? "",
+            'price': c['base_price']?.toString() ?? "",
+            'description': c['description'] ?? "",
+            'user': c['user']?.toString() ?? "",
+            'variants': c['variants'] ?? [],
+          });
+        }
       }
 
-      setState(() {});
+      setState(() {
+        isLoading = false;
+        isRefreshing = false;
+      });
+    } catch (e) {
+      print(e);
+      setState(() {
+        isLoading = false;
+        isRefreshing = false;
+      });
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
+  Future<void> _refreshData() async {
+    setState(() => isRefreshing = true);
+    await getproduct("pending");
+  }
 
-      body: ListView.builder(
-        padding: const EdgeInsets.all(10),
-        itemCount: coach.length,
-        itemBuilder: (context, index) {
-          final c = coach[index];
-
-          return Container(
-            margin: const EdgeInsets.only(bottom: 15),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+  Widget _buildGlassProductCard(Map<String, dynamic> c) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 15),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color.fromARGB(92, 35, 35, 35),
+              color: Colors.white.withOpacity(0.06),
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: Colors.grey.shade800),
+              border: Border.all(color: Colors.white.withOpacity(0.10)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.20),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
             child: Column(
               children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // PROFILE PIC
                     CircleAvatar(
                       radius: 35,
                       backgroundImage: c['image'].isNotEmpty
@@ -153,12 +177,10 @@ class _ApproveproductState extends State<Approveproduct> {
 
                     const SizedBox(width: 12),
 
-                    // MIDDLE CONTENT
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // NAME
                           Text(
                             c['title'],
                             style: const TextStyle(
@@ -170,7 +192,6 @@ class _ApproveproductState extends State<Approveproduct> {
 
                           const SizedBox(height: 4),
 
-                          // NORMAL LOCATION LINE
                           Text(
                             c['category_name'],
                             style: const TextStyle(
@@ -183,7 +204,6 @@ class _ApproveproductState extends State<Approveproduct> {
 
                           const SizedBox(height: 4),
 
-                          // GREEN LOCATION LINE
                           Row(
                             children: [
                               Text(
@@ -199,18 +219,15 @@ class _ApproveproductState extends State<Approveproduct> {
                           ),
 
                           const SizedBox(height: 5),
-
-                          // BUTTON ROW
                         ],
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 10),
+                const SizedBox(height: 10),
                 Row(
                   children: [
-                    // IGNORE BUTTON
-                    SizedBox(width: 25),
+                    const SizedBox(width: 25),
                     GestureDetector(
                       onTap: () {
                         updateproduct(c['id'], "disapproved");
@@ -233,7 +250,6 @@ class _ApproveproductState extends State<Approveproduct> {
 
                     const SizedBox(width: 8),
 
-                    // ACCEPT BUTTON
                     GestureDetector(
                       onTap: () {
                         updateproduct(c['id'], "approved");
@@ -242,7 +258,7 @@ class _ApproveproductState extends State<Approveproduct> {
                         height: 30,
                         width: MediaQuery.of(context).size.width * 0.5 - 50,
                         decoration: BoxDecoration(
-                          color: Color(0xFF00CFC5),
+                          color: const Color(0xFF00CFC5),
                           borderRadius: BorderRadius.circular(15),
                         ),
                         child: const Center(
@@ -257,9 +273,177 @@ class _ApproveproductState extends State<Approveproduct> {
                 ),
               ],
             ),
-          );
-        },
+          ),
+        ),
       ),
+    );
+  }
+
+  Widget _buildShimmerCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 15),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: Colors.white.withOpacity(0.10)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.20),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Shimmer.fromColors(
+              baseColor: const Color(0xFF1A2B2A),
+              highlightColor: const Color(0xFF2F4F4D),
+              child: Column(
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 70,
+                        height: 70,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              height: 16,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              height: 12,
+                              width: 120,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              height: 12,
+                              width: 80,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const SizedBox(width: 25),
+                      Expanded(
+                        child: Container(
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Container(
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerList() {
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(10),
+      itemCount: 6,
+      itemBuilder: (context, index) => _buildShimmerCard(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.transparent,
+      child: isLoading
+          ? _buildShimmerList()
+          : RefreshIndicator(
+              onRefresh: _refreshData,
+              color: Colors.tealAccent,
+              backgroundColor: Colors.black,
+              strokeWidth: 3.0,
+              displacement: 40.0,
+              child: coach.isEmpty
+                  ? SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.8,
+                        child: const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.inventory_2_outlined,
+                                color: Colors.white54,
+                                size: 60,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                "No pending products",
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(10),
+                      itemCount: coach.length,
+                      itemBuilder: (context, index) {
+                        final c = coach[index];
+                        return _buildGlassProductCard(c);
+                      },
+                    ),
+            ),
     );
   }
 }
