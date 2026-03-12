@@ -12,6 +12,7 @@ import 'package:my_skates/ADMIN/add_product.dart';
 import 'package:my_skates/ADMIN/add_state.dart';
 import 'package:my_skates/ADMIN/admin_notificationpage.dart';
 import 'package:my_skates/ADMIN/admin_orders_page.dart';
+import 'package:my_skates/ADMIN/approved_products.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/menu.dart';
 import 'package:my_skates/ADMIN/productapprove_tab.dart';
@@ -49,37 +50,38 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _onBottomNavTap(int index) {
-    switch (index) {
-      case 0:
-        break;
-      case 1:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const UserApprovedProducts()),
-        );
-        break;
+  switch (index) {
+    case 0:
+      break;
+    case 1:
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const UserApprovedProducts()),
+      );
+      break;
 
-      case 2:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const CoachChatSupport(from: "admin"),
-          ),
-        );
-        break;
+    case 2:
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AddChatSupportQuestions()),
+      );
+      break;
 
-      case 3:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => UserConnectCoaches()),
-        );
-        break;
+    case 3:
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => Admin_order_page()),
+      );
+      break;
 
-      case 4:
-        break;
-    }
+    case 4:
+    Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ProductapproveTab()),
+      );
+      break;
   }
-
+}
   Future<void> _loadInitialData() async {
     setState(() => isLoading = true);
 

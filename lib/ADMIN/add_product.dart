@@ -430,10 +430,7 @@ class _AddProductState extends State<AddProduct> {
                       ),
                       child: const Text(
                         "Submit",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                        ),
+                        style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ),
                   ),

@@ -1,62 +1,157 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/ADMIN/add_chat_support_questions.dart';
+import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
-import 'package:my_skates/ADMIN/live_tracking.dart';
 import 'package:my_skates/COACH/coach_chat_support.dart';
 import 'package:my_skates/COACH/coach_event_list.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
-import 'package:my_skates/COACH/coach_menu_page.dart';
-import 'package:my_skates/COACH/coach_notification_page.dart';
+import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class AppBottomNav extends StatelessWidget {
+class AppBottomNav extends StatefulWidget {
   final int currentIndex;
   final Function(int)? onTap;
 
-  const AppBottomNav({super.key, required this.currentIndex,this.onTap});
+  const AppBottomNav({
+    super.key,
+    required this.currentIndex,
+    this.onTap,
+  });
 
-  void _onTap(BuildContext context, int index) {
-    if (index == currentIndex) return;
+  @override
+  State<AppBottomNav> createState() => _AppBottomNavState();
+}
 
-    if(onTap!=null){
-      onTap!(index);
+class _AppBottomNavState extends State<AppBottomNav> {
+  String userType = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserType();
+  }
+
+  Future<void> _loadUserType() async {
+    final prefs = await SharedPreferences.getInstance();
+    final type = prefs.getString("user_type")?.toLowerCase().trim() ?? "";
+
+    if (mounted) {
+      setState(() {
+        userType = type;
+      });
+    }
+  }
+
+  Future<void> _onTap(BuildContext context, int index) async {
+    if (index == widget.currentIndex) return;
+
+    if (widget.onTap != null) {
+      widget.onTap!(index);
       return;
     }
 
-    switch (index) {
-      case 0:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CoachHomepage()),
-        );
-        break;
+    Widget targetPage;
 
-      case 1:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const UserApprovedProducts()),
-        );
-        break;
+    if (userType == "admin") {
+      switch (index) {
+        case 0:
+          targetPage = const DashboardPage();
+          break;
+        case 1:
+          targetPage = const UserApprovedProducts();
+          break;
+        case 2:
+          targetPage = const AddChatSupportQuestions();
+          break;
+        case 3:
+          targetPage = const UserConnectCoaches();
+          break;
+        case 4:
+          targetPage = const CoachEvents();
+          break;
+        default:
+          targetPage = const DashboardPage();
+      }
+    } else if (userType == "student") {
+      switch (index) {
+        case 0:
+          targetPage = const HomePage();
+          break;
+        case 1:
+          targetPage = const UserApprovedProducts();
+          break;
+        case 2:
+          targetPage = const CoachChatSupport(from: "student");
+          break;
+        case 3:
+          targetPage = const UserConnectCoaches();
+          break;
+        case 4:
+          targetPage = const CoachEvents();
+          break;
+        default:
+          targetPage = const HomePage();
+      }
+    } else {
+      switch (index) {
+        case 0:
+          targetPage = const CoachHomepage();
+          break;
+        case 1:
+          targetPage = const UserApprovedProducts();
+          break;
+        case 2:
+          targetPage = const CoachChatSupport(from: "coach");
+          break;
+        case 3:
+          targetPage = const UserConnectCoaches();
+          break;
+        case 4:
+          targetPage = const CoachEvents();
+          break;
+        default:
+          targetPage = const CoachHomepage();
+      }
+    }
 
-      case 2:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CoachChatSupport(from: "coach",)),
-        );
-        break;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => targetPage),
+    );
+  }
 
-      case 3:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const UserConnectCoaches()),
-        );
-        break;
-
-      case 4:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CoachEvents()),
-        );
-        break;
+  List<BottomNavigationBarItem> _buildItems() {
+    if (userType == "admin") {
+      return const [
+        BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: ''),
+        BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ''),
+        BottomNavigationBarItem(icon: Icon(Icons.support_agent), label: ''),
+        BottomNavigationBarItem(icon: Icon(Icons.inventory_outlined), label: ''),
+        BottomNavigationBarItem(icon: Icon(Icons.production_quantity_limits), label: ''),
+      ];
+    } else if (userType == "student") {
+      return const [
+        BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
+        BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ''),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.chat_bubble_rounded),
+          label: '',
+        ),
+        BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
+        BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
+      ];
+    } else {
+      return const [
+        BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
+        BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ''),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.chat_bubble_rounded),
+          label: '',
+        ),
+        BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
+        BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
+      ];
     }
   }
 
@@ -77,23 +172,14 @@ class AppBottomNav extends StatelessWidget {
         ),
         child: BottomNavigationBar(
           backgroundColor: Colors.black,
-          currentIndex: currentIndex,
+          currentIndex: widget.currentIndex,
           selectedItemColor: const Color(0xFF00AFA5),
           unselectedItemColor: Colors.white70,
           showSelectedLabels: false,
           showUnselectedLabels: false,
           type: BottomNavigationBarType.fixed,
           onTap: (i) => _onTap(context, i),
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
-            BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ''),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.chat_bubble_rounded),
-              label: '',
-            ),
-            BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
-            BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
-          ],
+          items: _buildItems(),
         ),
       ),
     );
