@@ -379,13 +379,7 @@ class _WishlistState extends State<Wishlist> {
                               // 🔙 BACK BUTTON (LEFT)
                               IconButton(
                                 onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          UserApprovedProducts(),
-                                    ),
-                                  );
+                                  Navigator.pop(context);
                                 },
                                 icon: const Icon(
                                   Icons.arrow_back_ios_new,
