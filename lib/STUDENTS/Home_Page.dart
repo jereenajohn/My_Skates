@@ -68,28 +68,27 @@ class _HomePageState extends State<HomePage> {
       GlobalKey<RefreshIndicatorState>();
 
   @override
-initState() {
-  super.initState();
+  initState() {
+    super.initState();
 
-  fetchStudentDetails().then((_) {
-    refreshUserProfile();
-  });
+    fetchStudentDetails().then((_) {
+      refreshUserProfile();
+    });
 
+    fetchClubs();
+    loadEvents();
+    getbanner();
+    getTrainingSessions();
+    fetchRegisteredTrainings();
+    loadEverything();
+    fetchNotificationCount();
 
-  fetchClubs();
-  loadEvents();
-  getbanner();
-  getTrainingSessions();
-  fetchRegisteredTrainings();
-  loadEverything();
-  fetchNotificationCount();
-
-  _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
-    if (mounted) {
-      fetchNotificationCount();
-    }
-  });
-}
+    _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (mounted) {
+        fetchNotificationCount();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -428,76 +427,87 @@ initState() {
     }
   }
 
-Future<void> refreshUserProfile() async {
-  String? token = await getToken();
-  
-  // Use the correct endpoint that returns student data
-  final res = await http.get(
-    Uri.parse("$api/api/myskates/student/details/"),
-    headers: {"Authorization": "Bearer $token"},
-  );
+  Future<void> refreshUserProfile() async {
+    String? token = await getToken();
 
-  print("PROFILE STATUS: ${res.statusCode}");
-  print("PROFILE BODY: ${res.body}");
+    // Use the correct endpoint that returns student data
+    final res = await http.get(
+      Uri.parse("$api/api/myskates/student/details/"),
+      headers: {"Authorization": "Bearer $token"},
+    );
 
-  if (res.statusCode == 200) {
-    final List data = jsonDecode(res.body);
-    
-    
-    final prefs = await SharedPreferences.getInstance();
-    final currentUserId = prefs.getInt("user_id") ?? prefs.getInt("id");
-    
-    print("Current User ID from prefs: $currentUserId");
-    
-    
-    Map<String, dynamic>? userData;
-    if (currentUserId != null) {
-      try {
+    print("PROFILE STATUS: ${res.statusCode}");
+    print("PROFILE BODY: ${res.body}");
+
+    if (res.statusCode == 200) {
+      final List data = jsonDecode(res.body);
+
+      final prefs = await SharedPreferences.getInstance();
+
+      // IMPORTANT: Clear old user data first
+      // Don't clear all preferences as that would remove the token too
+      // Just remove the user-specific keys
+      // await prefs.remove("name");
+      // await prefs.remove("u_name");
+      // await prefs.remove("profile");
+      // await prefs.remove("user_id");
+      // await prefs.remove("id");
+
+      final currentUserId = prefs.getInt("id");
+
+      print("Logged-in User ID: $currentUserId");
+
+      // Find the current user in the list
+      Map<String, dynamic>? userData;
+
+      if (currentUserId != null) {
         userData = data.firstWhere(
           (student) => student["id"] == currentUserId,
-          orElse: () => null,
+          orElse: () => {},
         );
-      } catch (e) {
-        print("Error finding user: $e");
       }
-    }
-    
-    userData ??= data.isNotEmpty ? data[0] : {};
-    
-    if (userData!.isNotEmpty) {
-      print("API USERNAME: ${userData["u_name"]}");
-      print("API FIRST NAME: ${userData["first_name"]}");
-      print("API LAST NAME: ${userData["last_name"]}");
 
-      String firstName = userData["first_name"] ?? "";
-      String lastName = userData["last_name"] ?? "";
-      String fullName = "$firstName $lastName".trim();
-      String username = userData["u_name"] ?? "";
-
-    
-      await prefs.setString("name", fullName.isEmpty ? "User" : fullName);
-      await prefs.setString("u_name", username);
-      await prefs.setString("profile", userData["profile"] ?? "");
-      await prefs.setInt("user_id", userData["id"] ?? 0);
-      await prefs.setInt("id", userData["id"] ?? 0); 
-
-      print("USERNAME SAVED TO PREFS: '$username'");
-      print("FULL NAME SAVED TO PREFS: '$fullName'");
-      
-      if (mounted) {
-        setState(() {
-          studentName = fullName.isEmpty ? "User" : fullName;
-          studentRole = username;
-          studentImage = userData!["profile"] ?? "";
-          loggedInUserId = userData["id"] ?? 0;
-          isLoading = false;
-        });
+      if (userData == null || userData.isEmpty) {
+        print("User not found in list");
+        return;
       }
+
+      // userData ??= data.isNotEmpty ? data[0] : {};
+
+      if (userData!.isNotEmpty) {
+        print("API USERNAME: ${userData["u_name"]}");
+        print("API FIRST NAME: ${userData["first_name"]}");
+        print("API LAST NAME: ${userData["last_name"]}");
+
+        String firstName = userData["first_name"] ?? "";
+        String lastName = userData["last_name"] ?? "";
+        String fullName = "$firstName $lastName".trim();
+        String username = userData["u_name"] ?? "";
+
+        await prefs.setString("name", fullName.isEmpty ? "User" : fullName);
+        await prefs.setString("u_name", username);
+        await prefs.setString("profile", userData["profile"] ?? "");
+        await prefs.setInt("user_id", userData["id"] ?? 0);
+        await prefs.setInt("id", userData["id"] ?? 0);
+
+        print("USERNAME SAVED TO PREFS: '$username'");
+        print("FULL NAME SAVED TO PREFS: '$fullName'");
+        print("USER ID SAVED TO PREFS: ${userData["id"]}");
+
+        if (mounted) {
+          setState(() {
+            studentName = fullName.isEmpty ? "User" : fullName;
+            studentRole = username;
+            studentImage = userData!["profile"] ?? "";
+            loggedInUserId = userData["id"] ?? 0;
+            isLoading = false;
+          });
+        }
+      }
+    } else {
+      print("Failed to load profile: ${res.statusCode}");
     }
-  } else {
-    print("Failed to load profile: ${res.statusCode}");
   }
-}
 
   List<Map<String, dynamic>> banner = [];
 
@@ -574,28 +584,29 @@ Future<void> refreshUserProfile() async {
   }
 
   // FETCH USER
-Future<void> fetchStudentDetails() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> fetchStudentDetails() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
 
-    setState(() {
-      studentName = prefs.getString("name") ?? "User";
-      studentRole = prefs.getString("u_name") ?? "";
-      studentImage = prefs.getString("profile");
-      loggedInUserId = prefs.getInt("user_id") ?? prefs.getInt("id");
-      isLoading = false;
+      setState(() {
+        studentName = prefs.getString("name") ?? "User";
+        studentRole = prefs.getString("u_name") ?? "";
+        studentImage = prefs.getString("profile");
+        loggedInUserId = prefs.getInt("user_id") ?? prefs.getInt("id");
+        isLoading = false;
 
-      print("USERNAME FROM PREFS: '$studentRole'");
-      print("NAME FROM PREFS: '$studentName'");
-      print("USER ID FROM PREFS: $loggedInUserId");
-    });
-  } catch (e) {
-    print("Error loading from SharedPreferences: $e");
-    setState(() {
-      isLoading = false;
-    });
+        print("USERNAME FROM PREFS: '$studentRole'");
+        print("NAME FROM PREFS: '$studentName'");
+        print("USER ID FROM PREFS: $loggedInUserId");
+      });
+    } catch (e) {
+      print("Error loading from SharedPreferences: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
-}
+
   // FETCH CLUBS
   Future<void> fetchClubs() async {
     String? token = await getToken();
@@ -1215,9 +1226,7 @@ Future<void> fetchStudentDetails() async {
                                   session['id'],
                                 ),
                                 onRegister: () {
-                                  confirmRegister(
-                                    session['id'],
-                                  );
+                                  confirmRegister(session['id']);
                                 },
                               );
                             }).toList(),
@@ -1360,9 +1369,7 @@ Future<void> fetchStudentDetails() async {
           ),
         ),
       ),
-      bottomNavigationBar: const AppBottomNav_student(
-        currentIndex: 0,
-      ),
+      bottomNavigationBar: const AppBottomNav_student(currentIndex: 0),
     );
   }
 
@@ -1513,7 +1520,6 @@ Widget buildEventCardWithImages({
         ),
 
         const SizedBox(height: 8),
-
         Row(
           children: [
             const Icon(Icons.info, color: Colors.amberAccent, size: 16),
@@ -1526,16 +1532,25 @@ Widget buildEventCardWithImages({
                 style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
             ),
-            const SizedBox(width: 8),
+
+            // ✅ LIKE COUNT
+            Text(
+              likesCount.toString(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 0.5),
+
             IconButton(
               icon: Icon(
                 Icons.thumb_up_alt,
                 color: isLiked ? Colors.tealAccent : Colors.white70,
                 size: 22,
               ),
-              onPressed: () {
-                onLike(eventId);
-              },
+              onPressed: () => onLike(eventId),
             ),
           ],
         ),
@@ -1707,7 +1722,7 @@ Widget buildClubCardFromApi(
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ClubView(clubid: clubId, isApproved: isApproved),
+          builder: (_) => ClubView(clubid: clubId),
         ),
       );
     },

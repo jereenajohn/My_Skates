@@ -934,6 +934,7 @@ class _CreateTrainingSessionPageState extends State<CreateTrainingSessionPage> {
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       _onSuccess("Training session created");
+      _resetForm();
     } else {
       _onFailure(body);
     }

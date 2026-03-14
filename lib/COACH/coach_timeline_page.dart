@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:my_skates/COACH/coach_profile_page.dart';
 import 'package:my_skates/COACH/coach_view_achievements_page.dart';
 import 'package:my_skates/widgets/coach_repost_composer_sheet.dart';
 import 'package:my_skates/widgets/coachfeedcommentsheet.dart';
@@ -34,7 +35,6 @@ class _CoachTimelinePageState extends State<CoachTimelinePage> {
   @override
   void initState() {
     super.initState();
-    
   }
 
   @override
@@ -66,19 +66,18 @@ class _CoachTimelinePageState extends State<CoachTimelinePage> {
   }
 
   Future<void> _handleRefresh() async {
-    
     final profileProvider = context.read<CoachProfileProvider>();
     final feedProvider = context.read<CoachFeedProvider>();
-    
+
     try {
       await Future.wait([
         profileProvider.fetchProfile(),
         feedProvider.fetchFeeds(),
       ]);
-      
+
       // After refresh, check if we need to scroll to a specific feed
       _scrollToFeedIfNeeded();
-      
+
       _refreshController.refreshCompleted();
     } catch (e) {
       _refreshController.refreshFailed();
@@ -195,7 +194,6 @@ class _DetailsSectionState extends State<DetailsSection> {
           );
         }
 
-      
         if (!snapshot.hasData || snapshot.data == null) {
           return const SizedBox.shrink();
         }
@@ -252,6 +250,7 @@ class _PersonListTile extends StatelessWidget {
     final firstName = person["first_name"] ?? "N/A";
     final lastName = person["last_name"] ?? "";
     final userType = (person["user_type"] ?? "").toString();
+    final username = (person["u_name"] ?? person["username"] ?? "").toString();
     final email = person["email"] ?? "";
     final phone = person["phone"] ?? "";
     final instagram = person["instagram"] ?? "";
@@ -313,7 +312,7 @@ class _PersonListTile extends StatelessWidget {
                         border: Border.all(color: typeColor.withOpacity(0.5)),
                       ),
                       child: Text(
-                        userType.toUpperCase(),
+                        username.isNotEmpty ? "@${username}" : "USER",
                         style: TextStyle(
                           color: typeColor,
                           fontSize: 11,
@@ -327,11 +326,9 @@ class _PersonListTile extends StatelessWidget {
 
                 const SizedBox(height: 8),
 
-                if (phone.isNotEmpty)
-                  _InfoRow(icon: Icons.phone, text: phone),
+                if (phone.isNotEmpty) _InfoRow(icon: Icons.phone, text: phone),
 
-                if (email.isNotEmpty)
-                  _InfoRow(icon: Icons.email, text: email),
+                if (email.isNotEmpty) _InfoRow(icon: Icons.email, text: email),
 
                 if (instagram.isNotEmpty)
                   _InfoRow(icon: Icons.camera_alt, text: "@$instagram"),
@@ -363,10 +360,7 @@ class _InfoRow extends StatelessWidget {
               text,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 13,
-              ),
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
             ),
           ),
         ],
@@ -612,7 +606,7 @@ class _CoachTimelineView extends StatelessWidget {
     final feedLoading = context.watch<CoachFeedProvider>().loading;
 
     final bool isPageLoading = profileLoading || feedLoading;
-    
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -643,10 +637,10 @@ class _CoachTimelineView extends StatelessWidget {
                     const SizedBox(height: 40),
                     const _ProfileHeader(),
                     const SizedBox(height: 20),
-                    
+
                     // ✅ ADDED: Team Members Section
                     const DetailsSection(),
-                    
+
                     const SizedBox(height: 20),
 
                     // 🏆 ACHIEVEMENTS
@@ -692,7 +686,12 @@ class _TopBar extends StatelessWidget {
         const Spacer(),
         IconButton(
           icon: const Icon(Icons.edit, color: Colors.white),
-          onPressed: () {},
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => CoachProfilePage()),
+            );
+          },
         ),
       ],
     );
@@ -941,7 +940,7 @@ Future<List<Map<String, dynamic>>> fetchAchievements() async {
 class _FeedCard extends StatelessWidget {
   final dynamic feed;
   const _FeedCard({required this.feed});
-  
+
   Future<void> _shareFeed(BuildContext context, int actualFeedId) async {
     final int feedId = actualFeedId;
 
@@ -997,7 +996,7 @@ class _FeedCard extends StatelessWidget {
     final Map<String, dynamic> displayFeed = isRepostFeed
         ? Map<String, dynamic>.from(feed["feed"] as Map)
         : Map<String, dynamic>.from(feed as Map);
-    
+
     // ✅ ALWAYS read counts from original feed
     final int likeCount = displayFeed["likes_count"] ?? 0;
     final int repostCount = displayFeed["shares_count"] ?? 0;
@@ -1706,17 +1705,21 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                     ),
                   ),
                   TextButton(
-                    onPressed: controller.text.isEmpty && 
-                                images.isEmpty && 
-                                networkImages.isEmpty
+                    onPressed:
+                        controller.text.isEmpty &&
+                            images.isEmpty &&
+                            networkImages.isEmpty
                         ? null
                         : _submit,
                     child: Text(
-                      posting ? "Posting..." : (widget.isEdit ? "Update" : "Post"),
+                      posting
+                          ? "Posting..."
+                          : (widget.isEdit ? "Update" : "Post"),
                       style: TextStyle(
-                        color: (controller.text.isEmpty && 
-                                 images.isEmpty && 
-                                 networkImages.isEmpty)
+                        color:
+                            (controller.text.isEmpty &&
+                                images.isEmpty &&
+                                networkImages.isEmpty)
                             ? Colors.white30
                             : accentColor,
                         fontWeight: FontWeight.bold,
@@ -1871,7 +1874,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   /// ✅ FIXED: Handle both create and edit
   Future<void> _submit() async {
     if (posting) return;
-    
+
     setState(() => posting = true);
 
     if (widget.isEdit && widget.feedId != null) {
