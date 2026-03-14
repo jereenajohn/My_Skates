@@ -1,7 +1,6 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'dart:io';
-
 import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,7 +14,7 @@ class AddValues extends StatefulWidget {
 
 class _AddValuesState extends State<AddValues> {
   String? selectedCountryName;
-  int? selectedCountryId; // ← will hold selected country id
+  int? selectedCountryId;
   bool showForm = false;
 
   TextEditingController statetext = TextEditingController();
@@ -27,8 +26,15 @@ class _AddValuesState extends State<AddValues> {
     getstate();
   }
 
+  @override
+  void dispose() {
+    statetext.dispose();
+    super.dispose();
+  }
+
   bool isEditMode = false;
   int? editingStateId;
+
   Future<void> updatedistrict(
     int id,
     String newName,
@@ -56,13 +62,13 @@ class _AddValuesState extends State<AddValues> {
           ),
         );
         getdistrict();
-        // Reset form
         setState(() {
           isEditMode = false;
           editingStateId = null;
           statetext.clear();
           selectedCountryId = null;
           selectedCountryName = null;
+          showForm = false;
         });
 
         getstate();
@@ -154,10 +160,7 @@ class _AddValuesState extends State<AddValues> {
       var response = await http.post(
         Uri.parse('$api/api/myskates/attributes/values/'),
         headers: {'Authorization': 'Bearer $token'},
-        body: {
-          "name": Name,
-          "attributes": stateId.toString(), // FIXED
-        },
+        body: {"name": Name, "attributes": stateId.toString()},
       );
 
       print('Response status: ${response.statusCode}');
@@ -176,6 +179,7 @@ class _AddValuesState extends State<AddValues> {
         setState(() {
           selectedCountryId = null;
           selectedCountryName = null;
+          showForm = false;
         });
       }
       getdistrict();
@@ -192,159 +196,199 @@ class _AddValuesState extends State<AddValues> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Values",
-          style: TextStyle(color: Colors.white, fontSize: 20),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add, color: Colors.white, size: 28),
-            onPressed: () {
-              setState(() {
-                if (showForm) {
-                  // Hide form when clicked again
-                  showForm = false;
-                  isEditMode = false;
-                  statetext.clear();
-                  selectedCountryId = null;
-                  selectedCountryName = null;
-                } else {
-                  // Show form for adding new state
-                  showForm = true;
-                  isEditMode = false;
-                  statetext.clear();
-                  selectedCountryId = null;
-                  selectedCountryName = null;
-                }
-              });
-            },
-          ),
-        ],
-      ),
-
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (showForm) ...[
-                _label("Attribute"),
-                const SizedBox(height: 5),
-                _countryDropdown(),
-
-                const SizedBox(height: 5),
-
-                _label("Value Name"),
-                _inputField(),
-
-                const SizedBox(height: 20),
-
-                GestureDetector(
-                  onTap: () {
-                    if (selectedCountryId == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Please select a attribute"),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-
-                    if (statetext.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Please enter value name"),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-
-                    // Prevent duplicate entries (ADD or UPDATE)
-                    bool exists = district.any(
-                      (d) =>
-                          d['name'].toString().toLowerCase() ==
-                              statetext.text.trim().toLowerCase() &&
-                          d['country'] == selectedCountryName &&
-                          (isEditMode ? d['id'] != editingStateId : true),
-                    );
-
-                    if (exists) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          backgroundColor: Colors.red,
-                          content: Text("District already exists"),
-                        ),
-                      );
-                      return;
-                    }
-
-                    // Proceed ADD or UPDATE
-                    if (isEditMode) {
-                      updatedistrict(
-                        editingStateId!,
-                        statetext.text.trim(),
-                        selectedCountryId!,
-                        context,
-                      );
-                    } else {
-                      addvalues(
-                        statetext.text.trim(),
-                        selectedCountryId!,
-                        context,
-                      );
-                    }
-                  },
-
-                  child: Container(
-                    width: double.infinity,
-                    height: 55,
-                    decoration: BoxDecoration(
-                      color: isEditMode
-                          ? Colors.orange
-                          : const Color(0xFF018074),
-                      borderRadius: BorderRadius.circular(30),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF001F1D), Color(0xFF003A36), Colors.black],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
                     ),
-                    child: Center(
+                    const SizedBox(width: 4),
+                    const Expanded(
                       child: Text(
-                        isEditMode ? "Update" : "Submit",
-                        style: const TextStyle(
+                        "Values",
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                  ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.add,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          if (showForm) {
+                            showForm = false;
+                            isEditMode = false;
+                            statetext.clear();
+                            selectedCountryId = null;
+                            selectedCountryName = null;
+                          } else {
+                            showForm = true;
+                            isEditMode = false;
+                            statetext.clear();
+                            selectedCountryId = null;
+                            selectedCountryName = null;
+                          }
+                        });
+                      },
+                    ),
+                  ],
                 ),
+
+                const SizedBox(height: 14),
+
+                if (showForm)
+                  _glassBox(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _label("Attribute"),
+                        const SizedBox(height: 5),
+                        _countryDropdown(),
+                        const SizedBox(height: 5),
+                        _label("Value Name"),
+                        _inputField(),
+                        const SizedBox(height: 20),
+                        GestureDetector(
+                          onTap: () {
+                            if (selectedCountryId == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Please select a attribute"),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
+                            if (statetext.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Please enter value name"),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
+                            bool exists = district.any(
+                              (d) =>
+                                  d['name'].toString().toLowerCase() ==
+                                      statetext.text.trim().toLowerCase() &&
+                                  d['country'] == selectedCountryName &&
+                                  (isEditMode
+                                      ? d['id'] != editingStateId
+                                      : true),
+                            );
+
+                            if (exists) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  backgroundColor: Colors.red,
+                                  content: Text("District already exists"),
+                                ),
+                              );
+                              return;
+                            }
+
+                            if (isEditMode) {
+                              updatedistrict(
+                                editingStateId!,
+                                statetext.text.trim(),
+                                selectedCountryId!,
+                                context,
+                              );
+                            } else {
+                              addvalues(
+                                statetext.text.trim(),
+                                selectedCountryId!,
+                                context,
+                              );
+                            }
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            height: 55,
+                            decoration: BoxDecoration(
+                              color: isEditMode
+                                  ? Colors.orange
+                                  : const Color(0xFF018074),
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: Center(
+                              child: Text(
+                                isEditMode ? "Update" : "Submit",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                const SizedBox(height: 15),
+                _stateListWidget(),
               ],
-
-              const SizedBox(height: 30),
-
-              // STATE LIST TITLE
-              _label("Values List"),
-
-              const SizedBox(height: 10),
-
-              _stateListWidget(),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // LABEL WIDGET
+  Widget _glassBox({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.10)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.20),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
   Widget _label(String text) {
     return Text(
       text,
@@ -356,14 +400,14 @@ class _AddValuesState extends State<AddValues> {
     );
   }
 
-  // COUNTRY DROPDOWN WIDGET
   Widget _countryDropdown() {
     return Container(
       height: 55,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
@@ -417,33 +461,39 @@ class _AddValuesState extends State<AddValues> {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
+            color: Colors.white.withOpacity(0.05),
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // LEFT SIDE TEXTS
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Text(
-                          item['name'] ?? "-",
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
+                        Flexible(
+                          child: Text(
+                            item['name'] ?? "-",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        SizedBox(width: 6),
-                        Text(
-                          ", ${item['attribute_name']}",
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Colors.white70,
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            ", ${item['attribute_name']}",
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.white70,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -451,12 +501,10 @@ class _AddValuesState extends State<AddValues> {
                   ],
                 ),
               ),
-
-              // EDIT ICON
               GestureDetector(
                 onTap: () {
                   setState(() {
-                    showForm = true; // <-- show form when editing
+                    showForm = true;
                     isEditMode = true;
                     editingStateId = item['id'];
 
@@ -470,7 +518,6 @@ class _AddValuesState extends State<AddValues> {
                     selectedCountryName = item['country'];
                   });
                 },
-
                 child: const Icon(
                   Icons.edit,
                   color: Colors.orangeAccent,
@@ -484,15 +531,15 @@ class _AddValuesState extends State<AddValues> {
     );
   }
 
-  // UNIFORM INPUT FIELD
   Widget _inputField({int maxLines = 1}) {
     return Container(
       margin: const EdgeInsets.only(top: 8),
       height: 55,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
       alignment: Alignment.center,
       child: TextField(

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/COACH/location.dart';
@@ -29,6 +30,12 @@ class _AddBannerState extends State<AddBanner> {
     getBanner();
   }
 
+  @override
+  void dispose() {
+    bannerNameCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> pickImageFromGallery() async {
     final XFile? img = await picker.pickImage(source: ImageSource.gallery);
 
@@ -51,7 +58,6 @@ class _AddBannerState extends State<AddBanner> {
       return false;
     }
 
-    // IMAGE VALIDATION → ONLY WHEN CREATING
     if (editingBannerId == null && pickedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -122,7 +128,6 @@ class _AddBannerState extends State<AddBanner> {
           ),
         );
 
-        // RESET FORM
         setState(() {
           editingBannerId = null;
           existingBannerImage = null;
@@ -130,7 +135,7 @@ class _AddBannerState extends State<AddBanner> {
           bannerNameCtrl.clear();
         });
 
-        getBanner(); // REFRESH LIST
+        getBanner();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -175,22 +180,27 @@ class _AddBannerState extends State<AddBanner> {
       print("STATUS CODE: ${response.statusCode}");
       print("RESPONSE: $responseBody");
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text("Banner Created Successfully!"),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const AddBanner()),
-        );
-      } else {
+     if (response.statusCode == 200 || response.statusCode == 201) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: const Text("Banner Created Successfully!"),
+      backgroundColor: Colors.green,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    ),
+  );
+
+  setState(() {
+    bannerNameCtrl.clear();
+    pickedImage = null;
+    existingBannerImage = null;
+    editingBannerId = null;
+  });
+
+  getBanner();
+} else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Failed: $responseBody"),
@@ -245,26 +255,26 @@ class _AddBannerState extends State<AddBanner> {
     } catch (error) {}
   }
 
-  // UI STARTS HERE
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
+            colors: [Color(0xFF001F1D), Color(0xFF003A36), Colors.black],
             begin: Alignment.topLeft,
-            end: Alignment.center,
-            colors: [Color(0xFF0A332E), Colors.black],
+            end: Alignment.bottomCenter,
           ),
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // BACK BUTTON
                 Row(
                   children: [
                     InkWell(
@@ -281,12 +291,22 @@ class _AddBannerState extends State<AddBanner> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        "Banners",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
 
-                const SizedBox(height: 15),
+                const SizedBox(height: 16),
 
-                // UPLOAD PHOTO
                 Center(
                   child: Column(
                     children: [
@@ -320,7 +340,7 @@ class _AddBannerState extends State<AddBanner> {
                               : null,
                         ),
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 8),
                       const Text(
                         "Upload Photo",
                         style: TextStyle(color: Colors.white70, fontSize: 15),
@@ -329,7 +349,7 @@ class _AddBannerState extends State<AddBanner> {
                   ),
                 ),
 
-                const SizedBox(height: 5),
+                const SizedBox(height: 8),
 
                 buildLabel("Banner Name"),
                 buildTextField(bannerNameCtrl),
@@ -348,7 +368,6 @@ class _AddBannerState extends State<AddBanner> {
                         }
                       }
                     },
-
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00C9B8),
                       shape: RoundedRectangleBorder(
@@ -358,7 +377,7 @@ class _AddBannerState extends State<AddBanner> {
                     ),
                     child: Text(
                       editingBannerId == null ? "Submit" : "Update",
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -369,7 +388,7 @@ class _AddBannerState extends State<AddBanner> {
 
                 const SizedBox(height: 20),
 
-                Text(
+                const Text(
                   "Existing Banners",
                   style: TextStyle(
                     color: Colors.white70,
@@ -378,9 +397,8 @@ class _AddBannerState extends State<AddBanner> {
                   ),
                 ),
 
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
 
-                // DISPLAY BANNERS LIST
                 Column(
                   children: Banner.map((item) {
                     return bannerItem(item);
@@ -407,7 +425,6 @@ class _AddBannerState extends State<AddBanner> {
           borderRadius: BorderRadius.circular(16),
           child: Stack(
             children: [
-              // IMAGE
               Positioned.fill(
                 child:
                     item['image'] != null &&
@@ -415,7 +432,7 @@ class _AddBannerState extends State<AddBanner> {
                     ? Image.network(item['image'], fit: BoxFit.cover)
                     : Container(
                         color: Colors.grey[800],
-                        child: Center(
+                        child: const Center(
                           child: Text(
                             "No Image",
                             style: TextStyle(color: Colors.white54),
@@ -423,16 +440,13 @@ class _AddBannerState extends State<AddBanner> {
                         ),
                       ),
               ),
-
-              // TITLE + ICONS
               Positioned(
                 left: 10,
                 bottom: 10,
                 child: Row(
                   children: [
-                    // TITLE
                     Container(
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 6,
                       ),
@@ -444,57 +458,48 @@ class _AddBannerState extends State<AddBanner> {
                         item['title']?.toString().isNotEmpty == true
                             ? item['title']
                             : "No Title",
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-
                     const SizedBox(width: 12),
-
-                    // EDIT ICON
                     GestureDetector(
                       onTap: () {
                         setState(() {
                           editingBannerId = item['id'];
                           bannerNameCtrl.text = item['title'] ?? "";
-                          existingBannerImage =
-                              item['image']; // show existing image
-                          pickedImage =
-                              null; // user will choose new image only if needed
+                          existingBannerImage = item['image'];
+                          pickedImage = null;
                         });
                       },
-
                       child: Container(
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color.fromARGB(172, 0, 0, 0),
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          color: Color.fromARGB(172, 0, 0, 0),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
+                        child: const Icon(
                           Icons.edit,
-                          color: const Color.fromARGB(255, 4, 255, 188),
+                          color: Color.fromARGB(255, 4, 255, 188),
                           size: 20,
                         ),
                       ),
                     ),
-
                     const SizedBox(width: 10),
-
-                    // DELETE ICON
                     GestureDetector(
                       onTap: () {
                         deleteBanner(item['id']);
                       },
                       child: Container(
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color.fromARGB(174, 0, 0, 0),
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          color: Color.fromARGB(174, 0, 0, 0),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
+                        child: const Icon(
                           Icons.delete,
                           color: Colors.redAccent,
                           size: 20,
@@ -511,7 +516,6 @@ class _AddBannerState extends State<AddBanner> {
     );
   }
 
-  // LABEL WIDGET
   Widget buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(top: 15, bottom: 8),
@@ -522,12 +526,12 @@ class _AddBannerState extends State<AddBanner> {
     );
   }
 
-  // TEXTFIELD UI
   Widget buildTextField(TextEditingController controller, {int maxLines = 1}) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color.fromARGB(157, 37, 37, 37),
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
       child: TextField(
         controller: controller,

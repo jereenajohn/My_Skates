@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/CoachApprovalTabs.dart';
+import 'package:my_skates/ADMIN/add_attributes.dart';
 import 'package:my_skates/ADMIN/add_banner.dart';
+import 'package:my_skates/ADMIN/add_category.dart';
+import 'package:my_skates/ADMIN/add_chat_support_questions.dart';
+import 'package:my_skates/ADMIN/add_country.dart';
+import 'package:my_skates/ADMIN/add_coupon.dart';
+import 'package:my_skates/ADMIN/add_district.dart';
 import 'package:my_skates/ADMIN/add_product.dart';
+import 'package:my_skates/ADMIN/add_state.dart';
 import 'package:my_skates/ADMIN/admin_notificationpage.dart';
+import 'package:my_skates/ADMIN/admin_orders_page.dart';
+import 'package:my_skates/ADMIN/approved_products.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/menu.dart';
 import 'package:my_skates/ADMIN/productapprove_tab.dart';
@@ -41,53 +50,51 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _onBottomNavTap(int index) {
-    switch (index) {
-      case 0:
-        break;
-      case 1:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const UserApprovedProducts()),
-        );
-        break;
+  switch (index) {
+    case 0:
+      break;
+    case 1:
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const UserApprovedProducts()),
+      );
+      break;
 
-      case 2:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CoachChatSupport(from: "admin",)),
-        );
-        break;
+    case 2:
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AddChatSupportQuestions()),
+      );
+      break;
 
-      case 3:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => UserConnectCoaches()),
-        );
-        break;
+    case 3:
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => Admin_order_page()),
+      );
+      break;
 
-      case 4:
-        break;
-    }
-  }
-
-  Future<void> _loadInitialData() async {
-  
-  setState(() => isLoading = true);
-  
-  try {
-    
-    await Future.wait([
-      fetchStudentDetails(),  
-      getbanner()
-    ]);
-  } catch (e) {
-    print("Error loading initial data: $e");
-  } finally {
-    if (mounted) {
-      setState(() => isLoading = false);
-    }
+    case 4:
+    Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ProductapproveTab()),
+      );
+      break;
   }
 }
+  Future<void> _loadInitialData() async {
+    setState(() => isLoading = true);
+
+    try {
+      await Future.wait([fetchStudentDetails(), getbanner()]);
+    } catch (e) {
+      print("Error loading initial data: $e");
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
+  }
 
   Future<void> _refreshData() async {
     if (!mounted || isRefreshing) return;
@@ -158,101 +165,93 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
- Future<void> fetchStudentDetails() async {
-  final prefs = await SharedPreferences.getInstance();
+  Future<void> fetchStudentDetails() async {
+    final prefs = await SharedPreferences.getInstance();
 
-  print("Stored u_name: ${prefs.getString("u_name")}");
-  print("Stored name: ${prefs.getString("name")}");
+    print("Stored u_name: ${prefs.getString("u_name")}");
+    print("Stored name: ${prefs.getString("name")}");
 
-  
-  String name = prefs.getString("name") ?? "User";
-  String role = prefs.getString("user_type") ?? "user_type";
-  String uName = prefs.getString("u_name") ?? "";
-  String? image = prefs.getString("profile");
+    String name = prefs.getString("name") ?? "User";
+    String role = prefs.getString("user_type") ?? "user_type";
+    String uName = prefs.getString("u_name") ?? "";
+    String? image = prefs.getString("profile");
 
-  if (uName.isEmpty) {
-    print("🔄 u_name not in prefs, fetching from API...");
-    
-    final userData = await fetchDetailsSection();
-    
-    if (userData != null) {
-      print(" Got user data from API: $userData");
-      
-      
-      uName = userData['u_name'] ?? '';
-      name = userData['first_name'] ?? userData['name'] ?? name;
-      role = userData['user_type'] ?? role;
-      image = userData['profile'] ?? image;
-      
-      
-      if (uName.isNotEmpty) {
-        await prefs.setString('u_name', uName);
-        print(" Saved u_name to prefs: $uName");
-      }
-      if (name.isNotEmpty) {
-        await prefs.setString('name', name);
-      }
-      if (role.isNotEmpty) {
-        await prefs.setString('user_type', role);
-      }
-      if (image != null && image.isNotEmpty) {
-        await prefs.setString('profile', image);
+    if (uName.isEmpty) {
+      print("🔄 u_name not in prefs, fetching from API...");
+
+      final userData = await fetchDetailsSection();
+
+      if (userData != null) {
+        print(" Got user data from API: $userData");
+
+        uName = userData['u_name'] ?? '';
+        name = userData['first_name'] ?? userData['name'] ?? name;
+        role = userData['user_type'] ?? role;
+        image = userData['profile'] ?? image;
+
+        if (uName.isNotEmpty) {
+          await prefs.setString('u_name', uName);
+          print(" Saved u_name to prefs: $uName");
+        }
+        if (name.isNotEmpty) {
+          await prefs.setString('name', name);
+        }
+        if (role.isNotEmpty) {
+          await prefs.setString('user_type', role);
+        }
+        if (image != null && image.isNotEmpty) {
+          await prefs.setString('profile', image);
+        }
+      } else {
+        print("Failed to fetch user data from API");
       }
     } else {
-      print("Failed to fetch user data from API");
+      print(" Using u_name from prefs: $uName");
     }
-  } else {
-    print(" Using u_name from prefs: $uName");
+
+    setState(() {
+      studentName = name;
+      studentRole = role;
+      studentUName = uName;
+      studentImage = image;
+    });
+
+    print(' Final display - Name: $name, u_name: "$uName"');
   }
-
-  setState(() {
-    studentName = name;
-    studentRole = role;
-    studentUName = uName;
-    studentImage = image;
-  });
-  
-  print(' Final display - Name: $name, u_name: "$uName"');
-}
-
-
 
   Future<Map<String, dynamic>?> fetchDetailsSection() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
 
-    if (token == null) {
-      debugPrint("ACCESS TOKEN IS NULL");
-      return null;
-    }
-
-    final res = await http.get(
-      Uri.parse("$api/api/myskates/profile/user/"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
-    );
-
-    if (res.statusCode == 200) {
-      final decoded = jsonDecode(res.body);
-
-     
-      if (decoded is Map<String, dynamic>) {
-        return decoded;
+      if (token == null) {
+        debugPrint("ACCESS TOKEN IS NULL");
+        return null;
       }
-    } else {
-      debugPrint("API ERROR: ${res.statusCode}");
+
+      final res = await http.get(
+        Uri.parse("$api/api/myskates/profile/user/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body);
+
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+      } else {
+        debugPrint("API ERROR: ${res.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("FETCH PERSON DETAILS ERROR: $e");
     }
-  } catch (e) {
-    debugPrint("FETCH PERSON DETAILS ERROR: $e");
+
+    return null;
   }
-
-  return null;
-}
-
-  
 
   // SHIMMER METHODS
   Widget _buildBannerShimmer() {
@@ -303,6 +302,139 @@ class _DashboardPageState extends State<DashboardPage> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
+        ),
+      ),
+    );
+  }
+
+  Widget buildAdminQuickActions() {
+    return GridView.count(
+      crossAxisCount: 3,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: 1.05,
+      children: [
+        adminCard(
+          icon: Icons.public,
+          title: "Country",
+          onTap: () {
+            pushWithSlide(const AddCountry());
+          },
+        ),
+
+        adminCard(
+          icon: Icons.map,
+          title: "State",
+          onTap: () {
+            pushWithSlide(const state());
+          },
+        ),
+
+        adminCard(
+          icon: Icons.location_city,
+          title: "District",
+          onTap: () {
+            pushWithSlide(const district());
+          },
+        ),
+
+        adminCard(
+          icon: Icons.category,
+          title: "Category",
+          onTap: () {
+            pushWithSlide(const AddCategory());
+          },
+        ),
+
+        adminCard(
+          icon: Icons.tune,
+          title: "Attributes",
+          onTap: () {
+            pushWithSlide(const attributes());
+          },
+        ),
+
+        adminCard(
+          icon: Icons.confirmation_number,
+          title: "Coupons",
+          onTap: () {
+            pushWithSlide(const AddCoupon());
+          },
+        ),
+
+        adminCard(
+          icon: Icons.photo,
+          title: "Banners",
+          onTap: () {
+            pushWithSlide(const AddBanner());
+          },
+        ),
+
+        adminCard(
+          icon: Icons.shopping_bag,
+          title: "Orders",
+          onTap: () {
+            pushWithSlide(const Admin_order_page());
+          },
+        ),
+
+        adminCard(
+          icon: Icons.chat,
+          title: "Support",
+          onTap: () {
+            pushWithSlide(const AddChatSupportQuestions());
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget adminCard({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFF00AFA5).withOpacity(0.25),
+              const Color(0xFF00AFA5).withOpacity(0.05),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00AFA5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: Colors.white, size: 22),
+            ),
+
+            const SizedBox(height: 10),
+
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -547,68 +679,83 @@ class _DashboardPageState extends State<DashboardPage> {
                   buildButton("Approve Coaches"),
                   buildButton("Add Products"),
                   buildButton("Approve Products"),
+                  buildButton("Orders"),
                   buildButton("Buy and Sell products"),
 
-                  const SizedBox(height: 25),
-
-                  // RECOMMENDED CLUBS TITLE
-                  const Text(
-                    "Recommended Clubs near you",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  // CLUB SECTION WITH SHIMMER
-                  _buildClubShimmer(),
-
-                  // UPCOMING EVENTS
-                  const SizedBox(height: 25),
-                  const Text(
-                    "Inspired to push your limits every day.",
-                    style: TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  // EVENT CARD 1 WITH SHIMMER
-                  _buildEventShimmer(),
-
-                  const SizedBox(height: 12),
-
-                  // EVENT CARD 2 (with images) WITH SHIMMER
-                  _buildEventWithImagesShimmer(),
-
-                  // SUGGESTED COACHES
-                  const SizedBox(height: 25),
-                  const Text(
-                    "Suggested Coaches",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  // COACH SECTION WITH SHIMMER
-                  _buildCoachShimmer(),
 
                   const SizedBox(height: 20),
 
-                  // EVENT CARD 1 WITH SHIMMER
-                  _buildEventShimmer(),
+                  // const Text(
+                  //   "Admin Controls",
+                  //   style: TextStyle(
+                  //     color: Colors.white,
+                  //     fontSize: 18,
+                  //     fontWeight: FontWeight.bold,
+                  //   ),
+                  // ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 15),
 
-                  // EVENT CARD 2 (with images) WITH SHIMMER
-                  _buildEventWithImagesShimmer(),
+                  buildAdminQuickActions(),
+
+                  // RECOMMENDED CLUBS TITLE
+                  // const Text(
+                  //   "Recommended Clubs near you",
+                  //   style: TextStyle(
+                  //     color: Colors.white,
+                  //     fontSize: 18,
+                  //     fontWeight: FontWeight.bold,
+                  //     letterSpacing: 0.5,
+                  //   ),
+                  // ),
+
+                  // const SizedBox(height: 25),
+
+                  // // CLUB SECTION WITH SHIMMER
+                  // _buildClubShimmer(),
+
+                  // // UPCOMING EVENTS
+                  // const SizedBox(height: 25),
+                  // const Text(
+                  //   "Inspired to push your limits every day.",
+                  //   style: TextStyle(color: Colors.white, fontSize: 14),
+                  // ),
+
+                  // const SizedBox(height: 15),
+
+                  // // EVENT CARD 1 WITH SHIMMER
+                  // _buildEventShimmer(),
+
+                  // const SizedBox(height: 12),
+
+                  // // EVENT CARD 2 (with images) WITH SHIMMER
+                  // _buildEventWithImagesShimmer(),
+
+                  // // SUGGESTED COACHES
+                  // const SizedBox(height: 25),
+                  // const Text(
+                  //   "Suggested Coaches",
+                  //   style: TextStyle(
+                  //     color: Colors.white,
+                  //     fontSize: 18,
+                  //     fontWeight: FontWeight.w600,
+                  //   ),
+                  // ),
+
+                  // const SizedBox(height: 15),
+
+                  // // COACH SECTION WITH SHIMMER
+                  // _buildCoachShimmer(),
+
+                  // const SizedBox(height: 20),
+
+                  // // EVENT CARD 1 WITH SHIMMER
+                  // _buildEventShimmer(),
+
+                  // const SizedBox(height: 12),
+
+                  // // EVENT CARD 2 (with images) WITH SHIMMER
+                  // _buildEventWithImagesShimmer(),
                 ],
               ),
             ),
@@ -649,6 +796,9 @@ class _DashboardPageState extends State<DashboardPage> {
           }
           if (title == "Add Products") {
             pushWithSlide(const AddProduct());
+          }
+          if (title == "Orders") {
+            pushWithSlide(const Admin_order_page());
           }
         },
         child: Text(

@@ -1,7 +1,7 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:my_skates/ADMIN/menu.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 
@@ -30,6 +30,15 @@ class _AddChatSupportQuestionsState extends State<AddChatSupportQuestions> {
   void initState() {
     super.initState();
     fetchFAQs();
+  }
+
+  @override
+  void dispose() {
+    questionController.dispose();
+    answerController.dispose();
+    keywordsController.dispose();
+    searchController.dispose();
+    super.dispose();
   }
 
   Future<String?> getToken() async {
@@ -87,7 +96,6 @@ class _AddChatSupportQuestionsState extends State<AddChatSupportQuestions> {
     });
   }
 
-  /// ADD FAQ
   Future<void> addFAQ() async {
     final question = questionController.text.trim();
     final answer = answerController.text.trim();
@@ -187,73 +195,80 @@ class _AddChatSupportQuestionsState extends State<AddChatSupportQuestions> {
   }
 
   Future<void> deleteFAQ(int id) async {
-    final token = await getToken();
-    if (token == null) return;
+  final token = await getToken();
+  if (token == null) return;
 
-    try {
-      final response = await http.delete(
-        Uri.parse("$api/api/myskates/support/faq/$id/"),
-        headers: {"Authorization": "Bearer $token"},
-      );
+  try {
+    final response = await http.delete(
+      Uri.parse("$api/api/myskates/support/faq/$id/"),
+      headers: {"Authorization": "Bearer $token"},
+    );
 
-      print("Delete FAQ response: ${response.statusCode}");
+    print("Delete FAQ response: ${response.statusCode}");
+    print("Delete FAQ body: ${response.body}");
 
-      if (response.statusCode == 204) {
-        setState(() {
-          faqList.removeWhere((faq) => faq["id"] == id);
-          filteredFaqList.removeWhere((faq) => faq["id"] == id);
-        });
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      setState(() {
+        faqList.removeWhere((faq) => faq["id"] == id);
+        filteredFaqList.removeWhere((faq) => faq["id"] == id);
+      });
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("FAQ Deleted")));
-      }
-    } catch (e) {
-      print("Delete error: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("FAQ Deleted")));
     }
+  } catch (e) {
+    print("Delete error: $e");
   }
+}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF00312D), Color(0xFF000000)],
-            begin: Alignment.topCenter,
+            colors: [
+              Color(0xFF001F1D),
+              Color(0xFF003A36),
+              Colors.black,
+            ],
+            begin: Alignment.topLeft,
             end: Alignment.bottomCenter,
           ),
         ),
         child: SafeArea(
           child: ListView(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             children: [
-              /// HEADER
-               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    IconButton(onPressed: (){
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => MenuPage()));
-                    }, icon: Icon(Icons.arrow_back,color: Colors.white,)),
-                    Text(
-                    "Manage Support FAQs",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  ),
+                  const SizedBox(width: 4),
+                  const Expanded(
+                    child: Text(
+                      "Manage Support FAQs",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  ]
-                ),
+                ],
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              /// FORM
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+              _glassBox(
                 child: Column(
                   children: [
                     buildField(questionController, "Question"),
@@ -268,6 +283,13 @@ class _AddChatSupportQuestionsState extends State<AddChatSupportQuestions> {
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF00312D),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 14,
+                        ),
                       ),
                       onPressed: submitting
                           ? null
@@ -285,7 +307,6 @@ class _AddChatSupportQuestionsState extends State<AddChatSupportQuestions> {
                               style: const TextStyle(color: Colors.white),
                             ),
                     ),
-
                     if (isEditing)
                       TextButton(
                         onPressed: () {
@@ -307,11 +328,9 @@ class _AddChatSupportQuestionsState extends State<AddChatSupportQuestions> {
                 ),
               ),
 
-              const SizedBox(height: 25),
+              const SizedBox(height: 20),
 
-              /// SEARCH
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+              _glassBox(
                 child: TextField(
                   controller: searchController,
                   onChanged: applySearch,
@@ -328,13 +347,24 @@ class _AddChatSupportQuestionsState extends State<AddChatSupportQuestions> {
                         color: Colors.white.withOpacity(0.2),
                       ),
                     ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Colors.white.withOpacity(0.2),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Colors.white.withOpacity(0.35),
+                      ),
+                    ),
                   ),
                 ),
               ),
 
               const SizedBox(height: 20),
 
-              /// LOADING
               if (loading)
                 const Center(
                   child: Padding(
@@ -343,150 +373,150 @@ class _AddChatSupportQuestionsState extends State<AddChatSupportQuestions> {
                   ),
                 ),
 
-              /// FAQ LIST
               ...filteredFaqList.map((faq) {
-                return Card(
-                  color: Colors.white.withOpacity(0.1),
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                faq["question"] ?? "",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  child: Card(
+                    color: Colors.white.withOpacity(0.08),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: Colors.white.withOpacity(0.08),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  faq["question"] ?? "",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    color: Colors.yellow,
+                              Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      color: Colors.yellow,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        isEditing = true;
+                                        editingId = faq["id"];
+                                        questionController.text =
+                                            faq["question"] ?? "";
+                                        answerController.text =
+                                            faq["answer"] ?? "";
+                                        keywordsController.text =
+                                            faq["keywords"] ?? "";
+                                      });
+                                    },
                                   ),
-                                  onPressed: () {
-                                    setState(() {
-                                      isEditing = true;
-                                      editingId = faq["id"];
-                                      questionController.text =
-                                          faq["question"] ?? "";
-                                      answerController.text =
-                                          faq["answer"] ?? "";
-                                      keywordsController.text =
-                                          faq["keywords"] ?? "";
-                                    });
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.red,
-                                  ),
-                                  onPressed: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (_) {
-                                        return Dialog(
-                                          backgroundColor: Colors.transparent,
-                                          child: Container(
-                                            padding: const EdgeInsets.all(20),
-                                            decoration: BoxDecoration(
-                                              gradient: const LinearGradient(
-                                                colors: [
-                                                  Color(0xFF00312D),
-                                                  Color(0xFF000000),
-                                                ],
-                                                begin: Alignment.topCenter,
-                                                end: Alignment.bottomCenter,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(16),
-                                            ),
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Text(
-                                                  "Delete FAQ?",
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 15),
-                                                const Text(
-                                                  "This action cannot be undone.",
-                                                  textAlign: TextAlign.center,
-                                                  style: TextStyle(
-                                                    color: Colors.white70,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 20),
-                                                Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment
-                                                          .spaceBetween,
-                                                  children: [
-                                                    TextButton(
-                                                      onPressed: () =>
-                                                          Navigator.pop(
-                                                            context,
-                                                          ),
-                                                      child: const Text(
-                                                        "Cancel",
-                                                        style: TextStyle(
-                                                          color: Colors.white,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    ElevatedButton(
-                                                      // style:
-                                                      //     ElevatedButton.styleFrom(
-                                                      //       backgroundColor:
-                                                      //           Colors.red,
-                                                      //     ),
-                                                      onPressed: () {
-                                                        Navigator.pop(context);
-                                                        deleteFAQ(faq["id"]);
-                                                      },
-                                                      child: const Text(
-                                                        "Delete",
-                                                        style: TextStyle(
-                                                          color: Colors.black,
-                                                        ),
-                                                      ),
-                                                    ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: Colors.red,
+                                    ),
+                                    onPressed: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (_) {
+                                          return Dialog(
+                                            backgroundColor: Colors.transparent,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(20),
+                                              decoration: BoxDecoration(
+                                                gradient: const LinearGradient(
+                                                  colors: [
+                                                    Color(0xFF00312D),
+                                                    Color(0xFF000000),
                                                   ],
+                                                  begin: Alignment.topCenter,
+                                                  end: Alignment.bottomCenter,
                                                 ),
-                                              ],
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                              ),
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Text(
+                                                    "Delete FAQ?",
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 15),
+                                                  const Text(
+                                                    "This action cannot be undone.",
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      color: Colors.white70,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 20),
+                                                  Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceBetween,
+                                                    children: [
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                              context,
+                                                            ),
+                                                        child: const Text(
+                                                          "Cancel",
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      ElevatedButton(
+                                                        onPressed: () {
+                                                          Navigator.pop(context);
+                                                          deleteFAQ(faq["id"]);
+                                                        },
+                                                        child: const Text(
+                                                          "Delete",
+                                                          style: TextStyle(
+                                                            color: Colors.black,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                          ),
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          faq["answer"] ?? "",
-                          style: const TextStyle(color: Colors.white70),
-                        ),
-                      ],
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            faq["answer"] ?? "",
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -495,6 +525,32 @@ class _AddChatSupportQuestionsState extends State<AddChatSupportQuestions> {
               const SizedBox(height: 40),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _glassBox({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.10)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.20),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: child,
         ),
       ),
     );
@@ -517,6 +573,14 @@ class _AddChatSupportQuestionsState extends State<AddChatSupportQuestions> {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.35)),
         ),
       ),
     );

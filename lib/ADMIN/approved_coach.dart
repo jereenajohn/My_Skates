@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,7 +17,7 @@ class _ApprovedCoachState extends State<ApprovedCoach> {
   List<Map<String, dynamic>> coach = [];
   bool isLoading = true;
   bool isRefreshing = false;
-  
+
   @override
   void initState() {
     super.initState();
@@ -39,7 +40,6 @@ class _ApprovedCoachState extends State<ApprovedCoach> {
 
       if (placemarks.isNotEmpty) {
         Placemark p = placemarks.first;
-
         return "${p.locality ?? ''}, ${p.administrativeArea ?? ''}, ${p.country ?? ''}";
       }
     } catch (e) {
@@ -69,10 +69,8 @@ class _ApprovedCoachState extends State<ApprovedCoach> {
 
       if (response.statusCode == 200) {
         List<dynamic> parsed = jsonDecode(response.body);
-        
-        // Process all coach data with addresses
         List<Map<String, dynamic>> tempCoach = [];
-        
+
         for (var c in parsed) {
           String finalLocation = await getAddressFromLatLng(
             c['latitude']?.toString(),
@@ -114,11 +112,133 @@ class _ApprovedCoachState extends State<ApprovedCoach> {
     await getcoach();
   }
 
+  Widget glassCoachCard(Map<String, dynamic> c) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 15),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: Colors.white.withOpacity(0.10)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.20),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 35,
+                      backgroundImage: c['profile'].isNotEmpty
+                          ? NetworkImage(c['profile'])
+                          : const AssetImage("lib/assets/img.jpg")
+                                as ImageProvider,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            c['full_name'],
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            c['location'],
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 13,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.location_on,
+                                color: Colors.tealAccent,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 5),
+                              Expanded(
+                                child: Text(
+                                  c['location'],
+                                  style: const TextStyle(
+                                    color: Colors.tealAccent,
+                                    fontSize: 14,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: c['document'].isNotEmpty
+                          ? Image.network(
+                              c['document'],
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Container(
+                                width: 60,
+                                height: 60,
+                                color: Colors.grey[900],
+                                child: const Icon(
+                                  Icons.broken_image,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            )
+                          : Container(
+                              width: 60,
+                              height: 60,
+                              color: Colors.grey[900],
+                              child: const Icon(
+                                Icons.image,
+                                color: Colors.grey,
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: isLoading
+    return Container(
+      color: Colors.transparent,
+      child: isLoading
           ? const Center(
               child: CircularProgressIndicator(color: Colors.tealAccent),
             )
@@ -133,24 +253,23 @@ class _ApprovedCoachState extends State<ApprovedCoach> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: SizedBox(
                         height: MediaQuery.of(context).size.height * 0.8,
-                        child: Center(
+                        child: const Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.group_outlined,
                                 color: Colors.white54,
                                 size: 60,
                               ),
-                              const SizedBox(height: 16),
-                              const Text(
+                              SizedBox(height: 16),
+                              Text(
                                 "No approved coaches found",
                                 style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 16,
                                 ),
                               ),
-                              
                             ],
                           ),
                         ),
@@ -162,132 +281,7 @@ class _ApprovedCoachState extends State<ApprovedCoach> {
                       itemCount: coach.length,
                       itemBuilder: (context, index) {
                         final c = coach[index];
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 15),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color.fromARGB(92, 35, 35, 35),
-                            borderRadius: BorderRadius.circular(22),
-                            border: Border.all(color: Colors.grey.shade800),
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // PROFILE PIC
-                                  CircleAvatar(
-                                    radius: 35,
-                                    backgroundImage: c['profile'].isNotEmpty
-                                        ? NetworkImage(c['profile'])
-                                        : const AssetImage(
-                                                "lib/assets/img.jpg")
-                                            as ImageProvider,
-                                  ),
-
-                                  const SizedBox(width: 12),
-
-                                  // MIDDLE CONTENT
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        // NAME
-                                        Text(
-                                          c['full_name'],
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-
-                                        const SizedBox(height: 4),
-
-                                        // NORMAL LOCATION LINE
-                                        Text(
-                                          c['location'],
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 13,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-
-                                        const SizedBox(height: 4),
-
-                                        // GREEN LOCATION LINE
-                                        Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.location_on,
-                                              color: Colors.teal,
-                                              size: 18,
-                                            ),
-                                            const SizedBox(width: 5),
-                                            Expanded(
-                                              child: Text(
-                                                c['location'],
-                                                style: const TextStyle(
-                                                  color: Colors.teal,
-                                                  fontSize: 14,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-
-                                        const SizedBox(height: 5),
-                                      ],
-                                    ),
-                                  ),
-
-                                  const SizedBox(width: 10),
-
-                                  // RIGHT-SIDE IMAGE
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: c['document'].isNotEmpty
-                                        ? Image.network(
-                                            c['document'],
-                                            width: 60,
-                                            height: 60,
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) =>
-                                                    Container(
-                                              width: 60,
-                                              height: 60,
-                                              color: Colors.grey[900],
-                                              child: const Icon(
-                                                Icons.broken_image,
-                                                color: Colors.grey,
-                                              ),
-                                            ),
-                                          )
-                                        : Container(
-                                            width: 60,
-                                            height: 60,
-                                            color: Colors.grey[900],
-                                            child: const Icon(
-                                              Icons.image,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                            ],
-                          ),
-                        );
+                        return glassCoachCard(c);
                       },
                     ),
             ),

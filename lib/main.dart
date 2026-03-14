@@ -9,6 +9,7 @@ import 'package:my_skates/STUDENTS/Home_Page.dart';
 
 import 'package:app_links/app_links.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // ✅ Ride tracking provider
 import 'package:my_skates/ride/ride_provider.dart';
@@ -19,6 +20,7 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await dotenv.load(fileName: ".env");
   // ✅ Professional error screen (no red/yellow)
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return Material(

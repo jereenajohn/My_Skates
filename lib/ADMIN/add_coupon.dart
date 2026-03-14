@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
@@ -32,6 +33,15 @@ class _AddCouponState extends State<AddCoupon> {
   void initState() {
     super.initState();
     getCoupons();
+  }
+
+  @override
+  void dispose() {
+    nameCtrl.dispose();
+    percentCtrl.dispose();
+    priceCtrl.dispose();
+    descCtrl.dispose();
+    super.dispose();
   }
 
   /* ================= FETCH COUPONS ================= */
@@ -138,6 +148,8 @@ class _AddCouponState extends State<AddCoupon> {
       descCtrl.clear();
       validFrom = null;
       validTo = null;
+      disablePercent = false;
+      disablePrice = false;
     });
   }
 
@@ -185,36 +197,100 @@ class _AddCouponState extends State<AddCoupon> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text("Coupons", style: TextStyle(color: Colors.white)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add, color: Colors.white),
-            onPressed: () {
-              setState(() {
-                showForm = !showForm;
-                if (!showForm) resetForm();
-              });
-            },
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF001F1D),
+              Color(0xFF003A36),
+              Colors.black,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomCenter,
           ),
-        ],
-      ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 4),
+                    const Expanded(
+                      child: Text(
+                        "Coupons",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      onPressed: () {
+                        setState(() {
+                          showForm = !showForm;
+                          if (!showForm) resetForm();
+                        });
+                      },
+                    ),
+                  ],
+                ),
 
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (showForm) couponForm(),
-            const SizedBox(height: 20),
-            label("Coupons"),
-            couponList(),
-          ],
+                const SizedBox(height: 14),
+
+                if (showForm) ...[
+                  _glassBox(child: couponForm()),
+                  const SizedBox(height: 18),
+                ],
+
+                _glassBox(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      label("Coupons"),
+                      couponList(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _glassBox({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.10)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.20),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: child,
         ),
       ),
     );
@@ -303,11 +379,12 @@ class _AddCouponState extends State<AddCoupon> {
       itemBuilder: (_, i) {
         final c = coupons[i];
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: const EdgeInsets.only(bottom: 12, top: 6),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
+            color: Colors.white.withOpacity(0.05),
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
           ),
           child: Row(
             children: [
@@ -346,6 +423,9 @@ class _AddCouponState extends State<AddCoupon> {
                     descCtrl.text = c['description'] ?? "";
                     validFrom = DateTime.parse(c['valid_from']);
                     validTo = DateTime.parse(c['valid_to']);
+
+                    disablePrice = percentCtrl.text.trim().isNotEmpty;
+                    disablePercent = priceCtrl.text.trim().isNotEmpty;
                   });
                 },
               ),
@@ -378,8 +458,11 @@ class _AddCouponState extends State<AddCoupon> {
       height: maxLines == 1 ? 55 : null,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: enabled ? const Color(0xFF1E1E1E) : Colors.grey.shade800,
+        color: enabled
+            ? Colors.white.withOpacity(0.05)
+            : Colors.grey.shade800,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
       child: TextField(
         controller: c,
@@ -400,8 +483,9 @@ class _AddCouponState extends State<AddCoupon> {
         height: 55,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E),
+          color: Colors.white.withOpacity(0.05),
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
         ),
         child: Row(
           children: [
