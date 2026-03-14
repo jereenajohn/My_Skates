@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -189,8 +190,8 @@ class _CoachEventsState extends State<CoachEvents> {
 
   Future<void> fetchClubEvents() async {
     try {
-      setState(() => loadingEvents = true); 
-      
+      setState(() => loadingEvents = true);
+
       final token = await getToken();
       final userId = await getUserId();
 
@@ -260,9 +261,8 @@ class _CoachEventsState extends State<CoachEvents> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            int activeExisting = existingImages
-                .where((img) => img["_deleted"] != true)
-                .length;
+            int activeExisting =
+                existingImages.where((img) => img["_deleted"] != true).length;
             int currentImageCount = activeExisting + pickedImages.length;
             int remainingSlots = 2 - currentImageCount;
 
@@ -293,25 +293,21 @@ class _CoachEventsState extends State<CoachEvents> {
                         ),
                       ),
                       const SizedBox(height: 20),
-
                       _inputField("Title", titleCtrl),
                       _inputField("Note", noteCtrl),
                       _inputField("Description", descCtrl, maxLines: 3),
-
                       _dateField(
                         "From Date",
                         fromDateCtrl,
                         () => _pickDate(context, fromDateCtrl),
                       ),
                       const SizedBox(height: 10),
-
                       _dateField(
                         "To Date",
                         toDateCtrl,
                         () => _pickDate(context, toDateCtrl),
                       ),
                       const SizedBox(height: 10),
-
                       GestureDetector(
                         onTap: () => _pickTime(context, fromTimeCtrl),
                         child: AbsorbPointer(
@@ -325,13 +321,11 @@ class _CoachEventsState extends State<CoachEvents> {
                         ),
                       ),
                       const SizedBox(height: 15),
-
                       const Text(
                         "Event Images (max 2)",
                         style: TextStyle(color: Colors.white70),
                       ),
                       const SizedBox(height: 8),
-
                       if (currentImageCount >= 2)
                         const Text(
                           "Maximum 2 images allowed",
@@ -340,9 +334,7 @@ class _CoachEventsState extends State<CoachEvents> {
                             fontSize: 12,
                           ),
                         ),
-
                       const SizedBox(height: 6),
-
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.teal,
@@ -353,7 +345,7 @@ class _CoachEventsState extends State<CoachEvents> {
                                 final ImagePicker picker = ImagePicker();
                                 final images = await picker.pickMultiImage();
 
-                                if (images == null || images.isEmpty) return;
+                                if (images.isEmpty) return;
 
                                 if (images.length > remainingSlots) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -366,9 +358,7 @@ class _CoachEventsState extends State<CoachEvents> {
                                   );
                                 }
 
-                                pickedImages.addAll(
-                                  images.take(remainingSlots),
-                                );
+                                pickedImages.addAll(images.take(remainingSlots));
                                 setStateDialog(() {});
                               },
                         icon: const Icon(Icons.image),
@@ -377,9 +367,7 @@ class _CoachEventsState extends State<CoachEvents> {
                           style: TextStyle(color: Colors.white),
                         ),
                       ),
-
                       const SizedBox(height: 10),
-
                       if (existingImages.isNotEmpty)
                         GridView.builder(
                           shrinkWrap: true,
@@ -387,10 +375,10 @@ class _CoachEventsState extends State<CoachEvents> {
                           itemCount: existingImages.length,
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 8,
-                                crossAxisSpacing: 8,
-                              ),
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                          ),
                           itemBuilder: (context, index) {
                             final img = existingImages[index];
 
@@ -436,9 +424,7 @@ class _CoachEventsState extends State<CoachEvents> {
                             );
                           },
                         ),
-
                       if (existingImages.isNotEmpty) const SizedBox(height: 10),
-
                       if (event["image"] != null && existingImages.isEmpty)
                         ClipRRect(
                           borderRadius: BorderRadius.circular(10),
@@ -449,10 +435,8 @@ class _CoachEventsState extends State<CoachEvents> {
                             fit: BoxFit.cover,
                           ),
                         ),
-
                       if (event["image"] != null && existingImages.isEmpty)
                         const SizedBox(height: 10),
-
                       if (pickedImages.isNotEmpty)
                         GridView.builder(
                           shrinkWrap: true,
@@ -460,10 +444,10 @@ class _CoachEventsState extends State<CoachEvents> {
                           itemCount: pickedImages.length,
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 8,
-                                crossAxisSpacing: 8,
-                              ),
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                          ),
                           itemBuilder: (context, index) {
                             return Stack(
                               children: [
@@ -502,9 +486,7 @@ class _CoachEventsState extends State<CoachEvents> {
                             );
                           },
                         ),
-
                       const SizedBox(height: 20),
-
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -634,10 +616,7 @@ class _CoachEventsState extends State<CoachEvents> {
     );
   }
 
-  Future<void> _pickDate(
-    BuildContext context,
-    TextEditingController ctrl,
-  ) async {
+  Future<void> _pickDate(BuildContext context, TextEditingController ctrl) async {
     final picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -649,10 +628,7 @@ class _CoachEventsState extends State<CoachEvents> {
     }
   }
 
-  Future<void> _pickTime(
-    BuildContext context,
-    TextEditingController ctrl,
-  ) async {
+  Future<void> _pickTime(BuildContext context, TextEditingController ctrl) async {
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
@@ -660,6 +636,89 @@ class _CoachEventsState extends State<CoachEvents> {
     if (picked != null) {
       ctrl.text = "${picked.hour}:${picked.minute}";
     }
+  }
+
+  Widget _buildEventImages(Map<String, dynamic> event) {
+    final List<dynamic> gallery = event["images"] ?? [];
+    final String bannerImagePath = event["image"] ?? "";
+
+    final List<String> images = [
+      ...gallery.map((e) => buildImageUrl(e["image"])).where((u) => u.isNotEmpty),
+      if (gallery.isEmpty && bannerImagePath.isNotEmpty)
+        buildImageUrl(bannerImagePath),
+    ];
+
+    if (images.isEmpty) return const SizedBox.shrink();
+    return _eventImageSlider(images);
+  }
+
+  Widget _eventImageSlider(List<String> images) {
+    final PageController controller = PageController();
+    int current = 0;
+
+    return StatefulBuilder(
+      builder: (context, setSB) {
+        return Column(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(
+                height: 220,
+                child: PageView.builder(
+                  controller: controller,
+                  itemCount: images.length,
+                  onPageChanged: (i) => setSB(() => current = i),
+                  itemBuilder: (context, i) {
+                    return GestureDetector(
+                      onTap: () => _showFullImage(images[i]),
+                      child: Image.network(
+                        images[i],
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return Container(
+                            color: Colors.white10,
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF00AFA5),
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder: (_, __, ___) => Container(
+                          color: Colors.white10,
+                          child: const Center(
+                            child: Icon(Icons.broken_image, color: Colors.white54),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            if (images.length > 1)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(images.length, (i) {
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: current == i ? 10 : 6,
+                    height: current == i ? 10 : 6,
+                    decoration: BoxDecoration(
+                      color: current == i ? Colors.tealAccent : Colors.white30,
+                      shape: BoxShape.circle,
+                    ),
+                  );
+                }),
+              ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -673,98 +732,139 @@ class _CoachEventsState extends State<CoachEvents> {
         return false;
       },
       child: Scaffold(
-        backgroundColor: const Color.fromARGB(255, 0, 0, 0),
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
-          backgroundColor: Colors.black,
-          leading: IconButton(onPressed: (){
-            Navigator.push(context, MaterialPageRoute(builder: (_)=>DashboardPage()));
-          }, icon: Icon(Icons.arrow_back,color: Colors.white,)),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => DashboardPage()),
+              );
+            },
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+          ),
           title: Text(
             clubDetails?["club_name"] ?? "My Club Events",
-            style: const TextStyle(color: Colors.white, fontSize: 18),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-        body: loadingEvents
-            ? const Center(child: CircularProgressIndicator(color: Colors.teal))
-            : RefreshIndicator(
-                onRefresh: fetchClubEvents,
-                color: Colors.tealAccent,
-                backgroundColor: Colors.black,
-                child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.white24),
-                              ),
-                              child: const Row(
-                                children: [
-                                  Icon(Icons.swipe, color: Colors.teal, size: 20),
-                                  SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      "Swipe right to update an event, swipe left to delete.",
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 11,
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF00332D), Colors.black],
+            ),
+          ),
+          child: loadingEvents
+              ? const Center(
+                  child: CircularProgressIndicator(color: Colors.teal),
+                )
+              : RefreshIndicator(
+                  onRefresh: fetchClubEvents,
+                  color: Colors.tealAccent,
+                  backgroundColor: Colors.black,
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      const SliverToBoxAdapter(child: SizedBox(height: 90)),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.06),
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.15),
+                                  ),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(
+                                      Icons.swipe,
+                                      color: Color(0xFF00AFA5),
+                                      size: 20,
+                                    ),
+                                    SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        "Swipe right to update an event, swipe left to delete.",
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 12,
+                                          height: 1.3,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                    if (clubEvents.isEmpty)
-                      SliverFillRemaining(
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.event_busy,
-                                color: Colors.white70,
-                                size: 50,
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                "No events found",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
+                      if (clubEvents.isEmpty)
+                        SliverFillRemaining(
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                Icon(
+                                  Icons.event_busy,
+                                  color: Colors.white70,
+                                  size: 50,
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                            ],
+                                SizedBox(height: 16),
+                                Text(
+                                  "No events found",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        SliverPadding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                return _fancySwipeEventTile(
+                                  Map<String, dynamic>.from(clubEvents[index]),
+                                );
+                              },
+                              childCount: clubEvents.length,
+                            ),
                           ),
                         ),
-                      )
-                    else
-                      SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            return _fancySwipeEventTile(
-                              Map<String, dynamic>.from(clubEvents[index]),
-                            );
-                          },
-                          childCount: clubEvents.length,
-                        ),
-                      ),
-                  ],
+                      const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                    ],
+                  ),
                 ),
-              ),
+        ),
         bottomNavigationBar: const AppBottomNav(
           currentIndex: 4,
         ),
@@ -890,8 +990,8 @@ class _CoachEventsState extends State<CoachEvents> {
         }
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutBack,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
         child: Transform.scale(
           scale: 1.00,
           child: buildEventCard(
@@ -909,109 +1009,94 @@ class _CoachEventsState extends State<CoachEvents> {
     String clubLogo,
     String clubName,
   ) {
-    final String bannerImagePath = event["image"] ?? "";
-    final List<dynamic> gallery = event["images"] ?? [];
-    final List<dynamic> firstTwoImages = gallery.take(2).toList();
-
     final fromDate = formatDate(event["from_date"] ?? "");
     final toDate = formatDate(event["to_date"] ?? "");
     final fromTime = formatTime(event["from_time"] ?? "");
     final toTime = formatTime(event["to_time"] ?? "");
 
     return Container(
-      color: const Color.fromARGB(255, 20, 19, 19),
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(15),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundImage:
-                    clubLogo.isNotEmpty ? NetworkImage(clubLogo) : null,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  clubName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(Icons.calendar_month,
-                  color: Colors.white70, size: 18),
-              const SizedBox(width: 6),
-              Text(
-                "$fromDate • $fromTime  →  $toDate • $toTime",
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          if (firstTwoImages.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                children: firstTwoImages.map<Widget>((img) {
-                  return Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      child: AspectRatio(
-                        aspectRatio: 1,
-                        child: GestureDetector(
-                          onTap: () {
-                            _showFullImage(buildImageUrl(img["image"]));
-                          },
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.network(
-                              buildImageUrl(img["image"]),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
+      margin: const EdgeInsets.only(bottom: 14),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withOpacity(0.12)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: Colors.white10,
+                      backgroundImage:
+                          clubLogo.isNotEmpty ? NetworkImage(clubLogo) : null,
+                      child: clubLogo.isEmpty
+                          ? const Icon(Icons.group, color: Colors.white70)
+                          : null,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        clubName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                  );
-                }).toList(),
-              ),
-            )
-          else if (bannerImagePath.isNotEmpty)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                buildImageUrl(bannerImagePath),
-                fit: BoxFit.cover,
-              ),
-            ),
-
-          const SizedBox(height: 10),
-          Text(
-            event["title"] ?? "",
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_month,
+                      color: Color(0xFF00AFA5),
+                      size: 18,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        "$fromDate • $fromTime  →  $toDate • $toTime",
+                        style:
+                            const TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildEventImages(event),
+                const SizedBox(height: 12),
+                Text(
+                  event["title"] ?? "",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  event["description"] ?? "",
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13.5,
+                    height: 1.35,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 5),
-          Text(
-            event["description"] ?? "",
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-        ],
+        ),
       ),
     );
   }

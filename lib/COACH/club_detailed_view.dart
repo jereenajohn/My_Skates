@@ -92,6 +92,33 @@ class _ClubViewState extends State<ClubView> {
   String? _clubRequestStatus;
   bool _isClubLoading = true;
 
+  Map<int, bool> _likedPosts = {};
+  Map<int, int> _likeCounts = {};
+
+  bool _isLoadingLikes = false;
+
+  Map<int, List<dynamic>> _postComments = {};
+  Map<int, int> _commentCounts = {};
+  bool _isLoadingComments = false;
+  int? _expandedCommentPostId;
+
+  Map<int, bool> _repostedPosts = {};
+  Map<int, int> _repostCounts = {};
+
+  bool get _isMyClub {
+    final c = club ?? {};
+
+    final dynamic owner =
+        c["user"] ?? c["created_by"] ?? c["owner"] ?? c["coach"] ?? c["admin"];
+
+    final int? ownerId = owner is int
+        ? owner
+        : int.tryParse(owner?.toString() ?? "");
+    return ownerId != null &&
+        _currentUserId != null &&
+        ownerId == _currentUserId;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -112,6 +139,43 @@ class _ClubViewState extends State<ClubView> {
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString("access");
+  }
+
+  Future<void> _refreshClubView() async {
+    setState(() {
+      // loading = true;
+      isFeedLoading = true;
+      isEventsLoading = true;
+    });
+
+    try {
+      await Future.wait([
+        fetchClubDetails(),
+        fetchClubEvents(),
+        fetchFollowersCount(),
+        _fetchClubRequestStatus(),
+        fetchClubFeeds(),
+        _checkUserRating(),
+      ]);
+
+      print("Club view refreshed successfully");
+    } catch (e) {
+      print("Error refreshing club view: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to refresh: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          loading = false;
+          isFeedLoading = false;
+          isEventsLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _fetchClubRequestStatus() async {
@@ -681,6 +745,7 @@ class _ClubViewState extends State<ClubView> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
+      final userId = prefs.getInt("id");
 
       if (token == null) {
         print("No token found");
@@ -711,8 +776,39 @@ class _ClubViewState extends State<ClubView> {
           final postsData = data['data'];
 
           if (postsData is List) {
+            // Parse like and comment data
+            Map<int, bool> likedMap = {};
+            Map<int, int> likeCountMap = {};
+            Map<int, int> commentCountMap = {};
+
+            for (var post in postsData) {
+              int postId = post['id'] ?? 0;
+
+              // Get total likes
+              int totalLikes = post['total_likes'] ?? 0;
+              likeCountMap[postId] = totalLikes;
+
+              // Get total comments
+              int totalComments = post['total_comments'] ?? 0;
+              commentCountMap[postId] = totalComments;
+
+              // Check if current user liked this post
+              bool userLiked = false;
+
+              if (post['user_liked'] != null) {
+                userLiked = post['user_liked'] == true;
+              } else if (post['liked_by'] != null && post['liked_by'] is List) {
+                userLiked = (post['liked_by'] as List).contains(userId);
+              }
+
+              likedMap[postId] = userLiked;
+            }
+
             setState(() {
               feedPosts = postsData;
+              _likedPosts = likedMap;
+              _likeCounts = likeCountMap;
+              _commentCounts = commentCountMap;
               isFeedLoading = false;
             });
             print("Feed data fetched: ${postsData.length} posts");
@@ -834,6 +930,91 @@ class _ClubViewState extends State<ClubView> {
     }
   }
 
+  Future<void> _updateFeedPost(
+    int postId,
+    String title,
+    String description,
+    XFile? imageFile,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Please login to update")));
+        return;
+      }
+
+      print("Updating feed post ID: $postId with image: ${imageFile?.path}");
+
+      final url = Uri.parse("$api/api/myskates/club/feed/$postId/");
+
+      final request = http.MultipartRequest("PUT", url);
+
+      request.headers["Authorization"] = "Bearer $token";
+      request.headers["Accept"] = "application/json";
+
+      if (title.isNotEmpty) {
+        request.fields["title"] = title;
+      }
+
+      if (description.isNotEmpty) {
+        request.fields["description"] = description;
+      }
+
+      request.fields["club"] = widget.clubid.toString();
+
+      if (imageFile != null) {
+        final file = File(imageFile.path);
+        if (await file.exists()) {
+          print("File exists: ${file.lengthSync()} bytes");
+          request.files.add(
+            await http.MultipartFile.fromPath("images", imageFile.path),
+          );
+        } else {
+          print("File does not exist: ${imageFile.path}");
+        }
+      }
+
+      final response = await request.send();
+      final responseData = await response.stream.bytesToString();
+
+      print("Feed update response status: ${response.statusCode}");
+      print("Feed update response body: $responseData");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.teal,
+            content: Text(
+              "Post updated successfully",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+
+        await fetchClubFeeds();
+
+        print("Update successful: ${response.statusCode}");
+      } else {
+        print("Feed update error: $responseData");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to update: ${response.statusCode}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print("Feed update exception: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   Future<void> _deleteFeedPost(int postId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -924,6 +1105,195 @@ class _ClubViewState extends State<ClubView> {
       }
     } catch (e) {
       print("Delete feed post error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _toggleLike(int postId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please login to like posts")),
+        );
+        return;
+      }
+
+      bool currentLiked = _likedPosts[postId] ?? false;
+      int currentCount = _likeCounts[postId] ?? 0;
+
+      setState(() {
+        _likedPosts[postId] = !currentLiked;
+        _likeCounts[postId] = currentLiked
+            ? currentCount - 1
+            : currentCount + 1;
+      });
+
+      final url = Uri.parse("$api/api/myskates/club/feed/$postId/like/");
+
+      final response = await http.post(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      print("Like toggle response: ${response.statusCode}");
+      print("Like toggle body: ${response.body}");
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        setState(() {
+          _likedPosts[postId] = currentLiked;
+          _likeCounts[postId] = currentCount;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to like post: ${response.statusCode}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print("Like toggle error: $e");
+
+      bool currentLiked = _likedPosts[postId] ?? false;
+      int currentCount = _likeCounts[postId] ?? 0;
+
+      setState(() {
+        _likedPosts[postId] = currentLiked;
+        _likeCounts[postId] = currentCount;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _toggleRepost(int postId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      if (token == null) return;
+
+      final bool current = _repostedPosts[postId] ?? false;
+      final int count = _repostCounts[postId] ?? 0;
+
+      setState(() {
+        _repostedPosts[postId] = !current;
+        _repostCounts[postId] = current ? (count - 1) : (count + 1);
+      });
+
+      final url = Uri.parse("$api/api/myskates/club/feed/$postId/repost/");
+
+      final res = await http.post(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+      );
+
+      debugPrint("Repost => ${res.statusCode} ${res.body}");
+
+      if (res.statusCode != 200 && res.statusCode != 201) {
+        setState(() {
+          _repostedPosts[postId] = current;
+          _repostCounts[postId] = count;
+        });
+      }
+    } catch (e) {
+      debugPrint("Repost error: $e");
+    }
+  }
+
+  Future<void> _fetchComments(int postId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      if (token == null) return;
+
+      final url = Uri.parse(
+        "$api/api/myskates/club/feed/$postId/comments/view/",
+      );
+
+      final res = await http.get(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Accept": "application/json",
+        },
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+
+        final List commentsList = (data is Map && data["data"] is List)
+            ? data["data"]
+            : (data is List ? data : []);
+
+        setState(() {
+          _postComments[postId] = commentsList.cast<dynamic>();
+          _commentCounts[postId] = commentsList.length;
+        });
+      } else {
+        debugPrint("Fetch comments failed: ${res.statusCode} ${res.body}");
+      }
+    } catch (e) {
+      debugPrint("Fetch comments error: $e");
+    }
+  }
+
+  Future<void> _addComment(int postId, String text) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      final userId = prefs.getInt("id");
+
+      if (token == null) return;
+
+      final url = Uri.parse("$api/api/myskates/club/feed/$postId/comment/");
+      final body = {
+        "comment": text,
+        if (userId != null) "user": userId,
+        "feed": postId,
+      };
+
+      final res = await http.post(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: jsonEncode(body),
+      );
+
+      debugPrint("Add comment => ${res.statusCode} ${res.body}");
+
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        await _fetchComments(postId);
+
+        setState(() {
+          _commentCounts[postId] = (_commentCounts[postId] ?? 0);
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to comment: ${res.statusCode}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("Add comment error: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
       );
@@ -1197,6 +1567,243 @@ class _ClubViewState extends State<ClubView> {
     }
   }
 
+  void _openCommentsSheet(int postId) async {
+    await _fetchComments(postId);
+
+    final TextEditingController ctrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.72,
+          minChildSize: 0.45,
+          maxChildSize: 0.92,
+          builder: (context, scrollController) {
+            final comments = _postComments[postId] ?? [];
+
+            return Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF00332D), Colors.black],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 45,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    "Comments",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      itemCount: comments.length,
+                      itemBuilder: (context, i) {
+                        // inside itemBuilder
+                        final c = comments[i];
+
+                        // ✅ Name
+                        final firstName = (c["first_name"] ?? "")
+                            .toString()
+                            .trim();
+                        final lastName = (c["last_name"] ?? "")
+                            .toString()
+                            .trim();
+
+                        final name =
+                            (("$firstName $lastName").trim().isNotEmpty)
+                            ? ("$firstName $lastName").trim()
+                            : (c["user_name"] ?? c["username"] ?? "User")
+                                  .toString();
+
+                        final text = (c["comment"] ?? c["text"] ?? "")
+                            .toString();
+
+                        String? profile =
+                            (c["profile_image"] ??
+                                    c["user_profile"] ??
+                                    c["profile"])
+                                ?.toString();
+                        if (profile != null) profile = profile.trim();
+
+                        if (profile != null &&
+                            profile.isNotEmpty &&
+                            profile != "null") {
+                          if (!profile.startsWith("http")) {
+                            profile = Uri.parse(
+                              api,
+                            ).resolve(profile).toString();
+                          }
+                        } else {
+                          profile = null;
+                        }
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.white24,
+                              width: 0.7,
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: Colors.white10,
+                                child: ClipOval(
+                                  child: profile != null
+                                      ? Image.network(
+                                          profile,
+                                          width: 36,
+                                          height: 36,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stack) {
+                                            debugPrint(
+                                              "COMMENT AVATAR ERROR: $error",
+                                            );
+                                            return Center(
+                                              child: Text(
+                                                name.isNotEmpty
+                                                    ? name[0].toUpperCase()
+                                                    : "U",
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        )
+                                      : Center(
+                                          child: Text(
+                                            name.isNotEmpty
+                                                ? name[0].toUpperCase()
+                                                : "U",
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      name,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      text,
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.only(
+                      left: 14,
+                      right: 14,
+                      bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+                      top: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: ctrl,
+                            style: const TextStyle(color: Colors.white),
+                            cursorColor: const Color(0xFF00AFA5),
+                            decoration: InputDecoration(
+                              hintText: "Write a comment...",
+                              hintStyle: const TextStyle(color: Colors.white54),
+                              filled: true,
+                              fillColor: Colors.white.withOpacity(0.08),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(18),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        GestureDetector(
+                          onTap: () async {
+                            final text = ctrl.text.trim();
+                            if (text.isEmpty) return;
+
+                            ctrl.clear();
+                            await _addComment(postId, text);
+
+                            if (mounted) setState(() {});
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00AFA5),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(
+                              Icons.send,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _openAddMediaSheet() {
     showModalBottomSheet(
       backgroundColor: Colors.black,
@@ -1345,127 +1952,116 @@ class _ClubViewState extends State<ClubView> {
           : "$api${path.startsWith("/") ? path : "/$path"}";
     }).toList();
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white12,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (images.isNotEmpty)
-            Container(
-              height: images.length == 1 ? 170 : 140,
-              child: images.length == 1
-                  ? GestureDetector(
-                      onTap: () => _openSquareMediaViewer(images[0]),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          images[0],
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                        ),
-                      ),
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _openSquareMediaViewer(images[0]),
+    PageController controller = PageController();
+    int currentPage = 0;
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return Container(
+          padding: const EdgeInsets.all(12),
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white12,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              /// INSTAGRAM STYLE IMAGE SLIDER
+              if (images.isNotEmpty)
+                Column(
+                  children: [
+                    SizedBox(
+                      height: 180,
+                      child: PageView.builder(
+                        controller: controller,
+                        itemCount: images.length,
+                        onPageChanged: (index) {
+                          setState(() {
+                            currentPage = index;
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          return GestureDetector(
+                            onTap: () => _openSquareMediaViewer(images[index]),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(12),
                               child: Image.network(
-                                images[0],
+                                images[index],
                                 fit: BoxFit.cover,
+                                width: double.infinity,
                               ),
                             ),
-                          ),
-                        ),
-
-                        const SizedBox(width: 8),
-
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _openSquareMediaViewer(images[1]),
-                            child: Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(
-                                    images[1],
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                  ),
-                                ),
-
-                                if (images.length > 2)
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.black54,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        "+${images.length - 2}",
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 26,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+                          );
+                        },
+                      ),
                     ),
-            ),
 
-          const SizedBox(height: 12),
+                    const SizedBox(height: 6),
 
-          Text(
-            safeString(event["title"]),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+                    /// DOT INDICATOR
+                    if (images.length > 1)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(images.length, (index) {
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            width: currentPage == index ? 10 : 6,
+                            height: currentPage == index ? 10 : 6,
+                            decoration: BoxDecoration(
+                              color: currentPage == index
+                                  ? const Color(0xFF00AFA5)
+                                  : Colors.white38,
+                              shape: BoxShape.circle,
+                            ),
+                          );
+                        }),
+                      ),
+                  ],
+                ),
 
-          const SizedBox(height: 6),
+              const SizedBox(height: 12),
 
-          Text(
-            safeString(event["description"]),
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-          const SizedBox(height: 10),
-
-          Row(
-            children: [
-              const Icon(
-                Icons.calendar_today,
-                size: 16,
-                color: Color(0xFF00AFA5),
-              ),
-              const SizedBox(width: 5),
+              /// EVENT TITLE
               Text(
-                "${safeDate(event["from_date"])} → ${safeDate(event["to_date"])}",
-                style: const TextStyle(color: Colors.white70),
+                safeString(event["title"]),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ],
-          ),
 
-          const SizedBox(height: 5),
+              const SizedBox(height: 6),
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+              /// DESCRIPTION
+              Text(
+                safeString(event["description"]),
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+
+              const SizedBox(height: 10),
+
+              /// DATE
+              Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 16,
+                    color: Color(0xFF00AFA5),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    "${safeDate(event["from_date"])} → ${safeDate(event["to_date"])}",
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 5),
+
+              /// TIME
               Row(
                 children: [
                   const Icon(
@@ -1480,36 +2076,10 @@ class _ClubViewState extends State<ClubView> {
                   ),
                 ],
               ),
-
-              PopupMenuButton<String>(
-                color: const Color.fromARGB(225, 4, 19, 13),
-                icon: const Icon(Icons.more_vert, color: Colors.white70),
-                onSelected: (value) {
-                  if (value == "update") {
-                    print("Update event clicked");
-                  }
-                  if (value == "delete") {
-                    _deleteEvent(event["id"]);
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: "update",
-                    child: Text(
-                      "Update",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: "delete",
-                    child: Text("Delete", style: TextStyle(color: Colors.red)),
-                  ),
-                ],
-              ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1920,41 +2490,426 @@ class _ClubViewState extends State<ClubView> {
     );
   }
 
-  Widget _buildFeedPost(Map<String, dynamic> post) {
-    print("BUILDING FEED POST: $post");
+  void _showUpdatePostDialog(Map<String, dynamic> post) {
+    final TextEditingController titleController = TextEditingController(
+      text: post['title'] ?? '',
+    );
+    final TextEditingController descriptionController = TextEditingController(
+      text: post['description'] ?? '',
+    );
+    XFile? selectedImage;
+    String? existingImageUrl;
 
-    int postId = post['id'] ?? 0;
-    int postUserId = post['user'] ?? 0;
-
-    // Check if current user is the post owner or a coach
-    bool canDelete = _isCoach || (_currentUserId == postUserId);
-
-    // Get user details directly from the post data
-    String userName = post['user_name'] ?? 'User $postUserId';
-    String? userProfile = post['user_profile'];
-
-    String title = post['title'] ?? '';
-    String description = post['description'] ?? '';
-    String createdAt = post['created_at'] ?? '';
-
-    // Handle profile image URL
-    if (userProfile != null && userProfile.isNotEmpty) {
-      if (!userProfile.startsWith('http')) {
-        userProfile = userProfile.startsWith('/')
-            ? "$api$userProfile"
-            : "$api/$userProfile";
-      }
-    }
-
-    // Handle post images
-    String? imageUrl;
+    // Get existing image URL if any
     if (post['images'] != null && post['images'] is List) {
       var imagesList = post['images'] as List;
       if (imagesList.isNotEmpty) {
         var firstImage = imagesList.first;
         if (firstImage is Map && firstImage['image'] != null) {
-          imageUrl = firstImage['image'].toString();
-          if (!imageUrl.startsWith('http')) {
+          existingImageUrl = firstImage['image'].toString();
+          if (!existingImageUrl!.startsWith('http')) {
+            existingImageUrl = existingImageUrl!.startsWith('/')
+                ? "$api$existingImageUrl"
+                : "$api/$existingImageUrl";
+          }
+        }
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setStateSB) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF00332D), Colors.black],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.all(20),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            "Update Post",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.white70,
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Title field
+                      TextField(
+                        controller: titleController,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                        ),
+                        cursorColor: Colors.white,
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                          hintText: "Title",
+                          hintStyle: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 14,
+                          ),
+                          filled: true,
+                          fillColor: Colors.white10,
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF00AFA5),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      // Description field
+                      TextField(
+                        controller: descriptionController,
+                        minLines: 3,
+                        maxLines: 5,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                        ),
+                        cursorColor: Colors.white,
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                          hintText: "What's on your mind?",
+                          hintStyle: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 14,
+                          ),
+                          filled: true,
+                          fillColor: Colors.white10,
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF00AFA5),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Current image (if exists)
+                      if (existingImageUrl != null &&
+                          selectedImage == null) ...[
+                        const Text(
+                          "Current Image:",
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                        ),
+                        const SizedBox(height: 8),
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.network(
+                                existingImageUrl!,
+                                height: 150,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: GestureDetector(
+                                onTap: () {
+                                  setStateSB(() {
+                                    existingImageUrl = null;
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                      ],
+
+                      // New selected image
+                      if (selectedImage != null) ...[
+                        const Text(
+                          "New Image:",
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                        ),
+                        const SizedBox(height: 8),
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.file(
+                                File(selectedImage!.path),
+                                height: 150,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: GestureDetector(
+                                onTap: () {
+                                  setStateSB(() {
+                                    selectedImage = null;
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                      ],
+
+                      // Image picker button
+                      GestureDetector(
+                        onTap: () async {
+                          final picker = ImagePicker();
+                          final image = await picker.pickImage(
+                            source: ImageSource.gallery,
+                          );
+                          if (image != null) {
+                            setStateSB(() {
+                              selectedImage = image;
+                              existingImageUrl = null;
+                            });
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00AFA5).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
+                              color: const Color(0xFF00AFA5).withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.image,
+                                color: Color(0xFF00AFA5),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                selectedImage == null &&
+                                        existingImageUrl != null
+                                    ? "Change Image"
+                                    : "Choose Image",
+                                style: const TextStyle(
+                                  color: Color(0xFF00AFA5),
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 25),
+
+                      // Action buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text(
+                                "Cancel",
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF00AFA5),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              onPressed: () async {
+                                final title = titleController.text.trim();
+                                final description = descriptionController.text
+                                    .trim();
+
+                                if (title.isEmpty && description.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        "Please enter a title or description",
+                                      ),
+                                      backgroundColor: Colors.orange,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                Navigator.pop(context);
+
+                                // Show loading indicator
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (context) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(
+                                        color: Colors.teal,
+                                      ),
+                                    );
+                                  },
+                                );
+
+                                await _updateFeedPost(
+                                  post['id'],
+                                  title,
+                                  description,
+                                  selectedImage,
+                                );
+
+                                if (context.mounted) {
+                                  Navigator.pop(context);
+                                }
+                              },
+                              child: const Text(
+                                "Update",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildFeedPost(Map<String, dynamic> post) {
+    debugPrint("BUILDING FEED POST: $post");
+
+    final int postId = post['id'] ?? 0;
+    final int postUserId = post['user'] ?? 0;
+
+    final bool canDelete = _isCoach || (_currentUserId == postUserId);
+    final bool canUpdate = _currentUserId == postUserId;
+
+    // ✅ Username
+    String userName = (post['user_name'] ?? 'User ${post['user'] ?? ''}')
+        .toString();
+
+    // ✅ Profile image
+    String? userProfile = post['user_profile']?.toString();
+    if (userProfile != null) userProfile = userProfile.trim();
+
+    if (userProfile != null &&
+        userProfile.isNotEmpty &&
+        userProfile != "null") {
+      if (!userProfile.startsWith('http')) {
+        userProfile = userProfile.startsWith('/')
+            ? "$api$userProfile"
+            : "$api/$userProfile";
+      }
+    } else {
+      userProfile = null;
+    }
+
+    debugPrint("FINAL userName: $userName");
+    debugPrint("FINAL userProfile: $userProfile");
+
+    final String title = (post['title'] ?? '').toString();
+    final String description = (post['description'] ?? '').toString();
+    final String createdAt = (post['created_at'] ?? '').toString();
+
+    // ✅ Feed image (first image)
+    String? imageUrl;
+    if (post['images'] != null && post['images'] is List) {
+      final imagesList = post['images'] as List;
+      if (imagesList.isNotEmpty) {
+        final firstImage = imagesList.first;
+        if (firstImage is Map && firstImage['image'] != null) {
+          imageUrl = firstImage['image'].toString().trim();
+          if (imageUrl.isNotEmpty && !imageUrl.startsWith('http')) {
             imageUrl = imageUrl.startsWith('/')
                 ? "$api$imageUrl"
                 : "$api/$imageUrl";
@@ -1962,6 +2917,19 @@ class _ClubViewState extends State<ClubView> {
         }
       }
     }
+
+    // ✅ Like state
+    final bool isLiked = _likedPosts[postId] ?? false;
+    final int likeCount = _likeCounts[postId] ?? (post['total_likes'] ?? 0);
+
+    // ✅ Comment count
+    final int commentCount =
+        _commentCounts[postId] ?? (post['total_comments'] ?? 0);
+
+    // ✅ Repost state + count
+    final bool isReposted = _repostedPosts[postId] ?? false;
+    final int repostCount =
+        _repostCounts[postId] ?? (post['total_reposts'] ?? 0);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1974,16 +2942,16 @@ class _ClubViewState extends State<ClubView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // User info row with delete option
+          // ✅ User row + menu
           Row(
             children: [
               CircleAvatar(
                 radius: 20,
                 backgroundColor: Colors.grey[800],
-                backgroundImage: userProfile != null && userProfile.isNotEmpty
+                backgroundImage: userProfile != null
                     ? NetworkImage(userProfile)
                     : null,
-                child: userProfile == null || userProfile.isEmpty
+                child: userProfile == null
                     ? Text(
                         userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
                         style: const TextStyle(
@@ -2016,7 +2984,7 @@ class _ClubViewState extends State<ClubView> {
                   ],
                 ),
               ),
-              if (canDelete)
+              if (canUpdate || canDelete)
                 PopupMenuButton<String>(
                   color: const Color(0xFF06201A),
                   icon: const Icon(
@@ -2025,29 +2993,60 @@ class _ClubViewState extends State<ClubView> {
                     size: 20,
                   ),
                   onSelected: (value) {
-                    if (value == "delete") {
+                    if (value == "update" && canUpdate) {
+                      _showUpdatePostDialog(post);
+                    } else if (value == "delete" && canDelete) {
                       _deleteFeedPost(postId);
                     }
                   },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: "delete",
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, color: Colors.red, size: 18),
-                          SizedBox(width: 8),
-                          Text("Delete", style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
-                    ),
-                  ],
+                  itemBuilder: (context) {
+                    final List<PopupMenuEntry<String>> items = [];
+
+                    if (canUpdate) {
+                      items.add(
+                        const PopupMenuItem(
+                          value: "update",
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, color: Colors.teal, size: 18),
+                              SizedBox(width: 8),
+                              Text(
+                                "Update",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (canDelete) {
+                      items.add(
+                        const PopupMenuItem(
+                          value: "delete",
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, color: Colors.red, size: 18),
+                              SizedBox(width: 8),
+                              Text(
+                                "Delete",
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    return items;
+                  },
                 ),
             ],
           ),
 
           const SizedBox(height: 12),
 
-          // Title
+          // ✅ Title
           if (title.isNotEmpty)
             Text(
               title,
@@ -2060,7 +3059,7 @@ class _ClubViewState extends State<ClubView> {
 
           const SizedBox(height: 8),
 
-          // Description
+          // ✅ Description
           if (description.isNotEmpty)
             Text(
               description,
@@ -2073,8 +3072,8 @@ class _ClubViewState extends State<ClubView> {
 
           const SizedBox(height: 12),
 
-          // Image
-          if (imageUrl != null && imageUrl.isNotEmpty)
+          // ✅ Image
+          if (imageUrl != null && imageUrl!.isNotEmpty)
             GestureDetector(
               onTap: () => _openSquareMediaViewer(imageUrl!),
               child: ClipRRect(
@@ -2101,7 +3100,7 @@ class _ClubViewState extends State<ClubView> {
                     );
                   },
                   errorBuilder: (context, error, stackTrace) {
-                    print("IMAGE LOAD ERROR: $error");
+                    debugPrint("IMAGE LOAD ERROR: $error");
                     return Container(
                       height: 200,
                       color: Colors.grey[900],
@@ -2123,6 +3122,125 @@ class _ClubViewState extends State<ClubView> {
                 ),
               ),
             ),
+
+          const SizedBox(height: 12),
+
+          // ✅ Like / Comment / Repost row
+          Row(
+            children: [
+              // Like
+              GestureDetector(
+                onTap: () => _toggleLike(postId),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isLiked
+                        ? const Color(0xFF00AFA5).withOpacity(0.15)
+                        : Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isLiked
+                          ? const Color(0xFF00AFA5).withOpacity(0.5)
+                          : Colors.white24,
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isLiked ? Icons.favorite : Icons.favorite_border,
+                        color: isLiked
+                            ? const Color(0xFF00AFA5)
+                            : Colors.white70,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        likeCount.toString(),
+                        style: TextStyle(
+                          color: isLiked
+                              ? const Color(0xFF00AFA5)
+                              : Colors.white70,
+                          fontSize: 13,
+                          fontWeight: isLiked
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isLiked ? "Liked" : "Like",
+                        style: TextStyle(
+                          color: isLiked
+                              ? const Color(0xFF00AFA5)
+                              : Colors.white70,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              // Comment
+              GestureDetector(
+                onTap: () => _openCommentsSheet(postId),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.comment_outlined,
+                      color: Colors.white70,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      commentCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              // Repost
+              GestureDetector(
+                onTap: () => _toggleRepost(postId),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.repeat,
+                      color: isReposted
+                          ? const Color(0xFF00AFA5)
+                          : Colors.white70,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      repostCount.toString(),
+                      style: TextStyle(
+                        color: isReposted
+                            ? const Color(0xFF00AFA5)
+                            : Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Spacer(),
+            ],
+          ),
         ],
       ),
     );
@@ -2132,6 +3250,7 @@ class _ClubViewState extends State<ClubView> {
   Widget build(BuildContext context) {
     if (loading) {
       return const Scaffold(
+        backgroundColor: Colors.black,
         body: Center(child: CircularProgressIndicator(color: Colors.teal)),
       );
     }
@@ -2151,544 +3270,553 @@ class _ClubViewState extends State<ClubView> {
     return Scaffold(
       backgroundColor: Colors.black,
 
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF00332D), Colors.black],
+      body: RefreshIndicator(
+        onRefresh: _refreshClubView,
+        color: const Color(0xFF00AFA5),
+        backgroundColor: Colors.black87,
+        strokeWidth: 3.0,
+        displacement: 40.0,
+        edgeOffset: 20.0,
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF00332D), Colors.black],
+            ),
           ),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: const Icon(
-                  Icons.arrow_back_ios,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      if (imagePath != null && imagePath!.isNotEmpty) {
-                        _openProfileImageViewer("$api$imagePath");
-                      }
-                    },
-                    child: CircleAvatar(
-                      radius: 40,
-                      backgroundImage:
-                          (imagePath != null && imagePath!.isNotEmpty)
-                          ? NetworkImage("$api$imagePath")
-                          : const AssetImage("lib/assets/placeholder.png")
-                                as ImageProvider,
-                    ),
-                  ),
-
-                  const SizedBox(width: 15),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          clubName,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          [
-                            if (place.isNotEmpty) place,
-                            if (districtName.isNotEmpty) districtName,
-                            if (stateName.isNotEmpty) stateName,
-                          ].join(", "),
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: Colors.white70,
-                          ),
-                        ),
-
-                        const SizedBox(height: 6),
-
-                        Text(
-                          "$followersCount Members joined",
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Colors.white60,
-                          ),
-                        ),
-
-                        if (!_isClubLoading) ...[
-                          const SizedBox(height: 12),
-                          _buildClubActionButton(),
-                        ],
-
-                        if (_hasUserRated && widget.isApproved) ...[
-                          const SizedBox(height: 8),
-                          GestureDetector(
-                            onTap: _showUpdateRatingDialog,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFF00AFA5,
-                                ).withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: const Color(
-                                    0xFF00AFA5,
-                                  ).withOpacity(0.3),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.star,
-                                    color: Color(0xFF00AFA5),
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    "Your Rating: ${_userRating?.rating}",
-                                    style: const TextStyle(
-                                      color: Color(0xFF00AFA5),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  const Icon(
-                                    Icons.edit,
-                                    color: Color(0xFF00AFA5),
-                                    size: 14,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, color: Colors.white),
-                    color: const Color(0xFF06201A),
-                    onSelected: (value) {
-                      if (value == "followers") {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                ClubFollowersPage(clubId: widget.clubid),
-                          ),
-                        );
-                      } else if (value == "approvals" && _isCoach) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ClubRatingApprovalPage(
-                              clubId: widget.clubid,
-                              clubName: clubName,
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                    itemBuilder: (context) {
-                      List<PopupMenuEntry<String>> items = [
-                        const PopupMenuItem(
-                          value: "followers",
-                          child: Text(
-                            "   View Followers",
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ];
-
-                      if (_isCoach) {
-                        final pendingCount = _recentRatings
-                            .where((r) => r.approvalStatus == 'pending')
-                            .length;
-
-                        items.add(
-                          PopupMenuItem(
-                            value: "approvals",
-                            child: Row(
-                              children: [
-                                const SizedBox(width: 8),
-                                const Text(
-                                  "Manage Approvals",
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                if (pendingCount > 0) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      pendingCount.toString(),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        );
-                      }
-
-                      return items;
-                    },
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              const Text(
-                "Overview",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              Text(
-                description,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  height: 1.4,
-                  fontSize: 15,
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              if (instagram.isNotEmpty)
-                Text(
-                  instagram,
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-
-              if (website.isNotEmpty)
-                Text(
-                  website,
-                  style: const TextStyle(
-                    color: Color(0xFF00AFA5),
-                    fontSize: 14,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-
-              const SizedBox(height: 35),
-
-              if (_isCoach || widget.isApproved) ...[
-                const SizedBox(height: 10),
-
-                SizedBox(
-                  height: 220,
-                  child: LineChart(
-                    LineChartData(
-                      borderData: FlBorderData(show: true),
-                      gridData: FlGridData(show: false),
-                      titlesData: FlTitlesData(
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 60,
-                            getTitlesWidget: (value, _) {
-                              switch (value.toInt()) {
-                                case 4:
-                                  return const Text(
-                                    "Excellent",
-                                    style: TextStyle(color: Colors.white70),
-                                  );
-                                case 3:
-                                  return const Text(
-                                    "High",
-                                    style: TextStyle(color: Colors.white70),
-                                  );
-                                case 2:
-                                  return const Text(
-                                    "Low",
-                                    style: TextStyle(color: Colors.white70),
-                                  );
-                              }
-                              return const SizedBox();
-                            },
-                          ),
-                        ),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            getTitlesWidget: (value, _) {
-                              switch (value.toInt()) {
-                                case 0:
-                                  return const Text(
-                                    "Aug",
-                                    style: TextStyle(color: Colors.white70),
-                                  );
-                                case 1:
-                                  return const Text(
-                                    "Sept",
-                                    style: TextStyle(color: Colors.white70),
-                                  );
-                                case 2:
-                                  return const Text(
-                                    "Oct",
-                                    style: TextStyle(color: Colors.white70),
-                                  );
-                                case 3:
-                                  return const Text(
-                                    "Nov",
-                                    style: TextStyle(color: Colors.white70),
-                                  );
-                              }
-                              return const SizedBox();
-                            },
-                          ),
-                        ),
-                      ),
-                      lineBarsData: [
-                        LineChartBarData(
-                          isCurved: true,
-                          color: const Color(0xFF00E5D0),
-                          barWidth: 3,
-                          dotData: FlDotData(show: true),
-                          spots: const [
-                            FlSpot(0, 3),
-                            FlSpot(1, 4),
-                            FlSpot(2, 3),
-                            FlSpot(3, 2),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 35),
-
-                const Text(
-                  "Feed",
-                  style: TextStyle(
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const Icon(
+                    Icons.arrow_back_ios,
                     color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+                    size: 20,
                   ),
                 ),
-                const SizedBox(height: 15),
 
-                _feedInputBox(
-                  onSubmit: (title, description, image) {
-                    submitFeedPost(title, description, image);
-                  },
-                ),
                 const SizedBox(height: 20),
 
-                // Feed Posts Display
-                if (isFeedLoading)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(20.0),
-                      child: CircularProgressIndicator(color: Colors.teal),
-                    ),
-                  )
-                else if (feedPosts.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white12,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        "No posts yet. Be the first to post!",
-                        style: TextStyle(color: Colors.white54, fontSize: 14),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        if (imagePath != null && imagePath!.isNotEmpty) {
+                          _openProfileImageViewer("$api$imagePath");
+                        }
+                      },
+                      child: CircleAvatar(
+                        radius: 40,
+                        backgroundImage:
+                            (imagePath != null && imagePath!.isNotEmpty)
+                            ? NetworkImage("$api$imagePath")
+                            : const AssetImage("lib/assets/placeholder.png")
+                                  as ImageProvider,
                       ),
                     ),
-                  )
-                else
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: feedPosts.length,
-                    itemBuilder: (context, index) {
-                      return _buildFeedPost(feedPosts[index]);
-                    },
-                  ),
-                const SizedBox(height: 25),
 
-                const Text(
-                  "Media",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 15),
+                    const SizedBox(width: 15),
 
-                SizedBox(
-                  height: 90,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      ...mediaImages
-                          .take(10)
-                          .map((img) => _mediaItem(img))
-                          .toList(),
-
-                      Container(
-                        width: 70,
-                        margin: const EdgeInsets.only(right: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            "View\nall",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 35),
-
-                // REVIEWS SECTION
-                const Text(
-                  "Reviews",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                const SizedBox(height: 15),
-
-                if (_recentRatings.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white12,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        "No reviews yet",
-                        style: TextStyle(color: Colors.white54, fontSize: 16),
-                      ),
-                    ),
-                  )
-                else
-                  Column(
-                    children: [
-                      _buildPendingSummary(),
-
-                      const SizedBox(height: 16),
-
-                      ..._recentRatings
-                          .take(3)
-                          .map((rating) => _buildSingleReview(rating))
-                          .toList(),
-
-                      if (_recentRatings.length > 3)
-                        Center(
-                          child: TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => ClubReviewsViewPage(
-                                    clubId: widget.clubid,
-                                    clubName: clubName,
-                                  ),
-                                ),
-                              );
-                            },
-                            child: const Text(
-                              "View All Reviews",
-                              style: TextStyle(
-                                color: Color(0xFF00AFA5),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            clubName,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ),
-                    ],
-                  ),
+                          const SizedBox(height: 5),
+                          Text(
+                            [
+                              if (place.isNotEmpty) place,
+                              if (districtName.isNotEmpty) districtName,
+                              if (stateName.isNotEmpty) stateName,
+                            ].join(", "),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: Colors.white70,
+                            ),
+                          ),
 
-                const SizedBox(height: 35),
+                          const SizedBox(height: 6),
+
+                          Text(
+                            "$followersCount Members joined",
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.white60,
+                            ),
+                          ),
+
+                          if (!_isClubLoading && !_isMyClub) ...[
+                            const SizedBox(height: 12),
+                            _buildClubActionButton(),
+                          ],
+
+                          if (_hasUserRated && widget.isApproved) ...[
+                            const SizedBox(height: 8),
+                            GestureDetector(
+                              onTap: _showUpdateRatingDialog,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF00AFA5,
+                                  ).withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: const Color(
+                                      0xFF00AFA5,
+                                    ).withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.star,
+                                      color: Color(0xFF00AFA5),
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      "Your Rating: ${_userRating?.rating}",
+                                      style: const TextStyle(
+                                        color: Color(0xFF00AFA5),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.edit,
+                                      color: Color(0xFF00AFA5),
+                                      size: 14,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, color: Colors.white),
+                      color: const Color(0xFF06201A),
+                      onSelected: (value) {
+                        if (value == "followers") {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ClubFollowersPage(clubId: widget.clubid),
+                            ),
+                          );
+                        } else if (value == "approvals" && _isCoach) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ClubRatingApprovalPage(
+                                clubId: widget.clubid,
+                                clubName: clubName,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      itemBuilder: (context) {
+                        List<PopupMenuEntry<String>> items = [
+                          const PopupMenuItem(
+                            value: "followers",
+                            child: Text(
+                              "   View Followers",
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ];
+
+                        if (_isCoach) {
+                          final pendingCount = _recentRatings
+                              .where((r) => r.approvalStatus == 'pending')
+                              .length;
+
+                          items.add(
+                            PopupMenuItem(
+                              value: "approvals",
+                              child: Row(
+                                children: [
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    "Manage Approvals",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                  if (pendingCount > 0) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        pendingCount.toString(),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
+                        return items;
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
 
                 const Text(
-                  "Events",
+                  "Overview",
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 22,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
 
                 const SizedBox(height: 10),
 
-                if (isEventsLoading)
-                  const Center(
-                    child: CircularProgressIndicator(color: Colors.teal),
-                  )
-                else if (clubEvents.isEmpty)
-                  const Text(
-                    "No events found.",
-                    style: TextStyle(color: Colors.white70),
-                  )
-                else
-                  Column(
-                    children: clubEvents.map((event) {
-                      return _fancySwipeEventTile(event);
-                    }).toList(),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    height: 1.4,
+                    fontSize: 15,
                   ),
-              ],
+                ),
 
-              const SizedBox(height: 40),
-            ],
+                const SizedBox(height: 12),
+
+                if (instagram.isNotEmpty)
+                  Text(
+                    instagram,
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+
+                if (website.isNotEmpty)
+                  Text(
+                    website,
+                    style: const TextStyle(
+                      color: Color(0xFF00AFA5),
+                      fontSize: 14,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+
+                const SizedBox(height: 35),
+
+                if (_isCoach || widget.isApproved) ...[
+                  const SizedBox(height: 10),
+
+                  SizedBox(
+                    height: 220,
+                    child: LineChart(
+                      LineChartData(
+                        borderData: FlBorderData(show: true),
+                        gridData: FlGridData(show: false),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 60,
+                              getTitlesWidget: (value, _) {
+                                switch (value.toInt()) {
+                                  case 4:
+                                    return const Text(
+                                      "Excellent",
+                                      style: TextStyle(color: Colors.white70),
+                                    );
+                                  case 3:
+                                    return const Text(
+                                      "High",
+                                      style: TextStyle(color: Colors.white70),
+                                    );
+                                  case 2:
+                                    return const Text(
+                                      "Low",
+                                      style: TextStyle(color: Colors.white70),
+                                    );
+                                }
+                                return const SizedBox();
+                              },
+                            ),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              getTitlesWidget: (value, _) {
+                                switch (value.toInt()) {
+                                  case 0:
+                                    return const Text(
+                                      "Aug",
+                                      style: TextStyle(color: Colors.white70),
+                                    );
+                                  case 1:
+                                    return const Text(
+                                      "Sept",
+                                      style: TextStyle(color: Colors.white70),
+                                    );
+                                  case 2:
+                                    return const Text(
+                                      "Oct",
+                                      style: TextStyle(color: Colors.white70),
+                                    );
+                                  case 3:
+                                    return const Text(
+                                      "Nov",
+                                      style: TextStyle(color: Colors.white70),
+                                    );
+                                }
+                                return const SizedBox();
+                              },
+                            ),
+                          ),
+                        ),
+                        lineBarsData: [
+                          LineChartBarData(
+                            isCurved: true,
+                            color: const Color(0xFF00E5D0),
+                            barWidth: 3,
+                            dotData: FlDotData(show: true),
+                            spots: const [
+                              FlSpot(0, 3),
+                              FlSpot(1, 4),
+                              FlSpot(2, 3),
+                              FlSpot(3, 2),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 35),
+
+                  const Text(
+                    "Feed",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+
+                  _feedInputBox(
+                    onSubmit: (title, description, image) {
+                      submitFeedPost(title, description, image);
+                    },
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Feed Posts Display
+                  if (isFeedLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(20.0),
+                        child: CircularProgressIndicator(color: Colors.teal),
+                      ),
+                    )
+                  else if (feedPosts.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white12,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          "No posts yet. Be the first to post!",
+                          style: TextStyle(color: Colors.white54, fontSize: 14),
+                        ),
+                      ),
+                    )
+                  else
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: feedPosts.length,
+                      itemBuilder: (context, index) {
+                        return _buildFeedPost(feedPosts[index]);
+                      },
+                    ),
+                  const SizedBox(height: 25),
+
+                  const Text(
+                    "Media",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+
+                  SizedBox(
+                    height: 90,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        ...mediaImages
+                            .take(10)
+                            .map((img) => _mediaItem(img))
+                            .toList(),
+
+                        Container(
+                          width: 70,
+                          margin: const EdgeInsets.only(right: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              "View\nall",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 35),
+
+                  // REVIEWS SECTION
+                  const Text(
+                    "Reviews",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  if (_recentRatings.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white12,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          "No reviews yet",
+                          style: TextStyle(color: Colors.white54, fontSize: 16),
+                        ),
+                      ),
+                    )
+                  else
+                    Column(
+                      children: [
+                        _buildPendingSummary(),
+
+                        const SizedBox(height: 16),
+
+                        ..._recentRatings
+                            .take(1)
+                            .map((rating) => _buildSingleReview(rating))
+                            .toList(),
+
+                        if (_recentRatings.length > 1)
+                          Center(
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ClubReviewsViewPage(
+                                      clubId: widget.clubid,
+                                      clubName: clubName,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: const Text(
+                                "View All Reviews",
+                                style: TextStyle(
+                                  color: Color(0xFF00AFA5),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+
+                  const SizedBox(height: 35),
+
+                  const Text(
+                    "Events",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  if (isEventsLoading)
+                    const Center(
+                      child: CircularProgressIndicator(color: Colors.teal),
+                    )
+                  else if (clubEvents.isEmpty)
+                    const Text(
+                      "No events found.",
+                      style: TextStyle(color: Colors.white70),
+                    )
+                  else
+                    Column(
+                      children: clubEvents.map((event) {
+                        return _eventTile(event);
+                      }).toList(),
+                    ),
+                ],
+
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),
@@ -3766,4 +4894,60 @@ class ClubReviewsViewPage extends StatelessWidget {
       return dateString;
     }
   }
+}
+
+Widget _eventImageSlider(List images) {
+  final PageController controller = PageController();
+  int currentPage = 0;
+
+  return StatefulBuilder(
+    builder: (context, setState) {
+      return Column(
+        children: [
+          SizedBox(
+            height: 200,
+            child: PageView.builder(
+              controller: controller,
+              itemCount: images.length,
+              onPageChanged: (index) {
+                setState(() {
+                  currentPage = index;
+                });
+              },
+              itemBuilder: (context, index) {
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    "$api${images[index]["image"]}",
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                );
+              },
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(images.length, (index) {
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: currentPage == index ? 10 : 6,
+                height: currentPage == index ? 10 : 6,
+                decoration: BoxDecoration(
+                  color: currentPage == index
+                      ? const Color(0xFF00AFA5)
+                      : Colors.white30,
+                  shape: BoxShape.circle,
+                ),
+              );
+            }),
+          ),
+        ],
+      );
+    },
+  );
 }

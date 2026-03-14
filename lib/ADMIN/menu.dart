@@ -13,6 +13,7 @@ import 'package:my_skates/ADMIN/add_state.dart';
 import 'package:my_skates/ADMIN/add_values.dart';
 import 'package:my_skates/ADMIN/admin_change_phone_number.dart';
 import 'package:my_skates/ADMIN/admin_orders_page.dart';
+import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:my_skates/COACH/add_club.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -83,7 +84,7 @@ class _MenuPageState extends State<MenuPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DashboardPage())),
         ),
         title: const Text(
           "Settings and activity",

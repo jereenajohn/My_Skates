@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/add_address.dart';
+import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/order_failure_page.dart';
 import 'package:my_skates/ADMIN/order_success_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1106,7 +1107,7 @@ class _cartState extends State<cart> {
               height: 48,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => UserApprovedProducts( )));
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.tealAccent,

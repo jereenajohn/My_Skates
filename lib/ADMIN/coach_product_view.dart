@@ -27,6 +27,8 @@ class UserApprovedProducts extends StatefulWidget {
 }
 
 class _UserApprovedProductsState extends State<UserApprovedProducts> {
+  TextEditingController searchController = TextEditingController();
+
   List<Map<String, dynamic>> products = [];
   List<Map<String, dynamic>> _allProducts = [];
   bool pageLoading = true;
@@ -268,11 +270,8 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
             'id': productData['id'],
             'title': productData['title'],
             'image': imageUrl,
-
-            
           });
         }
-        
 
         setState(() {
           banner = statelist;
@@ -344,7 +343,7 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
         },
       );
 
-      print("resssss ${response.body}" );
+      print("resssss ${response.body}");
 
       if (response.statusCode == 200) {
         final List<dynamic> dataList = jsonDecode(response.body);
@@ -382,6 +381,27 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
 
     setState(() {
       productsLoading = false;
+    });
+  }
+
+  void _searchProducts(String query) {
+    if (query.isEmpty) {
+      setState(() {
+        products = List.from(_allProducts);
+      });
+      return;
+    }
+
+    final results = _allProducts.where((product) {
+      final title = product['title'].toString().toLowerCase();
+      final category = product['category_name'].toString().toLowerCase();
+
+      return title.contains(query.toLowerCase()) ||
+          category.contains(query.toLowerCase());
+    }).toList();
+
+    setState(() {
+      products = results;
     });
   }
 
@@ -771,29 +791,29 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
                                             30,
                                           ),
                                         ),
-                                        child: const Center(
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.start,
-                                            children: [
-                                              SizedBox(width: 10),
-                                              Icon(
-                                                Icons.search,
-                                                color: Colors.white54,
-                                                size: 20,
-                                              ),
-                                              SizedBox(width: 8),
-                                              Text(
-                                                "Search",
-                                                style: TextStyle(
-                                                  fontFamily: 'Poppins',
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w400,
-                                                  color: Colors.white54,
-                                                  letterSpacing: 0.2,
+                                        child: TextField(
+                                          controller: searchController,
+                                          onChanged: _searchProducts,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                          ),
+                                          decoration: const InputDecoration(
+                                            prefixIcon: Icon(
+                                              Icons.search,
+                                              color: Colors.white54,
+                                              size: 20,
+                                            ),
+                                            hintText: "Search ",
+                                            hintStyle: TextStyle(
+                                              color: Colors.white54,
+                                              fontSize: 14,
+                                              fontFamily: 'Poppins',
+                                            ),
+                                            border: InputBorder.none,
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                  vertical: 10,
                                                 ),
-                                              ),
-                                            ],
                                           ),
                                         ),
                                       ),
@@ -1232,282 +1252,284 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
     );
   }
 
+  Widget _productCard(Map<String, dynamic> p) {
+    final bool isWishlisted = p['is_wishlisted'] == true;
 
-Widget _productCard(Map<String, dynamic> p) {
-  final bool isWishlisted = p['is_wishlisted'] == true;
-
-  return OpenContainer(
-    transitionDuration: const Duration(milliseconds: 400),
-    transitionType: ContainerTransitionType.fadeThrough,
-    openElevation: 0,
-    closedElevation: 0,
-    closedColor: Colors.transparent,
-    openColor: Colors.transparent,
-    middleColor: Colors.transparent,
-    closedShape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
-    ),
-    openBuilder: (context, _) => big_view(productId: p['id']),
-    closedBuilder: (context, openContainer) {
-      return FadeScaleTransition(
-        animation: CurvedAnimation(
-          parent: const AlwaysStoppedAnimation(1),
-          curve: Curves.easeOutQuart,
-        ),
-        child: GestureDetector(
-          onTap: openContainer, 
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.22),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white10, width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.25),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Image + Wishlist ──────────────────────────────
-                Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(20),
-                      ),
-                      child: SizedBox(
-                        height: 150,
-                        width: double.infinity,
-                        child: Image.network(
-                          p['image'],
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const ColoredBox(
-                            color: Colors.white10,
-                            child: Center(
-                              child: Icon(Icons.broken_image, color: Colors.grey),
+    return OpenContainer(
+      transitionDuration: const Duration(milliseconds: 400),
+      transitionType: ContainerTransitionType.fadeThrough,
+      openElevation: 0,
+      closedElevation: 0,
+      closedColor: Colors.transparent,
+      openColor: Colors.transparent,
+      middleColor: Colors.transparent,
+      closedShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      openBuilder: (context, _) => big_view(productId: p['id']),
+      closedBuilder: (context, openContainer) {
+        return FadeScaleTransition(
+          animation: CurvedAnimation(
+            parent: const AlwaysStoppedAnimation(1),
+            curve: Curves.easeOutQuart,
+          ),
+          child: GestureDetector(
+            onTap: openContainer,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.22),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white10, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.25),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Image + Wishlist ──────────────────────────────
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20),
+                        ),
+                        child: SizedBox(
+                          height: 150,
+                          width: double.infinity,
+                          child: Image.network(
+                            p['image'],
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const ColoredBox(
+                              color: Colors.white10,
+                              child: Center(
+                                child: Icon(
+                                  Icons.broken_image,
+                                  color: Colors.grey,
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
 
-                    // Gradient overlay
-                    Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(20),
-                          ),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.15),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Wishlist button
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: GestureDetector(
-                        onTap: () async {
-                          await addwishlist(p['id'], context);
-                          setState(() {
-                            p['is_wishlisted'] = !isWishlisted;
-                          });
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          curve: Curves.easeOut,
-                          padding: const EdgeInsets.all(7),
+                      // Gradient overlay
+                      Positioned.fill(
+                        child: DecoratedBox(
                           decoration: BoxDecoration(
-                            color: isWishlisted
-                                ? Colors.tealAccent.withOpacity(0.15)
-                                : Colors.black.withOpacity(0.55),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isWishlisted
-                                  ? Colors.tealAccent.withOpacity(0.5)
-                                  : Colors.white24,
-                              width: 1,
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(20),
                             ),
-                          ),
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 150),
-                            switchInCurve: Curves.easeOutBack,
-                            switchOutCurve: Curves.easeIn,
-                            transitionBuilder: (child, anim) =>
-                                ScaleTransition(scale: anim, child: child),
-                            child: Icon(
-                              isWishlisted
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              key: ValueKey(isWishlisted),
-                              color: isWishlisted
-                                  ? Colors.tealAccent
-                                  : Colors.white70,
-                              size: 18,
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withOpacity(0.15),
+                              ],
                             ),
                           ),
                         ),
                       ),
+
+                      // Wishlist button
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: GestureDetector(
+                          onTap: () async {
+                            await addwishlist(p['id'], context);
+                            setState(() {
+                              p['is_wishlisted'] = !isWishlisted;
+                            });
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            curve: Curves.easeOut,
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: isWishlisted
+                                  ? Colors.tealAccent.withOpacity(0.15)
+                                  : Colors.black.withOpacity(0.55),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isWishlisted
+                                    ? Colors.tealAccent.withOpacity(0.5)
+                                    : Colors.white24,
+                                width: 1,
+                              ),
+                            ),
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 150),
+                              switchInCurve: Curves.easeOutBack,
+                              switchOutCurve: Curves.easeIn,
+                              transitionBuilder: (child, anim) =>
+                                  ScaleTransition(scale: anim, child: child),
+                              child: Icon(
+                                isWishlisted
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                key: ValueKey(isWishlisted),
+                                color: isWishlisted
+                                    ? Colors.tealAccent
+                                    : Colors.white70,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // ── Text content ──────────────────────────────────
+                  const SizedBox(height: 10),
+
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text(
+                        p['title'],
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
+                          height: 1.3,
+                        ),
+                      ),
                     ),
-                  ],
-                ),
+                  ),
 
-                // ── Text content ──────────────────────────────────
-                const SizedBox(height: 10),
+                  const SizedBox(height: 3),
 
-                Expanded(
-                  child: Padding(
+                  Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: Text(
-                      p['title'],
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
+                      p['category_name'],
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.45),
+                        fontSize: 11.5,
                         fontFamily: 'Poppins',
-                        height: 1.3,
+                        letterSpacing: 0.3,
                       ),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 3),
+                  const SizedBox(height: 6),
 
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Text(
-                    p['category_name'],
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.45),
-                      fontSize: 11.5,
-                      fontFamily: 'Poppins',
-                      letterSpacing: 0.3,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                    child: Text(
+                      "₹${p['price']}",
+                      style: const TextStyle(
+                        color: Colors.tealAccent,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Poppins',
+                        letterSpacing: 0.2,
+                      ),
                     ),
                   ),
-                ),
-
-                const SizedBox(height: 6),
-
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-                  child: Text(
-                    "₹${p['price']}",
-                    style: const TextStyle(
-                      color: Colors.tealAccent,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Poppins',
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
   void _handleUpdateProduct() {
     Navigator.push(context, slideRightToLeftRoute(Wishlist()));
   }
 
-Widget _productGridSkeleton() {
-  return GridView.builder(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    itemCount: 6,
-    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 2,
-      mainAxisExtent: 250,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-    ),
-    itemBuilder: (_, __) {
-      return Shimmer.fromColors(
-        baseColor: const Color(0xFF001A18),
-        highlightColor: const Color(0xFF00AFA5).withOpacity(0.25),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.grey.shade900,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white10),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                height: 150,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade800,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Container(
-                  height: 14,
+  Widget _productGridSkeleton() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 6,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisExtent: 250,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemBuilder: (_, __) {
+        return Shimmer.fromColors(
+          baseColor: const Color(0xFF001A18),
+          highlightColor: const Color(0xFF00AFA5).withOpacity(0.25),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade900,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 150,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.grey.shade800,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                 ),
-              ),
+                const SizedBox(height: 12),
 
-              const SizedBox(height: 8),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Container(
-                  height: 12,
-                  width: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade800,
-                    borderRadius: BorderRadius.circular(6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Container(
+                    height: 14,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade800,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
                   ),
                 ),
-              ),
 
-              const SizedBox(height: 8),
+                const SizedBox(height: 8),
 
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Container(
-                  height: 14,
-                  width: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade800,
-                    borderRadius: BorderRadius.circular(6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Container(
+                    height: 12,
+                    width: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade800,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
                   ),
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 8),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Container(
+                    height: 14,
+                    width: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade800,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
   Widget _categorySkeleton() {
     return SingleChildScrollView(
