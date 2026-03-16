@@ -4,6 +4,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/COACH/coach_details_page.dart';
+import 'package:my_skates/COACH/coach_homepage.dart';
+import 'package:my_skates/ADMIN/dashboard.dart';
+import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -47,6 +50,35 @@ class _UserConnectCoachesState extends State<UserConnectCoaches>
     mapController?.dispose();
     _shimmerController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleBackNavigation() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final String userType =
+        (prefs.getString("usertype") ??
+                prefs.getString("user_type") ??
+                prefs.getString("role") ??
+                "")
+            .toLowerCase()
+            .trim();
+
+    Widget destination;
+
+    if (userType == "admin") {
+      destination = const DashboardPage();
+    } else if (userType == "coach") {
+      destination = const CoachHomepage();
+    } else {
+      destination = const HomePage();
+    }
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => destination),
+      (route) => false,
+    );
   }
 
   Future<void> initPage() async {
@@ -468,7 +500,6 @@ class _UserConnectCoachesState extends State<UserConnectCoaches>
           child: Stack(
             children: [
               Positioned.fill(child: CustomPaint(painter: _MapGridPainter())),
-
               Positioned(
                 top: -120,
                 left: -80 + (220 * value),
@@ -493,7 +524,6 @@ class _UserConnectCoachesState extends State<UserConnectCoaches>
                   ),
                 ),
               ),
-
               Positioned(
                 top: 210,
                 left: 80,
@@ -531,7 +561,6 @@ class _UserConnectCoachesState extends State<UserConnectCoaches>
                   ],
                 ),
               ),
-
               Positioned(
                 bottom: 95,
                 left: 0,
@@ -628,37 +657,41 @@ class _UserConnectCoachesState extends State<UserConnectCoaches>
   Widget build(BuildContext context) {
     final bool mapReady = !isLoading && userLocation != null;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: mapReady ? buildRealMap() : buildMapSkeleton(),
-          ),
-
-          const Positioned(
-            top: 60,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                Text(
-                  "Find a coach near you",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+    return WillPopScope(
+      onWillPop: () async {
+        await _handleBackNavigation();
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: mapReady ? buildRealMap() : buildMapSkeleton(),
             ),
-          ),
-
-          buildSearchBar(),
-          buildZoomButtons(),
-          buildRadiusSelector(),
-        ],
+            const Positioned(
+              top: 60,
+              left: 0,
+              right: 0,
+              child: Column(
+                children: [
+                  Text(
+                    "Find a coach near you",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            buildSearchBar(),
+            buildZoomButtons(),
+            buildRadiusSelector(),
+          ],
+        ),
       ),
     );
   }
