@@ -31,7 +31,9 @@ class _CoachMenuPageState extends State<CoachMenuPage>
   Animation<Offset> _slide = const AlwaysStoppedAnimation(Offset.zero);
   String studentName = "";
   String studentRole = "";
+  String userName = "";
   String? studentImage;
+
   bool isLoading = true;
   List<Map<String, dynamic>> students = [];
   bool studentsLoading = true;
@@ -184,7 +186,6 @@ class _CoachMenuPageState extends State<CoachMenuPage>
       final data = jsonDecode(response.body);
 
       if (data is List) {
-        // Find the logged-in user
         final user = data.firstWhere(
           (item) => item["id"] == userId,
           orElse: () => null,
@@ -198,16 +199,18 @@ class _CoachMenuPageState extends State<CoachMenuPage>
         setState(() {
           final String firstName = (user["first_name"] ?? "").toString().trim();
           final String lastName = (user["last_name"] ?? "").toString().trim();
-          final String userName = (user["u_name"] ?? "").toString().trim();
+          String userNameFromApi = (user["u_name"] ?? "").toString().trim();
 
           if (firstName.isNotEmpty || lastName.isNotEmpty) {
             studentName = "$firstName $lastName".trim();
-          } else if (userName.isNotEmpty) {
-            studentName = userName;
+          } else if (userNameFromApi.isNotEmpty) {
+            studentName = userNameFromApi;
           } else {
             studentName = "Coach";
           }
-          studentRole = user["user_type"] ?? "Student";
+
+          userName = userNameFromApi;
+
           studentImage = user["profile"];
           isLoading = false;
         });
@@ -231,8 +234,14 @@ class _CoachMenuPageState extends State<CoachMenuPage>
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF00312D), Color(0xFF000000)],
-            begin: Alignment.topLeft,
+            colors: [
+              Color(0xFF001A18),
+              Color(0xFF002F2B),
+              Color(0xFF000C0B),
+              Colors.black,
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
         ),
         child: SafeArea(
@@ -389,35 +398,28 @@ class _CoachMenuPageState extends State<CoachMenuPage>
 
             const SizedBox(width: 14),
 
-            // RIGHT CONTENT
+            // RIGHT CONTENT - NOW WITH NAME ABOVE USERNAME IN COLUMN
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // NAME + ROLE INLINE
-                  Row(
+                  // NAME AND USERNAME IN COLUMN (STACKED)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Flexible(
-                        child: Text(
-                          isLoading
-                              ? "Loading..."
-                              : (studentName.isNotEmpty
-                                    ? studentName
-                                    : "Coach"),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                      Text(
+                        isLoading
+                            ? "Loading..."
+                            : (studentName.isNotEmpty ? studentName : "Coach"),
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 2),
                       Text(
-                        studentRole.isNotEmpty
-                            ? _formatRole(studentRole)
-                            : "Coach",
+                        userName.isNotEmpty ? "@$userName" : "",
                         style: const TextStyle(
                           fontSize: 13,
                           color: Colors.white70,
@@ -434,7 +436,7 @@ class _CoachMenuPageState extends State<CoachMenuPage>
                     children: [
                       // COUNTS ROW
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           _countText(followersCount),
                           const SizedBox(width: 48),
@@ -446,7 +448,7 @@ class _CoachMenuPageState extends State<CoachMenuPage>
 
                       // LABELS ROW
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           _labelText("Followers"),
                           const SizedBox(width: 48),
@@ -466,7 +468,7 @@ class _CoachMenuPageState extends State<CoachMenuPage>
 
   Widget _countText(int count) {
     return SizedBox(
-      width: 60, // 👈 ensures perfect centering
+      width: 60,
       child: Text(
         count.toString(),
         textAlign: TextAlign.center,

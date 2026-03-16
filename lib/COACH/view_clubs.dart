@@ -23,7 +23,7 @@ class _ViewClubsState extends State<ViewClubs> {
   void initState() {
     super.initState();
     fetchClubs();
-  } 
+  }
 
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -74,7 +74,6 @@ class _ViewClubsState extends State<ViewClubs> {
 
   @override
   Widget build(BuildContext context) {
-    
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.black,
@@ -207,7 +206,7 @@ class _ViewClubsState extends State<ViewClubs> {
             const SizedBox(height: 15),
 
             // GRID VIEW
-         GridView.builder(
+            GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: clubs.length,
@@ -224,15 +223,24 @@ class _ViewClubsState extends State<ViewClubs> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => ClubView(clubid: club["id"]),
+                      PageRouteBuilder(
+                        pageBuilder: (_, __, ___) =>
+                            ClubView(clubid: club["id"]),
+                        transitionDuration: const Duration(milliseconds: 250),
+                        transitionsBuilder: (_, animation, __, child) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          );
+                        },
                       ),
                     );
                   },
                   child: ClubCard(
                     clubId: club["id"],
                     name: club["club_name"],
-                    location: "${club["place"] ?? ""}, ${club["district_name"] ?? ""}",
+                    location:
+                        "${club["place"] ?? ""}, ${club["district_name"] ?? ""}",
                     image: club["image"],
                   ),
                 );

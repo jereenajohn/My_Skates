@@ -36,6 +36,7 @@ class _UserSettingsState extends State<UserSettings> {
 
   Future<void> logoutUser() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
 
     print("Token BEFORE logout: ${prefs.getString('token')}");
     print("ID BEFORE logout: ${prefs.getInt('id')}");

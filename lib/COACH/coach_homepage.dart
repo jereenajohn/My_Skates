@@ -41,6 +41,8 @@ class CoachHomepage extends StatefulWidget {
 }
 
 class _CoachHomepageState extends State<CoachHomepage> {
+  int? _myId;
+
   int _currentIndex = 0;
   String studentName = "";
   String studentRole = "";
@@ -76,6 +78,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
   @override
   void initState() {
     super.initState();
+    _loadMyId();
     fetchcoachDetails();
     getbanner();
     fetchNotificationCount();
@@ -90,6 +93,13 @@ class _CoachHomepageState extends State<CoachHomepage> {
         fetchNotificationCount();
       }
     });
+
+    
+  }
+
+  Future<void> _loadMyId() async {
+    _myId = await getUserId();
+    setState(() {});
   }
 
   Future<void> loadEvents() async {
@@ -148,7 +158,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
       case 2:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const CoachChatSupport(from: "coach")),
+          MaterialPageRoute(
+            builder: (_) => const CoachChatSupport(from: "coach"),
+          ),
         );
         break;
 
@@ -355,9 +367,10 @@ class _CoachHomepageState extends State<CoachHomepage> {
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         if (decoded is List) {
+          final filtered = decoded.where((c) => c["id"] != _myId).toList();
           setState(() {
-            coaches = decoded;
-            coachesNoData = decoded.isEmpty;
+            coaches = filtered;
+            coachesNoData = filtered.isEmpty;
             coachesLoading = false;
           });
         }
@@ -468,8 +481,10 @@ class _CoachHomepageState extends State<CoachHomepage> {
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
 
+        final filtered = data.where((s) => s["id"] != _myId).toList();
+
         setState(() {
-          students = data
+          students = filtered
               .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
               .toList();
           studentsNoData = students.isEmpty;
@@ -707,7 +722,6 @@ class _CoachHomepageState extends State<CoachHomepage> {
     print(response.body);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      
       myRequests.add(coachId);
       setState(() {});
     }
@@ -726,9 +740,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
     print("UNFOLLOW: ${res.body}");
 
     setState(() {
-      myFollowing.remove(coachId); 
-      myApprovedSent.remove(coachId); 
-      myRequests.remove(coachId); 
+      myFollowing.remove(coachId);
+      myApprovedSent.remove(coachId);
+      myRequests.remove(coachId);
     });
   }
 
@@ -792,7 +806,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
             baseColor: const Color(0xFF001A18),
             highlightColor: const Color(0xFF00AFA5).withOpacity(0.25),
             child: Container(
-              height: 350, 
+              height: 350,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -965,342 +979,362 @@ class _CoachHomepageState extends State<CoachHomepage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          height: MediaQuery.of(context).size.height * 0.2,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.25),
-                                blurRadius: 8,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: FlutterCarousel(
-                              options: CarouselOptions(
-                                height: 160,
-                                autoPlay: true,
-                                autoPlayInterval: Duration(seconds: 3),
-                                viewportFraction: 1,
-                                showIndicator: true,
-                                slideIndicator: CircularSlideIndicator(),
-                              ),
-                              items: banner.map((item) {
-                                return Stack(
-                                  children: [
-                                    // Background Image
-                                    Positioned.fill(
-                                      child: Image.network(
-                                        item["image"] ?? "",
-                                        fit: BoxFit.cover,
-                                        loadingBuilder: (context, child, progress) {
-                                          if (progress == null) return child;
-                                          return Container(
-                                            color: Colors.grey.shade900,
-                                            alignment: Alignment.center,
-                                            child:
-                                                const CircularProgressIndicator(),
-                                          );
-                                        },
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                Container(
-                                                  color: Colors.black,
+                        if (!trainingLoading &&
+                            trainingSessions.isEmpty &&
+                            !eventsLoading &&
+                            events.isEmpty &&
+                            !coachesLoading &&
+                            coaches.isEmpty &&
+                            !studentsLoading &&
+                            students.isEmpty)
+                          const SizedBox.shrink()
+                        else ...[
+                          Container(
+                            height: MediaQuery.of(context).size.height * 0.2,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              // boxShadow: [
+                              //   BoxShadow(
+                              //     color: Colors.black.withOpacity(0.25),
+                              //     blurRadius: 8,
+                              //     offset: Offset(0, 4),
+                              //   ),
+                              // ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: FlutterCarousel(
+                                options: CarouselOptions(
+                                  height: 160,
+                                  autoPlay: true,
+                                  autoPlayInterval: Duration(seconds: 3),
+                                  viewportFraction: 1,
+                                  showIndicator: true,
+                                  slideIndicator: CircularSlideIndicator(),
+                                ),
+                                items: banner.map((item) {
+                                  return Stack(
+                                    children: [
+                                      // Background Image
+                                      Positioned.fill(
+                                        child: Image.network(
+                                          item["image"] ?? "",
+                                          fit: BoxFit.cover,
+                                          loadingBuilder:
+                                              (context, child, progress) {
+                                                if (progress == null)
+                                                  return child;
+                                                return Container(
+                                                  color: Colors.grey.shade900,
                                                   alignment: Alignment.center,
-                                                  child: Icon(
-                                                    Icons.broken_image,
-                                                    color: Colors.white54,
-                                                    size: 40,
+                                                  child:
+                                                      const CircularProgressIndicator(),
+                                                );
+                                              },
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Container(
+                                                    color: Colors.black,
+                                                    alignment: Alignment.center,
+                                                    child: Icon(
+                                                      Icons.broken_image,
+                                                      color: Colors.white54,
+                                                      size: 40,
+                                                    ),
                                                   ),
-                                                ),
+                                        ),
                                       ),
-                                    ),
 
-                                    
-                                    Positioned.fill(
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topCenter,
-                                            end: Alignment.bottomCenter,
-                                            colors: [
-                                              Colors.transparent,
-                                              Colors.black.withOpacity(0.6),
-                                            ],
+                                      Positioned.fill(
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                              colors: [
+                                                Colors.transparent,
+                                                Colors.black.withOpacity(0.6),
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
 
-                                    // Banner Title (Optional)
-                                    // Positioned(
-                                    //   bottom: 12,
-                                    //   left: 12,
-                                    //   right: 12,
-                                    //   child: Text(
-                                    //     item["title"] ?? "",
-                                    //     style: const TextStyle(
-                                    //       color: Colors.white,
-                                    //       fontSize: 18,
-                                    //       fontWeight: FontWeight.bold,
-                                    //       shadows: [
-                                    //         Shadow(
-                                    //           offset: Offset(0, 1),
-                                    //           blurRadius: 4,
-                                    //           color: Colors.black54,
-                                    //         )
-                                    //       ],
-                                    //     ),
-                                    //     maxLines: 1,
-                                    //     overflow: TextOverflow.ellipsis,
-                                    //   ),
-                                    // ),
-                                  ],
+                                      // Banner Title (Optional)
+                                      // Positioned(
+                                      //   bottom: 12,
+                                      //   left: 12,
+                                      //   right: 12,
+                                      //   child: Text(
+                                      //     item["title"] ?? "",
+                                      //     style: const TextStyle(
+                                      //       color: Colors.white,
+                                      //       fontSize: 18,
+                                      //       fontWeight: FontWeight.bold,
+                                      //       shadows: [
+                                      //         Shadow(
+                                      //           offset: Offset(0, 1),
+                                      //           blurRadius: 4,
+                                      //           color: Colors.black54,
+                                      //         )
+                                      //       ],
+                                      //     ),
+                                      //     maxLines: 1,
+                                      //     overflow: TextOverflow.ellipsis,
+                                      //   ),
+                                      // ),
+                                    ],
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 22),
+
+                          const Text(
+                            "We offer training and an e-commerce platform\nthat connects students and coaches.",
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+
+                          const SizedBox(height: 25),
+
+                          buildButton("Find Coaches"),
+                          buildButton("Find Skaters"),
+                          buildButton("Find Clubs"),
+                          buildButton("Find Events"),
+                          buildButton("Buy and Sell products"),
+
+                          // const SizedBox(height: 25),
+
+                          // ChangeNotifierProvider(
+                          //   create: (_) => HomeFeedProvider()..fetchHomeFeeds(),
+                          //   child: Consumer<HomeFeedProvider>(
+                          //     builder: (_, p, __) {
+                          //       if (p.loading) {
+                          //         return const CircularProgressIndicator();
+                          //       }
+
+                          //       return Column(
+                          //         children: p.feeds.map((feed) {
+                          //           return HomeFeedCard(feed: feed);
+                          //         }).toList(),
+                          //       );
+                          //     },
+                          //   ),
+                          // ),
+
+                          // SizedBox(height: 20),
+
+                          // CLUBS
+                          // const Text(
+                          //   "Recommended Clubs near you",
+                          //   style: TextStyle(
+                          //     color: Colors.white,
+                          //     fontSize: 16,
+                          //     fontWeight: FontWeight.w600,
+                          //   ),
+                          // ),
+                          // const SizedBox(height: 10),
+                          // if (clubs.isEmpty && !noData)
+                          //   _buildClubShimmer()
+                          // else
+                          //   SizedBox(
+                          //     height: MediaQuery.of(context).size.height * 0.25,
+                          //     child: ListView.builder(
+                          //       scrollDirection: Axis.horizontal,
+                          //       itemCount: clubs.length,
+                          //       itemBuilder: (_, i) => Padding(
+                          //         padding: const EdgeInsets.only(right: 12),
+                          //         child: buildClubCardFromApi(context,clubs[i]),
+                          //       ),
+                          //     ),
+                          //   ),
+
+                          // const SizedBox(height: 20),
+                          // const Text(
+                          //   "Upcoming Training Sessions",
+                          //   style: TextStyle(color: Colors.white, fontSize: 14),
+                          // ),
+                          const SizedBox(height: 15),
+
+                          if (trainingLoading)
+                            _buildTrainingShimmer()
+                          else if (trainingSessions.isEmpty)
+                            const SizedBox.shrink()
+                          else ...[
+                            const Text(
+                              "Upcoming Training Sessions",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+
+                            Column(
+                              children: trainingSessions.map((session) {
+                                final images = session['images'] as List? ?? [];
+                                final imageUrl = images.isNotEmpty
+                                    ? "$api${images[0]['image']}"
+                                    : "";
+
+                                return buildTrainingSessionRow(
+                                  context: context,
+                                  title: session['title'] ?? "",
+                                  note: session['note'] ?? "",
+                                  location: session['location'] ?? "",
+                                  startDate: session['start_date'] ?? "",
+                                  endDate: session['end_date'] ?? "",
+                                  startTime: session['start_time'] ?? "",
+                                  endTime: session['end_time'] ?? "",
+                                  imageUrl: imageUrl,
                                 );
                               }).toList(),
                             ),
-                          ),
-                        ),
 
-                        const SizedBox(height: 22),
+                            const SizedBox(height: 12),
+                          ],
 
-                        const Text(
-                          "We offer training and an e-commerce platform\nthat connects students and coaches.",
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
+                          const SizedBox(height: 12),
 
-                        const SizedBox(height: 25),
-
-                        buildButton("Find Coaches"),
-                        buildButton("Find Skaters"),
-                        buildButton("Find Clubs"),
-                        buildButton("Find Events"),
-                        buildButton("Buy and Sell products"),
-
-                        const SizedBox(height: 25),
-
-                        // ChangeNotifierProvider(
-                        //   create: (_) => HomeFeedProvider()..fetchHomeFeeds(),
-                        //   child: Consumer<HomeFeedProvider>(
-                        //     builder: (_, p, __) {
-                        //       if (p.loading) {
-                        //         return const CircularProgressIndicator();
-                        //       }
-
-                        //       return Column(
-                        //         children: p.feeds.map((feed) {
-                        //           return HomeFeedCard(feed: feed);
-                        //         }).toList(),
-                        //       );
-                        //     },
-                        //   ),
-                        // ),
-
-                        // SizedBox(height: 20),
-
-                        // CLUBS
-                        // const Text(
-                        //   "Recommended Clubs near you",
-                        //   style: TextStyle(
-                        //     color: Colors.white,
-                        //     fontSize: 16,
-                        //     fontWeight: FontWeight.w600,
-                        //   ),
-                        // ),
-                        // const SizedBox(height: 10),
-                        // if (clubs.isEmpty && !noData)
-                        //   _buildClubShimmer()
-                        // else
-                        //   SizedBox(
-                        //     height: MediaQuery.of(context).size.height * 0.25,
-                        //     child: ListView.builder(
-                        //       scrollDirection: Axis.horizontal,
-                        //       itemCount: clubs.length,
-                        //       itemBuilder: (_, i) => Padding(
-                        //         padding: const EdgeInsets.only(right: 12),
-                        //         child: buildClubCardFromApi(context,clubs[i]),
-                        //       ),
-                        //     ),
-                        //   ),
-
-                        // const SizedBox(height: 20),
-                        const Text(
-                          "Upcoming Training Sessions",
-                          style: TextStyle(color: Colors.white, fontSize: 14),
-                        ),
-
-                        const SizedBox(height: 15),
-
-                        if (trainingLoading)
-                          _buildTrainingShimmer()
-                        else if (trainingNoData)
-                          const Text(
-                            "No training sessions available",
-                            style: TextStyle(color: Colors.white70),
-                          )
-                        else
-                          Column(
-                            children: trainingSessions.map((session) {
-                              final images = session['images'] as List? ?? [];
-
-                              String imageUrl = images.isNotEmpty
-                                  ? "$api${images[0]['image']}"
-                                  : "";
-
-                              return buildTrainingSessionRow(
-                                context: context,
-                                title: session['title'] ?? "",
-                                note: session['note'] ?? "",
-                                location: session['location'] ?? "",
-                                startDate: session['start_date'] ?? "",
-                                endDate: session['end_date'] ?? "",
-                                startTime: session['start_time'] ?? "",
-                                endTime: session['end_time'] ?? "",
-                                imageUrl: imageUrl,
-                              );
-                            }).toList(),
-                          ),
-
-                        const SizedBox(height: 12),
-
-                        const Text(
-                          "Upcoming Events",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        if (eventsLoading)
-                          _buildEventShimmer()
-                        else if (eventsNoData)
-                          const Center(
-                            child: Text(
-                              "No events found",
-                              style: TextStyle(color: Colors.white70),
+                          if (eventsLoading)
+                            _buildEventShimmer()
+                          else if (events.isEmpty)
+                            const SizedBox.shrink()
+                          else ...[
+                            const Text(
+                              "Upcoming Events",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          )
-                        else
-                          Column(
-                            children: events.map((event) {
-                              final images = event["images"] as List? ?? [];
+                            const SizedBox(height: 12),
 
-                              String image1 = images.isNotEmpty
-                                  ? "$api${images[0]['image']}"
-                                  : "";
+                            Column(
+                              children: events.map((event) {
+                                final images = event["images"] as List? ?? [];
 
-                              String image2 = images.length > 1
-                                  ? "$api${images[1]['image']}"
-                                  : "";
+                                final image1 = images.isNotEmpty
+                                    ? "$api${images[0]['image']}"
+                                    : "";
+                                final image2 = images.length > 1
+                                    ? "$api${images[1]['image']}"
+                                    : "";
 
-                              return buildEventCardWithImages(
-                                context: context,
-                                clubName: event["club_name"] ?? "Skating Club",
-                                clubImage: event["club_image"] ?? "",
-                                location: event["note"] ?? "",
-                                title: event["title"] ?? "",
-                                image1: image1,
-                                image2: image2,
-                                imageCount: images.length,
-                                description: event["description"] ?? "",
-                                fromDate: event["from_date"] ?? "",
-                                toDate: event["to_date"] ?? "",
-                                fromTime: event["from_time"] ?? "",
-                                toTime: event["to_time"] ?? "",
-                                icon: Icons.thumb_up_alt_outlined,
-                                eventId: event["id"],
-                                onLike: toggleEventLike,
-                                likesCount: event["likes_count"] ?? 0,
-                                isLiked: event["is_liked"] ?? false,
-                              );
-                            }).toList(),
+                                return buildEventCardWithImages(
+                                  context: context,
+                                  clubName:
+                                      event["club_name"] ?? "Skating Club",
+                                  clubImage: event["club_image"] ?? "",
+                                  location: event["note"] ?? "",
+                                  title: event["title"] ?? "",
+                                  image1: image1,
+                                  image2: image2,
+                                  imageCount: images.length,
+                                  description: event["description"] ?? "",
+                                  fromDate: event["from_date"] ?? "",
+                                  toDate: event["to_date"] ?? "",
+                                  fromTime: event["from_time"] ?? "",
+                                  toTime: event["to_time"] ?? "",
+                                  icon: Icons.thumb_up_alt_outlined,
+                                  eventId: event["id"],
+                                  onLike: toggleEventLike,
+                                  likesCount: event["likes_count"] ?? 0,
+                                  isLiked: event["is_liked"] ?? false,
+                                );
+                              }).toList(),
+                            ),
+
+                            const SizedBox(height: 12),
+                          ],
+
+                          const SizedBox(height: 12),
+
+                          // COACHES
+                          const Text(
+                            "Suggested Coaches",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 15),
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.28,
+                            child: !followLoaded || coachesLoading
+                                ? _buildCoachShimmer()
+                                : coachesNoData
+                                ? const Center(
+                                    child: Text(
+                                      "No coaches found",
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: coaches.length,
+                                    itemBuilder: (_, i) => CoachFollowCard(
+                                      coach: coaches[i],
+                                      onFollow: sendFollowRequest,
+                                      onCancelPending: cancelPendingRequest,
+                                      onUnfollow: unfollowCoach,
+                                      myFollowing: myFollowing,
+                                      myRequests: myRequests,
+                                      myApprovedSent: myApprovedSent,
+                                      refreshParent: () => setState(() {}),
+                                    ),
+                                  ),
                           ),
 
-                        const SizedBox(height: 12),
+                          SizedBox(height: 20),
 
-                        // COACHES
-                        const Text(
-                          "Suggested Coaches",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                          const Text(
+                            "Suggested Students",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 15),
-                        SizedBox(
-                          height: MediaQuery.of(context).size.height * 0.28,
-                          child: !followLoaded || coachesLoading
-                              ? _buildCoachShimmer()
-                              : coachesNoData
-                              ? const Center(
-                                  child: Text(
-                                    "No coaches found",
-                                    style: TextStyle(color: Colors.white70),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.25,
+                            child: studentsLoading
+                                ? _buildCoachShimmer()
+                                : studentsNoData
+                                ? const Center(
+                                    child: Text(
+                                      "No students found",
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: students.length,
+                                    itemBuilder: (_, i) => StudentFollowCard(
+                                      student: students[i],
+                                      myFollowing: myFollowing,
+                                      myRequests: myRequests,
+                                      myApprovedSent: myApprovedSent,
+                                      onFollow: followStudent,
+                                      onCancelPending: cancelPendingRequest,
+                                      onUnfollow: unfollowUser,
+                                      refreshParent: () => setState(() {}),
+                                    ),
                                   ),
-                                )
-                              : ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: coaches.length,
-                                  itemBuilder: (_, i) => CoachFollowCard(
-                                    coach: coaches[i],
-                                    onFollow: sendFollowRequest,
-                                    onCancelPending: cancelPendingRequest,
-                                    onUnfollow: unfollowCoach,
-                                    myFollowing: myFollowing,
-                                    myRequests: myRequests,
-                                    myApprovedSent: myApprovedSent,
-                                    refreshParent: () => setState(() {}),
-                                  ),
-                                ),
-                        ),
-
-                        SizedBox(height: 20),
-
-                        const Text(
-                          "Suggested Students",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          height: MediaQuery.of(context).size.height * 0.25,
-                          child: studentsLoading
-                              ? _buildCoachShimmer() 
-                              : studentsNoData
-                              ? const Center(
-                                  child: Text(
-                                    "No students found",
-                                    style: TextStyle(color: Colors.white70),
-                                  ),
-                                )
-                              : ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: students.length,
-                                  itemBuilder: (_, i) => StudentFollowCard(
-                                    student: students[i],
-                                    myFollowing: myFollowing,
-                                    myRequests: myRequests,
-                                    myApprovedSent: myApprovedSent,
-                                    onFollow: followStudent,
-                                    onCancelPending: cancelPendingRequest,
-                                    onUnfollow: unfollowUser,
-                                    refreshParent: () => setState(() {}),
-                                  ),
-                                ),
-                        ),
 
-                        const SizedBox(height: 12),
+                          const SizedBox(height: 12),
+                        ],
                       ],
                     ),
                   ),

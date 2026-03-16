@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/COACH/club_detailed_view.dart';
@@ -111,82 +112,98 @@ class ClubGridCard extends StatelessWidget {
 
     final String imageUrl = image.isNotEmpty ? "$api$image" : "";
 
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 36,
-            backgroundImage: imageUrl.isNotEmpty
-                ? NetworkImage(imageUrl)
-                : const AssetImage("lib/assets/images.png") as ImageProvider,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+
+            color: Colors.white.withOpacity(0.08),
+            border: Border.all(color: Colors.white.withOpacity(0.18), width: 1),
+            // boxShadow: [
+            //   BoxShadow(
+            //     color: Colors.black.withOpacity(0.4),
+            //     blurRadius: 14,
+            //     offset: const Offset(0, 6),
+            //   ),
+            // ],
           ),
+          child: Column(
+            children: [
+              CircleAvatar(
+                radius: 36,
+                backgroundImage: imageUrl.isNotEmpty
+                    ? NetworkImage(imageUrl)
+                    : const AssetImage("lib/assets/images.png")
+                          as ImageProvider,
+              ),
 
-          const SizedBox(height: 10),
+              const SizedBox(height: 10),
 
-          Text(
-            clubName,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-
-          const SizedBox(height: 4),
-
-          Text(
-            place,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-
-          const Spacer(),
-
-          SizedBox(
-            width: double.infinity,
-            height: 34,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00AFA5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              Text(
+                clubName,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CoachClubRequests(clubId: id),
-                  ),
-                );
-              },
-              child: const Text(
-                "Requests",
-                style: TextStyle(color: Colors.white, fontSize: 13),
-              ),
-            ),
-          ),
 
-          // if (instagram.isNotEmpty) ...[
-          //   const SizedBox(height: 6),
-          //   Text(
-          //     "@$instagram",
-          //     style: const TextStyle(
-          //       color: Colors.tealAccent,
-          //       fontSize: 11,
-          //     ),
-          //   ),
-          // ],
-        ],
+              const SizedBox(height: 4),
+
+              Text(
+                place,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+
+              const Spacer(),
+
+              SizedBox(
+                width: double.infinity,
+                height: 34,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00AFA5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CoachClubRequests(clubId: id),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    "Requests",
+                    style: TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                ),
+              ),
+
+              // if (instagram.isNotEmpty) ...[
+              //   const SizedBox(height: 6),
+              //   Text(
+              //     "@$instagram",
+              //     style: const TextStyle(
+              //       color: Colors.tealAccent,
+              //       fontSize: 11,
+              //     ),
+              //   ),
+              // ],
+            ],
+          ),
+        ),
       ),
     );
   }
