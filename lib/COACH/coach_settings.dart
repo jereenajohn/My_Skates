@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/add_address.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
@@ -19,7 +20,6 @@ import 'package:my_skates/STUDENTS/products.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 import 'package:my_skates/COACH/add_coach_achievements.dart';
 import 'package:my_skates/loginpage.dart';
-import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CoachSettings extends StatefulWidget {
@@ -30,34 +30,25 @@ class CoachSettings extends StatefulWidget {
 }
 
 class _CoachSettingsState extends State<CoachSettings> {
-  @override
-  void initState() {
-    super.initState();
-  }
-
   TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   String _searchQuery = "";
 
   void pushWithSlide(Widget page) {
     Navigator.push(context, slideRightToLeftRoute(page));
   }
 
+  Future<void> _onRefresh() async {
+    await Future.delayed(const Duration(milliseconds: 700));
+    setState(() {});
+  }
+
   Future<void> logoutUser() async {
     final prefs = await SharedPreferences.getInstance();
 
-  
-    print("Token BEFORE logout: ${prefs.getString('token')}");
-    print("ID BEFORE logout: ${prefs.getInt('id')}");
-
-  
     await prefs.remove('token');
     await prefs.remove('id');
 
-    
-    print("Token AFTER logout: ${prefs.getString('token')}");
-    print("ID AFTER logout: ${prefs.getInt('id')}");
-
-   
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
@@ -65,18 +56,14 @@ class _CoachSettingsState extends State<CoachSettings> {
           style: TextStyle(color: Colors.white, fontSize: 16),
         ),
         backgroundColor: Colors.teal,
-        duration: Duration(seconds: 2),
       ),
     );
 
-  
     await Future.delayed(const Duration(milliseconds: 600));
 
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(
-        builder: (_) => const Loginpage(),
-      ), 
+      MaterialPageRoute(builder: (_) => const Loginpage()),
       (route) => false,
     );
   }
@@ -84,392 +71,350 @@ class _CoachSettingsState extends State<CoachSettings> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
+      backgroundColor: Colors.transparent,
 
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F0F0F),
         elevation: 0,
+        backgroundColor: Colors.transparent,
+
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
+
         title: const Text(
           "Settings and activity",
-          style: TextStyle(color: Colors.white, fontSize: 20),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF001F1C).withOpacity(0.95),
+                    const Color(0xFF001F1C).withOpacity(0.65),
+                    Colors.black.withOpacity(0.55),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+
+                color: Colors.black.withOpacity(0.25),
+
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.white.withOpacity(0.18),
+                    width: 1,
+                  ),
+                ),
+
+                // boxShadow: [
+                //   BoxShadow(
+                //     color: Colors.black.withOpacity(0.6),
+                //     blurRadius: 20,
+                //     offset: const Offset(0, 8),
+                //   ),
+                // ],
+              ),
+            ),
+          ),
         ),
       ),
 
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 10),
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF001F1C), Colors.black],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
 
-              // Search Box
-              Container(
+          RefreshIndicator(
+            onRefresh: _onRefresh,
+            color: Colors.white,
+            backgroundColor: const Color(0xFF001F1C),
+            displacement: 60,
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
-                height: 45,
-                decoration: BoxDecoration(
-                  color: Colors.grey[900],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    icon: Icon(Icons.search, color: Colors.white60),
-                    hintText: "Search",
-                    hintStyle: TextStyle(color: Colors.white60),
-                    border: InputBorder.none,
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value.toLowerCase();
-                    });
-                  },
-                ),
-              ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 12),
 
-              const SizedBox(height: 25),
-
-              // SECTION: YOUR ACCOUNT
-              const Text(
-                "Your account",
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Accounts Center → navigate to ProfilePage()
-              if ("Accounts Center".toLowerCase().contains(_searchQuery))
-                _menuTile(
-                  icon: Icons.person_outline,
-                  text: "Accounts Center",
-                  subtitle: "Profile Update and more",
-                  onTap: () {
-                    pushWithSlide(const CoachProfilePage());
-                  },
-                ),
-
-              const SizedBox(height: 25),
-
-              // SECTION: HOW YOU USE INSTAGRAM
-              const Text(
-                "How you use MySkates",
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 12),
-              if ("Change Phone Number".toLowerCase().contains(_searchQuery))
-                _menuTile(
-                  icon: Icons.phone_android_outlined,
-                  text: "Change Phone Number",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      slideRightToLeftRoute(ChangePhonePage()),
-                    );
-                  },
-                ),
-
-              _divider(),
-
-              if ("Chat Support".toLowerCase().contains(_searchQuery))
-                _menuTile(
-                  icon: Icons.support_agent_outlined,
-                  text: "Chat Support",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      slideRightToLeftRoute(CoachChatSupport(from: "coach",)),
-                    );
-                  },
-                ),
-              _divider(),
-              if ("My Orders".toLowerCase().contains(_searchQuery))
-                _menuTile(
-                  icon: Icons.shopping_bag,
-                  text: "My Orders",
-                  onTap: () {
-                    Navigator.push(context, slideRightToLeftRoute(Myorders()));
-                  },
-                ),
-              _divider(),
-              if ("Product Review Approval".toLowerCase().contains(
-                _searchQuery,
-              ))
-                _menuTile(
-                  icon: Icons.read_more,
-                  text: "Product Review Approval",
-
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      slideRightToLeftRoute(
-                        ProductReviewApprovalPage(
-                          productId: 0,
-                          productName: "All Products",
+                    /// 🔍 GLASS SEARCH
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.15),
+                            ),
+                          ),
+                          child: TextField(
+                            controller: _searchController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: const InputDecoration(
+                              icon: Icon(Icons.search, color: Colors.white60),
+                              hintText: "Search",
+                              hintStyle: TextStyle(color: Colors.white60),
+                              border: InputBorder.none,
+                            ),
+                            onChanged: (value) {
+                              setState(() {
+                                _searchQuery = value.toLowerCase();
+                              });
+                            },
+                          ),
                         ),
                       ),
-                    );
-                  },
-                ),
-              _divider(),
-              if ("Add Achievements".toLowerCase().contains(_searchQuery))
-                _menuTile(
-                  icon: Icons.home,
-                  text: "Add Achievements",
-                  onTap: () {
-                    pushWithSlide(AddCoachAchievements());
-                  },
-                ),
-              _divider(),
-              if ("Add Club".toLowerCase().contains(_searchQuery))
-                _menuTile(
-                  icon: Icons.home,
-                  text: "Add Club",
-                  onTap: () {
-                    Navigator.push(context, slideRightToLeftRoute(AddClub()));
-                  },
-                ),
-              _divider(),
-              if ("Add address".toLowerCase().contains(_searchQuery))
-                _menuTile(
-                  icon: Icons.home,
-                  text: "Add address",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      slideRightToLeftRoute(ViewAddress()),
-                    );
-                  },
-                ),
-              _divider(),
-              if ("View Club".toLowerCase().contains(_searchQuery))
-                _menuTile(
-                  icon: Icons.home,
-                  text: "View Club",
-                  onTap: () {
-                    Navigator.push(context, slideRightToLeftRoute(ViewClubs()));
-                  },
-                ),
-              _divider(),
-              if ("Follow Requests".toLowerCase().contains(_searchQuery))
-                _menuTile(
-                  icon: Icons.home,
-                  text: "Follow Requests",
-                  onTap: () {
-                    pushWithSlide(const CoachFollowRequest());
-                  },
-                ),
-              _divider(),
-
-              if ("Followers".toLowerCase().contains(_searchQuery))
-                _menuTile(
-                  icon: Icons.home,
-                  text: "Followers",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CoachFollowersList(),
-                      ),
-                    );
-                    pushWithSlide(CoachFollowersList());
-                  },
-                ),
-              _divider(),
-              if ("Following".toLowerCase().contains(_searchQuery))
-                _menuTile(
-                  icon: Icons.home,
-                  text: "Following",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CoachFollowingList(),
-                      ),
-                    );
-
-                    pushWithSlide(CoachFollowingList());
-                  },
-                ),
-              _divider(),
-
-              if ("Your activity".toLowerCase().contains(_searchQuery))
-                _menuTile(
-                  icon: Icons.show_chart_outlined,
-                  text: "Your activity",
-                ),
-              _divider(),
-              if ("Notifications".toLowerCase().contains(_searchQuery))
-                _menuTile(
-                  icon: Icons.notifications_outlined,
-                  text: "Notifications",
-                ),
-              _divider(),
-
-              const SizedBox(height: 15),
-              if ("Other Settings".toLowerCase().contains(_searchQuery))
-                // SECTION: WHO CAN SEE YOUR CONTENT
-                const Text(
-                  "Other settings",
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-              const SizedBox(height: 8),
-              if ("Logout".toLowerCase().contains(_searchQuery))
-                _menuTile(
-                  icon: Icons.lock_outline,
-                  text: "Logout",
-                  onTap: logoutUser,
-                ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-          child: BottomNavigationBar(
-            backgroundColor: Colors.black,
-            selectedItemColor: const Color(0xFF00AFA5),
-            unselectedItemColor: Colors.white70,
-            showSelectedLabels: false,
-            showUnselectedLabels: false,
-            type: BottomNavigationBarType.fixed,
-            currentIndex: 0,
-            onTap: (index) {
-              switch (index) {
-                case 0:
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HomePage()),
-                  );
-                  break;
-                case 1:
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const UserProducts()),
-                  );
-                  break;
-                case 2:
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const CoachNotificationPage(),
                     ),
-                  );
-                  break;
-                case 3:
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const UserConnectCoaches(),
+
+                    const SizedBox(height: 26),
+
+                    /// SECTION TITLE
+                    const Text(
+                      "Your account",
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
                     ),
-                  );
-                  break;
-                case 4:
-                  break;
-              }
-            },
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.shopping_bag),
-                label: '',
+
+                    const SizedBox(height: 14),
+
+                    if ("Accounts Center".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.person_outline,
+                        text: "Accounts Center",
+                        subtitle: "Profile Update and more",
+                        onTap: () => pushWithSlide(const CoachProfilePage()),
+                      ),
+
+                    const SizedBox(height: 26),
+
+                    const Text(
+                      "How you use MySkates",
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    if ("Change Phone Number".toLowerCase().contains(
+                      _searchQuery,
+                    ))
+                      _menuTile(
+                        icon: Icons.phone_android_outlined,
+                        text: "Change Phone Number",
+                        onTap: () => pushWithSlide(ChangePhonePage()),
+                      ),
+
+                    if ("Chat Support".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.support_agent_outlined,
+                        text: "Chat Support",
+                        onTap: () =>
+                            pushWithSlide(CoachChatSupport(from: "coach")),
+                      ),
+
+                    if ("My Orders".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.shopping_bag,
+                        text: "My Orders",
+                        onTap: () => pushWithSlide(Myorders()),
+                      ),
+
+                    if ("Product Review Approval".toLowerCase().contains(
+                      _searchQuery,
+                    ))
+                      _menuTile(
+                        icon: Icons.read_more,
+                        text: "Product Review Approval",
+                        onTap: () => pushWithSlide(
+                          ProductReviewApprovalPage(
+                            productId: 0,
+                            productName: "All Products",
+                          ),
+                        ),
+                      ),
+
+                    if ("Add Achievements".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.home,
+                        text: "Add Achievements",
+                        onTap: () => pushWithSlide(AddCoachAchievements()),
+                      ),
+
+                    if ("Add Club".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.home,
+                        text: "Add Club",
+                        onTap: () => pushWithSlide(AddClub()),
+                      ),
+
+                    if ("Add address".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.home,
+                        text: "Add address",
+                        onTap: () => pushWithSlide(ViewAddress()),
+                      ),
+
+                    if ("View Club".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.home,
+                        text: "View Club",
+                        onTap: () => pushWithSlide(ViewClubs()),
+                      ),
+
+                    if ("Follow Requests".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.home,
+                        text: "Follow Requests",
+                        onTap: () => pushWithSlide(const CoachFollowRequest()),
+                      ),
+
+                    if ("Followers".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.home,
+                        text: "Followers",
+                        onTap: () => pushWithSlide(const CoachFollowersList()),
+                      ),
+
+                    if ("Following".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.home,
+                        text: "Following",
+                        onTap: () => pushWithSlide(const CoachFollowingList()),
+                      ),
+
+                    if ("Your activity".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.show_chart_outlined,
+                        text: "Your activity",
+                      ),
+
+                    if ("Notifications".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.notifications_outlined,
+                        text: "Notifications",
+                      ),
+
+                    const SizedBox(height: 18),
+
+                    const Text(
+                      "Other settings",
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    if ("Logout".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.lock_outline,
+                        text: "Logout",
+                        onTap: logoutUser,
+                      ),
+
+                    const SizedBox(height: 25),
+                  ],
+                ),
               ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.chat_bubble_rounded),
-                label: '',
-              ),
-              BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
-              BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  // MENU TILE WIDGET WITH NAVIGATION SUPPORT
+  /// 💎 PREMIUM GLASS TILE
   Widget _menuTile({
     required IconData icon,
     required String text,
     String? subtitle,
-    String? trailingText,
-    VoidCallback? onTap, // <-- Added
+    VoidCallback? onTap,
   }) {
-    return Column(
-      children: [
-        ListTile(
-          onTap: onTap, // <-- Enables tapping
-          contentPadding: EdgeInsets.zero,
-
-          leading: Icon(icon, color: Colors.white, size: 26),
-
-          title: Text(
-            text,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-          ),
-
-          subtitle: subtitle != null
-              ? Text(
-                  subtitle,
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
-                )
-              : null,
-
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (trailingText != null)
-                Text(
-                  trailingText,
-                  style: const TextStyle(color: Colors.white54, fontSize: 14),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.07),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.15)),
+              // boxShadow: [
+              //   BoxShadow(
+              //     color: Colors.black.withOpacity(0.35),
+              //     blurRadius: 18,
+              //     offset: const Offset(0, 8),
+              //   ),
+              // ],
+            ),
+            child: ListTile(
+              onTap: onTap,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 6,
+              ),
+              leading: Icon(icon, color: Colors.white, size: 26),
+              title: Text(
+                text,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
                 ),
-              const SizedBox(width: 5),
-              const Icon(
+              ),
+              subtitle: subtitle != null
+                  ? Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 13,
+                      ),
+                    )
+                  : null,
+              trailing: const Icon(
                 Icons.arrow_forward_ios,
                 color: Colors.white38,
                 size: 16,
               ),
-            ],
+            ),
           ),
         ),
-      ],
-    );
-  }
-
-  // DIVIDER
-  Widget _divider() {
-    return Padding(
-      padding: const EdgeInsets.only(left: 50),
-      child: Divider(color: Colors.grey[800], thickness: 0.6),
+      ),
     );
   }
 }

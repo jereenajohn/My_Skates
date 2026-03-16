@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -673,84 +674,109 @@ class _EventsState extends State<Events> {
         return false;
       },
       child: Scaffold(
-        backgroundColor: const Color.fromARGB(255, 0, 0, 0),
+        extendBodyBehindAppBar: true,
+        backgroundColor: Colors.transparent,
+
         appBar: AppBar(
-          backgroundColor: Colors.black,
-          title: Text(
-            clubDetails?["club_name"] ?? "My Club Events",
-            style: const TextStyle(color: Colors.white, fontSize: 20),
-          ),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          automaticallyImplyLeading: false,
           leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => CoachHomepage()),
+                MaterialPageRoute(builder: (_) => const CoachHomepage()),
               );
             },
-            icon: Icon(Icons.arrow_back, color: Colors.white),
+          ),
+
+          title: Text(
+            clubDetails?["club_name"] ?? "My Club Events",
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+          flexibleSpace: ClipRRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.35),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: Colors.white.withOpacity(0.12),
+                      width: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
-        body: (loadingEvents)
-            ? const Center(child: CircularProgressIndicator(color: Colors.teal))
-            : RefreshIndicator(
-                onRefresh: fetchClubEvents,
-                color: Colors.tealAccent,
-                backgroundColor: Colors.black,
-                strokeWidth: 3.0,
-                edgeOffset: 20.0,
-                displacement: 40.0,
-                child: clubEvents.isEmpty
-                    ? SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        child: SizedBox(
-                          height: MediaQuery.of(context).size.height * 0.8,
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.event_note_outlined,
-                                  color: Colors.white54,
-                                  size: 60,
-                                ),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  "No events found",
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  "Pull down to refresh",
-                                  style: TextStyle(
-                                    color: Colors.tealAccent,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: EdgeInsets.zero,
-                        itemCount: clubEvents.length,
-                        itemBuilder: (context, index) {
-                          final event = Map<String, dynamic>.from(
-                            clubEvents[index],
-                          );
-
-                          return buildEventCard(
-                            event,
-                            buildImageUrl(event["club_image"]),
-                            event["club_name"] ?? "",
-                          );
-                        },
-                      ),
+        body: Stack(
+          children: [
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF001F1C), Color(0xFF000000)],
+                ),
               ),
+            ),
+
+            Padding(
+              padding: EdgeInsets.only(
+                top: kToolbarHeight + MediaQuery.of(context).padding.top,
+              ),
+              child: (loadingEvents)
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.tealAccent,
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: fetchClubEvents,
+                      color: Colors.tealAccent,
+                      backgroundColor: Colors.black,
+                      child: clubEvents.isEmpty
+                          ? SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              child: SizedBox(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.8,
+                                child: const Center(
+                                  child: Text(
+                                    "No events found",
+                                    style: TextStyle(color: Colors.white70),
+                                  ),
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              itemCount: clubEvents.length,
+                              itemBuilder: (context, index) {
+                                final event = Map<String, dynamic>.from(
+                                  clubEvents[index],
+                                );
+
+                                return buildEventCard(
+                                  event,
+                                  buildImageUrl(event["club_image"]),
+                                  event["club_name"] ?? "",
+                                );
+                              },
+                            ),
+                    ),
+            ),
+          ],
+        ),
         bottomNavigationBar: const AppBottomNav(currentIndex: 4),
       ),
     );
@@ -792,91 +818,120 @@ class _EventsState extends State<Events> {
     final fromTime = formatTime(event["from_time"] ?? "");
     final toTime = formatTime(event["to_time"] ?? "");
 
-    return Container(
-      color: const Color.fromARGB(255, 20, 19, 19),
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(15),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          /// CLUB HEADER
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundImage: clubLogo.isNotEmpty
-                    ? NetworkImage(clubLogo)
-                    : null,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  clubName,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+
+              color: Colors.white.withOpacity(0.07),
+
+              border: Border.all(color: Colors.white.withOpacity(0.15)),
+
+              // boxShadow: [
+              //   BoxShadow(
+              //     color: Colors.black.withOpacity(0.6),
+              //     blurRadius: 20,
+              //     offset: const Offset(0, 10),
+              //   ),
+              // ],
+            ),
+            // padding: const EdgeInsets.all(15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                /// CLUB HEADER
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundImage: clubLogo.isNotEmpty
+                          ? NetworkImage(clubLogo)
+                          : null,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        clubName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 10),
+
+                /// DATE & TIME
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_month,
+                      color: Colors.white70,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      "$fromDate • $fromTime  →  $toDate • $toTime",
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 10),
+
+                /// IMAGE SECTION
+                if (gallery.isNotEmpty)
+                  EventImageSlider(
+                    images: gallery
+                        .map<String>((img) => buildImageUrl(img["image"]))
+                        .toList(),
+                  )
+                else if (bannerImagePath.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      buildImageUrl(bannerImagePath),
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: 200,
+                    ),
+                  ),
+
+                const SizedBox(height: 10),
+
+                /// EVENT TITLE
+                Text(
+                  event["title"] ?? "",
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-            ],
-          ),
 
-          const SizedBox(height: 10),
+                const SizedBox(height: 5),
 
-          /// DATE & TIME
-          Row(
-            children: [
-              const Icon(Icons.calendar_month, color: Colors.white70, size: 18),
-              const SizedBox(width: 6),
-              Text(
-                "$fromDate • $fromTime  →  $toDate • $toTime",
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-
-          /// IMAGE SECTION
-          if (gallery.isNotEmpty)
-            EventImageSlider(
-              images: gallery
-                  .map<String>((img) => buildImageUrl(img["image"]))
-                  .toList(),
-            )
-          else if (bannerImagePath.isNotEmpty)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                buildImageUrl(bannerImagePath),
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: 200,
-              ),
-            ),
-
-          const SizedBox(height: 10),
-
-          /// EVENT TITLE
-          Text(
-            event["title"] ?? "",
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+                /// DESCRIPTION
+                Text(
+                  event["description"] ?? "",
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ],
             ),
           ),
-
-          const SizedBox(height: 5),
-
-          /// DESCRIPTION
-          Text(
-            event["description"] ?? "",
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -902,6 +957,7 @@ class _EventsState extends State<Events> {
     );
   }
 }
+
 class EventImageSlider extends StatefulWidget {
   final List<String> images;
 
@@ -912,7 +968,6 @@ class EventImageSlider extends StatefulWidget {
 }
 
 class _EventImageSliderState extends State<EventImageSlider> {
-
   int currentPage = 0;
   final PageController controller = PageController();
 
@@ -920,7 +975,6 @@ class _EventImageSliderState extends State<EventImageSlider> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-
         SizedBox(
           height: 200,
           child: PageView.builder(
@@ -932,7 +986,6 @@ class _EventImageSliderState extends State<EventImageSlider> {
               });
             },
             itemBuilder: (context, index) {
-
               final image = widget.images[index];
 
               return GestureDetector(
@@ -943,10 +996,7 @@ class _EventImageSliderState extends State<EventImageSlider> {
                       return Dialog(
                         backgroundColor: Colors.black,
                         child: InteractiveViewer(
-                          child: Image.network(
-                            image,
-                            fit: BoxFit.contain,
-                          ),
+                          child: Image.network(image, fit: BoxFit.contain),
                         ),
                       );
                     },
@@ -969,23 +1019,20 @@ class _EventImageSliderState extends State<EventImageSlider> {
 
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            widget.images.length,
-            (index) {
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: currentPage == index ? 10 : 6,
-                height: currentPage == index ? 10 : 6,
-                decoration: BoxDecoration(
-                  color: currentPage == index
-                      ? Colors.tealAccent
-                      : Colors.white38,
-                  shape: BoxShape.circle,
-                ),
-              );
-            },
-          ),
+          children: List.generate(widget.images.length, (index) {
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: currentPage == index ? 10 : 6,
+              height: currentPage == index ? 10 : 6,
+              decoration: BoxDecoration(
+                color: currentPage == index
+                    ? Colors.tealAccent
+                    : Colors.white38,
+                shape: BoxShape.circle,
+              ),
+            );
+          }),
         ),
       ],
     );

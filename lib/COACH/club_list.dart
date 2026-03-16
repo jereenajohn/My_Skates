@@ -76,15 +76,40 @@ class _ClubGridPageState extends State<ClubGridPage> {
     final screen = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text("Clubs", style: TextStyle(color: Colors.white)),
-        iconTheme: const IconThemeData(color: Colors.white),
+  backgroundColor: Colors.black,
+  extendBodyBehindAppBar: true,
+
+  /// 🌌 PREMIUM APPBAR
+  appBar: AppBar(
+    backgroundColor: Colors.transparent,
+    elevation: 0,
+    title: const Text(
+      "Clubs",
+      style: TextStyle(color: Colors.white),
+    ),
+    iconTheme: const IconThemeData(color: Colors.white),
+  ),
+
+  /// 🌈 FULL GRADIENT BACKGROUND
+  body: Container(
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        colors: [
+          Color(0xFF001A18),
+          Color(0xFF002F2B),
+          Color(0xFF000C0B),
+          Colors.black,
+        ],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
       ),
-      body: loading
+    ),
+
+    child: SafeArea(
+      child: loading
           ? const Center(
-              child: CircularProgressIndicator(color: Colors.tealAccent),
+              child:
+                  CircularProgressIndicator(color: Colors.tealAccent),
             )
           : RefreshIndicator(
               onRefresh: fetchClubs,
@@ -92,7 +117,8 @@ class _ClubGridPageState extends State<ClubGridPage> {
               backgroundColor: Colors.black,
               child: Column(
                 children: [
-                  /// 🔍 SEARCH BAR
+
+                  /// 🔍 SEARCH BAR (GLASS STYLE)
                   Padding(
                     padding: const EdgeInsets.all(12),
                     child: TextField(
@@ -101,16 +127,23 @@ class _ClubGridPageState extends State<ClubGridPage> {
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         hintText: "Search clubs",
-                        hintStyle: const TextStyle(color: Colors.white54),
+                        hintStyle:
+                            const TextStyle(color: Colors.white54),
                         prefixIcon: const Icon(
                           Icons.search,
                           color: Colors.white54,
                         ),
                         filled: true,
-                        fillColor: Colors.white10,
+                        fillColor: Colors.black.withOpacity(0.4),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(35),
-                          borderSide: BorderSide.none,
+                          borderSide:
+                              const BorderSide(color: Colors.white12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(35),
+                          borderSide:
+                              const BorderSide(color: Colors.white12),
                         ),
                       ),
                     ),
@@ -124,13 +157,15 @@ class _ClubGridPageState extends State<ClubGridPage> {
                               Center(
                                 child: Text(
                                   "No clubs found",
-                                  style: TextStyle(color: Colors.white70),
+                                  style:
+                                      TextStyle(color: Colors.white70),
                                 ),
                               ),
                             ],
                           )
                         : Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12),
                             child: GridView.builder(
                               itemCount: filteredClubs.length,
                               gridDelegate:
@@ -141,7 +176,9 @@ class _ClubGridPageState extends State<ClubGridPage> {
                                     childAspectRatio: 0.70,
                                   ),
                               itemBuilder: (context, index) {
-                                return ClubGridCard(club: filteredClubs[index]);
+                                return ClubGridCard(
+                                  club: filteredClubs[index],
+                                );
                               },
                             ),
                           ),
@@ -149,6 +186,8 @@ class _ClubGridPageState extends State<ClubGridPage> {
                 ],
               ),
             ),
-    );
+    ),
+  ),
+);
   }
 }
