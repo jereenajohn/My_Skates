@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
+import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
@@ -43,6 +44,36 @@ class _CoachEventsState extends State<CoachEvents> {
   Future<int?> getUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getInt("id");
+  }
+
+  Future<void> _handleBackNavigation() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final String userType =
+        (prefs.getString("user_type") ??
+                prefs.getString("user_type") ??
+                prefs.getString("role") ??
+                "")
+            .toLowerCase()
+            .trim();
+
+    Widget destination;
+
+    if (userType == "admin") {
+      destination = const DashboardPage();
+    } else if (userType == "coach") {
+      destination = const CoachHomepage();
+    } else {
+      destination = const HomePage();
+    }
+
+    if (!mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => destination),
+      (route) => false,
+    );
   }
 
   Future<void> _deleteEvent(int id) async {
@@ -189,8 +220,8 @@ class _CoachEventsState extends State<CoachEvents> {
 
   Future<void> fetchClubEvents() async {
     try {
-      setState(() => loadingEvents = true); 
-      
+      setState(() => loadingEvents = true);
+
       final token = await getToken();
       final userId = await getUserId();
 
@@ -219,7 +250,7 @@ class _CoachEventsState extends State<CoachEvents> {
         );
       }
     } catch (e) {
-      print("Error fetching events: $e");
+      debugPrint("Error fetching events: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error: ${e.toString()}"),
@@ -249,7 +280,7 @@ class _CoachEventsState extends State<CoachEvents> {
 
     final List<dynamic> existingImages =
         List<dynamic>.from(event["images"] ?? []);
-    List<int> imagesToDelete = [];
+    final List<int> imagesToDelete = [];
 
     List<XFile> pickedImages = [];
 
@@ -353,7 +384,7 @@ class _CoachEventsState extends State<CoachEvents> {
                                 final ImagePicker picker = ImagePicker();
                                 final images = await picker.pickMultiImage();
 
-                                if (images == null || images.isEmpty) return;
+                                if (images.isEmpty) return;
 
                                 if (images.length > remainingSlots) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -366,9 +397,7 @@ class _CoachEventsState extends State<CoachEvents> {
                                   );
                                 }
 
-                                pickedImages.addAll(
-                                  images.take(remainingSlots),
-                                );
+                                pickedImages.addAll(images.take(remainingSlots));
                                 setStateDialog(() {});
                               },
                         icon: const Icon(Icons.image),
@@ -509,20 +538,16 @@ class _CoachEventsState extends State<CoachEvents> {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           TextButton(
+                            onPressed: () => Navigator.pop(context),
                             child: const Text(
                               "Cancel",
                               style: TextStyle(color: Colors.white70),
                             ),
-                            onPressed: () => Navigator.pop(context),
                           ),
                           const SizedBox(width: 10),
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF00AFA5),
-                            ),
-                            child: const Text(
-                              "Update",
-                              style: TextStyle(color: Colors.white),
                             ),
                             onPressed: () async {
                               await updateEvent(
@@ -537,8 +562,14 @@ class _CoachEventsState extends State<CoachEvents> {
                                 pickedImages,
                                 imagesToDelete,
                               );
-                              Navigator.pop(context);
+                              if (mounted) {
+                                Navigator.pop(context);
+                              }
                             },
+                            child: const Text(
+                              "Update",
+                              style: TextStyle(color: Colors.white),
+                            ),
                           ),
                         ],
                       ),
@@ -644,8 +675,10 @@ class _CoachEventsState extends State<CoachEvents> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
+
     if (picked != null) {
-      ctrl.text = "${picked.year}-${picked.month}-${picked.day}";
+      ctrl.text =
+          "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
     }
   }
 
@@ -657,8 +690,11 @@ class _CoachEventsState extends State<CoachEvents> {
       context: context,
       initialTime: TimeOfDay.now(),
     );
+
     if (picked != null) {
-      ctrl.text = "${picked.hour}:${picked.minute}";
+      final hour = picked.hour.toString().padLeft(2, '0');
+      final minute = picked.minute.toString().padLeft(2, '0');
+      ctrl.text = "$hour:$minute";
     }
   }
 
@@ -666,19 +702,22 @@ class _CoachEventsState extends State<CoachEvents> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CoachHomepage()),
-        );
+        await _handleBackNavigation();
         return false;
       },
       child: Scaffold(
         backgroundColor: const Color.fromARGB(255, 0, 0, 0),
         appBar: AppBar(
           backgroundColor: Colors.black,
-          leading: IconButton(onPressed: (){
-            Navigator.push(context, MaterialPageRoute(builder: (_)=>DashboardPage()));
-          }, icon: Icon(Icons.arrow_back,color: Colors.white,)),
+          leading: IconButton(
+            onPressed: () async {
+              await _handleBackNavigation();
+            },
+            icon: const Icon(
+              Icons.arrow_back,
+              color: Colors.white,
+            ),
+          ),
           title: Text(
             clubDetails?["club_name"] ?? "My Club Events",
             style: const TextStyle(color: Colors.white, fontSize: 18),
@@ -860,21 +899,21 @@ class _CoachEventsState extends State<CoachEvents> {
                 ),
                 actions: [
                   TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
                     child: const Text(
                       "Cancel",
                       style: TextStyle(color: Colors.white70),
                     ),
-                    onPressed: () => Navigator.of(context).pop(false),
                   ),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
                     ),
+                    onPressed: () => Navigator.of(context).pop(true),
                     child: const Text(
                       "Delete",
                       style: TextStyle(color: Colors.white),
                     ),
-                    onPressed: () => Navigator.of(context).pop(true),
                   ),
                 ],
               );
@@ -952,9 +991,11 @@ class _CoachEventsState extends State<CoachEvents> {
               const Icon(Icons.calendar_month,
                   color: Colors.white70, size: 18),
               const SizedBox(width: 6),
-              Text(
-                "$fromDate • $fromTime  →  $toDate • $toTime",
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              Expanded(
+                child: Text(
+                  "$fromDate • $fromTime  →  $toDate • $toTime",
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
               ),
             ],
           ),
@@ -964,10 +1005,13 @@ class _CoachEventsState extends State<CoachEvents> {
             Container(
               margin: const EdgeInsets.only(bottom: 10),
               child: Row(
-                children: firstTwoImages.map<Widget>((img) {
+                children: firstTwoImages.asMap().entries.map<Widget>((entry) {
+                  final int index = entry.key;
+                  final dynamic img = entry.value;
+
                   return Expanded(
                     child: Container(
-                      margin: const EdgeInsets.only(right: 8),
+                      margin: EdgeInsets.only(right: index == 0 ? 8 : 0),
                       child: AspectRatio(
                         aspectRatio: 1,
                         child: GestureDetector(
