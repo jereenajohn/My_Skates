@@ -12,8 +12,6 @@ class StudentTrainingPage extends StatefulWidget {
 }
 
 class _StudentTrainingPageState extends State<StudentTrainingPage> {
-
-
   List<dynamic> registeredTrainings = [];
   bool isLoading = true;
   bool hasError = false;
@@ -47,10 +45,11 @@ class _StudentTrainingPageState extends State<StudentTrainingPage> {
 
       if (response.statusCode == 200) {
         final parsed = jsonDecode(response.body);
-        
+
         setState(() {
           registeredTrainings = parsed['data'] ?? [];
           isLoading = false;
+          hasError = false;
         });
       } else {
         setState(() {
@@ -67,6 +66,13 @@ class _StudentTrainingPageState extends State<StudentTrainingPage> {
     }
   }
 
+  Future<void> _refreshTrainings() async {
+    setState(() {
+      hasError = false;
+    });
+    await fetchRegisteredTrainings();
+  }
+
   String formatDate(String dateStr) {
     if (dateStr.isEmpty) return 'Date not set';
     try {
@@ -80,7 +86,7 @@ class _StudentTrainingPageState extends State<StudentTrainingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF00312D),
+      backgroundColor: const Color(0xFF00312D),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -106,83 +112,113 @@ class _StudentTrainingPageState extends State<StudentTrainingPage> {
           ),
         ),
         child: SafeArea(
-          child: isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(
-                    color: accentColor,
-                  ),
-                )
-              : hasError
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+          child: RefreshIndicator(
+            onRefresh: _refreshTrainings,
+            color: accentColor,
+            backgroundColor: Colors.black,
+            child: isLoading
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const [
+                      SizedBox(
+                        height: 500,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: accentColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : hasError
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
                         children: [
-                          const Icon(
-                            Icons.error_outline,
-                            color: Colors.red,
-                            size: 60,
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            "Failed to load registered trainings",
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                isLoading = true;
-                                hasError = false;
-                              });
-                              fetchRegisteredTrainings();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: accentColor,
-                              foregroundColor: Colors.black,
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.7,
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.error_outline,
+                                    color: Colors.red,
+                                    size: 60,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    "Failed to load registered trainings",
+                                    style: TextStyle(color: Colors.white70),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        isLoading = true;
+                                        hasError = false;
+                                      });
+                                      fetchRegisteredTrainings();
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: accentColor,
+                                      foregroundColor: Colors.black,
+                                    ),
+                                    child: const Text("Retry"),
+                                  ),
+                                ],
+                              ),
                             ),
-                            child: const Text("Retry"),
                           ),
                         ],
-                      ),
-                    )
-                  : registeredTrainings.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                      )
+                    : registeredTrainings.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
                             children: [
-                              Icon(
-                                Icons.event_busy,
-                                color: Colors.white.withOpacity(0.3),
-                                size: 80,
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                "No registered trainings yet",
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 16,
+                              SizedBox(
+                                height: MediaQuery.of(context).size.height * 0.7,
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.event_busy,
+                                        color: Colors.white.withOpacity(0.3),
+                                        size: 80,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      const Text(
+                                        "No registered trainings yet",
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        "Browse events and register for training sessions",
+                                        style: TextStyle(
+                                          color: Colors.white38,
+                                          fontSize: 14,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                "Browse events and register for training sessions",
-                                style: TextStyle(
-                                  color: Colors.white38,
-                                  fontSize: 14,
-                                ),
-                                textAlign: TextAlign.center,
                               ),
                             ],
+                          )
+                        : ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(16),
+                            itemCount: registeredTrainings.length,
+                            itemBuilder: (context, index) {
+                              final training = registeredTrainings[index];
+                              return _buildTrainingCard(training);
+                            },
                           ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: registeredTrainings.length,
-                          itemBuilder: (context, index) {
-                            final training = registeredTrainings[index];
-                            return _buildTrainingCard(training);
-                          },
-                        ),
+          ),
         ),
       ),
     );
@@ -237,11 +273,14 @@ class _StudentTrainingPageState extends State<StudentTrainingPage> {
                             color: Colors.white.withOpacity(0.5),
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            training['location'] ?? 'Location not set',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.5),
-                              fontSize: 12,
+                          Expanded(
+                            child: Text(
+                              training['location'] ?? 'Location not set',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontSize: 12,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -263,7 +302,8 @@ class _StudentTrainingPageState extends State<StudentTrainingPage> {
                 ),
                 _buildInfoChip(
                   icon: Icons.access_time,
-                  label: training['start_time']?.substring(0, 5) ?? 'Time not set',
+                  label:
+                      training['start_time']?.substring(0, 5) ?? 'Time not set',
                 ),
                 if (training['status'] != null)
                   _buildStatusChip(training['status']),
@@ -310,7 +350,7 @@ class _StudentTrainingPageState extends State<StudentTrainingPage> {
       default:
         color = accentColor;
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(

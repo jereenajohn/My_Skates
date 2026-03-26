@@ -218,7 +218,7 @@ class _AddProductState extends State<AddProduct> {
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: Form(
+            child: Form(  
               key: _formKey,
               child: Column(
                 children: [

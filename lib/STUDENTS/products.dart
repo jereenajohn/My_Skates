@@ -370,7 +370,7 @@ class _UserProductssState extends State<UserProducts> {
         return false; 
       },
       child: Scaffold(
-        backgroundColor: const Color.fromARGB(255, 0, 0, 0),
+        backgroundColor: Colors.black,
         body: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(

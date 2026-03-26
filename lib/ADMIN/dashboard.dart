@@ -43,6 +43,9 @@ class _DashboardPageState extends State<DashboardPage> {
   bool isRefreshing = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  Offset _fabOffset = const Offset(20, 520);
+  bool _fabMenuOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -50,38 +53,39 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _onBottomNavTap(int index) {
-  switch (index) {
-    case 0:
-      break;
-    case 1:
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const UserApprovedProducts()),
-      );
-      break;
+    switch (index) {
+      case 0:
+        break;
+      case 1:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const UserApprovedProducts()),
+        );
+        break;
 
-    case 2:
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const AddChatSupportQuestions()),
-      );
-      break;
+      case 2:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AddChatSupportQuestions()),
+        );
+        break;
 
-    case 3:
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => Admin_order_page()),
-      );
-      break;
+      case 3:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => Admin_order_page()),
+        );
+        break;
 
-    case 4:
-    Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => ProductapproveTab()),
-      );
-      break;
+      case 4:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ProductapproveTab()),
+        );
+        break;
+    }
   }
-}
+
   Future<void> _loadInitialData() async {
     setState(() => isLoading = true);
 
@@ -110,6 +114,16 @@ class _DashboardPageState extends State<DashboardPage> {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
       }
     });
+  }
+
+  Future<void> _navigateFromFab(Widget page) async {
+    setState(() => _fabMenuOpen = false);
+
+    await Future.delayed(const Duration(milliseconds: 80));
+
+    if (!mounted) return;
+
+    await Navigator.push(context, slideRightToLeftRoute(page));
   }
 
   Future<String?> getToken() async {
@@ -251,6 +265,158 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     return null;
+  }
+
+  Widget _movableFabMenu() {
+    final size = MediaQuery.of(context).size;
+
+    double dx = _fabOffset.dx.clamp(12.0, size.width - 72.0);
+    double dy = _fabOffset.dy.clamp(120.0, size.height - 140.0);
+
+    final bool openToLeft = dx > size.width / 2;
+
+    return Positioned(
+      left: dx,
+      top: dy,
+      child: Column(
+        crossAxisAlignment: openToLeft
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.end,
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: _fabMenuOpen
+                ? Column(
+                    key: const ValueKey("openMenu"),
+                    crossAxisAlignment: openToLeft
+                        ? CrossAxisAlignment.start
+                        : CrossAxisAlignment.end,
+                    children: [
+                      _fabMiniItem(
+                        icon: Icons.person,
+                        label: "Profile",
+                        openToLeft: openToLeft,
+                        onTap: () => _navigateFromFab(const ProfilePage()),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // _fabMiniItem(
+                      //   icon: Icons.notifications_none,
+                      //   label: "Notifications",
+                      //   openToLeft: openToLeft,
+                      //   onTap: () => _navigateFromFab(const AdminNotificationPage()),
+                      // ),
+                      // const SizedBox(height: 10),
+                      _fabMiniItem(
+                        icon: Icons.shopping_bag,
+                        label: "Orders",
+                        openToLeft: openToLeft,
+                        onTap: () => _navigateFromFab(const Admin_order_page()),
+                      ),
+                      const SizedBox(height: 10),
+
+                      _fabMiniItem(
+                        icon: Icons.check_circle_outline,
+                        label: "Approve Products",
+                        openToLeft: openToLeft,
+                        onTap: () =>
+                            _navigateFromFab(const ProductapproveTab()),
+                      ),
+                      const SizedBox(height: 10),
+
+                      _fabMiniItem(
+                        icon: Icons.support_agent,
+                        label: "Support",
+                        openToLeft: openToLeft,
+                        onTap: () =>
+                            _navigateFromFab(const AddChatSupportQuestions()),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
+
+          GestureDetector(
+            onPanUpdate: (details) {
+              setState(() {
+                _fabOffset = _fabOffset + details.delta;
+              });
+            },
+            child: Align(
+              alignment: openToLeft
+                  ? Alignment.centerLeft
+                  : Alignment.centerRight,
+              child: FloatingActionButton(
+                heroTag: "movableFabAdmin",
+                backgroundColor: const Color(0xFF00AFA5),
+                onPressed: () {
+                  setState(() => _fabMenuOpen = !_fabMenuOpen);
+                },
+                child: Icon(
+                  _fabMenuOpen ? Icons.close : Icons.skateboarding,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _fabMiniItem({
+    required IconData icon,
+    required String label,
+    required bool openToLeft,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 190),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.75),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: openToLeft
+                ? [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(icon, color: Colors.tealAccent, size: 18),
+                  ]
+                : [
+                    Icon(icon, color: Colors.tealAccent, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+          ),
+        ),
+      ),
+    );
   }
 
   // SHIMMER METHODS
@@ -483,284 +649,290 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF001F1D), Color(0xFF003A36), Colors.black],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          child: RefreshIndicator(
-            onRefresh: _refreshData,
-            color: Colors.tealAccent,
-            backgroundColor: Colors.black,
-            strokeWidth: 3.0,
-            displacement: 40.0,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // PROFILE ROW
-                  Row(
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF001F1D), Color(0xFF003A36), Colors.black],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            child: SafeArea(
+              child: RefreshIndicator(
+                onRefresh: _refreshData,
+                color: Colors.tealAccent,
+                backgroundColor: Colors.black,
+                strokeWidth: 3.0,
+                displacement: 40.0,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      GestureDetector(
-                        onTap: () {
-                          pushWithSlide(const ProfilePage());
-                        },
-                        child: CircleAvatar(
-                          radius: 28,
-                          backgroundImage:
-                              studentImage != null && studentImage!.isNotEmpty
-                              ? NetworkImage("$api$studentImage")
-                              : const AssetImage("lib/assets/img.jpg")
-                                    as ImageProvider,
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // PROFILE ROW
+                      Row(
                         children: [
-                          Text(
-                            studentName,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                          GestureDetector(
+                            onTap: () {
+                              pushWithSlide(const ProfilePage());
+                            },
+                            child: CircleAvatar(
+                              radius: 28,
+                              backgroundImage:
+                                  studentImage != null &&
+                                      studentImage!.isNotEmpty
+                                  ? NetworkImage("$api$studentImage")
+                                  : const AssetImage("lib/assets/img.jpg")
+                                        as ImageProvider,
                             ),
                           ),
 
-                          Text(
-                            studentUName.isNotEmpty
-                                ? "$studentUName"
-                                : studentRole,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
+                          const SizedBox(width: 12),
+
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                studentName,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+
+                              Text(
+                                studentUName.isNotEmpty
+                                    ? studentUName
+                                    : studentRole,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const Spacer(),
+
+                          IconButton(
+                            onPressed: () {
+                              pushWithSlide(MenuPage());
+                            },
+                            icon: const Icon(
+                              Icons.menu,
+                              color: Colors.tealAccent,
+                              size: 28,
                             ),
                           ),
-                          // Text(
-                          //   studentRole,
-                          //   style: const TextStyle(color: Colors.white70),
-                          // ),
                         ],
                       ),
 
-                      const Spacer(),
+                      const SizedBox(height: 20),
 
-                      // MENU BUTTON
-                      IconButton(
-                        onPressed: () {
-                          pushWithSlide(MenuPage());
+                      // BANNER SECTION WITH SHIMMER
+                      GestureDetector(
+                        onTap: () {
+                          pushWithSlide(const AddBanner());
                         },
-                        icon: const Icon(
-                          Icons.menu,
-                          color: Colors.tealAccent,
-                          size: 28,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // BANNER SECTION WITH SHIMMER
-                  GestureDetector(
-                    onTap: () {
-                      pushWithSlide(const AddBanner());
-                    },
-                    child: Column(
-                      children: [
-                        banner.isEmpty
-                            ? _buildBannerShimmer()
-                            : Container(
-                                height: 160,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.25),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
+                        child: Column(
+                          children: [
+                            banner.isEmpty
+                                ? _buildBannerShimmer()
+                                : Container(
+                                    height: 160,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(14),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.25),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: FlutterCarousel(
-                                    options: CarouselOptions(
-                                      height: 160,
-                                      autoPlay: true,
-                                      autoPlayInterval: const Duration(
-                                        seconds: 3,
-                                      ),
-                                      viewportFraction: 1,
-                                      showIndicator: true,
-                                      slideIndicator:
-                                          const CircularSlideIndicator(),
-                                    ),
-                                    items: banner.map((item) {
-                                      return Stack(
-                                        children: [
-                                          Positioned.fill(
-                                            child: Image.network(
-                                              item["image"] ?? "",
-                                              fit: BoxFit.cover,
-                                              loadingBuilder:
-                                                  (context, child, progress) {
-                                                    if (progress == null)
-                                                      return child;
-                                                    return Container(
-                                                      color:
-                                                          Colors.grey.shade900,
-                                                      alignment:
-                                                          Alignment.center,
-                                                      child:
-                                                          const CircularProgressIndicator(),
-                                                    );
-                                                  },
-                                              errorBuilder:
-                                                  (
-                                                    context,
-                                                    error,
-                                                    stackTrace,
-                                                  ) => Container(
-                                                    color: Colors.black,
-                                                    alignment: Alignment.center,
-                                                    child: const Icon(
-                                                      Icons.broken_image,
-                                                      color: Colors.white54,
-                                                      size: 40,
-                                                    ),
-                                                  ),
-                                            ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: FlutterCarousel(
+                                        options: CarouselOptions(
+                                          height: 160,
+                                          autoPlay: true,
+                                          autoPlayInterval: const Duration(
+                                            seconds: 3,
                                           ),
-                                          Positioned.fill(
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                gradient: LinearGradient(
-                                                  begin: Alignment.topCenter,
-                                                  end: Alignment.bottomCenter,
-                                                  colors: [
-                                                    Colors.transparent,
-                                                    Colors.black.withOpacity(
-                                                      0.6,
-                                                    ),
-                                                  ],
+                                          viewportFraction: 1,
+                                          showIndicator: true,
+                                          slideIndicator:
+                                              const CircularSlideIndicator(),
+                                        ),
+                                        items: banner.map((item) {
+                                          return Stack(
+                                            children: [
+                                              Positioned.fill(
+                                                child: Image.network(
+                                                  item["image"] ?? "",
+                                                  fit: BoxFit.cover,
+                                                  loadingBuilder:
+                                                      (
+                                                        context,
+                                                        child,
+                                                        progress,
+                                                      ) {
+                                                        if (progress == null)
+                                                          return child;
+                                                        return Container(
+                                                          color: Colors
+                                                              .grey
+                                                              .shade900,
+                                                          alignment:
+                                                              Alignment.center,
+                                                          child:
+                                                              const CircularProgressIndicator(),
+                                                        );
+                                                      },
+                                                  errorBuilder:
+                                                      (
+                                                        context,
+                                                        error,
+                                                        stackTrace,
+                                                      ) => Container(
+                                                        color: Colors.black,
+                                                        alignment:
+                                                            Alignment.center,
+                                                        child: const Icon(
+                                                          Icons.broken_image,
+                                                          color: Colors.white54,
+                                                          size: 40,
+                                                        ),
+                                                      ),
                                                 ),
                                               ),
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    }).toList(),
+                                              Positioned.fill(
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    gradient: LinearGradient(
+                                                      begin:
+                                                          Alignment.topCenter,
+                                                      end: Alignment
+                                                          .bottomCenter,
+                                                      colors: [
+                                                        Colors.transparent,
+                                                        Colors.black
+                                                            .withOpacity(0.6),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                      ],
-                    ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 22),
+
+                      const Text(
+                        "Weeee offer training and an e-commerce platform\nthat connects students and coaches.",
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+
+                      const SizedBox(height: 25),
+
+                      // BUTTONS
+                      buildButton("Approve Coaches"),
+                      buildButton("Add Products"),
+                      buildButton("Approve Products"),
+                      buildButton("Orders"),
+                      buildButton("Buy and Sell products"),
+
+                      const SizedBox(height: 20),
+
+                      // const Text(
+                      //   "Admin Controls",
+                      //   style: TextStyle(
+                      //     color: Colors.white,
+                      //     fontSize: 18,
+                      //     fontWeight: FontWeight.bold,
+                      //   ),
+                      // ),
+                      const SizedBox(height: 15),
+
+                      buildAdminQuickActions(),
+
+                      // RECOMMENDED CLUBS TITLE
+                      // const Text(
+                      //   "Recommended Clubs near you",
+                      //   style: TextStyle(
+                      //     color: Colors.white,
+                      //     fontSize: 18,
+                      //     fontWeight: FontWeight.bold,
+                      //     letterSpacing: 0.5,
+                      //   ),
+                      // ),
+
+                      // const SizedBox(height: 25),
+
+                      // // CLUB SECTION WITH SHIMMER
+                      // _buildClubShimmer(),
+
+                      // // UPCOMING EVENTS
+                      // const SizedBox(height: 25),
+                      // const Text(
+                      //   "Inspired to push your limits every day.",
+                      //   style: TextStyle(color: Colors.white, fontSize: 14),
+                      // ),
+
+                      // const SizedBox(height: 15),
+
+                      // // EVENT CARD 1 WITH SHIMMER
+                      // _buildEventShimmer(),
+
+                      // const SizedBox(height: 12),
+
+                      // // EVENT CARD 2 (with images) WITH SHIMMER
+                      // _buildEventWithImagesShimmer(),
+
+                      // // SUGGESTED COACHES
+                      // const SizedBox(height: 25),
+                      // const Text(
+                      //   "Suggested Coaches",
+                      //   style: TextStyle(
+                      //     color: Colors.white,
+                      //     fontSize: 18,
+                      //     fontWeight: FontWeight.w600,
+                      //   ),
+                      // ),
+
+                      // const SizedBox(height: 15),
+
+                      // // COACH SECTION WITH SHIMMER
+                      // _buildCoachShimmer(),
+
+                      // const SizedBox(height: 20),
+
+                      // // EVENT CARD 1 WITH SHIMMER
+                      // _buildEventShimmer(),
+
+                      // const SizedBox(height: 12),
+
+                      // // EVENT CARD 2 (with images) WITH SHIMMER
+                      // _buildEventWithImagesShimmer(),
+                    ],
                   ),
-
-                  const SizedBox(height: 22),
-
-                  const Text(
-                    "Weeee offer training and an e-commerce platform\nthat connects students and coaches.",
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  // BUTTONS
-                  buildButton("Approve Coaches"),
-                  buildButton("Add Products"),
-                  buildButton("Approve Products"),
-                  buildButton("Orders"),
-                  buildButton("Buy and Sell products"),
-
-
-                  const SizedBox(height: 20),
-
-                  // const Text(
-                  //   "Admin Controls",
-                  //   style: TextStyle(
-                  //     color: Colors.white,
-                  //     fontSize: 18,
-                  //     fontWeight: FontWeight.bold,
-                  //   ),
-                  // ),
-
-                  const SizedBox(height: 15),
-
-                  buildAdminQuickActions(),
-
-                  // RECOMMENDED CLUBS TITLE
-                  // const Text(
-                  //   "Recommended Clubs near you",
-                  //   style: TextStyle(
-                  //     color: Colors.white,
-                  //     fontSize: 18,
-                  //     fontWeight: FontWeight.bold,
-                  //     letterSpacing: 0.5,
-                  //   ),
-                  // ),
-
-                  // const SizedBox(height: 25),
-
-                  // // CLUB SECTION WITH SHIMMER
-                  // _buildClubShimmer(),
-
-                  // // UPCOMING EVENTS
-                  // const SizedBox(height: 25),
-                  // const Text(
-                  //   "Inspired to push your limits every day.",
-                  //   style: TextStyle(color: Colors.white, fontSize: 14),
-                  // ),
-
-                  // const SizedBox(height: 15),
-
-                  // // EVENT CARD 1 WITH SHIMMER
-                  // _buildEventShimmer(),
-
-                  // const SizedBox(height: 12),
-
-                  // // EVENT CARD 2 (with images) WITH SHIMMER
-                  // _buildEventWithImagesShimmer(),
-
-                  // // SUGGESTED COACHES
-                  // const SizedBox(height: 25),
-                  // const Text(
-                  //   "Suggested Coaches",
-                  //   style: TextStyle(
-                  //     color: Colors.white,
-                  //     fontSize: 18,
-                  //     fontWeight: FontWeight.w600,
-                  //   ),
-                  // ),
-
-                  // const SizedBox(height: 15),
-
-                  // // COACH SECTION WITH SHIMMER
-                  // _buildCoachShimmer(),
-
-                  // const SizedBox(height: 20),
-
-                  // // EVENT CARD 1 WITH SHIMMER
-                  // _buildEventShimmer(),
-
-                  // const SizedBox(height: 12),
-
-                  // // EVENT CARD 2 (with images) WITH SHIMMER
-                  // _buildEventWithImagesShimmer(),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+          _movableFabMenu(),
+        ],
       ),
 
       // BOTTOM NAV

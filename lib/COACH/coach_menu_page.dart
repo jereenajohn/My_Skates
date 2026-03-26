@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:my_skates/COACH/club_list.dart';
 import 'package:my_skates/COACH/coach_clubs_to_approve_request.dart';
 import 'package:my_skates/COACH/coach_followers_list.dart';
 import 'package:my_skates/COACH/coach_club_requests.dart';
+import 'package:my_skates/COACH/coach_following_list.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/COACH/coach_timeline_page.dart';
@@ -220,7 +222,7 @@ class _CoachMenuPageState extends State<CoachMenuPage>
         print("PROFILE API did not return a list.");
       }
     } catch (e) {
-      print("Error fetching student: $e");
+        print("Error fetching student: $e");
     }
   }
 
@@ -367,6 +369,7 @@ class _CoachMenuPageState extends State<CoachMenuPage>
             );
           },
         ),
+        SizedBox(width: 10),
       ],
     );
   }
@@ -386,24 +389,28 @@ class _CoachMenuPageState extends State<CoachMenuPage>
         child: Row(
           children: [
             // PROFILE IMAGE
-            CircleAvatar(
-              radius: 28,
-              backgroundImage:
-                  (studentImage != null &&
-                      studentImage!.isNotEmpty &&
-                      studentImage != "/media/profile_images/none.jpeg")
-                  ? NetworkImage("$api$studentImage")
-                  : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+            GestureDetector(
+              onTap: _showProfileImagePreview,
+              child: Hero(
+                tag: "coach_profile_image",
+                child: CircleAvatar(
+                  radius: 28,
+                  backgroundImage:
+                      (studentImage != null &&
+                          studentImage!.isNotEmpty &&
+                          studentImage != "/media/profile_images/none.jpeg")
+                      ? NetworkImage("$api$studentImage")
+                      : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+                ),
+              ),
             ),
 
             const SizedBox(width: 14),
 
-            // RIGHT CONTENT - NOW WITH NAME ABOVE USERNAME IN COLUMN
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // NAME AND USERNAME IN COLUMN (STACKED)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -432,28 +439,32 @@ class _CoachMenuPageState extends State<CoachMenuPage>
                   const SizedBox(height: 10),
 
                   // FOLLOWERS / FOLLOWING
-                  Column(
+                  Row(
                     children: [
-                      // COUNTS ROW
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          _countText(followersCount),
-                          const SizedBox(width: 48),
-                          _countText(followingCount),
-                        ],
+                      _followStatButton(
+                        count: followersCount,
+                        label: "Followers",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CoachFollowersList(),
+                            ),
+                          );
+                        },
                       ),
-
-                      const SizedBox(height: 2),
-
-                      // LABELS ROW
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          _labelText("Followers"),
-                          const SizedBox(width: 48),
-                          _labelText("Following"),
-                        ],
+                      const SizedBox(width: 18),
+                      _followStatButton(
+                        count: followingCount,
+                        label: "Following",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CoachFollowingList(),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -582,6 +593,111 @@ class _CoachMenuPageState extends State<CoachMenuPage>
         const SizedBox(width: 14),
         Expanded(child: right),
       ],
+    );
+  }
+
+  void _showProfileImagePreview() {
+    final ImageProvider imageProvider =
+        (studentImage != null &&
+            studentImage!.isNotEmpty &&
+            studentImage != "/media/profile_images/none.jpeg")
+        ? NetworkImage("$api$studentImage")
+        : const AssetImage("lib/assets/img.jpg");
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        final double size = MediaQuery.of(context).size.width * 0.78;
+
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.zero,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                  child: Container(color: Colors.black.withOpacity(0.45)),
+                ),
+              ),
+
+              Center(
+                child: Hero(
+                  tag: "coach_profile_image",
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Container(
+                      width: size,
+                      height: size,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white24, width: 2),
+                      ),
+                      child: ClipOval(
+                        child: Image(
+                          image: imageProvider,
+                          fit: BoxFit.cover,
+                          width: size,
+                          height: size,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              Positioned(
+                top: 40,
+                right: 20,
+                child: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _followStatButton({
+    required int count,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          children: [
+            SizedBox(
+              width: 70,
+              child: Text(
+                count.toString(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            SizedBox(
+              width: 70,
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white54, fontSize: 11),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

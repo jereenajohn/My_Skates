@@ -105,6 +105,10 @@ class _ClubViewState extends State<ClubView> {
   Map<int, bool> _repostedPosts = {};
   Map<int, int> _repostCounts = {};
 
+  bool get _canViewFullClubPage {
+    return _isCoach || widget.isApproved || _clubRequestStatus == "approved";
+  }
+
   bool get _isMyClub {
     final c = club ?? {};
 
@@ -845,10 +849,11 @@ class _ClubViewState extends State<ClubView> {
     }
   }
 
+  // UPDATED: Support multiple images
   Future<void> submitFeedPost(
     String title,
     String description,
-    XFile? imageFile,
+    List<XFile?>? imageFiles,
   ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -861,7 +866,7 @@ class _ClubViewState extends State<ClubView> {
         return;
       }
 
-      print("Submitting feed post with image: ${imageFile?.path}");
+      print("Submitting feed post with ${imageFiles?.length ?? 0} images");
 
       final url = Uri.parse("$api/api/myskates/club/feed/create/");
 
@@ -880,15 +885,20 @@ class _ClubViewState extends State<ClubView> {
 
       request.fields["club"] = widget.clubid.toString();
 
-      if (imageFile != null) {
-        final file = File(imageFile.path);
-        if (await file.exists()) {
-          print("File exists: ${file.lengthSync()} bytes");
-          request.files.add(
-            await http.MultipartFile.fromPath("images", imageFile.path),
-          );
-        } else {
-          print("File does not exist: ${imageFile.path}");
+      // Add multiple images
+      if (imageFiles != null && imageFiles.isNotEmpty) {
+        for (var imageFile in imageFiles) {
+          if (imageFile != null) {
+            final file = File(imageFile.path);
+            if (await file.exists()) {
+              print("File exists: ${file.lengthSync()} bytes");
+              request.files.add(
+                await http.MultipartFile.fromPath("images", imageFile.path),
+              );
+            } else {
+              print("File does not exist: ${imageFile.path}");
+            }
+          }
         }
       }
 
@@ -930,11 +940,12 @@ class _ClubViewState extends State<ClubView> {
     }
   }
 
+  // UPDATED: Support multiple images in update
   Future<void> _updateFeedPost(
     int postId,
     String title,
     String description,
-    XFile? imageFile,
+    List<XFile?>? imageFiles,
   ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -947,7 +958,7 @@ class _ClubViewState extends State<ClubView> {
         return;
       }
 
-      print("Updating feed post ID: $postId with image: ${imageFile?.path}");
+      print("Updating feed post ID: $postId with ${imageFiles?.length ?? 0} images");
 
       final url = Uri.parse("$api/api/myskates/club/feed/$postId/");
 
@@ -966,15 +977,20 @@ class _ClubViewState extends State<ClubView> {
 
       request.fields["club"] = widget.clubid.toString();
 
-      if (imageFile != null) {
-        final file = File(imageFile.path);
-        if (await file.exists()) {
-          print("File exists: ${file.lengthSync()} bytes");
-          request.files.add(
-            await http.MultipartFile.fromPath("images", imageFile.path),
-          );
-        } else {
-          print("File does not exist: ${imageFile.path}");
+      //Add multiple images
+      if (imageFiles != null && imageFiles.isNotEmpty) {
+        for (var imageFile in imageFiles) {
+          if (imageFile != null) {
+            final file = File(imageFile.path);
+            if (await file.exists()) {
+              print("File exists: ${file.lengthSync()} bytes");
+              request.files.add(
+                await http.MultipartFile.fromPath("images", imageFile.path),
+              );
+            } else {
+              print("File does not exist: ${imageFile.path}");
+            }
+          }
         }
       }
 
@@ -1056,7 +1072,7 @@ class _ClubViewState extends State<ClubView> {
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                 child: const Text(
                   "Delete",
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
                 ),
                 onPressed: () => Navigator.of(context).pop(true),
               ),
@@ -1297,6 +1313,114 @@ class _ClubViewState extends State<ClubView> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
       );
+    }
+  }
+
+  Future<void> _updateComment(int commentId, int postId, String text) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) return;
+
+      final url = Uri.parse(
+        "$api/api/myskates/club/feed/comment/$commentId/update/delete/",
+      );
+
+      final request = http.Request("PATCH", url);
+      request.headers.addAll({
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      });
+      request.body = jsonEncode({"comment": text});
+
+      final streamedResponse = await request.send();
+      final res = await http.Response.fromStream(streamedResponse);
+
+      debugPrint("Update comment => ${res.statusCode} ${res.body}");
+
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        await _fetchComments(postId);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Comment updated successfully"),
+              backgroundColor: Colors.teal,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Failed to update comment: ${res.body}"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("Update comment error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteComment(int commentId, int postId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) return;
+
+      final url = Uri.parse(
+        "$api/api/myskates/club/feed/comment/$commentId/update/delete/",
+      );
+
+      final res = await http.delete(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+      );
+
+      debugPrint("Delete comment => ${res.statusCode} ${res.body}");
+
+      if (res.statusCode == 200 || res.statusCode == 204) {
+        await _fetchComments(postId);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Comment deleted successfully"),
+              backgroundColor: Colors.teal,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Failed to delete comment: ${res.body}"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("Delete comment error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -1578,7 +1702,7 @@ class _ClubViewState extends State<ClubView> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.72,
+          initialChildSize: 0.55,
           minChildSize: 0.45,
           maxChildSize: 0.92,
           builder: (context, scrollController) {
@@ -1617,7 +1741,10 @@ class _ClubViewState extends State<ClubView> {
                   Expanded(
                     child: ListView.builder(
                       controller: scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 4,
+                      ),
                       itemCount: comments.length,
                       itemBuilder: (context, i) {
                         // inside itemBuilder
@@ -1640,6 +1767,15 @@ class _ClubViewState extends State<ClubView> {
                         final text = (c["comment"] ?? c["text"] ?? "")
                             .toString();
 
+                        final int commentId = c["id"] ?? 0;
+                        final int commentUserId = c["user"] is int
+                            ? c["user"]
+                            : int.tryParse(c["user"]?.toString() ?? "") ?? 0;
+
+                        final bool canManageComment =
+                            _currentUserId != null &&
+                            _currentUserId == commentUserId;
+
                         String? profile =
                             (c["profile_image"] ??
                                     c["user_profile"] ??
@@ -1661,13 +1797,16 @@ class _ClubViewState extends State<ClubView> {
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(14),
+                            color: Colors.white.withOpacity(0.07),
+                            borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: Colors.white24,
-                              width: 0.7,
+                              width: 0.8,
                             ),
                           ),
                           child: Row(
@@ -1676,61 +1815,122 @@ class _ClubViewState extends State<ClubView> {
                               CircleAvatar(
                                 radius: 18,
                                 backgroundColor: Colors.white10,
-                                child: ClipOval(
-                                  child: profile != null
-                                      ? Image.network(
-                                          profile,
-                                          width: 36,
-                                          height: 36,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stack) {
-                                            debugPrint(
-                                              "COMMENT AVATAR ERROR: $error",
-                                            );
-                                            return Center(
-                                              child: Text(
-                                                name.isNotEmpty
-                                                    ? name[0].toUpperCase()
-                                                    : "U",
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        )
-                                      : Center(
-                                          child: Text(
-                                            name.isNotEmpty
-                                                ? name[0].toUpperCase()
-                                                : "U",
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                            ),
-                                          ),
+                                backgroundImage: profile != null
+                                    ? NetworkImage(profile)
+                                    : null,
+                                child: profile == null
+                                    ? Text(
+                                        name.isNotEmpty
+                                            ? name[0].toUpperCase()
+                                            : "U",
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
                                         ),
-                                ),
+                                      )
+                                    : null,
                               ),
                               const SizedBox(width: 10),
+
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(
-                                      name,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                      ),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                        if (canManageComment)
+                                          SizedBox(
+                                            height: 26,
+                                            width: 26,
+                                            child: PopupMenuButton<String>(
+                                              padding: EdgeInsets.zero,
+                                              color: const Color(0xFF06201A),
+                                              icon: const Icon(
+                                                Icons.more_vert,
+                                                color: Colors.white70,
+                                                size: 18,
+                                              ),
+                                              onSelected: (value) async {
+                                                if (value == "edit") {
+                                                  _showEditCommentDialog(
+                                                    commentId,
+                                                    postId,
+                                                    text,
+                                                  );
+                                                } else if (value == "delete") {
+                                                  await _deleteComment(
+                                                    commentId,
+                                                    postId,
+                                                  );
+                                                }
+                                              },
+                                              itemBuilder: (context) => const [
+                                                PopupMenuItem(
+                                                  value: "edit",
+                                                  child: Row(
+                                                    children: [
+                                                      Icon(
+                                                        Icons.edit,
+                                                        color: Colors.teal,
+                                                        size: 18,
+                                                      ),
+                                                      SizedBox(width: 8),
+                                                      Text(
+                                                        "Edit",
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                PopupMenuItem(
+                                                  value: "delete",
+                                                  child: Row(
+                                                    children: [
+                                                      Icon(
+                                                        Icons.delete,
+                                                        color: Colors.red,
+                                                        size: 18,
+                                                      ),
+                                                      SizedBox(width: 8),
+                                                      Text(
+                                                        "Delete",
+                                                        style: TextStyle(
+                                                          color: Colors.red,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       text,
                                       style: const TextStyle(
                                         color: Colors.white70,
-                                        fontSize: 13,
-                                        height: 1.3,
+                                        fontSize: 14,
+                                        height: 1.25,
                                       ),
                                     ),
                                   ],
@@ -1799,6 +1999,76 @@ class _ClubViewState extends State<ClubView> {
               ),
             );
           },
+        );
+      },
+    );
+  }
+
+  void _showEditCommentDialog(int commentId, int postId, String oldText) {
+    final TextEditingController editController = TextEditingController(
+      text: oldText,
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF06201A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            "Edit Comment",
+            style: TextStyle(color: Colors.white),
+          ),
+          content: TextField(
+            controller: editController,
+            maxLines: 4,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: "Update your comment",
+              hintStyle: const TextStyle(color: Colors.white54),
+              filled: true,
+              fillColor: Colors.white10,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF00AFA5)),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "Cancel",
+                style: TextStyle(color: Colors.white70),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00AFA5),
+              ),
+              onPressed: () async {
+                final updatedText = editController.text.trim();
+                if (updatedText.isEmpty) return;
+
+                Navigator.pop(context);
+                await _updateComment(commentId, postId, updatedText);
+              },
+              child: const Text(
+                "Update",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -2490,6 +2760,7 @@ class _ClubViewState extends State<ClubView> {
     );
   }
 
+  // UPDATED: Support multiple images in update dialog
   void _showUpdatePostDialog(Map<String, dynamic> post) {
     final TextEditingController titleController = TextEditingController(
       text: post['title'] ?? '',
@@ -2497,21 +2768,21 @@ class _ClubViewState extends State<ClubView> {
     final TextEditingController descriptionController = TextEditingController(
       text: post['description'] ?? '',
     );
-    XFile? selectedImage;
-    String? existingImageUrl;
+    List<XFile?> selectedImages = [];
+    List<String> existingImageUrls = [];
 
-    // Get existing image URL if any
+    // Get existing image URLs
     if (post['images'] != null && post['images'] is List) {
       var imagesList = post['images'] as List;
-      if (imagesList.isNotEmpty) {
-        var firstImage = imagesList.first;
-        if (firstImage is Map && firstImage['image'] != null) {
-          existingImageUrl = firstImage['image'].toString();
-          if (!existingImageUrl!.startsWith('http')) {
-            existingImageUrl = existingImageUrl!.startsWith('/')
-                ? "$api$existingImageUrl"
-                : "$api/$existingImageUrl";
+      for (var img in imagesList) {
+        if (img is Map && img['image'] != null) {
+          String imageUrl = img['image'].toString();
+          if (!imageUrl.startsWith('http')) {
+            imageUrl = imageUrl.startsWith('/')
+                ? "$api$imageUrl"
+                : "$api/$imageUrl";
           }
+          existingImageUrls.add(imageUrl);
         }
       }
     }
@@ -2634,95 +2905,116 @@ class _ClubViewState extends State<ClubView> {
 
                       const SizedBox(height: 20),
 
-                      // Current image (if exists)
-                      if (existingImageUrl != null &&
-                          selectedImage == null) ...[
+                      // Existing images
+                      if (existingImageUrls.isNotEmpty && selectedImages.isEmpty) ...[
                         const Text(
-                          "Current Image:",
+                          "Current Images:",
                           style: TextStyle(color: Colors.white70, fontSize: 14),
                         ),
                         const SizedBox(height: 8),
-                        Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.network(
-                                existingImageUrl!,
-                                height: 150,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: GestureDetector(
-                                onTap: () {
-                                  setStateSB(() {
-                                    existingImageUrl = null;
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
+                        SizedBox(
+                          height: 120,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: existingImageUrls.length,
+                            itemBuilder: (context, index) {
+                              return Stack(
+                                children: [
+                                  Container(
+                                    width: 100,
+                                    margin: const EdgeInsets.only(right: 8),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(10),
+                                      image: DecorationImage(
+                                        image: NetworkImage(existingImageUrls[index]),
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
                                   ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                    size: 16,
+                                  Positioned(
+                                    top: 4,
+                                    right: 8,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setStateSB(() {
+                                          existingImageUrls.removeAt(index);
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ),
-                          ],
+                                ],
+                              );
+                            },
+                          ),
                         ),
                         const SizedBox(height: 15),
                       ],
 
-                      // New selected image
-                      if (selectedImage != null) ...[
+                      // New selected images
+                      if (selectedImages.isNotEmpty) ...[
                         const Text(
-                          "New Image:",
+                          "New Images:",
                           style: TextStyle(color: Colors.white70, fontSize: 14),
                         ),
                         const SizedBox(height: 8),
-                        Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.file(
-                                File(selectedImage!.path),
-                                height: 150,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: GestureDetector(
-                                onTap: () {
-                                  setStateSB(() {
-                                    selectedImage = null;
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
+                        SizedBox(
+                          height: 120,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: selectedImages.length,
+                            itemBuilder: (context, index) {
+                              return Stack(
+                                children: [
+                                  Container(
+                                    width: 100,
+                                    margin: const EdgeInsets.only(right: 8),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(10),
+                                      image: DecorationImage(
+                                        image: FileImage(File(selectedImages[index]!.path)),
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
                                   ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                    size: 16,
+                                  Positioned(
+                                    top: 4,
+                                    right: 8,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setStateSB(() {
+                                          selectedImages.removeAt(index);
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ),
-                          ],
+                                ],
+                              );
+                            },
+                          ),
                         ),
                         const SizedBox(height: 15),
                       ],
@@ -2731,13 +3023,11 @@ class _ClubViewState extends State<ClubView> {
                       GestureDetector(
                         onTap: () async {
                           final picker = ImagePicker();
-                          final image = await picker.pickImage(
-                            source: ImageSource.gallery,
-                          );
-                          if (image != null) {
+                          final List<XFile> images = await picker.pickMultiImage();
+                          if (images.isNotEmpty) {
                             setStateSB(() {
-                              selectedImage = image;
-                              existingImageUrl = null;
+                              selectedImages.addAll(images);
+                              existingImageUrls.clear();
                             });
                           }
                         },
@@ -2763,10 +3053,9 @@ class _ClubViewState extends State<ClubView> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                selectedImage == null &&
-                                        existingImageUrl != null
-                                    ? "Change Image"
-                                    : "Choose Image",
+                                selectedImages.isNotEmpty || existingImageUrls.isNotEmpty
+                                    ? "Add More Images"
+                                    : "Choose Images",
                                 style: const TextStyle(
                                   color: Color(0xFF00AFA5),
                                   fontSize: 14,
@@ -2835,11 +3124,16 @@ class _ClubViewState extends State<ClubView> {
                                   },
                                 );
 
+                                // If there are new images selected, use them; otherwise keep existing
+                                List<XFile?>? imagesToUpdate = selectedImages.isNotEmpty 
+                                    ? selectedImages 
+                                    : null;
+
                                 await _updateFeedPost(
                                   post['id'],
                                   title,
                                   description,
-                                  selectedImage,
+                                  imagesToUpdate,
                                 );
 
                                 if (context.mounted) {
@@ -2865,6 +3159,7 @@ class _ClubViewState extends State<ClubView> {
     );
   }
 
+  // UPDATED: Display multiple images in feed post
   Widget _buildFeedPost(Map<String, dynamic> post) {
     debugPrint("BUILDING FEED POST: $post");
 
@@ -2874,11 +3169,11 @@ class _ClubViewState extends State<ClubView> {
     final bool canDelete = _isCoach || (_currentUserId == postUserId);
     final bool canUpdate = _currentUserId == postUserId;
 
-    // ✅ Username
+    // Username
     String userName = (post['user_name'] ?? 'User ${post['user'] ?? ''}')
         .toString();
 
-    // ✅ Profile image
+    // Profile image
     String? userProfile = post['user_profile']?.toString();
     if (userProfile != null) userProfile = userProfile.trim();
 
@@ -2894,39 +3189,36 @@ class _ClubViewState extends State<ClubView> {
       userProfile = null;
     }
 
-    debugPrint("FINAL userName: $userName");
-    debugPrint("FINAL userProfile: $userProfile");
-
     final String title = (post['title'] ?? '').toString();
     final String description = (post['description'] ?? '').toString();
     final String createdAt = (post['created_at'] ?? '').toString();
 
-    // ✅ Feed image (first image)
-    String? imageUrl;
+    // Get all images
+    List<String> imageUrls = [];
     if (post['images'] != null && post['images'] is List) {
       final imagesList = post['images'] as List;
-      if (imagesList.isNotEmpty) {
-        final firstImage = imagesList.first;
-        if (firstImage is Map && firstImage['image'] != null) {
-          imageUrl = firstImage['image'].toString().trim();
+      for (var img in imagesList) {
+        if (img is Map && img['image'] != null) {
+          String imageUrl = img['image'].toString().trim();
           if (imageUrl.isNotEmpty && !imageUrl.startsWith('http')) {
             imageUrl = imageUrl.startsWith('/')
                 ? "$api$imageUrl"
                 : "$api/$imageUrl";
           }
+          imageUrls.add(imageUrl);
         }
       }
     }
 
-    // ✅ Like state
+    // Like state
     final bool isLiked = _likedPosts[postId] ?? false;
     final int likeCount = _likeCounts[postId] ?? (post['total_likes'] ?? 0);
 
-    // ✅ Comment count
+    // Comment count
     final int commentCount =
         _commentCounts[postId] ?? (post['total_comments'] ?? 0);
 
-    // ✅ Repost state + count
+    // Repost state + count
     final bool isReposted = _repostedPosts[postId] ?? false;
     final int repostCount =
         _repostCounts[postId] ?? (post['total_reposts'] ?? 0);
@@ -2942,7 +3234,7 @@ class _ClubViewState extends State<ClubView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ✅ User row + menu
+          // User row + menu
           Row(
             children: [
               CircleAvatar(
@@ -3046,7 +3338,7 @@ class _ClubViewState extends State<ClubView> {
 
           const SizedBox(height: 12),
 
-          // ✅ Title
+          // Title
           if (title.isNotEmpty)
             Text(
               title,
@@ -3059,7 +3351,7 @@ class _ClubViewState extends State<ClubView> {
 
           const SizedBox(height: 8),
 
-          // ✅ Description
+          // Description
           if (description.isNotEmpty)
             Text(
               description,
@@ -3072,60 +3364,13 @@ class _ClubViewState extends State<ClubView> {
 
           const SizedBox(height: 12),
 
-          // ✅ Image
-          if (imageUrl != null && imageUrl!.isNotEmpty)
-            GestureDetector(
-              onTap: () => _openSquareMediaViewer(imageUrl!),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  imageUrl!,
-                  width: double.infinity,
-                  height: 200,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      height: 200,
-                      color: Colors.grey[900],
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                              : null,
-                          color: Colors.teal,
-                        ),
-                      ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    debugPrint("IMAGE LOAD ERROR: $error");
-                    return Container(
-                      height: 200,
-                      color: Colors.grey[900],
-                      child: const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.broken_image, color: Colors.white54),
-                            SizedBox(height: 8),
-                            Text(
-                              "Failed to load image",
-                              style: TextStyle(color: Colors.white54),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
+          // Multiple Images with Slider
+          if (imageUrls.isNotEmpty) ...[
+            _buildImageSlider(imageUrls),
+            const SizedBox(height: 12),
+          ],
 
-          const SizedBox(height: 12),
-
-          // ✅ Like / Comment / Repost row
+          // Like / Comment / Repost row
           Row(
             children: [
               // Like
@@ -3243,6 +3488,101 @@ class _ClubViewState extends State<ClubView> {
           ),
         ],
       ),
+    );
+  }
+
+  // ADD THIS NEW METHOD: Image slider for multiple images
+  Widget _buildImageSlider(List<String> imageUrls) {
+    final PageController controller = PageController();
+    int currentPage = 0;
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return Column(
+          children: [
+            SizedBox(
+              height: 250,
+              child: PageView.builder(
+                controller: controller,
+                itemCount: imageUrls.length,
+                onPageChanged: (index) {
+                  setState(() {
+                    currentPage = index;
+                  });
+                },
+                itemBuilder: (context, index) {
+                  return GestureDetector(
+                    onTap: () => _openSquareMediaViewer(imageUrls[index]),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        imageUrls[index],
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            height: 250,
+                            color: Colors.grey[900],
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: Colors.teal,
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 250,
+                            color: Colors.grey[900],
+                            child: const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.broken_image, color: Colors.white54),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    "Failed to load image",
+                                    style: TextStyle(color: Colors.white54),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            if (imageUrls.length > 1) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(imageUrls.length, (index) {
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: currentPage == index ? 8 : 6,
+                    height: currentPage == index ? 8 : 6,
+                    decoration: BoxDecoration(
+                      color: currentPage == index
+                          ? const Color(0xFF00AFA5)
+                          : Colors.white38,
+                      shape: BoxShape.circle,
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 
@@ -3542,69 +3882,98 @@ class _ClubViewState extends State<ClubView> {
 
                 const SizedBox(height: 35),
 
-                if (_isCoach || widget.isApproved) ...[
+                if (_canViewFullClubPage) ...[
                   const SizedBox(height: 10),
 
                   SizedBox(
                     height: 220,
                     child: LineChart(
                       LineChartData(
+                        minX: 0,
+                        maxX: 3,
+                        minY: 2,
+                        maxY: 4,
                         borderData: FlBorderData(show: true),
                         gridData: FlGridData(show: false),
                         titlesData: FlTitlesData(
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
                           leftTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              reservedSize: 60,
-                              getTitlesWidget: (value, _) {
+                              reservedSize: 70,
+                              interval: 1,
+                              getTitlesWidget: (value, meta) {
                                 switch (value.toInt()) {
                                   case 4:
                                     return const Text(
                                       "Excellent",
-                                      style: TextStyle(color: Colors.white70),
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     );
                                   case 3:
                                     return const Text(
                                       "High",
-                                      style: TextStyle(color: Colors.white70),
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     );
                                   case 2:
                                     return const Text(
                                       "Low",
-                                      style: TextStyle(color: Colors.white70),
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     );
+                                  default:
+                                    return const SizedBox.shrink();
                                 }
-                                return const SizedBox();
                               },
                             ),
                           ),
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              getTitlesWidget: (value, _) {
+                              reservedSize: 28,
+                              interval: 1,
+                              getTitlesWidget: (value, meta) {
+                                const textStyle = TextStyle(
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.w600,
+                                );
+
                                 switch (value.toInt()) {
                                   case 0:
-                                    return const Text(
-                                      "Aug",
-                                      style: TextStyle(color: Colors.white70),
+                                    return const Padding(
+                                      padding: EdgeInsets.only(top: 8),
+                                      child: Text("Aug", style: textStyle),
                                     );
                                   case 1:
-                                    return const Text(
-                                      "Sept",
-                                      style: TextStyle(color: Colors.white70),
+                                    return const Padding(
+                                      padding: EdgeInsets.only(top: 8),
+                                      child: Text("Sept", style: textStyle),
                                     );
                                   case 2:
-                                    return const Text(
-                                      "Oct",
-                                      style: TextStyle(color: Colors.white70),
+                                    return const Padding(
+                                      padding: EdgeInsets.only(top: 8),
+                                      child: Text("Oct", style: textStyle),
                                     );
                                   case 3:
-                                    return const Text(
-                                      "Nov",
-                                      style: TextStyle(color: Colors.white70),
+                                    return const Padding(
+                                      padding: EdgeInsets.only(top: 8),
+                                      child: Text("Nov", style: textStyle),
                                     );
+                                  default:
+                                    return const SizedBox.shrink();
                                 }
-                                return const SizedBox();
                               },
                             ),
                           ),
@@ -3638,9 +4007,10 @@ class _ClubViewState extends State<ClubView> {
                   ),
                   const SizedBox(height: 15),
 
+                  // UPDATED: Feed input box with multi-image support
                   _feedInputBox(
-                    onSubmit: (title, description, image) {
-                      submitFeedPost(title, description, image);
+                    onSubmit: (title, description, images) {
+                      submitFeedPost(title, description, images);
                     },
                   ),
                   const SizedBox(height: 20),
@@ -4082,10 +4452,11 @@ class _ClubViewState extends State<ClubView> {
   }
 }
 
-Widget _feedInputBox({required Function(String, String, XFile?) onSubmit}) {
+// UPDATED: Feed input box with multi-image support
+Widget _feedInputBox({required Function(String, String, List<XFile?>?) onSubmit}) {
   final TextEditingController titleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
-  XFile? pickedImage;
+  List<XFile?> selectedImages = [];
 
   return StatefulBuilder(
     builder: (context, setStateSB) {
@@ -4155,50 +4526,57 @@ Widget _feedInputBox({required Function(String, String, XFile?) onSubmit}) {
 
             const SizedBox(height: 10),
 
-            if (pickedImage != null) ...[
+            // Display selected images
+            if (selectedImages.isNotEmpty) ...[
               const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.file(
-                  File(pickedImage!.path),
-                  height: 140,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              Align(
-                alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: () {
-                    setStateSB(() {
-                      pickedImage = null;
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
+              SizedBox(
+                height: 120,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: selectedImages.length,
+                  itemBuilder: (context, index) {
+                    return Stack(
                       children: [
-                        Icon(Icons.close, color: Colors.red, size: 16),
-                        SizedBox(width: 4),
-                        Text(
-                          "Remove",
-                          style: TextStyle(color: Colors.red, fontSize: 12),
+                        Container(
+                          width: 100,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            image: DecorationImage(
+                              image: FileImage(File(selectedImages[index]!.path)),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 4,
+                          right: 8,
+                          child: GestureDetector(
+                            onTap: () {
+                              setStateSB(() {
+                                selectedImages.removeAt(index);
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
+              const SizedBox(height: 8),
             ],
 
             const SizedBox(height: 10),
@@ -4206,16 +4584,14 @@ Widget _feedInputBox({required Function(String, String, XFile?) onSubmit}) {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Image picker button
+                // Image picker button - now supports multiple images
                 GestureDetector(
                   onTap: () async {
                     final picker = ImagePicker();
-                    final image = await picker.pickImage(
-                      source: ImageSource.gallery,
-                    );
-                    if (image != null) {
+                    final List<XFile> images = await picker.pickMultiImage();
+                    if (images.isNotEmpty) {
                       setStateSB(() {
-                        pickedImage = image;
+                        selectedImages.addAll(images);
                       });
                     }
                   },
@@ -4260,12 +4636,12 @@ Widget _feedInputBox({required Function(String, String, XFile?) onSubmit}) {
                         return;
                       }
 
-                      onSubmit(title, description, pickedImage);
+                      onSubmit(title, description, selectedImages.isEmpty ? null : selectedImages);
 
                       titleController.clear();
                       descriptionController.clear();
                       setStateSB(() {
-                        pickedImage = null;
+                        selectedImages.clear();
                       });
                     },
                     child: const Text(

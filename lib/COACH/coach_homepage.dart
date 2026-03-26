@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:my_skates/COACH/club_detailed_view.dart';
 import 'package:my_skates/COACH/coach_chat_support.dart';
 import 'package:my_skates/COACH/coach_home_feedcard.dart';
@@ -73,6 +74,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
   bool loading = true;
   // List<Map<String, dynamic>> trainingSessions = [];
 
+  Offset _fabOffset = const Offset(20, 520);
+  bool _fabMenuOpen = false;
+
   late final Timer _timer;
 
   @override
@@ -93,8 +97,6 @@ class _CoachHomepageState extends State<CoachHomepage> {
         fetchNotificationCount();
       }
     });
-
-    
   }
 
   Future<void> _loadMyId() async {
@@ -149,14 +151,14 @@ class _CoachHomepageState extends State<CoachHomepage> {
         break;
 
       case 1:
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const UserApprovedProducts()),
         );
         break;
 
       case 2:
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => const CoachChatSupport(from: "coach"),
@@ -165,7 +167,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
         break;
 
       case 3:
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const UserConnectCoaches()),
         );
@@ -842,54 +844,273 @@ class _CoachHomepageState extends State<CoachHomepage> {
     );
   }
 
+  Future<void> _navigateFromFab(Widget page) async {
+    setState(() => _fabMenuOpen = false);
+
+    await Future.delayed(const Duration(milliseconds: 80));
+
+    if (!mounted) return;
+
+    await Navigator.push(context, slideRightToLeftRoute(page));
+  }
+
+  Widget _movableFabMenu() {
+    final size = MediaQuery.of(context).size;
+    final bottomSafe = MediaQuery.of(context).padding.bottom;
+
+    const double fabSize = 56;
+    const double sideMargin = 12;
+    const double topLimit = 100;
+    const double bottomNavHeight = 90;
+
+    
+    const double openMenuExtraHeight = 250;
+
+    final double maxX = size.width - fabSize - sideMargin;
+    final double maxYClosed =
+        size.height - fabSize - bottomNavHeight - bottomSafe;
+    final double maxYOpen =
+        size.height -
+        fabSize -
+        bottomNavHeight -
+        bottomSafe -
+        openMenuExtraHeight;
+
+    double dx = _fabOffset.dx.clamp(sideMargin, maxX);
+    double dy = _fabOffset.dy.clamp(
+      topLimit,
+      _fabMenuOpen ? maxYOpen : maxYClosed,
+    );
+
+    final bool openToLeft = dx > size.width / 2;
+
+    return Positioned(
+      left: dx,
+      top: dy,
+      child: Column(
+        crossAxisAlignment: openToLeft
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.end,
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: _fabMenuOpen
+                ? Column(
+                    key: const ValueKey("openMenu"),
+                    crossAxisAlignment: openToLeft
+                        ? CrossAxisAlignment.start
+                        : CrossAxisAlignment.end,
+                    children: [
+                      _fabMiniItem(
+                        icon: Icons.person,
+                        label: "Profile",
+                        openToLeft: openToLeft,
+                        onTap: () => _navigateFromFab(const ProfilePage()),
+                      ),
+                      const SizedBox(height: 10),
+                      _fabMiniItem(
+                        icon: Icons.settings,
+                        label: "Settings",
+                        openToLeft: openToLeft,
+                        onTap: () => _navigateFromFab(const CoachSettings()),
+                      ),
+                      const SizedBox(height: 10),
+                      _fabMiniItem(
+                        icon: Icons.chat_bubble_outline,
+                        label: "Support",
+                        openToLeft: openToLeft,
+                        onTap: () => _navigateFromFab(
+                          const CoachChatSupport(from: "coach"),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _fabMiniItem(
+                        icon: Icons.notifications_none,
+                        label: "Notifications",
+                        openToLeft: openToLeft,
+                        onTap: () async {
+                          await _navigateFromFab(const CoachNotificationPage());
+                          fetchNotificationCount();
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
+          GestureDetector(
+            onPanUpdate: (details) {
+              setState(() {
+                final next = _fabOffset + details.delta;
+
+                _fabOffset = Offset(
+                  next.dx.clamp(sideMargin, maxX),
+                  next.dy.clamp(
+                    topLimit.toDouble(),
+                    _fabMenuOpen ? maxYOpen : maxYClosed,
+                  ),
+                );
+              });
+            },
+            child: Align(
+              alignment: openToLeft
+                  ? Alignment.centerLeft
+                  : Alignment.centerRight,
+              child: FloatingActionButton(
+                heroTag: "movableFab",
+                backgroundColor: const Color(0xFF00AFA5),
+                onPressed: () {
+                  setState(() {
+                    _fabMenuOpen = !_fabMenuOpen;
+
+                    if (_fabMenuOpen && _fabOffset.dy > maxYOpen) {
+                      _fabOffset = Offset(_fabOffset.dx, maxYOpen);
+                    }
+                    if (_fabOffset.dx > maxX) {
+                      _fabOffset = Offset(maxX, _fabOffset.dy);
+                    }
+                  });
+                },
+                child: Icon(
+                  _fabMenuOpen ? Icons.close : Icons.skateboarding,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _fabMiniItem({
+    required IconData icon,
+    required String label,
+    required bool openToLeft,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 170),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.75),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: openToLeft
+                ? [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(icon, color: Colors.tealAccent, size: 18),
+                  ]
+                : [
+                    Icon(icon, color: Colors.tealAccent, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              const Color(0xFF001A18),
-              const Color(0xFF002F2B),
-              const Color(0xFF000C0B),
-              Colors.black,
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          child: RefreshIndicator(
-            onRefresh: _refreshAll,
-            color: Colors.tealAccent,
-            backgroundColor: Colors.black,
-            child: CustomScrollView(
-              slivers: [
-                // ---------------------------------------------------------
-                // PINNED HEADER (STAYS FIXED WHILE SCROLLING)
-                // ---------------------------------------------------------
-                SliverAppBar(
-                  pinned: true,
-                  backgroundColor: Colors.transparent,
-                  expandedHeight: 80,
-                  automaticallyImplyLeading: false,
-                  flexibleSpace: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
+      body: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF001A18),
+                  const Color(0xFF002F2B),
+                  const Color(0xFF000C0B),
+                  Colors.black,
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            // child: SafeArea(
+            child: RefreshIndicator(
+              onRefresh: _refreshAll,
+              color: Colors.tealAccent,
+              backgroundColor: Colors.black,
+              child: CustomScrollView(
+                slivers: [
+                  // ---------------------------------------------------------
+                  // PINNED HEADER (STAYS FIXED WHILE SCROLLING)
+                  // ---------------------------------------------------------
+                  SliverAppBar(
+                    pinned: true,
+                    floating: false,
+                    snap: false,
+                    elevation: 0,
+                    scrolledUnderElevation: 0,
+                    toolbarHeight: 86,
+                    expandedHeight: 86,
+                    automaticallyImplyLeading: false,
+                    backgroundColor: Colors.transparent,
+
+                    flexibleSpace: ClipRRect(
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFF001F1C).withOpacity(0.95),
+                                const Color(0xFF001F1C).withOpacity(0.60),
+                                Colors.black.withOpacity(0.50),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Colors.white.withOpacity(0.15),
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    titleSpacing: 16,
+                    title: Row(
                       children: [
                         GestureDetector(
                           onTap: () {
-                            // Navigator.push(
-                            //   context,
-                            //   MaterialPageRoute(
-                            //     builder: (_) => const CoachMenuPage(),
-                            //   ),
-                            // );
                             pushWithSlide(const CoachMenuPage());
                           },
                           child: CircleAvatar(
-                            radius: 28,
+                            radius: 26,
                             backgroundImage:
                                 studentImage != null && studentImage!.isNotEmpty
                                 ? NetworkImage("$api$studentImage")
@@ -899,26 +1120,34 @@ class _CoachHomepageState extends State<CoachHomepage> {
                         ),
                         const SizedBox(width: 12),
 
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              studentName,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                studentName.isEmpty ? "Coach" : studentName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
-                            ),
-                            Text(
-                              studentRole,
-                              style: const TextStyle(color: Colors.white70),
-                            ),
-                          ],
+                              Text(
+                                studentRole.isEmpty ? "Coach" : studentRole,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
 
-                        const Spacer(),
                         Stack(
                           children: [
                             IconButton(
@@ -926,10 +1155,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                 await Navigator.push(
                                   context,
                                   slideRightToLeftRoute(
-                                    CoachNotificationPage(),
+                                    const CoachNotificationPage(),
                                   ),
                                 );
-
                                 fetchNotificationCount();
                               },
                               icon: const Icon(
@@ -937,7 +1165,6 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                 color: Colors.tealAccent,
                               ),
                             ),
-
                             if (notificationUnreadCount > 0)
                               Positioned(
                                 right: 6,
@@ -968,207 +1195,300 @@ class _CoachHomepageState extends State<CoachHomepage> {
                       ],
                     ),
                   ),
-                ),
 
-                // ---------------------------------------------------------
-                // ALL YOUR PAGE CONTENT AS IT IS
-                // ---------------------------------------------------------
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (!trainingLoading &&
-                            trainingSessions.isEmpty &&
-                            !eventsLoading &&
-                            events.isEmpty &&
-                            !coachesLoading &&
-                            coaches.isEmpty &&
-                            !studentsLoading &&
-                            students.isEmpty)
-                          const SizedBox.shrink()
-                        else ...[
-                          Container(
-                            height: MediaQuery.of(context).size.height * 0.2,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
-                              // boxShadow: [
-                              //   BoxShadow(
-                              //     color: Colors.black.withOpacity(0.25),
-                              //     blurRadius: 8,
-                              //     offset: Offset(0, 4),
-                              //   ),
-                              // ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
-                              child: FlutterCarousel(
-                                options: CarouselOptions(
-                                  height: 160,
-                                  autoPlay: true,
-                                  autoPlayInterval: Duration(seconds: 3),
-                                  viewportFraction: 1,
-                                  showIndicator: true,
-                                  slideIndicator: CircularSlideIndicator(),
-                                ),
-                                items: banner.map((item) {
-                                  return Stack(
-                                    children: [
-                                      // Background Image
-                                      Positioned.fill(
-                                        child: Image.network(
-                                          item["image"] ?? "",
-                                          fit: BoxFit.cover,
-                                          loadingBuilder:
-                                              (context, child, progress) {
-                                                if (progress == null)
-                                                  return child;
-                                                return Container(
-                                                  color: Colors.grey.shade900,
-                                                  alignment: Alignment.center,
-                                                  child:
-                                                      const CircularProgressIndicator(),
-                                                );
-                                              },
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  Container(
-                                                    color: Colors.black,
+                  // ---------------------------------------------------------
+                  // ALL YOUR PAGE CONTENT AS IT IS
+                  // ---------------------------------------------------------
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (!trainingLoading &&
+                              trainingSessions.isEmpty &&
+                              !eventsLoading &&
+                              events.isEmpty &&
+                              !coachesLoading &&
+                              coaches.isEmpty &&
+                              !studentsLoading &&
+                              students.isEmpty)
+                            const SizedBox.shrink()
+                          else ...[
+                            Container(
+                              height: MediaQuery.of(context).size.height * 0.2,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                // boxShadow: [
+                                //   BoxShadow(
+                                //     color: Colors.black.withOpacity(0.25),
+                                //     blurRadius: 8,
+                                //     offset: Offset(0, 4),
+                                //   ),
+                                // ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: FlutterCarousel(
+                                  options: CarouselOptions(
+                                    height: 160,
+                                    autoPlay: true,
+                                    autoPlayInterval: Duration(seconds: 3),
+                                    viewportFraction: 1,
+                                    showIndicator: true,
+                                    slideIndicator: CircularSlideIndicator(),
+                                  ),
+                                  items: banner.map((item) {
+                                    return Stack(
+                                      children: [
+                                        // Background Image
+                                        Positioned.fill(
+                                          child: Image.network(
+                                            item["image"] ?? "",
+                                            fit: BoxFit.cover,
+                                            loadingBuilder:
+                                                (context, child, progress) {
+                                                  if (progress == null)
+                                                    return child;
+                                                  return Container(
+                                                    color: Colors.grey.shade900,
                                                     alignment: Alignment.center,
-                                                    child: Icon(
-                                                      Icons.broken_image,
-                                                      color: Colors.white54,
-                                                      size: 40,
+                                                    child:
+                                                        const CircularProgressIndicator(),
+                                                  );
+                                                },
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    Container(
+                                                      color: Colors.black,
+                                                      alignment:
+                                                          Alignment.center,
+                                                      child: Icon(
+                                                        Icons.broken_image,
+                                                        color: Colors.white54,
+                                                        size: 40,
+                                                      ),
                                                     ),
-                                                  ),
+                                          ),
                                         ),
-                                      ),
 
-                                      Positioned.fill(
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              begin: Alignment.topCenter,
-                                              end: Alignment.bottomCenter,
-                                              colors: [
-                                                Colors.transparent,
-                                                Colors.black.withOpacity(0.6),
-                                              ],
+                                        Positioned.fill(
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  Colors.transparent,
+                                                  Colors.black.withOpacity(0.6),
+                                                ],
+                                              ),
                                             ),
                                           ),
                                         ),
-                                      ),
 
-                                      // Banner Title (Optional)
-                                      // Positioned(
-                                      //   bottom: 12,
-                                      //   left: 12,
-                                      //   right: 12,
-                                      //   child: Text(
-                                      //     item["title"] ?? "",
-                                      //     style: const TextStyle(
-                                      //       color: Colors.white,
-                                      //       fontSize: 18,
-                                      //       fontWeight: FontWeight.bold,
-                                      //       shadows: [
-                                      //         Shadow(
-                                      //           offset: Offset(0, 1),
-                                      //           blurRadius: 4,
-                                      //           color: Colors.black54,
-                                      //         )
-                                      //       ],
-                                      //     ),
-                                      //     maxLines: 1,
-                                      //     overflow: TextOverflow.ellipsis,
-                                      //   ),
-                                      // ),
-                                    ],
+                                        // Banner Title (Optional)
+                                        // Positioned(
+                                        //   bottom: 12,
+                                        //   left: 12,
+                                        //   right: 12,
+                                        //   child: Text(
+                                        //     item["title"] ?? "",
+                                        //     style: const TextStyle(
+                                        //       color: Colors.white,
+                                        //       fontSize: 18,
+                                        //       fontWeight: FontWeight.bold,
+                                        //       shadows: [
+                                        //         Shadow(
+                                        //           offset: Offset(0, 1),
+                                        //           blurRadius: 4,
+                                        //           color: Colors.black54,
+                                        //         )
+                                        //       ],
+                                        //     ),
+                                        //     maxLines: 1,
+                                        //     overflow: TextOverflow.ellipsis,
+                                        //   ),
+                                        // ),
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 22),
+
+                            const Text(
+                              "We offer training and an e-commerce platform\nthat connects students and coaches.",
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+
+                            const SizedBox(height: 25),
+
+                            buildButton("Find Coaches"),
+                            buildButton("Find Skaters"),
+                            buildButton("Find Clubs"),
+                            buildButton("Find Events"),
+                            buildButton("Buy and Sell products"),
+
+                            // const SizedBox(height: 25),
+
+                            // ChangeNotifierProvider(
+                            //   create: (_) => HomeFeedProvider()..fetchHomeFeeds(),
+                            //   child: Consumer<HomeFeedProvider>(
+                            //     builder: (_, p, __) {
+                            //       if (p.loading) {
+                            //         return const CircularProgressIndicator();
+                            //       }
+
+                            //       return Column(
+                            //         children: p.feeds.map((feed) {
+                            //           return HomeFeedCard(feed: feed);
+                            //         }).toList(),
+                            //       );
+                            //     },
+                            //   ),
+                            // ),
+
+                            // SizedBox(height: 20),
+
+                            // CLUBS
+                            // const Text(
+                            //   "Recommended Clubs near you",
+                            //   style: TextStyle(
+                            //     color: Colors.white,
+                            //     fontSize: 16,
+                            //     fontWeight: FontWeight.w600,
+                            //   ),
+                            // ),
+                            // const SizedBox(height: 10),
+                            // if (clubs.isEmpty && !noData)
+                            //   _buildClubShimmer()
+                            // else
+                            //   SizedBox(
+                            //     height: MediaQuery.of(context).size.height * 0.25,
+                            //     child: ListView.builder(
+                            //       scrollDirection: Axis.horizontal,
+                            //       itemCount: clubs.length,
+                            //       itemBuilder: (_, i) => Padding(
+                            //         padding: const EdgeInsets.only(right: 12),
+                            //         child: buildClubCardFromApi(context,clubs[i]),
+                            //       ),
+                            //     ),
+                            //   ),
+
+                            // const SizedBox(height: 20),
+                            // const Text(
+                            //   "Upcoming Training Sessions",
+                            //   style: TextStyle(color: Colors.white, fontSize: 14),
+                            // ),
+                            const SizedBox(height: 15),
+
+                            if (trainingLoading)
+                              _buildTrainingShimmer()
+                            else if (trainingSessions.isEmpty)
+                              const SizedBox.shrink()
+                            else ...[
+                              const Text(
+                                "Upcoming Training Sessions",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 15),
+
+                              Column(
+                                children: trainingSessions.map((session) {
+                                  final images =
+                                      session['images'] as List? ?? [];
+                                  final imageUrl = images.isNotEmpty
+                                      ? "$api${images[0]['image']}"
+                                      : "";
+
+                                  return buildTrainingSessionRow(
+                                    context: context,
+                                    title: session['title'] ?? "",
+                                    note: session['note'] ?? "",
+                                    location: session['location'] ?? "",
+                                    startDate: session['start_date'] ?? "",
+                                    endDate: session['end_date'] ?? "",
+                                    startTime: session['start_time'] ?? "",
+                                    endTime: session['end_time'] ?? "",
+                                    imageUrl: imageUrl,
                                   );
                                 }).toList(),
                               ),
-                            ),
-                          ),
 
-                          const SizedBox(height: 22),
+                              const SizedBox(height: 12),
+                            ],
 
-                          const Text(
-                            "We offer training and an e-commerce platform\nthat connects students and coaches.",
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
+                            const SizedBox(height: 12),
 
-                          const SizedBox(height: 25),
+                            if (eventsLoading)
+                              _buildEventShimmer()
+                            else if (events.isEmpty)
+                              const SizedBox.shrink()
+                            else ...[
+                              const Text(
+                                "Upcoming Events",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
 
-                          buildButton("Find Coaches"),
-                          buildButton("Find Skaters"),
-                          buildButton("Find Clubs"),
-                          buildButton("Find Events"),
-                          buildButton("Buy and Sell products"),
+                              Column(
+                                children: events.map((event) {
+                                  final images = event["images"] as List? ?? [];
 
-                          // const SizedBox(height: 25),
+                                  final image1 = images.isNotEmpty
+                                      ? "$api${images[0]['image']}"
+                                      : "";
+                                  final image2 = images.length > 1
+                                      ? "$api${images[1]['image']}"
+                                      : "";
 
-                          // ChangeNotifierProvider(
-                          //   create: (_) => HomeFeedProvider()..fetchHomeFeeds(),
-                          //   child: Consumer<HomeFeedProvider>(
-                          //     builder: (_, p, __) {
-                          //       if (p.loading) {
-                          //         return const CircularProgressIndicator();
-                          //       }
+                                  return buildEventCardWithImages(
+                                    context: context,
+                                    clubName:
+                                        event["club_name"] ?? "Skating Club",
+                                    clubImage: event["club_image"] ?? "",
+                                    location: event["note"] ?? "",
+                                    title: event["title"] ?? "",
+                                    image1: image1,
+                                    image2: image2,
+                                    imageCount: images.length,
+                                    description: event["description"] ?? "",
+                                    fromDate: event["from_date"] ?? "",
+                                    toDate: event["to_date"] ?? "",
+                                    fromTime: event["from_time"] ?? "",
+                                    toTime: event["to_time"] ?? "",
+                                    icon: Icons.thumb_up_alt_outlined,
+                                    eventId: event["id"],
+                                    onLike: toggleEventLike,
+                                    likesCount: event["likes_count"] ?? 0,
+                                    isLiked: event["is_liked"] ?? false,
+                                  );
+                                }).toList(),
+                              ),
 
-                          //       return Column(
-                          //         children: p.feeds.map((feed) {
-                          //           return HomeFeedCard(feed: feed);
-                          //         }).toList(),
-                          //       );
-                          //     },
-                          //   ),
-                          // ),
+                              const SizedBox(height: 12),
+                            ],
 
-                          // SizedBox(height: 20),
+                            const SizedBox(height: 12),
 
-                          // CLUBS
-                          // const Text(
-                          //   "Recommended Clubs near you",
-                          //   style: TextStyle(
-                          //     color: Colors.white,
-                          //     fontSize: 16,
-                          //     fontWeight: FontWeight.w600,
-                          //   ),
-                          // ),
-                          // const SizedBox(height: 10),
-                          // if (clubs.isEmpty && !noData)
-                          //   _buildClubShimmer()
-                          // else
-                          //   SizedBox(
-                          //     height: MediaQuery.of(context).size.height * 0.25,
-                          //     child: ListView.builder(
-                          //       scrollDirection: Axis.horizontal,
-                          //       itemCount: clubs.length,
-                          //       itemBuilder: (_, i) => Padding(
-                          //         padding: const EdgeInsets.only(right: 12),
-                          //         child: buildClubCardFromApi(context,clubs[i]),
-                          //       ),
-                          //     ),
-                          //   ),
-
-                          // const SizedBox(height: 20),
-                          // const Text(
-                          //   "Upcoming Training Sessions",
-                          //   style: TextStyle(color: Colors.white, fontSize: 14),
-                          // ),
-                          const SizedBox(height: 15),
-
-                          if (trainingLoading)
-                            _buildTrainingShimmer()
-                          else if (trainingSessions.isEmpty)
-                            const SizedBox.shrink()
-                          else ...[
+                            // COACHES
                             const Text(
-                              "Upcoming Training Sessions",
+                              "Suggested Coaches",
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
@@ -1176,40 +1496,37 @@ class _CoachHomepageState extends State<CoachHomepage> {
                               ),
                             ),
                             const SizedBox(height: 15),
-
-                            Column(
-                              children: trainingSessions.map((session) {
-                                final images = session['images'] as List? ?? [];
-                                final imageUrl = images.isNotEmpty
-                                    ? "$api${images[0]['image']}"
-                                    : "";
-
-                                return buildTrainingSessionRow(
-                                  context: context,
-                                  title: session['title'] ?? "",
-                                  note: session['note'] ?? "",
-                                  location: session['location'] ?? "",
-                                  startDate: session['start_date'] ?? "",
-                                  endDate: session['end_date'] ?? "",
-                                  startTime: session['start_time'] ?? "",
-                                  endTime: session['end_time'] ?? "",
-                                  imageUrl: imageUrl,
-                                );
-                              }).toList(),
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.28,
+                              child: !followLoaded || coachesLoading
+                                  ? _buildCoachShimmer()
+                                  : coachesNoData
+                                  ? const Center(
+                                      child: Text(
+                                        "No coaches found",
+                                        style: TextStyle(color: Colors.white70),
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: coaches.length,
+                                      itemBuilder: (_, i) => CoachFollowCard(
+                                        coach: coaches[i],
+                                        onFollow: sendFollowRequest,
+                                        onCancelPending: cancelPendingRequest,
+                                        onUnfollow: unfollowCoach,
+                                        myFollowing: myFollowing,
+                                        myRequests: myRequests,
+                                        myApprovedSent: myApprovedSent,
+                                        refreshParent: () => setState(() {}),
+                                      ),
+                                    ),
                             ),
 
-                            const SizedBox(height: 12),
-                          ],
+                            SizedBox(height: 20),
 
-                          const SizedBox(height: 12),
-
-                          if (eventsLoading)
-                            _buildEventShimmer()
-                          else if (events.isEmpty)
-                            const SizedBox.shrink()
-                          else ...[
                             const Text(
-                              "Upcoming Events",
+                              "Suggested Students",
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
@@ -1217,132 +1534,46 @@ class _CoachHomepageState extends State<CoachHomepage> {
                               ),
                             ),
                             const SizedBox(height: 12),
-
-                            Column(
-                              children: events.map((event) {
-                                final images = event["images"] as List? ?? [];
-
-                                final image1 = images.isNotEmpty
-                                    ? "$api${images[0]['image']}"
-                                    : "";
-                                final image2 = images.length > 1
-                                    ? "$api${images[1]['image']}"
-                                    : "";
-
-                                return buildEventCardWithImages(
-                                  context: context,
-                                  clubName:
-                                      event["club_name"] ?? "Skating Club",
-                                  clubImage: event["club_image"] ?? "",
-                                  location: event["note"] ?? "",
-                                  title: event["title"] ?? "",
-                                  image1: image1,
-                                  image2: image2,
-                                  imageCount: images.length,
-                                  description: event["description"] ?? "",
-                                  fromDate: event["from_date"] ?? "",
-                                  toDate: event["to_date"] ?? "",
-                                  fromTime: event["from_time"] ?? "",
-                                  toTime: event["to_time"] ?? "",
-                                  icon: Icons.thumb_up_alt_outlined,
-                                  eventId: event["id"],
-                                  onLike: toggleEventLike,
-                                  likesCount: event["likes_count"] ?? 0,
-                                  isLiked: event["is_liked"] ?? false,
-                                );
-                              }).toList(),
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.25,
+                              child: studentsLoading
+                                  ? _buildCoachShimmer()
+                                  : studentsNoData
+                                  ? const Center(
+                                      child: Text(
+                                        "No students found",
+                                        style: TextStyle(color: Colors.white70),
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: students.length,
+                                      itemBuilder: (_, i) => StudentFollowCard(
+                                        student: students[i],
+                                        myFollowing: myFollowing,
+                                        myRequests: myRequests,
+                                        myApprovedSent: myApprovedSent,
+                                        onFollow: followStudent,
+                                        onCancelPending: cancelPendingRequest,
+                                        onUnfollow: unfollowUser,
+                                        refreshParent: () => setState(() {}),
+                                      ),
+                                    ),
                             ),
 
                             const SizedBox(height: 12),
                           ],
-
-                          const SizedBox(height: 12),
-
-                          // COACHES
-                          const Text(
-                            "Suggested Coaches",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 15),
-                          SizedBox(
-                            height: MediaQuery.of(context).size.height * 0.28,
-                            child: !followLoaded || coachesLoading
-                                ? _buildCoachShimmer()
-                                : coachesNoData
-                                ? const Center(
-                                    child: Text(
-                                      "No coaches found",
-                                      style: TextStyle(color: Colors.white70),
-                                    ),
-                                  )
-                                : ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: coaches.length,
-                                    itemBuilder: (_, i) => CoachFollowCard(
-                                      coach: coaches[i],
-                                      onFollow: sendFollowRequest,
-                                      onCancelPending: cancelPendingRequest,
-                                      onUnfollow: unfollowCoach,
-                                      myFollowing: myFollowing,
-                                      myRequests: myRequests,
-                                      myApprovedSent: myApprovedSent,
-                                      refreshParent: () => setState(() {}),
-                                    ),
-                                  ),
-                          ),
-
-                          SizedBox(height: 20),
-
-                          const Text(
-                            "Suggested Students",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            height: MediaQuery.of(context).size.height * 0.25,
-                            child: studentsLoading
-                                ? _buildCoachShimmer()
-                                : studentsNoData
-                                ? const Center(
-                                    child: Text(
-                                      "No students found",
-                                      style: TextStyle(color: Colors.white70),
-                                    ),
-                                  )
-                                : ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: students.length,
-                                    itemBuilder: (_, i) => StudentFollowCard(
-                                      student: students[i],
-                                      myFollowing: myFollowing,
-                                      myRequests: myRequests,
-                                      myApprovedSent: myApprovedSent,
-                                      onFollow: followStudent,
-                                      onCancelPending: cancelPendingRequest,
-                                      onUnfollow: unfollowUser,
-                                      refreshParent: () => setState(() {}),
-                                    ),
-                                  ),
-                          ),
-
-                          const SizedBox(height: 12),
                         ],
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+            // ),
           ),
-        ),
+          _movableFabMenu(),
+        ],
       ),
       bottomNavigationBar: const AppBottomNav(currentIndex: 0),
     );
@@ -1781,14 +2012,105 @@ class EventImageSlider extends StatefulWidget {
 
 class _EventImageSliderState extends State<EventImageSlider> {
   int currentPage = 0;
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _openFullImageViewer(int initialIndex) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.95),
+      builder: (_) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.zero,
+          child: Stack(
+            children: [
+              StatefulBuilder(
+                builder: (context, setDialogState) {
+                  final PageController dialogController = PageController(
+                    initialPage: initialIndex,
+                  );
+
+                  return PageView.builder(
+                    controller: dialogController,
+                    itemCount: widget.images.length,
+                    onPageChanged: (index) {
+                      setDialogState(() {
+                        currentPage = index;
+                      });
+                    },
+                    itemBuilder: (context, index) {
+                      return GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: InteractiveViewer(
+                          minScale: 0.8,
+                          maxScale: 4.0,
+                          child: Center(
+                            child: Image.network(
+                              widget.images[index],
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.broken_image,
+                                color: Colors.white54,
+                                size: 60,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+
+              Positioned(
+                top: 40,
+                right: 20,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.images.isEmpty) {
+      return Container(
+        height: 200,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white10,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: Icon(Icons.image_not_supported, color: Colors.white54),
+        ),
+      );
+    }
+
     return Column(
       children: [
         SizedBox(
           height: 200,
           child: PageView.builder(
+            controller: _pageController,
             itemCount: widget.images.length,
             onPageChanged: (index) {
               setState(() {
@@ -1796,12 +2118,24 @@ class _EventImageSliderState extends State<EventImageSlider> {
               });
             },
             itemBuilder: (context, index) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  widget.images[index],
-                  fit: BoxFit.cover,
-                  width: double.infinity,
+              return GestureDetector(
+                onTap: () => _openFullImageViewer(index),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    widget.images[index],
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: Colors.white10,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.broken_image,
+                        color: Colors.white54,
+                        size: 40,
+                      ),
+                    ),
+                  ),
                 ),
               );
             },
@@ -1810,7 +2144,6 @@ class _EventImageSliderState extends State<EventImageSlider> {
 
         const SizedBox(height: 8),
 
-        // 🔵 Dots Indicator
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(

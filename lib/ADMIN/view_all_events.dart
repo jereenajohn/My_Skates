@@ -24,6 +24,10 @@ class _EventsState extends State<Events> {
   bool loadingClub = true;
   bool loadingEvents = true;
 
+  final TextEditingController searchController = TextEditingController();
+  String searchQuery = "";
+  bool isSearchOpen = false;
+
   String buildImageUrl(String? path) {
     if (path == null || path.isEmpty) return "";
     return "$api$path";
@@ -33,6 +37,30 @@ class _EventsState extends State<Events> {
   void initState() {
     super.initState();
     fetchClubEvents();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  List<dynamic> get filteredEvents {
+    if (searchQuery.trim().isEmpty) return clubEvents;
+
+    return clubEvents.where((event) {
+      final title = (event["title"] ?? "").toString().toLowerCase();
+      final description = (event["description"] ?? "").toString().toLowerCase();
+      final note = (event["note"] ?? "").toString().toLowerCase();
+      final clubName = (event["club_name"] ?? "").toString().toLowerCase();
+
+      final q = searchQuery.toLowerCase();
+
+      return title.contains(q) ||
+          description.contains(q) ||
+          note.contains(q) ||
+          clubName.contains(q);
+    }).toList();
   }
 
   Future<String?> getToken() async {
@@ -222,6 +250,164 @@ class _EventsState extends State<Events> {
         loadingEvents = false;
       });
     }
+  }
+
+  Widget _buildPremiumTopSearch() {
+    return AnimatedCrossFade(
+      duration: const Duration(milliseconds: 280),
+      crossFadeState: isSearchOpen
+          ? CrossFadeState.showFirst
+          : CrossFadeState.showSecond,
+      firstChild: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              height: 52,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                color: Colors.white.withOpacity(0.08),
+                border: Border.all(color: Colors.white.withOpacity(0.14)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.22),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.search_rounded,
+                    color: Colors.white70,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: searchController,
+                      autofocus: true,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      cursorColor: Colors.tealAccent,
+                      onChanged: (value) {
+                        setState(() {
+                          searchQuery = value;
+                        });
+                      },
+                      decoration: const InputDecoration(
+                        hintText: "Search events...",
+                        hintStyle: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 14,
+                        ),
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  ),
+                  if (searchQuery.isNotEmpty)
+                    GestureDetector(
+                      onTap: () {
+                        searchController.clear();
+                        setState(() {
+                          searchQuery = "";
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.08),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white70,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      secondChild: const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildAnimatedSearch() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            width: isSearchOpen ? MediaQuery.of(context).size.width * 0.72 : 48,
+            height: 48,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              color: Colors.white.withOpacity(0.08),
+              border: Border.all(color: Colors.white.withOpacity(0.14)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.search_rounded, color: Colors.white),
+                  onPressed: () {
+                    setState(() {
+                      isSearchOpen = true;
+                    });
+                  },
+                ),
+                if (isSearchOpen)
+                  Expanded(
+                    child: TextField(
+                      controller: searchController,
+                      autofocus: true,
+                      style: const TextStyle(color: Colors.white),
+                      cursorColor: Colors.tealAccent,
+                      onChanged: (value) {
+                        setState(() {
+                          searchQuery = value;
+                        });
+                      },
+                      decoration: const InputDecoration(
+                        hintText: "Search events...",
+                        hintStyle: TextStyle(color: Colors.white54),
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  ),
+                if (isSearchOpen)
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white70),
+                    onPressed: () {
+                      searchController.clear();
+                      setState(() {
+                        searchQuery = "";
+                        isSearchOpen = false;
+                      });
+                    },
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _openUpdateEventDialog(Map<String, dynamic> event) {
@@ -676,7 +862,6 @@ class _EventsState extends State<Events> {
       child: Scaffold(
         extendBodyBehindAppBar: true,
         backgroundColor: Colors.transparent,
-
         appBar: AppBar(
           elevation: 0,
           backgroundColor: Colors.transparent,
@@ -685,22 +870,40 @@ class _EventsState extends State<Events> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () {
-              Navigator.push(
+              Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (_) => const CoachHomepage()),
               );
             },
           ),
-
           title: Text(
             clubDetails?["club_name"] ?? "My Club Events",
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
           ),
-
+          actions: [
+            IconButton(
+              icon: Icon(
+                isSearchOpen ? Icons.close : Icons.search_rounded,
+                color: Colors.white,
+              ),
+              onPressed: () {
+                setState(() {
+                  if (isSearchOpen) {
+                    searchController.clear();
+                    searchQuery = "";
+                  }
+                  isSearchOpen = !isSearchOpen;
+                });
+              },
+            ),
+            const SizedBox(width: 6),
+          ],
           flexibleSpace: ClipRRect(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
@@ -729,50 +932,64 @@ class _EventsState extends State<Events> {
                 ),
               ),
             ),
-
             Padding(
               padding: EdgeInsets.only(
                 top: kToolbarHeight + MediaQuery.of(context).padding.top,
               ),
-              child: (loadingEvents)
+              child: loadingEvents
                   ? const Center(
                       child: CircularProgressIndicator(
                         color: Colors.tealAccent,
                       ),
                     )
-                  : RefreshIndicator(
-                      onRefresh: fetchClubEvents,
-                      color: Colors.tealAccent,
-                      backgroundColor: Colors.black,
-                      child: clubEvents.isEmpty
-                          ? SingleChildScrollView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              child: SizedBox(
-                                height:
-                                    MediaQuery.of(context).size.height * 0.8,
-                                child: const Center(
-                                  child: Text(
-                                    "No events found",
-                                    style: TextStyle(color: Colors.white70),
-                                  ),
-                                ),
-                              ),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              itemCount: clubEvents.length,
-                              itemBuilder: (context, index) {
-                                final event = Map<String, dynamic>.from(
-                                  clubEvents[index],
-                                );
+                  : Column(
+                      children: [
+                        _buildPremiumTopSearch(),
+                        Expanded(
+                          child: RefreshIndicator(
+                            onRefresh: fetchClubEvents,
+                            color: Colors.tealAccent,
+                            backgroundColor: Colors.black,
+                            child: filteredEvents.isEmpty
+                                ? SingleChildScrollView(
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    child: SizedBox(
+                                      height:
+                                          MediaQuery.of(context).size.height *
+                                          0.72,
+                                      child: Center(
+                                        child: Text(
+                                          searchQuery.trim().isEmpty
+                                              ? "No events found"
+                                              : "No matching events found",
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    itemCount: filteredEvents.length,
+                                    itemBuilder: (context, index) {
+                                      final event = Map<String, dynamic>.from(
+                                        filteredEvents[index],
+                                      );
 
-                                return buildEventCard(
-                                  event,
-                                  buildImageUrl(event["club_image"]),
-                                  event["club_name"] ?? "",
-                                );
-                              },
-                            ),
+                                      return buildEventCard(
+                                        event,
+                                        buildImageUrl(event["club_image"]),
+                                        event["club_name"] ?? "",
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
             ),
           ],
@@ -969,10 +1186,127 @@ class EventImageSlider extends StatefulWidget {
 
 class _EventImageSliderState extends State<EventImageSlider> {
   int currentPage = 0;
-  final PageController controller = PageController();
+  late final PageController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = PageController();
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  void _openImageViewer(int initialIndex) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.95),
+      builder: (_) {
+        int dialogPage = initialIndex;
+        final PageController dialogController = PageController(
+          initialPage: initialIndex,
+        );
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: EdgeInsets.zero,
+              child: Stack(
+                children: [
+                  PageView.builder(
+                    controller: dialogController,
+                    itemCount: widget.images.length,
+                    onPageChanged: (index) {
+                      setDialogState(() {
+                        dialogPage = index;
+                      });
+                    },
+                    itemBuilder: (context, index) {
+                      return GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: InteractiveViewer(
+                          minScale: 0.8,
+                          maxScale: 4.0,
+                          child: Center(
+                            child: Image.network(
+                              widget.images[index],
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.broken_image,
+                                color: Colors.white54,
+                                size: 60,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                  Positioned(
+                    top: 40,
+                    right: 20,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+
+                  if (widget.images.length > 1)
+                    Positioned(
+                      bottom: 30,
+                      left: 0,
+                      right: 0,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(widget.images.length, (index) {
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: dialogPage == index ? 10 : 7,
+                            height: dialogPage == index ? 10 : 7,
+                            decoration: BoxDecoration(
+                              color: dialogPage == index
+                                  ? Colors.tealAccent
+                                  : Colors.white38,
+                              shape: BoxShape.circle,
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.images.isEmpty) {
+      return Container(
+        height: 200,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white10,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: Icon(Icons.image_not_supported, color: Colors.white54),
+        ),
+      );
+    }
+
     return Column(
       children: [
         SizedBox(
@@ -989,51 +1323,47 @@ class _EventImageSliderState extends State<EventImageSlider> {
               final image = widget.images[index];
 
               return GestureDetector(
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) {
-                      return Dialog(
-                        backgroundColor: Colors.black,
-                        child: InteractiveViewer(
-                          child: Image.network(image, fit: BoxFit.contain),
-                        ),
-                      );
-                    },
-                  );
-                },
+                onTap: () => _openImageViewer(index),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Image.network(
                     image,
                     width: double.infinity,
                     fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: Colors.white10,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.broken_image,
+                        color: Colors.white54,
+                        size: 40,
+                      ),
+                    ),
                   ),
                 ),
               );
             },
           ),
         ),
-
         const SizedBox(height: 8),
-
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(widget.images.length, (index) {
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: currentPage == index ? 10 : 6,
-              height: currentPage == index ? 10 : 6,
-              decoration: BoxDecoration(
-                color: currentPage == index
-                    ? Colors.tealAccent
-                    : Colors.white38,
-                shape: BoxShape.circle,
-              ),
-            );
-          }),
-        ),
+        if (widget.images.length > 1)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(widget.images.length, (index) {
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: currentPage == index ? 10 : 6,
+                height: currentPage == index ? 10 : 6,
+                decoration: BoxDecoration(
+                  color: currentPage == index
+                      ? Colors.tealAccent
+                      : Colors.white38,
+                  shape: BoxShape.circle,
+                ),
+              );
+            }),
+          ),
       ],
     );
   }

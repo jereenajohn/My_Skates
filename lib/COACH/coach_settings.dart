@@ -71,17 +71,16 @@ class _CoachSettingsState extends State<CoachSettings> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.black,
 
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
-
+        scrolledUnderElevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-
         title: const Text(
           "Settings and activity",
           style: TextStyle(
@@ -90,38 +89,26 @@ class _CoachSettingsState extends State<CoachSettings> {
             fontWeight: FontWeight.w600,
           ),
         ),
-
         flexibleSpace: ClipRRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+            filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
                     const Color(0xFF001F1C).withOpacity(0.95),
-                    const Color(0xFF001F1C).withOpacity(0.65),
-                    Colors.black.withOpacity(0.55),
+                    const Color(0xFF001F1C).withOpacity(0.60),
+                    Colors.black.withOpacity(0.50),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-
-                color: Colors.black.withOpacity(0.25),
-
                 border: Border(
                   bottom: BorderSide(
-                    color: Colors.white.withOpacity(0.18),
+                    color: Colors.white.withOpacity(0.15),
                     width: 1,
                   ),
                 ),
-
-                // boxShadow: [
-                //   BoxShadow(
-                //     color: Colors.black.withOpacity(0.6),
-                //     blurRadius: 20,
-                //     offset: const Offset(0, 8),
-                //   ),
-                // ],
               ),
             ),
           ),
@@ -133,7 +120,7 @@ class _CoachSettingsState extends State<CoachSettings> {
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF001F1C), Colors.black],
+                colors: [Color(0xFF001A18), Color(0xFF000000)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -257,8 +244,8 @@ class _CoachSettingsState extends State<CoachSettings> {
                         icon: Icons.read_more,
                         text: "Product Review Approval",
                         onTap: () => pushWithSlide(
-                          ProductReviewApprovalPage(
-                            productId: 0,
+                          const ProductReviewApprovalPage(
+                            productId: null,
                             productName: "All Products",
                           ),
                         ),

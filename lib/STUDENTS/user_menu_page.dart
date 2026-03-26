@@ -1,12 +1,16 @@
 import 'dart:convert';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/view_all_events.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:my_skates/COACH/coach_timeline_page.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/student_list.dart';
 import 'package:my_skates/STUDENTS/student_training_page.dart';
+import 'package:my_skates/STUDENTS/user_followers_list.dart';
+import 'package:my_skates/STUDENTS/user_following.dart';
 import 'package:my_skates/STUDENTS/user_notification%20page.dart';
 import 'package:my_skates/STUDENTS/user_settings.dart';
 import 'package:my_skates/STUDENTS/user_timeline_page.dart';
@@ -39,7 +43,7 @@ class _UserMenuPageState extends State<UserMenuPage>
   List<Map<String, dynamic>> following = [];
   List<Map<String, dynamic>> followers = [];
   int get followersCount => followers.length;
-  int get followingCount => followers.length;
+  int get followingCount => following.length;
   bool loading = true;
   bool noData = false;
 
@@ -170,88 +174,87 @@ class _UserMenuPageState extends State<UserMenuPage>
     }
   }
 
-// Future<void> fetchcoachDetails() async {
-//   try {
-//     String? token = await getToken();
-//     int? userId = await getUserId();
+  // Future<void> fetchcoachDetails() async {
+  //   try {
+  //     String? token = await getToken();
+  //     int? userId = await getUserId();
 
-//     if (token == null || userId == null) return;
+  //     if (token == null || userId == null) return;
 
-//     final response = await http.get(
-//       Uri.parse("$api/api/myskates/profile/"),
-//       headers: {"Authorization": "Bearer $token"},
-//     );
+  //     final response = await http.get(
+  //       Uri.parse("$api/api/myskates/profile/"),
+  //       headers: {"Authorization": "Bearer $token"},
+  //     );
 
-//     print("PROFILE API STATUS = ${response.statusCode}");
-//     print("PROFILE API BODY = ${response.body}");
+  //     print("PROFILE API STATUS = ${response.statusCode}");
+  //     print("PROFILE API BODY = ${response.body}");
 
-//     final data = jsonDecode(response.body);
+  //     final data = jsonDecode(response.body);
 
-//     if (data is List) {
-//       // Find the logged-in user
-//       final user = data.firstWhere(
-//         (item) => item["id"] == userId,
-//         orElse: () => null,
-//       );
+  //     if (data is List) {
+  //       // Find the logged-in user
+  //       final user = data.firstWhere(
+  //         (item) => item["id"] == userId,
+  //         orElse: () => null,
+  //       );
 
-//       if (user == null) {
-//         print("Logged-in user not found in profile list");
-//         return;
-//       }
+  //       if (user == null) {
+  //         print("Logged-in user not found in profile list");
+  //         return;
+  //       }
 
-//       setState(() {
-//         final String firstName = (user["first_name"] ?? "").toString().trim();
-//         final String lastName = (user["last_name"] ?? "").toString().trim();
-//         final String userName = (user["u_name"] ?? "").toString().trim(); // Get username
-//         final String userType = (user["user_type"] ?? "Student").toString().trim(); // Get user type
+  //       setState(() {
+  //         final String firstName = (user["first_name"] ?? "").toString().trim();
+  //         final String lastName = (user["last_name"] ?? "").toString().trim();
+  //         final String userName = (user["u_name"] ?? "").toString().trim(); // Get username
+  //         final String userType = (user["user_type"] ?? "Student").toString().trim(); // Get user type
 
-//         if (firstName.isNotEmpty || lastName.isNotEmpty) {
-//           studentName = "$firstName $lastName".trim();
-//         } else if (userName.isNotEmpty) {
-//           studentName = userName;
-//         } else {
-//           studentName = "Coach";
-//         }
-        
-      
-//         studentRole = userName;
-        
-//         studentImage = user["profile"];
-//         isLoading = false;
-//       });
+  //         if (firstName.isNotEmpty || lastName.isNotEmpty) {
+  //           studentName = "$firstName $lastName".trim();
+  //         } else if (userName.isNotEmpty) {
+  //           studentName = userName;
+  //         } else {
+  //           studentName = "Coach";
+  //         }
 
-//       print("Loaded PROFILE for user ID $userId");
-//       print("Username set to: $studentRole"); 
-//     } else {
-//       print("PROFILE API did not return a list.");
-//     }
-//   } catch (e) {
-//     print("Error fetching student: $e");
-//   }
-// }
+  //         studentRole = userName;
 
-// In UserMenuPage.dart - replace fetchcoachDetails() with this
-Future<void> fetchStudentDetails() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    
-    setState(() {
-      studentName = prefs.getString("name") ?? "User";
-      studentRole = prefs.getString("u_name") ?? "";  // This gets the username
-      studentImage = prefs.getString("profile");
-      isLoading = false;
+  //         studentImage = user["profile"];
+  //         isLoading = false;
+  //       });
 
-      print("USERNAME FROM PREFS: '$studentRole'");
-      print("NAME FROM PREFS: '$studentName'");
-      print("USER ID FROM PREFS: ${prefs.getInt("user_id")}");
-    });
-  } catch (e) {
-    print("Error loading from SharedPreferences: $e");
-    setState(() {
-      isLoading = false;
-    });
+  //       print("Loaded PROFILE for user ID $userId");
+  //       print("Username set to: $studentRole");
+  //     } else {
+  //       print("PROFILE API did not return a list.");
+  //     }
+  //   } catch (e) {
+  //     print("Error fetching student: $e");
+  //   }
+  // }
+
+  // In UserMenuPage.dart - replace fetchcoachDetails() with this
+  Future<void> fetchStudentDetails() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      setState(() {
+        studentName = prefs.getString("name") ?? "User";
+        studentRole = prefs.getString("u_name") ?? ""; // This gets the username
+        studentImage = prefs.getString("profile");
+        isLoading = false;
+
+        print("USERNAME FROM PREFS: '$studentRole'");
+        print("NAME FROM PREFS: '$studentName'");
+        print("USER ID FROM PREFS: ${prefs.getInt("user_id")}");
+      });
+    } catch (e) {
+      print("Error loading from SharedPreferences: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
-}
 
   // ───────────────── BUILD ─────────────────
   @override
@@ -279,8 +282,8 @@ Future<void> fetchStudentDetails() async {
                   children: [
                     _coachHeader(),
                     const SizedBox(height: 18),
-                    _quickActionCard(),
-                    const SizedBox(height: 20),
+                    // _quickActionCard(),
+                    // const SizedBox(height: 20),
                     _menuGrid(),
                     const SizedBox(height: 24),
                     _reportCard(),
@@ -331,6 +334,87 @@ Future<void> fetchStudentDetails() async {
       ),
     );
   }
+
+void _openProfileImageViewer(String imageUrl) {
+  showGeneralDialog(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: "Profile Image",
+    barrierColor: Colors.black.withOpacity(0.2),
+    transitionDuration: const Duration(milliseconds: 250),
+    pageBuilder: (context, animation, secondaryAnimation) {
+      return GestureDetector(
+        onTap: () => Navigator.pop(context),
+        child: Material(
+          color: Colors.transparent,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    color: Colors.black.withOpacity(0.35),
+                  ),
+                ),
+              ),
+              Center(
+                child: GestureDetector(
+                  onTap: () {},
+                  child: Hero(
+                    tag: "profile_image_view",
+                    child: Container(
+                      width: 300,
+                      height: 300,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        image: DecorationImage(
+                          image: NetworkImage(imageUrl),
+                          fit: BoxFit.cover,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.25),
+                            blurRadius: 25,
+                            spreadRadius: 3,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 45,
+                right: 20,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.35),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+    transitionBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(
+        opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+        child: child,
+      );
+    },
+  );
+}
 
   // ───────────────── SUPPORT CARD ─────────────────
   Widget _supportCard() {
@@ -388,7 +472,7 @@ Future<void> fetchStudentDetails() async {
           onPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const UserSettings()),
+              slideRightToLeftRoute(const UserSettings()),
             );
           },
         ),
@@ -397,194 +481,207 @@ Future<void> fetchStudentDetails() async {
   }
 
   // ───────────────── HEADER ─────────────────
-// ───────────────── HEADER ─────────────────
-Widget _coachHeader() {
-  return _pressableCard(
-    onTap: () async {
-      int? userId = await getUserId();
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => UserTimelinePage()),
-      );
-    },
-    child: Padding(
-      padding: const EdgeInsets.only(left: 8),
-      child: Row(
-        children: [
-          // PROFILE IMAGE
-          CircleAvatar(
-            radius: 28,
-            backgroundImage:
-                (studentImage != null &&
+  Widget _coachHeader() {
+    return _pressableCard(
+      onTap: () async {
+        int? userId = await getUserId();
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => UserTimelinePage()),
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(left: 8),
+        child: Row(
+          children: [
+            // PROFILE IMAGE
+            GestureDetector(
+              onTap: () {
+                if (studentImage != null &&
                     studentImage!.isNotEmpty &&
-                    studentImage != "/media/profile_images/none.jpeg")
-                ? NetworkImage("$api$studentImage")
-                : const AssetImage("lib/assets/img.jpg") as ImageProvider,
-          ),
-
-          const SizedBox(width: 14),
-
-          // RIGHT CONTENT
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // NAME + USERNAME IN COLUMN (LIKE HOMEPAGE)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isLoading
-                          ? "Loading..."
-                          : (studentName.isNotEmpty
-                                ? studentName
-                                : "Athlete"),
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      studentRole.isNotEmpty
-                          ? "@$studentRole"  
-                          : "@athlete",
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                    studentImage != "/media/profile_images/none.jpeg") {
+                  _openProfileImageViewer("$api$studentImage");
+                }
+              },
+              child: Hero(
+                tag: "profile_image_view",
+                child: CircleAvatar(
+                  radius: 28,
+                  backgroundImage:
+                      (studentImage != null &&
+                          studentImage!.isNotEmpty &&
+                          studentImage != "/media/profile_images/none.jpeg")
+                      ? NetworkImage("$api$studentImage")
+                      : const AssetImage("lib/assets/img.jpg") as ImageProvider,
                 ),
-
-                const SizedBox(height: 10),
-
-                // FOLLOWERS / FOLLOWING
-                Column(
-                  children: [
-                    // COUNTS ROW
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,  
-                      children: [
-                        _countText(followersCount),
-                        const SizedBox(width: 48),
-                        _countText(followingCount),
-                      ],
-                    ),
-
-                    const SizedBox(height: 2),
-
-                    // LABELS ROW
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,  // Changed to start alignment
-                      children: [
-                        _labelText("Followers"),
-                        const SizedBox(width: 48),
-                        _labelText("Following"),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
-          ),
+
+            const SizedBox(width: 14),
+
+            // RIGHT CONTENT
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // NAME + USERNAME IN COLUMN (LIKE HOMEPAGE)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isLoading
+                            ? "Loading..."
+                            : (studentName.isNotEmpty
+                                  ? studentName
+                                  : "Athlete"),
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        studentRole.isNotEmpty ? "@$studentRole" : "@athlete",
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // FOLLOWERS / FOLLOWING
+                 Row(
+  children: [
+    GestureDetector(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => UserFollowersList()));
+      },
+      child: Column(
+        children: [
+          _countText(followersCount),
+          const SizedBox(height: 2),
+          _labelText("Followers"),
         ],
+      ),
+    ),
+    const SizedBox(width: 28),
+    GestureDetector(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => UserFollowing()));
+      },
+      child: Column(
+        children: [
+          _countText(followingCount),
+          const SizedBox(height: 2),
+          _labelText("Following"),
+        ],
+      ),
+    ),
+  ],
+),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+Widget _countText(int count) {
+  return SizedBox(
+    width: 70,
+    child: Text(
+      count.toString(),
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+        fontSize: 14,
       ),
     ),
   );
 }
 
-  Widget _countText(int count) {
-    return SizedBox(
-      width: 60,
-      child: Text(
-        count.toString(),
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
-        ),
+Widget _labelText(String label) {
+  return SizedBox(
+    width: 70,
+    child: Text(
+      label,
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        color: Colors.white54,
+        fontSize: 11,
       ),
-    );
-  }
-
-  Widget _labelText(String label) {
-    return SizedBox(
-      width: 60,
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: const TextStyle(color: Colors.white54, fontSize: 11),
-      ),
-    );
-  }
-
-  // ───────────────── QUICK ACTION ─────────────────
-  Widget _quickActionCard() {
-    return _pressableCard(
-      child: Row(
-        children: const [
-          Icon(Icons.event_available, color: accentColor, size: 28),
-          SizedBox(width: 12),
-          Text(
-            "Create Training / Event",
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ───────────────── SPORTY GRID ─────────────────
-// ───────────────── SPORTY GRID ─────────────────
-Widget _menuGrid() {
-  return Column(
-    children: [
-      _doubleRow(
-        _SportCard(
-          title: "Athletes",
-          subtitle: "Active Skaters",
-          icon: Icons.groups,
-        ),
-        _SportCard(
-          title: "Performance",
-          subtitle: "Speed & Rankings",
-          icon: Icons.trending_up,
-        ),
-      ),
-      const SizedBox(height: 14),
-      _doubleRow(
-        _SportCard(
-          title: "Training Plans",
-          subtitle: "Schedules & Drills",
-          icon: Icons.schedule,
-          onTap:(){  
-            Navigator.push(
-              context, 
-              MaterialPageRoute(
-                builder: (_) => StudentTrainingPage()
-              )
-            );
-          }
-        ),
-        _SportCard(
-          title: "Events",
-          subtitle: "Competitions",
-          icon: Icons.event,
-        ),
-      ),
-      const SizedBox(height: 14),
-      // _statGrid(),
-    ],
+    ),
   );
 }
+
+  // ───────────────── QUICK ACTION ─────────────────
+  // Widget _quickActionCard() {
+  //   return _pressableCard(
+  //     child: Row(
+  //       children: const [
+  //         Icon(Icons.event_available, color: accentColor, size: 28),
+  //         SizedBox(width: 12),
+  //         Text(
+  //           "Create Training / Event",
+  //           style: TextStyle(
+  //             fontSize: 15,
+  //             fontWeight: FontWeight.w600,
+  //             color: Colors.white,
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
+  // ───────────────── SPORTY GRID ─────────────────
+  Widget _menuGrid() {
+    return Column(
+      children: [
+        _doubleRow(
+          _SportCard(
+            title: "Athletes",
+            subtitle: "Active Skaters",
+            icon: Icons.groups,
+          ),
+          _SportCard(
+            title: "Performance",
+            subtitle: "Speed & Rankings",
+            icon: Icons.trending_up,
+          ),
+        ),
+        const SizedBox(height: 14),
+        _doubleRow(
+          _SportCard(
+            title: "Training Plans",
+            subtitle: "Schedules & Drills",
+            icon: Icons.schedule,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => StudentTrainingPage()),
+              );
+            },
+          ),
+          _SportCard(
+            title: "Events",
+            subtitle: "Competitions",
+            icon: Icons.event,
+          ),
+        ),
+        const SizedBox(height: 14),
+        // _statGrid(),
+      ],
+    );
+  }
 
   Widget _doubleRow(Widget left, Widget right) {
     return Row(
@@ -729,14 +826,14 @@ class _SportCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.icon,
-    this.onTap,  
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(18),
-      onTap: onTap,  
+      onTap: onTap,
       child: Container(
         height: 120,
         padding: const EdgeInsets.all(16),

@@ -715,7 +715,7 @@ class _WishlistState extends State<Wishlist> {
           // OUTLINED BUTTON
           GestureDetector(
             onTap: () {
-              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => UserApprovedProducts()));
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 13),

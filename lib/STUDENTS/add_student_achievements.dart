@@ -160,6 +160,7 @@ class _AddstudentAchievementsState extends State<AddstudentAchievements> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(

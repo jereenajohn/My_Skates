@@ -33,16 +33,16 @@ class ProductReviewData {
 
   factory ProductReviewData.fromJson(Map<String, dynamic> json) {
     return ProductReviewData(
-      id: json['id'] ?? 0,
+      id: json['rating_id'] ?? 0,
       rating: json['rating'] ?? 0,
       review: json['review'] ?? '',
-      userName: json['user_name'] ?? 'User ${json['user']}',
-      userImage: json['user_image'],
+      userName: json['rated_user_name'] ?? 'User',
+      userImage: json['rated_user_image'],
       createdAt: json['created_at'] ?? '',
-      userId: json['user'] ?? 0,
-      productId: json['product'] ?? 0,
+      userId: json['rated_user_id'] ?? 0,
+      productId: json['product_id'] ?? 0,
       productName: json['product_name'] ?? 'Product',
-      variantId: json['variant'] ?? 0,
+      variantId: json['variant_id'] ?? 0,
       variantLabel: json['variant_label'] ?? '',
     );
   }
@@ -86,26 +86,28 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
 
-      if (token == null) return;
+      if (token == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
 
       final response = await http.get(
-        Uri.parse("$api/api/myskates/products/${widget.productId}/ratings/"),
+        Uri.parse("$api/api/myskates/product/ratings/own/"),
         headers: {"Authorization": "Bearer $token"},
       );
 
-      print("Product reviews response: ${response.body}");
-      print("resssssssssss ${response.body}");
+      print("All product reviews response: ${response.body}");
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
 
-        List<dynamic> reviews;
-        if (jsonResponse is List) {
-          reviews = jsonResponse;
-        } else if (jsonResponse is Map && jsonResponse['data'] != null) {
+        List<dynamic> reviews = [];
+        if (jsonResponse is Map && jsonResponse['data'] != null) {
           reviews = jsonResponse['data'] as List;
-        } else {
-          reviews = [];
+        } else if (jsonResponse is List) {
+          reviews = jsonResponse;
         }
 
         List<ProductReviewData> pending = [];
@@ -113,59 +115,19 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
         List<ProductReviewData> rejected = [];
 
         for (var review in reviews) {
-          String userName = '';
-          String? firstName = review['user_first_name'] as String?;
-          String? lastName = review['user_last_name'] as String?;
+          final reviewData = ProductReviewData.fromJson(review);
 
-          if (firstName != null &&
-              firstName.isNotEmpty &&
-              lastName != null &&
-              lastName.isNotEmpty) {
-            userName = '$firstName $lastName';
-          } else if (firstName != null && firstName.isNotEmpty) {
-            userName = firstName;
-          } else if (lastName != null && lastName.isNotEmpty) {
-            userName = lastName;
-          } else {
-            String? username = review['username'] as String?;
-            userName = username ?? 'User ${review['user']}';
-          }
-
-          String? userImage = review['user_profile'] as String?;
-
-          if (userImage != null && userImage.isNotEmpty) {
-            if (!userImage.startsWith('http')) {
-              userImage = userImage.startsWith('/')
-                  ? "$api$userImage"
-                  : "$api/$userImage";
-            }
-          }
-
-          final reviewData = ProductReviewData(
-            id: review['id'] ?? 0,
-            rating: review['rating'] ?? 0,
-            review: review['review'] ?? '',
-            userName: userName,
-            userImage: userImage,
-            createdAt: review['created_at'] ?? '',
-            userId: review['user'] ?? 0,
-            productId: review['product'] ?? widget.productId,
-            productName: widget.productName,
-            variantId: review['variant'] ?? 0,
-            variantLabel: review['variant_label'] ?? '',
-          );
-
-          switch (review['approval_status'] ?? 'pending') {
+          switch ((review['approval_status'] ?? 'pending')
+              .toString()
+              .toLowerCase()) {
             case 'approved':
               approved.add(reviewData);
               break;
             case 'rejected':
               rejected.add(reviewData);
               break;
-            case 'pending':
             default:
               pending.add(reviewData);
-              break;
           }
         }
 
@@ -181,6 +143,7 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
         );
       } else {
         print("Error response: ${response.statusCode}");
+        print("Error body: ${response.body}");
         setState(() {
           _isLoading = false;
         });
@@ -388,7 +351,7 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
               ),
             ),
             Text(
-              widget.productName!,
+              "All Your Product Reviews",
               style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
           ],
@@ -597,6 +560,18 @@ class _ProductReviewApprovalPageState extends State<ProductReviewApprovalPage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    const SizedBox(height: 4),
+
+                    if ((review.productName ?? '').isNotEmpty)
+                      Text(
+                        review.productName!,
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+
                     const SizedBox(height: 4),
                     Row(
                       children: [

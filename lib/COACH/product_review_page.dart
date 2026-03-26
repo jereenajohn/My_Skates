@@ -45,7 +45,8 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
-      final userId = prefs.getInt('user_id');
+      // final userId = prefs.getInt('user_id');
+      final userId = prefs.getInt('user_id') ?? prefs.getInt('id');
 
       if (token == null) return;
 
@@ -78,40 +79,45 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
         print('Current variant ID: ${widget.variantId}');
 
         if (userId != null) {
-          final userReview = reviews.firstWhere((review) {
-            int reviewUserId;
-            if (review is Map) {
-              if (review['user'] is Map) {
-                reviewUserId = review['user']['id'] ?? 0;
-              } else {
-                reviewUserId = review['user'] ?? 0;
-              }
+          // final userReview = reviews.firstWhere((review) {
+          //   int reviewUserId;
+          //   if (review is Map) {
+          //     if (review['user'] is Map) {
+          //       reviewUserId = review['user']['id'] ?? 0;
+          //     } else {
+          //       reviewUserId = review['user'] ?? 0;
+          //     }
 
-              int reviewVariantId = review['variant'] ?? 0;
+          //     int reviewVariantId = review['variant'] ?? 0;
 
-              
-              print(
-                "Review Variant: $reviewVariantId  Widget Variant: ${widget.variantId}",
-              );
+          //     print(
+          //       "Review Variant: $reviewVariantId  Widget Variant: ${widget.variantId}",
+          //     );
 
-              return reviewUserId == userId &&
-                  reviewVariantId == widget.variantId;
-            }
-            return false;
-          }, orElse: () => null);
+          //     return reviewUserId == userId &&
+          //         reviewVariantId == widget.variantId;
+          //   }
+          //   return false;
+          // }, orElse: () => null);
 
-          if (userReview != null) {
+          final userReview = reviews.cast<Map>().firstWhere((review) {
+            final int reviewUserId = review['user'] ?? 0;
+            final int reviewProductId = review['product'] ?? 0;
+
+            return reviewUserId == userId &&
+                reviewProductId == widget.productId;
+          }, orElse: () => {});
+
+          if (userReview.isNotEmpty) {
             setState(() {
               _hasExistingReview = true;
-              _existingReview = userReview;
+              _existingReview = Map<String, dynamic>.from(userReview);
 
               _selectedRating = (userReview['rating'] ?? 0).toDouble();
               _reviewController.text = userReview['review'] ?? '';
             });
-
-            print('Found existing review: $userReview');
           } else {
-            print('No existing review found for this user and variant');
+            print('No existing review found for this user and product');
           }
         }
       } else {
@@ -201,8 +207,13 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
           ),
         );
 
-        await Future.delayed(const Duration(seconds: 1));
-        if (mounted) Navigator.pop(context, true);
+        await _checkExistingReview();
+
+        setState(() {
+          _isLoading = false;
+          _isSubmitted = true;
+          _hasExistingReview = true;
+        });
       } else {
         setState(() {
           _isLoading = false;
@@ -252,6 +263,239 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
     Navigator.pop(context, _isSubmitted || _hasExistingReview);
   }
 
+  int? get _ratingId {
+    if (_existingReview == null) return null;
+    return _existingReview!["id"];
+  }
+
+  Future<void> _updateMyReview({
+    required double rating,
+    required String review,
+  }) async {
+    final id = _ratingId;
+    if (id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Review id not found"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+    if (token == null) return;
+
+    final res = await http.put(
+      Uri.parse("$api/api/myskates/products/rating/$id/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "rating": rating.toInt(),
+        "review": review,
+        "variant": widget.variantId,
+      }),
+    );
+
+    print("UPDATE STATUS: ${res.statusCode}");
+    print("UPDATE RESPONSE: ${res.body}");
+
+    if (res.statusCode == 200) {
+      setState(() {
+        _selectedRating = rating;
+        _reviewController.text = review;
+        _hasExistingReview = true;
+        _isSubmitted = true;
+        _existingReview = {
+          ...?_existingReview,
+          "rating": rating.toInt(),
+          "review": review,
+          "variant": widget.variantId,
+        };
+      });
+
+      await _checkExistingReview();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Review updated successfully"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Update failed: ${res.body}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteMyReview() async {
+    final id = _ratingId;
+    if (id == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+    if (token == null) return;
+
+    final res = await http.delete(
+      Uri.parse("$api/api/myskates/products/rating/$id/"),
+      headers: {"Authorization": "Bearer $token"},
+    );
+
+    if (res.statusCode == 204 || res.statusCode == 200) {
+      setState(() {
+        _hasExistingReview = false;
+        _existingReview = null;
+        _isSubmitted = false;
+        _selectedRating = 0;
+        _reviewController.clear();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Review deleted"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Delete failed: ${res.body}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showEditReviewDialog() {
+    double tempRating = _selectedRating;
+    final tempCtrl = TextEditingController(text: _reviewController.text);
+
+    showDialog(
+      context: context,
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF111111),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              title: const Text(
+                "Edit Review",
+                style: TextStyle(color: Colors.white),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (i) {
+                      return IconButton(
+                        onPressed: () {
+                          setStateDialog(() {
+                            tempRating = (i + 1).toDouble();
+                          });
+                        },
+                        icon: Icon(
+                          i < tempRating ? Icons.star : Icons.star_border,
+                          color: Colors.amber,
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: tempCtrl,
+                    maxLines: 4,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: "Update your review...",
+                      hintStyle: const TextStyle(color: Colors.white38),
+                      filled: true,
+                      fillColor: Colors.white10,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text(
+                    "Cancel",
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.tealAccent,
+                  ),
+                  onPressed: () async {
+                    if (tempRating == 0 || tempCtrl.text.trim().isEmpty) return;
+                    Navigator.pop(ctx);
+                    await _updateMyReview(
+                      rating: tempRating,
+                      review: tempCtrl.text.trim(),
+                    );
+                  },
+                  child: const Text(
+                    "Save",
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteReview() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF111111),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text(
+          "Delete Review?",
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          "Are you sure you want to delete your review?",
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(color: Colors.white70),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () async {
+              Navigator.pop(context);
+              await _deleteMyReview();
+            },
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     bool disableInput = _isSubmitted || _hasExistingReview || _isLoading;
@@ -269,6 +513,34 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
           _hasExistingReview ? 'Your Review' : 'Write a Review',
           style: const TextStyle(color: Colors.white, fontSize: 18),
         ),
+        actions: [
+          if (_hasExistingReview && _existingReview != null)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              color: const Color(0xFF1A1A1A),
+              onSelected: (value) {
+                if (value == "edit") {
+                  _showEditReviewDialog();
+                } else if (value == "delete") {
+                  _confirmDeleteReview();
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: "edit",
+                  child: Text("Edit", style: TextStyle(color: Colors.white)),
+                ),
+                PopupMenuItem(
+                  value: "delete",
+                  child: Text(
+                    "Delete",
+                    style: TextStyle(color: Colors.redAccent),
+                  ),
+                ),
+              ],
+            ),
+          const SizedBox(width: 6),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -325,15 +597,15 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            _hasExistingReview
-                                ? 'You cannot submit another review for this variant'
-                                : 'Your feedback helps us improve',
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
+                          // Text(
+                          //   _hasExistingReview
+                          //       ? 'You cannot submit another review for this variant'
+                          //       : 'Your feedback helps us improve',
+                          //   style: const TextStyle(
+                          //     color: Colors.white70,
+                          //     fontSize: 14,
+                          //   ),
+                          // ),
                         ],
                       ),
                     ),
@@ -474,47 +746,47 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
                           ),
                         ),
                 ),
-              )
-            else if (_hasExistingReview || _isSubmitted)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white10,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      _hasExistingReview
-                          ? Icons.info_outline
-                          : Icons.check_circle,
-                      color: _hasExistingReview ? Colors.orange : Colors.green,
-                      size: 48,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _hasExistingReview
-                          ? 'You have already reviewed this product'
-                          : 'Review submitted successfully',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _goBack,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.tealAccent,
-                        foregroundColor: Colors.black,
-                      ),
-                      child: const Text('Go Back'),
-                    ),
-                  ],
-                ),
               ),
+            // else if (_hasExistingReview || _isSubmitted)
+            //   Container(
+            //     width: double.infinity,
+            //     padding: const EdgeInsets.all(16),
+            //     decoration: BoxDecoration(
+            //       color: Colors.white10,
+            //       borderRadius: BorderRadius.circular(8),
+            //     ),
+            //     child: Column(
+            //       children: [
+            //         Icon(
+            //           _hasExistingReview
+            //               ? Icons.info_outline
+            //               : Icons.check_circle,
+            //           color: _hasExistingReview ? Colors.orange : Colors.green,
+            //           size: 48,
+            //         ),
+            //         const SizedBox(height: 8),
+            //         Text(
+            //           _hasExistingReview
+            //               ? 'You have already reviewed this product'
+            //               : 'Review submitted successfully',
+            //           style: const TextStyle(
+            //             color: Colors.white70,
+            //             fontSize: 14,
+            //           ),
+            //           textAlign: TextAlign.center,
+            //         ),
+            //         const SizedBox(height: 16),
+            //         ElevatedButton(
+            //           onPressed: _goBack,
+            //           style: ElevatedButton.styleFrom(
+            //             backgroundColor: Colors.tealAccent,
+            //             foregroundColor: Colors.black,
+            //           ),
+            //           child: const Text('Go Back'),
+            //         ),
+            //       ],
+            //     ),
+            //   ),
           ],
         ),
       ),
