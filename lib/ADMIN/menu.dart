@@ -9,6 +9,7 @@ import 'package:my_skates/ADMIN/admin_change_phone_number.dart';
 import 'package:my_skates/ADMIN/admin_orders_page.dart';
 import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:my_skates/COACH/add_club.dart';
+import 'package:my_skates/COACH/product_review_approval_page.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -57,8 +58,7 @@ class _MenuPageState extends State<MenuPage> {
         matchesSearch("Product Banners");
 
     final bool showUserSettings =
-        matchesSearch("Skaters Type") ||
-        matchesSearch("Change Phone Number");
+        matchesSearch("Skaters Type") || matchesSearch("Change Phone Number");
 
     final bool showSupport = matchesSearch("Chat Support Questions");
 
@@ -75,11 +75,7 @@ class _MenuPageState extends State<MenuPage> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Color(0xFF001F1D),
-              Color(0xFF003A36),
-              Colors.black,
-            ],
+            colors: [Color(0xFF001F1D), Color(0xFF003A36), Colors.black],
             begin: Alignment.topLeft,
             end: Alignment.bottomCenter,
           ),
@@ -140,6 +136,15 @@ class _MenuPageState extends State<MenuPage> {
                               icon: Icons.photo_library,
                               title: "Product Banners",
                               page: const AddproductBanner(),
+                            ),
+                          if (matchesSearch("Product Review Approval"))
+                            sectionTile(
+                              icon: Icons.shopping_bag,
+                              title: "Product Review Approval",
+                              page: const ProductReviewApprovalPage(
+                                productId: null,
+                                productName: "All Products",
+                              ),
                             ),
                         ]),
                         const SizedBox(height: 20),
@@ -282,10 +287,7 @@ class _MenuPageState extends State<MenuPage> {
         ),
         child: Icon(icon, color: Colors.white),
       ),
-      title: Text(
-        title,
-        style: const TextStyle(color: Colors.white),
-      ),
+      title: Text(title, style: const TextStyle(color: Colors.white)),
       trailing: const Icon(
         Icons.arrow_forward_ios,
         color: Colors.white38,
@@ -305,10 +307,7 @@ class _MenuPageState extends State<MenuPage> {
         ),
         child: const Icon(Icons.logout, color: Colors.white),
       ),
-      title: const Text(
-        "Logout",
-        style: TextStyle(color: Colors.white),
-      ),
+      title: const Text("Logout", style: TextStyle(color: Colors.white)),
       trailing: const Icon(
         Icons.arrow_forward_ios,
         color: Colors.white38,

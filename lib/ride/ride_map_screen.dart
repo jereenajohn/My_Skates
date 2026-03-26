@@ -136,6 +136,7 @@ class _RideMapScreenState extends State<RideMapScreen> {
         : const LatLng(9.9312, 76.2673);
 
     return Scaffold(
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
           GoogleMap(

@@ -1,12 +1,9 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:my_skates/ADMIN/Viewall_product_Review.dart';
 import 'package:my_skates/ADMIN/cart_view.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/wishlist.dart';
-import 'package:my_skates/COACH/product_review_approval_page.dart';
-import 'package:my_skates/COACH/product_review_page.dart';
 import 'package:my_skates/api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -92,8 +89,14 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
   final GlobalKey _variantImageKey = GlobalKey();
   final GlobalKey _cartIconKey = GlobalKey();
 
-  bool _isCoach = false;
-  bool _isAdmin = false;
+  // bool _isCoach = false;
+  // bool _isAdmin = false;
+
+  // int? _currentUserId;
+  // String _currentUserType = '';
+  // int? _productOwnerId;
+  // String _productOwnerType = '';
+  // bool _canApproveReviews = false;
 
   @override
   void initState() {
@@ -116,8 +119,6 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
     // Call API methods
     getproductDetails();
     fetchProductReviews();
-
-    _checkUserRole();
   }
 
   @override
@@ -209,8 +210,6 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
 
   void _animateCartIcon() {}
 
-  
-
   Future<void> fetchProductReviews() async {
     setState(() {
       reviewsLoading = true;
@@ -280,42 +279,44 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
     return allReviews.where((r) => r.approvalStatus == 'pending').length;
   }
 
-  Future<void> _checkUserRole() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final userType = prefs.getString('user_type') ?? '';
-      final isStaff = prefs.getBool('is_staff') ?? false;
-
-      final userId = prefs.getInt('id');
-
-      setState(() {
-        _isCoach = userType == 'coach' || isStaff;
-        _isAdmin = isStaff;
-      });
-
-      print(
-        'User role check - isCoach: $_isCoach, isAdmin: $_isAdmin, userType: $userType',
-      );
-    } catch (e) {
-      print('Error checking user role: $e');
-    }
-  }
-
-  bool _canManageReviews() {
-    return _isCoach || _isAdmin;
-  }
-
   Future<void> addToCart(int variantId) async {
     if (_isAnimating) return;
+
+    if (selectedVariant == null) {
+      _showSnackBar(
+        icon: Icons.info_outline,
+        color: Colors.orangeAccent,
+        background: const Color(0xFF2A230F),
+        message: "Please select a variant",
+      );
+      return;
+    }
+
+    final int stock =
+        int.tryParse(
+          (selectedVariant!["stock"] ?? selectedVariant!["quantity"] ?? "0")
+              .toString(),
+        ) ??
+        0;
+
+    if (stock <= 0) {
+      _showSnackBar(
+        icon: Icons.remove_shopping_cart_outlined,
+        color: Colors.redAccent,
+        background: const Color(0xFF2A0F0F),
+        message: "Selected variant is out of stock",
+      );
+      return;
+    }
 
     RenderBox? renderBox =
         _variantImageKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) {
       debugPrint("⚠️ Variant image key not founddd");
-
       await _callAddToCartAPI(variantId);
       return;
     }
+
     Offset position = renderBox.localToGlobal(Offset.zero);
 
     String imageUrl = selectedVariant?["images"]?.isNotEmpty == true
@@ -370,13 +371,6 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
       _animationController.stop();
       _removeOverlay();
       debugPrint("Add to cart error: $e");
-
-      // _showSnackBar(
-      //   icon: Icons.error_outline,
-      //   color: Colors.redAccent,
-      //   background: const Color(0xFF2A0F0F),
-      //   // message: "Something went wrong. Please try again.",
-      // );
     }
   }
 
@@ -678,6 +672,91 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
     );
   }
 
+  void _openImageViewer(String imageUrl) {
+    final TransformationController transformationController =
+        TransformationController();
+
+    bool isZoomed = false;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.95),
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: EdgeInsets.zero,
+              child: Stack(
+                children: [
+                  Center(
+                    child: GestureDetector(
+                      onDoubleTap: () {
+                        if (isZoomed) {
+                          transformationController.value = Matrix4.identity();
+                          setDialogState(() {
+                            isZoomed = false;
+                          });
+                        } else {
+                          transformationController.value = Matrix4.identity()
+                            ..scale(2.0);
+                          setDialogState(() {
+                            isZoomed = true;
+                          });
+                        }
+                      },
+                      child: InteractiveViewer(
+                        transformationController: transformationController,
+                        minScale: 1.0,
+                        maxScale: 4.0,
+                        panEnabled: true,
+                        onInteractionUpdate: (_) {
+                          final scale = transformationController.value
+                              .getMaxScaleOnAxis();
+                          setDialogState(() {
+                            isZoomed = scale > 1.01;
+                          });
+                        },
+                        onInteractionEnd: (_) {
+                          final scale = transformationController.value
+                              .getMaxScaleOnAxis();
+                          setDialogState(() {
+                            isZoomed = scale > 1.01;
+                          });
+                        },
+                        child: Image.network(
+                          imageUrl,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.broken_image,
+                            color: Colors.white54,
+                            size: 60,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 40,
+                    right: 20,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showAllReviewsDialog() {
     showModalBottomSheet(
       context: context,
@@ -830,46 +909,41 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                   ),
                 ),
                 onPressed: () {
-                  if (selectedVariantId == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        behavior: SnackBarBehavior.floating,
-                        backgroundColor: Colors.transparent,
-                        elevation: 0,
-                        content: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2A230F),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: Colors.orangeAccent.withOpacity(0.6),
-                            ),
-                          ),
-                          child: Row(
-                            children: const [
-                              Icon(
-                                Icons.info_outline,
-                                color: Colors.orangeAccent,
-                              ),
-                              SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  "Please select a variant",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontFamily: 'Poppins',
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        duration: const Duration(seconds: 2),
-                      ),
+                  if (variants.isEmpty) {
+                    _showSnackBar(
+                      icon: Icons.info_outline,
+                      color: Colors.orangeAccent,
+                      background: const Color(0xFF2A230F),
+                      message: "This product has no variants available",
+                    );
+                    return;
+                  }
+
+                  if (selectedVariantId == null || selectedVariant == null) {
+                    _showSnackBar(
+                      icon: Icons.info_outline,
+                      color: Colors.orangeAccent,
+                      background: const Color(0xFF2A230F),
+                      message: "Please select a variant",
+                    );
+                    return;
+                  }
+
+                  final int stock =
+                      int.tryParse(
+                        (selectedVariant!["stock"] ??
+                                selectedVariant!["quantity"] ??
+                                "0")
+                            .toString(),
+                      ) ??
+                      0;
+
+                  if (stock <= 0) {
+                    _showSnackBar(
+                      icon: Icons.remove_shopping_cart_outlined,
+                      color: Colors.redAccent,
+                      background: const Color(0xFF2A0F0F),
+                      message: "Selected variant is out of stock",
                     );
                     return;
                   }
@@ -927,7 +1001,7 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                         selectedVariant?["description"] ??
                         product!["description"];
 
-                        print("imageeeeeeeeeee: $displayImage");
+                    print("imageeeeeeeeeee: $displayImage");
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -953,19 +1027,23 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                           key: ValueKey(displayImage),
                                           color: Colors.black,
                                           alignment: Alignment.center,
-                                          child: Image.network(
-                                            displayImage,
-                                            fit: BoxFit.contain,
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                                  return Container(
-                                                    color: Colors.black,
-                                                    child: const Icon(
-                                                      Icons.broken_image,
-                                                      color: Colors.white54,
-                                                    ),
-                                                  );
-                                                },
+                                          child: GestureDetector(
+                                            onTap: () =>
+                                                _openImageViewer(displayImage),
+                                            child: Image.network(
+                                              displayImage,
+                                              fit: BoxFit.contain,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                    return Container(
+                                                      color: Colors.black,
+                                                      child: const Icon(
+                                                        Icons.broken_image,
+                                                        color: Colors.white54,
+                                                      ),
+                                                    );
+                                                  },
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -1356,161 +1434,12 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                   ),
 
                                   // Show pending badge ONLY for coaches and admins
-                                  if (_canManageReviews() &&
-                                      _getPendingReviewCount() > 0)
-                                    GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                ProductReviewApprovalPage(
-                                                  productId: widget.productId,
-                                                  productName:
-                                                      product?["title"] ??
-                                                      "Product",
-                                                ),
-                                          ),
-                                        ).then((_) => fetchProductReviews());
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.orange.withOpacity(0.2),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                          border: Border.all(
-                                            color: Colors.orange.withOpacity(
-                                              0.3,
-                                            ),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(
-                                              Icons.pending_actions,
-                                              color: Colors.orange,
-                                              size: 14,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              "${_getPendingReviewCount()} Pending",
-                                              style: const TextStyle(
-                                                color: Colors.orange,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
                                 ],
                               ),
 
                               const SizedBox(height: 14),
 
                               // Admin/Coach Review Management Card
-                              if (_canManageReviews() &&
-                                  _getPendingReviewCount() > 0)
-                                Container(
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Colors.orange.withOpacity(0.15),
-                                        Colors.transparent,
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: Colors.orange.withOpacity(0.3),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              "${_getPendingReviewCount()} Review${_getPendingReviewCount() > 1 ? 's' : ''} Pending Approval",
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                            const Text(
-                                              "Tap to manage reviews",
-                                              style: TextStyle(
-                                                color: Colors.white54,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-
-                                      ElevatedButton(
-                                        onPressed: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  ProductReviewApprovalPage(
-                                                    productId: widget.productId,
-                                                    productName:
-                                                        product!["title"] ??
-                                                        "Product",
-                                                  ),
-                                            ),
-                                          ).then((reviewUpdated) {
-
-                                            fetchProductReviews();
-
-                                            
-                                            if (reviewUpdated == true) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                SnackBar(
-                                                  backgroundColor: Colors.green,
-                                                  content: const Text(
-                                                    "Reviews updated successfully",
-                                                  ),
-                                                  duration: const Duration(
-                                                    seconds: 2,
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                          });
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.orange,
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              20,
-                                            ),
-                                          ),
-                                        ),
-                                        child: const Text("Manage"),
-                                      ),
-                                    ],
-                                  ),
-                                ),
 
                               // Reviews Content
                               if (approvedReviews.isEmpty)
@@ -1536,15 +1465,6 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                             fontSize: 16,
                                           ),
                                         ),
-                                        const SizedBox(height: 4),
-                                        if (!_canManageReviews())
-                                          const Text(
-                                            "Be the first to review this product",
-                                            style: TextStyle(
-                                              color: Colors.white38,
-                                              fontSize: 12,
-                                            ),
-                                          ),
                                       ],
                                     ),
                                   ),

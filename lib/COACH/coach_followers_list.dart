@@ -22,10 +22,21 @@ class _CoachFollowersListState extends State<CoachFollowersList> {
   /// id, first_name, last_name, profile, user_type
   List<Map<String, dynamic>> followers = [];
 
+  final TextEditingController searchController = TextEditingController();
+  String searchQuery = "";
+
+  List<Map<String, dynamic>> filteredFollowers = [];
+
   @override
   void initState() {
     super.initState();
     fetchCoachFollowers();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   // ------------------------------------------------------------
@@ -72,6 +83,7 @@ class _CoachFollowersListState extends State<CoachFollowersList> {
 
         setState(() {
           followers = normalized;
+          filteredFollowers = List.from(normalized);
           noData = followers.isEmpty;
           loading = false;
         });
@@ -133,12 +145,36 @@ class _CoachFollowersListState extends State<CoachFollowersList> {
       if (response.statusCode == 200 || response.statusCode == 204) {
         setState(() {
           followers.removeWhere((f) => f["id"] == followerId);
+          filteredFollowers.removeWhere((f) => f["id"] == followerId);
           noData = followers.isEmpty;
         });
       }
     } catch (e) {
       print("REMOVE FOLLOWER ERROR: $e");
     }
+  }
+
+  void filterFollowers(String query) {
+    searchQuery = query.toLowerCase().trim();
+
+    setState(() {
+      if (searchQuery.isEmpty) {
+        filteredFollowers = List.from(followers);
+      } else {
+        filteredFollowers = followers.where((follower) {
+          final name =
+              "${follower["first_name"] ?? ""} ${follower["last_name"] ?? ""}"
+                  .toLowerCase()
+                  .trim();
+
+          final userType = (follower["user_type"] ?? "")
+              .toString()
+              .toLowerCase();
+
+          return name.contains(searchQuery) || userType.contains(searchQuery);
+        }).toList();
+      }
+    });
   }
 
   // ------------------------------------------------------------
@@ -167,18 +203,82 @@ class _CoachFollowersListState extends State<CoachFollowersList> {
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : noData
-          ? const Center(
-              child: Text(
-                "No followers yet",
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-            )
-          : ListView.separated(
-              itemCount: followers.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(color: Colors.white12, indent: 72),
-              itemBuilder: (_, i) => _buildFollowerTile(followers[i]),
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+                  child: TextField(
+                    controller: searchController,
+                    onChanged: filterFollowers,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: "Search followers",
+                      hintStyle: const TextStyle(color: Colors.white54),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Colors.white54,
+                      ),
+                      suffixIcon: searchQuery.isNotEmpty
+                          ? IconButton(
+                              onPressed: () {
+                                searchController.clear();
+                                filterFollowers("");
+                              },
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white54,
+                              ),
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.08),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Colors.white24),
+                      ),
+                    ),
+                  ),
+                ),
+
+                Expanded(
+                  child: noData
+                      ? const Center(
+                          child: Text(
+                            "No followers yet",
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                        )
+                      : filteredFollowers.isEmpty
+                      ? const Center(
+                          child: Text(
+                            "No matching followers found",
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: filteredFollowers.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(color: Colors.white12, indent: 72),
+                          itemBuilder: (_, i) =>
+                              _buildFollowerTile(filteredFollowers[i]),
+                        ),
+                ),
+              ],
             ),
     );
   }

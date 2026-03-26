@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
@@ -8,6 +10,7 @@ import 'package:my_skates/COACH/coach_details_page.dart';
 import 'package:my_skates/STUDENTS/bottomnavigation_student.dart';
 import 'package:my_skates/STUDENTS/products.dart';
 import 'package:my_skates/STUDENTS/student_list.dart';
+import 'package:my_skates/STUDENTS/user_chat_support.dart';
 import 'package:my_skates/STUDENTS/user_menu_page.dart';
 import 'package:my_skates/STUDENTS/user_notification%20page.dart';
 import 'package:my_skates/api.dart';
@@ -63,6 +66,9 @@ class _HomePageState extends State<HomePage> {
   Timer? _timer;
   bool trainingLoading = true;
   bool trainingNoData = false;
+
+  Offset _fabOffset = const Offset(20, 520);
+  bool _fabMenuOpen = false;
 
   final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
       GlobalKey<RefreshIndicatorState>();
@@ -139,6 +145,16 @@ class _HomePageState extends State<HomePage> {
       eventsNoData = true;
       setState(() {});
     }
+  }
+
+  Future<void> _navigateFromFab(Widget page) async {
+    setState(() => _fabMenuOpen = false);
+
+    await Future.delayed(const Duration(milliseconds: 80));
+
+    if (!mounted) return;
+
+    await Navigator.push(context, slideRightToLeftRoute(page));
   }
 
   Future<String?> getToken() async {
@@ -840,6 +856,183 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Widget _movableFabMenu() {
+    final size = MediaQuery.of(context).size;
+    final bottomSafe = MediaQuery.of(context).padding.bottom;
+
+    const double fabSize = 56;
+    const double sideMargin = 12;
+    const double topLimit = 100;
+    const double bottomNavHeight = 80;
+
+    // Total extra height needed when menu is open
+    // 4 items + gaps + bottom gap above FAB
+    const double openMenuExtraHeight = 230;
+
+    final double maxX = size.width - fabSize - sideMargin;
+    final double maxYClosed =
+        size.height - fabSize - bottomNavHeight - bottomSafe;
+    final double maxYOpen =
+        size.height -
+        fabSize -
+        bottomNavHeight -
+        bottomSafe -
+        openMenuExtraHeight;
+
+    double dx = _fabOffset.dx.clamp(sideMargin, maxX);
+    double dy = _fabOffset.dy.clamp(
+      topLimit,
+      _fabMenuOpen ? maxYOpen : maxYClosed,
+    );
+
+    final bool openToLeft = dx > size.width / 2;
+
+    return Positioned(
+      left: dx,
+      top: dy,
+      child: Column(
+        crossAxisAlignment: openToLeft
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.end,
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: _fabMenuOpen
+                ? Column(
+                    key: const ValueKey("openMenu"),
+                    crossAxisAlignment: openToLeft
+                        ? CrossAxisAlignment.start
+                        : CrossAxisAlignment.end,
+                    children: [
+                      _fabMiniItem(
+                        icon: Icons.person,
+                        label: "Profile",
+                        openToLeft: openToLeft,
+                        onTap: () => _navigateFromFab(const ProfilePage()),
+                      ),
+                      const SizedBox(height: 10),
+                      _fabMiniItem(
+                        icon: Icons.settings,
+                        label: "Settings",
+                        openToLeft: openToLeft,
+                        onTap: () => _navigateFromFab(const UserSettings()),
+                      ),
+                      const SizedBox(height: 10),
+                      _fabMiniItem(
+                        icon: Icons.groups,
+                        label: "Chat Support",
+                        openToLeft: openToLeft,
+                        onTap: () => _navigateFromFab(const UserChatSupport()),
+                      ),
+                      const SizedBox(height: 10),
+                      _fabMiniItem(
+                        icon: Icons.notifications_none,
+                        label: "Notifications",
+                        openToLeft: openToLeft,
+                        onTap: () async {
+                          await _navigateFromFab(UserNotificationPage());
+                          fetchNotificationCount();
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
+          GestureDetector(
+            onPanUpdate: (details) {
+              setState(() {
+                final next = _fabOffset + details.delta;
+
+                _fabOffset = Offset(
+                  next.dx.clamp(sideMargin, maxX),
+                  next.dy.clamp(topLimit, _fabMenuOpen ? maxYOpen : maxYClosed),
+                );
+              });
+            },
+            child: FloatingActionButton(
+              heroTag: "movableFabStudent",
+              backgroundColor: const Color(0xFF00AFA5),
+              onPressed: () {
+                setState(() {
+                  _fabMenuOpen = !_fabMenuOpen;
+
+                  // when opening, move FAB upward if needed
+                  if (_fabMenuOpen && _fabOffset.dy > maxYOpen) {
+                    _fabOffset = Offset(_fabOffset.dx, maxYOpen);
+                  }
+
+                  // also keep x inside screen
+                  if (_fabOffset.dx > maxX) {
+                    _fabOffset = Offset(maxX, _fabOffset.dy);
+                  }
+                });
+              },
+              child: Icon(
+                _fabMenuOpen ? Icons.close : Icons.skateboarding,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _fabMiniItem({
+    required IconData icon,
+    required String label,
+    required bool openToLeft,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.75),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: openToLeft
+                ? [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(icon, color: Colors.tealAccent, size: 18),
+                  ]
+                : [
+                    Icon(icon, color: Colors.tealAccent, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildClubShimmer() {
     return SizedBox(
       height: MediaQuery.of(context).size.height * 0.22,
@@ -937,437 +1130,490 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              const Color(0xFF001A18),
-              const Color(0xFF002F2B),
-              const Color(0xFF000C0B),
-              Colors.black,
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          child: RefreshIndicator(
-            key: _refreshIndicatorKey,
-            onRefresh: _refreshData,
-            color: const Color(0xFF00AFA5),
-            backgroundColor: Colors.black87,
-            strokeWidth: 3,
-            displacement: 10,
-            child: CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  pinned: true,
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  expandedHeight: 80,
-                  automaticallyImplyLeading: false,
-                  flexibleSpace: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const UserMenuPage(),
-                              ),
-                            );
-                          },
-                          child: CircleAvatar(
-                            radius: 28,
-                            backgroundImage:
-                                studentImage != null && studentImage!.isNotEmpty
-                                ? NetworkImage("$api$studentImage")
-                                : const AssetImage("lib/assets/img.jpg")
-                                      as ImageProvider,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
+      body: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF001A18),
+                  const Color(0xFF002F2B),
+                  const Color(0xFF000C0B),
+                  Colors.black,
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            // child: SafeArea(
+              child: RefreshIndicator(
+                key: _refreshIndicatorKey,
+                onRefresh: _refreshData,
+                color: const Color(0xFF00AFA5),
+                backgroundColor: Colors.black87,
+                strokeWidth: 3,
+                displacement: 10,
+                child: CustomScrollView(
+                  slivers: [
+                    SliverAppBar(
+                      pinned: true,
+                      floating: false,
+                      snap: false,
+                      elevation: 0,
+                      scrolledUnderElevation: 0,
+                      toolbarHeight: 86,
+                      expandedHeight: 86,
+                      automaticallyImplyLeading: false,
+                      backgroundColor: Colors.transparent,
 
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              studentName.isNotEmpty ? studentName : "User",
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                      flexibleSpace: ClipRRect(
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  const Color(0xFF001F1C).withOpacity(0.95),
+                                  const Color(0xFF001F1C).withOpacity(0.60),
+                                  Colors.black.withOpacity(0.50),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              studentRole.isNotEmpty ? "$studentRole" : "",
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const Spacer(),
-                        Stack(
-                          children: [
-                            IconButton(
-                              onPressed: () async {
-                                await Navigator.push(
-                                  context,
-                                  slideRightToLeftRoute(UserNotificationPage()),
-                                );
-                                fetchNotificationCount();
-                              },
-                              icon: const Icon(
-                                Icons.notifications_none,
-                                color: Colors.tealAccent,
-                              ),
-                            ),
-
-                            if (notificationUnreadCount > 0)
-                              Positioned(
-                                right: 6,
-                                top: 6,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  constraints: const BoxConstraints(
-                                    minWidth: 18,
-                                    minHeight: 18,
-                                  ),
-                                  child: Text(
-                                    notificationUnreadCount.toString(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: Colors.white.withOpacity(0.15),
+                                  width: 1,
                                 ),
                               ),
-                          ],
+                            ),
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
+                      ),
 
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 160,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.25),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
+                      titleSpacing: 16,
+                      title: Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const UserMenuPage(),
+                                ),
+                              );
+                            },
+                            child: CircleAvatar(
+                              radius: 24,
+                              backgroundImage:
+                                  studentImage != null &&
+                                      studentImage!.isNotEmpty
+                                  ? NetworkImage("$api$studentImage")
+                                  : const AssetImage("lib/assets/img.jpg")
+                                        as ImageProvider,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  studentName.isNotEmpty ? studentName : "User",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                Text(
+                                  studentRole.isNotEmpty ? studentRole : "",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.white70,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          Stack(
+                            children: [
+                              IconButton(
+                                onPressed: () async {
+                                  await Navigator.push(
+                                    context,
+                                    slideRightToLeftRoute(
+                                      UserNotificationPage(),
+                                    ),
+                                  );
+                                  fetchNotificationCount();
+                                },
+                                icon: const Icon(
+                                  Icons.notifications_none,
+                                  color: Colors.tealAccent,
+                                ),
                               ),
+                              if (notificationUnreadCount > 0)
+                                Positioned(
+                                  right: 6,
+                                  top: 6,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 18,
+                                      minHeight: 18,
+                                    ),
+                                    child: Text(
+                                      notificationUnreadCount.toString(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: FlutterCarousel(
-                              options: CarouselOptions(
-                                height: 160,
-                                autoPlay: true,
-                                autoPlayInterval: const Duration(seconds: 3),
-                                viewportFraction: 1,
-                                showIndicator: true,
-                                slideIndicator: CircularSlideIndicator(),
+                        ],
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16,12,16,16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              height: 160,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.25),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                               ),
-                              items: banner.map((item) {
-                                return Stack(
-                                  children: [
-                                    Positioned.fill(
-                                      child: Image.network(
-                                        item["image"] ?? "",
-                                        fit: BoxFit.cover,
-                                        loadingBuilder: (context, child, progress) {
-                                          if (progress == null) return child;
-                                          return Container(
-                                            color: Colors.grey.shade900,
-                                            alignment: Alignment.center,
-                                            child:
-                                                const CircularProgressIndicator(),
-                                          );
-                                        },
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                Container(
-                                                  color: Colors.black,
-                                                  alignment: Alignment.center,
-                                                  child: const Icon(
-                                                    Icons.broken_image,
-                                                    color: Colors.white54,
-                                                    size: 40,
-                                                  ),
-                                                ),
-                                      ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: FlutterCarousel(
+                                  options: CarouselOptions(
+                                    height: 160,
+                                    autoPlay: true,
+                                    autoPlayInterval: const Duration(
+                                      seconds: 3,
                                     ),
-                                    Positioned.fill(
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topCenter,
-                                            end: Alignment.bottomCenter,
-                                            colors: [
-                                              Colors.transparent,
-                                              Colors.black.withOpacity(0.6),
-                                            ],
+                                    viewportFraction: 1,
+                                    showIndicator: true,
+                                    slideIndicator: CircularSlideIndicator(),
+                                  ),
+                                  items: banner.map((item) {
+                                    return Stack(
+                                      children: [
+                                        Positioned.fill(
+                                          child: Image.network(
+                                            item["image"] ?? "",
+                                            fit: BoxFit.cover,
+                                            loadingBuilder:
+                                                (context, child, progress) {
+                                                  if (progress == null)
+                                                    return child;
+                                                  return Container(
+                                                    color: Colors.grey.shade900,
+                                                    alignment: Alignment.center,
+                                                    child:
+                                                        const CircularProgressIndicator(),
+                                                  );
+                                                },
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    Container(
+                                                      color: Colors.black,
+                                                      alignment:
+                                                          Alignment.center,
+                                                      child: const Icon(
+                                                        Icons.broken_image,
+                                                        color: Colors.white54,
+                                                        size: 40,
+                                                      ),
+                                                    ),
                                           ),
                                         ),
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 22),
-
-                        const Text(
-                          "We offer training and an e-commerce platform\nthat connects students and coaches.",
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-
-                        const SizedBox(height: 25),
-
-                        buildButton("Connect Coaches"),
-                        buildButton("Connect Students"),
-                        buildButton("Find Clubs"),
-                        buildButton("Find Events"),
-                        buildButton("Buy and Sell products"),
-
-                        const SizedBox(height: 25),
-
-                        const Text(
-                          "Recommended Clubs near you",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        if (clubs.isEmpty && !noData)
-                          _buildClubShimmer()
-                        else
-                          SizedBox(
-                            height: MediaQuery.of(context).size.height * 0.22,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: clubs.length,
-                              itemBuilder: (_, i) => Padding(
-                                padding: const EdgeInsets.only(right: 12),
-                                child: buildClubCardFromApi(
-                                  clubs[i],
-                                  onJoinClub: sendClubJoinRequest,
-                                  onLeaveClub: leaveClub,
-                                  context: context,
+                                        Positioned.fill(
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  Colors.transparent,
+                                                  Colors.black.withOpacity(0.6),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }).toList(),
                                 ),
                               ),
                             ),
-                          ),
+                            const SizedBox(height: 22),
 
-                        const SizedBox(height: 25),
-
-                        const Text(
-                          "Upcoming Training Sessions",
-                          style: TextStyle(color: Colors.white, fontSize: 14),
-                        ),
-
-                        const SizedBox(height: 15),
-
-                        if (trainingLoading)
-                          _buildTrainingShimmer()
-                        else if (trainingNoData)
-                          const Text(
-                            "No training sessions available",
-                            style: TextStyle(color: Colors.white70),
-                          )
-                        else
-                          Column(
-                            children: trainingSessions.map((session) {
-                              final images = session['images'] as List? ?? [];
-
-                              String imageUrl = images.isNotEmpty
-                                  ? "$api${images[0]['image']}"
-                                  : "";
-
-                              return buildTrainingSessionRow(
-                                trainingId: session['id'],
-                                title: session['title'] ?? "",
-                                note: session['note'] ?? "",
-                                location: session['location'] ?? "",
-                                startDate: session['start_date'] ?? "",
-                                endDate: session['end_date'] ?? "",
-                                startTime: session['start_time'] ?? "",
-                                endTime: session['end_time'] ?? "",
-                                imageUrl: imageUrl,
-                                isRegistered: registeredTrainingIds.contains(
-                                  session['id'],
-                                ),
-                                onRegister: () {
-                                  confirmRegister(session['id']);
-                                },
-                              );
-                            }).toList(),
-                          ),
-                        SizedBox(height: 25),
-
-                        const Text(
-                          "Upcoming Events",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        if (eventsLoading)
-                          _buildEventShimmer()
-                        else if (eventsNoData)
-                          const Center(
-                            child: Text(
-                              "No events found",
-                              style: TextStyle(color: Colors.white70),
+                            const Text(
+                              "We offer training and an e-commerce platform\nthat connects students and coaches.",
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
                             ),
-                          )
-                        else
-                          Column(
-                            children: events.map((event) {
-                              final images = event["images"] as List? ?? [];
 
-                              String image1 = images.isNotEmpty
-                                  ? "$api${images[0]['image']}"
-                                  : "lib/assets/skating1.jpg";
+                            const SizedBox(height: 25),
 
-                              String image2 = images.length > 1
-                                  ? "$api${images[1]['image']}"
-                                  : image1;
+                            buildButton("Connect Coaches"),
+                            buildButton("Connect Students"),
+                            buildButton("Find Clubs"),
+                            buildButton("Find Events"),
+                            buildButton("Buy and Sell products"),
 
-                              return buildEventCardWithImages(
-                                clubName: event["club_name"] ?? "Skating Club",
-                                clubImage: event["club_image"] ?? "",
-                                location: event["note"] ?? "",
-                                title: event["title"] ?? "",
-                                image1: image1,
-                                image2: image2,
-                                description: event["description"] ?? "",
-                                fromDate: event["from_date"] ?? "",
-                                toDate: event["to_date"] ?? "",
-                                icon: Icons.thumb_up_alt_outlined,
-                                eventId: event["id"],
-                                likesCount: event["likes_count"] ?? 0,
-                                isLiked: event["is_liked"] ?? false,
-                                onLike: toggleEventLike,
-                              );
-                            }).toList(),
-                          ),
+                            const SizedBox(height: 25),
 
-                        const SizedBox(height: 12),
-
-                        const Text(
-                          "Suggested Coaches",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                        SizedBox(
-                          height: 210,
-                          child: !followLoaded || coachesLoading
-                              ? _buildCoachShimmer()
-                              : coachesNoData
-                              ? const Center(
-                                  child: Text(
-                                    "No coaches found",
-                                    style: TextStyle(color: Colors.white70),
-                                  ),
-                                )
-                              : ListView.builder(
+                            const Text(
+                              "Recommended Clubs near you",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            if (clubs.isEmpty && !noData)
+                              _buildClubShimmer()
+                            else
+                              SizedBox(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.22,
+                                child: ListView.builder(
                                   scrollDirection: Axis.horizontal,
-                                  itemCount: coaches.length,
-                                  itemBuilder: (_, i) => CoachFollowCard(
-                                    coach: coaches[i],
-                                    onFollow: sendFollowRequest,
-                                    onCancelPending: cancelPendingRequest,
-                                    onUnfollow: unfollowCoach,
-                                    myFollowing: myFollowing,
-                                    myRequests: myRequests,
-                                    myApprovedSent: myApprovedSent,
-                                    refreshParent: () => setState(() {}),
+                                  itemCount: clubs.length,
+                                  itemBuilder: (_, i) => Padding(
+                                    padding: const EdgeInsets.only(right: 12),
+                                    child: buildClubCardFromApi(
+                                      clubs[i],
+                                      onJoinClub: sendClubJoinRequest,
+                                      onLeaveClub: leaveClub,
+                                      context: context,
+                                    ),
                                   ),
                                 ),
-                        ),
+                              ),
 
-                        SizedBox(height: 20),
+                            const SizedBox(height: 25),
 
-                        const Text(
-                          "Suggested Students",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                        SizedBox(
-                          height: 210,
-                          child: studentsLoading
-                              ? _buildCoachShimmer()
-                              : studentsNoData
-                              ? const Center(
-                                  child: Text(
-                                    "No Students found",
-                                    style: TextStyle(color: Colors.white70),
-                                  ),
-                                )
-                              : ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: students.length,
-                                  itemBuilder: (_, i) => StudentFollowCard(
-                                    student: students[i],
-                                    myFollowing: myFollowing,
-                                    myRequests: myRequests,
-                                    myApprovedSent: myApprovedSent,
-                                    onFollow: sendFollowRequest,
-                                    onCancelPending: cancelPendingRequest,
-                                    onUnfollow: unfollowCoach,
-                                    refreshParent: () => setState(() {}),
-                                  ),
+                            const Text(
+                              "Upcoming Training Sessions",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                              ),
+                            ),
+
+                            const SizedBox(height: 15),
+
+                            if (trainingLoading)
+                              _buildTrainingShimmer()
+                            else if (trainingNoData)
+                              const Text(
+                                "No training sessions available",
+                                style: TextStyle(color: Colors.white70),
+                              )
+                            else
+                              Column(
+                                children: trainingSessions.map((session) {
+                                  final images =
+                                      session['images'] as List? ?? [];
+                                  String imageUrl = images.isNotEmpty
+                                      ? "$api${images[0]['image']}"
+                                      : "";
+
+                                  return buildTrainingSessionRow(
+                                    trainingId: session['id'],
+                                    title: session['title'] ?? "",
+                                    note: session['note'] ?? "",
+                                    location: session['location'] ?? "",
+                                    startDate: session['start_date'] ?? "",
+                                    endDate: session['end_date'] ?? "",
+                                    startTime: session['start_time'] ?? "",
+                                    endTime: session['end_time'] ?? "",
+                                    imageUrl: imageUrl,
+                                    isRegistered: registeredTrainingIds
+                                        .contains(session['id']),
+                                    onRegister: () {
+                                      confirmRegister(session['id']);
+                                    },
+                                  );
+                                }).toList(),
+                              ),
+
+                            const SizedBox(height: 25),
+
+                            const Text(
+                              "Upcoming Events",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            if (eventsLoading)
+                              _buildEventShimmer()
+                            else if (eventsNoData)
+                              const Center(
+                                child: Text(
+                                  "No events found",
+                                  style: TextStyle(color: Colors.white70),
                                 ),
+                              )
+                            else
+                              Column(
+                                children: events.map((event) {
+                                  final images = event["images"] as List? ?? [];
+
+                                  String image1 = images.isNotEmpty
+                                      ? "$api${images[0]['image']}"
+                                      : "lib/assets/skating1.jpg";
+
+                                  String image2 = images.length > 1
+                                      ? "$api${images[1]['image']}"
+                                      : image1;
+
+                                  return buildEventCardWithImages(
+                                    clubName:
+                                        event["club_name"] ?? "Skating Club",
+                                    clubImage: event["club_image"] ?? "",
+                                    location: event["note"] ?? "",
+                                    title: event["title"] ?? "",
+                                    image1: image1,
+                                    image2: image2,
+                                    description: event["description"] ?? "",
+                                    fromDate: event["from_date"] ?? "",
+                                    toDate: event["to_date"] ?? "",
+                                    icon: Icons.thumb_up_alt_outlined,
+                                    eventId: event["id"],
+                                    likesCount: event["likes_count"] ?? 0,
+                                    isLiked: event["is_liked"] ?? false,
+                                    onLike: toggleEventLike,
+                                  );
+                                }).toList(),
+                              ),
+
+                            const SizedBox(height: 12),
+
+                            const Text(
+                              "Suggested Coaches",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            SizedBox(
+                              height: 210,
+                              child: !followLoaded || coachesLoading
+                                  ? _buildCoachShimmer()
+                                  : coachesNoData
+                                  ? const Center(
+                                      child: Text(
+                                        "No coaches found",
+                                        style: TextStyle(color: Colors.white70),
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: coaches.length,
+                                      itemBuilder: (_, i) => CoachFollowCard(
+                                        coach: coaches[i],
+                                        onFollow: sendFollowRequest,
+                                        onCancelPending: cancelPendingRequest,
+                                        onUnfollow: unfollowCoach,
+                                        myFollowing: myFollowing,
+                                        myRequests: myRequests,
+                                        myApprovedSent: myApprovedSent,
+                                        refreshParent: () => setState(() {}),
+                                      ),
+                                    ),
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            const Text(
+                              "Suggested Students",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            SizedBox(
+                              height: 210,
+                              child: studentsLoading
+                                  ? _buildCoachShimmer()
+                                  : studentsNoData
+                                  ? const Center(
+                                      child: Text(
+                                        "No Students found",
+                                        style: TextStyle(color: Colors.white70),
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: students.length,
+                                      itemBuilder: (_, i) => StudentFollowCard(
+                                        student: students[i],
+                                        myFollowing: myFollowing,
+                                        myRequests: myRequests,
+                                        myApprovedSent: myApprovedSent,
+                                        onFollow: sendFollowRequest,
+                                        onCancelPending: cancelPendingRequest,
+                                        onUnfollow: unfollowCoach,
+                                        refreshParent: () => setState(() {}),
+                                      ),
+                                    ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            // ),
           ),
-        ),
+
+          // ✅ Movable FAB Menu on top
+          _movableFabMenu(),
+        ],
       ),
       bottomNavigationBar: const AppBottomNav_student(currentIndex: 0),
     );
@@ -1722,7 +1968,7 @@ Widget buildClubCardFromApi(
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ClubView(clubid: clubId),
+          builder: (_) => ClubView(clubid: clubId, isApproved: isApproved),
         ),
       );
     },

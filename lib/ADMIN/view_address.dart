@@ -86,7 +86,7 @@ class _ViewAddressState extends State<ViewAddress> {
       print("Address delete response: ${res.statusCode}");
       print("Address delete response body: ${res.body}");
       if (res.statusCode == 200) {
-        fetchAddresses(); 
+        fetchAddresses();
       } else {
         setState(() => addressLoading = false);
       }
@@ -105,7 +105,7 @@ class _ViewAddressState extends State<ViewAddress> {
         backgroundColor: Colors.black,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back,color: Colors.white,),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -114,8 +114,13 @@ class _ViewAddressState extends State<ViewAddress> {
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.push(context, slideRightToLeftRoute(AddAddress()));
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                slideRightToLeftRoute(const AddAddress()),
+              );
+
+              fetchAddresses();
             },
             child: const Text(
               "+ Add Address",
@@ -247,14 +252,14 @@ class _ViewAddressState extends State<ViewAddress> {
                 deleteAddress(addr["id"]);
               }),
               const SizedBox(width: 24),
-              _actionText("Edit", Colors.tealAccent, () {
-                Navigator.push(
+              _actionText("Edit", Colors.tealAccent, () async {
+                await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => UpdateAddress(id: addr["id"]),
                   ),
                 );
-                // Edit navigation
+                fetchAddresses();
               }),
             ],
           ),

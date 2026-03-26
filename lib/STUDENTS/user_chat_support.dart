@@ -150,6 +150,7 @@ class _UserChatSupportState extends State<UserChatSupport> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(

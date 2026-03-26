@@ -202,75 +202,75 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
     };
   }
 
-Future<void> fetchProfileData() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-    final userId = prefs.getInt("id");
+  Future<void> fetchProfileData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      final userId = prefs.getInt("id");
 
-    final res = await http.get(
-      Uri.parse("$api/api/myskates/user/extras/details/$userId/"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "ngrok-skip-browser-warning": "true",
-      },
-    );
+      final res = await http.get(
+        Uri.parse("$api/api/myskates/user/extras/details/$userId/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "ngrok-skip-browser-warning": "true",
+        },
+      );
 
-    print("Profile data: ${res.body}");
+      print("Profile data: ${res.body}");
 
-    if (res.statusCode == 200) {
-      final decoded = jsonDecode(res.body);
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body);
 
-      Map<String, dynamic>? data;
+        Map<String, dynamic>? data;
 
-      // ✅ If API returns LIST
-      if (decoded is List && decoded.isNotEmpty) {
-        data = decoded[0];
+        // ✅ If API returns LIST
+        if (decoded is List && decoded.isNotEmpty) {
+          data = decoded[0];
+        }
+
+        // ✅ If API returns MAP
+        if (decoded is Map<String, dynamic>) {
+          data = decoded;
+        }
+
+        if (data == null) {
+          print("Profile data is empty");
+          return;
+        }
+
+        firstCtrl.text = data["first_name"] ?? "";
+        lastCtrl.text = data["last_name"] ?? "";
+        phoneCtrl.text = data["phone"] ?? "";
+        emailCtrl.text = data["email"] ?? "";
+        altPhoneCtrl.text = data["alt_phone"] ?? "";
+        ageCtrl.text = data["age"]?.toString() ?? "";
+        zipCtrl.text = data["zip_code"]?.toString() ?? "";
+        instaCtrl.text = data["instagram"] ?? "";
+
+        gender = data["gender"]?.toString();
+        selectedCountry = data["country"]?.toString();
+        selectedState = data["state"]?.toString();
+        selectedDistrict = data["district"]?.toString();
+
+        final loadedUsername = data["u_name"]?.toString().trim() ?? "";
+        usernameCtrl.text = loadedUsername;
+        _originalUsername = loadedUsername;
+        isUsernameValid = loadedUsername.isNotEmpty;
+
+        if (data["dob"] != null) {
+          dob = DateTime.tryParse(data["dob"]);
+        }
+
+        if (data["profile"] != null) {
+          profileNetworkImage = "$api${data["profile"]}";
+        }
       }
 
-      // ✅ If API returns MAP
-      if (decoded is Map<String, dynamic>) {
-        data = decoded;
-      }
-
-      if (data == null) {
-        print("Profile data is empty");
-        return;
-      }
-
-      firstCtrl.text = data["first_name"] ?? "";
-      lastCtrl.text = data["last_name"] ?? "";
-      phoneCtrl.text = data["phone"] ?? "";
-      emailCtrl.text = data["email"] ?? "";
-      altPhoneCtrl.text = data["alt_phone"] ?? "";
-      ageCtrl.text = data["age"]?.toString() ?? "";
-      zipCtrl.text = data["zip_code"]?.toString() ?? "";
-      instaCtrl.text = data["instagram"] ?? "";
-
-      gender = data["gender"]?.toString();
-      selectedCountry = data["country"]?.toString();
-      selectedState = data["state"]?.toString();
-      selectedDistrict = data["district"]?.toString();
-
-      final loadedUsername = data["u_name"]?.toString().trim() ?? "";
-      usernameCtrl.text = loadedUsername;
-      _originalUsername = loadedUsername;
-      isUsernameValid = loadedUsername.isNotEmpty;
-
-      if (data["dob"] != null) {
-        dob = DateTime.tryParse(data["dob"]);
-      }
-
-      if (data["profile"] != null) {
-        profileNetworkImage = "$api${data["profile"]}";
-      }
+      if (mounted) setState(() {});
+    } catch (e) {
+      print("Error fetching profile: $e");
     }
-
-    if (mounted) setState(() {});
-  } catch (e) {
-    print("Error fetching profile: $e");
   }
-}
   // ---------------- CHECK USERNAME ----------------
 
   Future<void> checkUsername(String username) async {
