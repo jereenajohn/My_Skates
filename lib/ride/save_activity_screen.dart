@@ -5,6 +5,8 @@ import 'package:my_skates/ride/activity_review_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 import 'ride_provider.dart';
 import 'ride_models.dart';
@@ -26,6 +28,9 @@ class _SaveActivityScreenState extends State<SaveActivityScreen> {
   String? selectedFeeling;
   bool isSaving = false;
 
+  final ImagePicker _picker = ImagePicker();
+  List<File> selectedImages = [];
+
   final List<String> tags = [
     "Workout",
     "Commute",
@@ -34,14 +39,9 @@ class _SaveActivityScreenState extends State<SaveActivityScreen> {
     "Recovery",
   ];
 
-  final List<String> feelings = [
-    "Easy",
-    "Moderate",
-    "Hard",
-    "Very Hard",
-  ];
+  final List<String> feelings = ["Easy", "Moderate", "Hard", "Very Hard"];
 
- static String saveRideApi = "$api/api/myskates/user/activities/";
+  static String saveRideApi = "$api/api/myskates/user/activities/";
 
   @override
   void dispose() {
@@ -56,95 +56,144 @@ class _SaveActivityScreenState extends State<SaveActivityScreen> {
     return prefs.getString("access");
   }
 
-Future<void> _saveActivity(RideProvider ride) async {
-  if (isSaving) return;
+  Future<void> _pickImages() async {
+    try {
+      final List<XFile> picked = await _picker.pickMultiImage(imageQuality: 80);
 
-  if (title.text.trim().isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Please enter activity title")),
-    );
-    return;
+      if (picked.isNotEmpty) {
+        setState(() {
+          selectedImages.addAll(picked.map((e) => File(e.path)));
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed to pick images: $e")));
+    }
   }
 
-  setState(() {
-    isSaving = true;
-  });
+  void _removeImage(int index) {
+    setState(() {
+      selectedImages.removeAt(index);
+    });
+  }
 
-  try {
-    final token = await _getToken();
+  Future<void> _saveActivity(RideProvider ride) async {
+    if (isSaving) return;
 
-    final payload = ride.buildActivityPayload(
-      title: title.text.trim(),
-      description: desc.text.trim(),
-      activityTag: selectedTag,
-      feeling: selectedFeeling,
-      privateNote: privateNote.text.trim(),
-    );
+    if (title.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter activity title")),
+      );
+      return;
+    }
 
-    final response = await http.post(
-      Uri.parse(saveRideApi),
-      headers: {
-        "Content-Type": "application/json",
-        if (token != null && token.isNotEmpty)
-          "Authorization": "Bearer $token",
-      },
-      body: jsonEncode(payload),
-    );
+    setState(() {
+      isSaving = true;
+    });
 
-    print("Save response status: ${response.statusCode}");
-    print("Save response body: ${response.body}");
+    try {
+      final token = await _getToken();
 
-    if (!mounted) return;
+      final payload = ride.buildActivityPayload(
+        title: title.text.trim(),
+        description: desc.text.trim(),
+        activityTag: selectedTag,
+        feeling: selectedFeeling,
+        privateNote: privateNote.text.trim(),
+      );
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final dynamic body = jsonDecode(response.body);
+      // final response = await http.post(
+      //   Uri.parse(saveRideApi),
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //     if (token != null && token.isNotEmpty)
+      //       "Authorization": "Bearer $token",
+      //   },
+      //   body: jsonEncode(payload),
+      // );
 
-      Map<String, dynamic> apiActivity = {};
+      final request = http.MultipartRequest("POST", Uri.parse(saveRideApi));
 
-      if (body is Map<String, dynamic>) {
-        if (body["data"] is Map<String, dynamic>) {
-          apiActivity = Map<String, dynamic>.from(body["data"]);
-        } else if (body["activity"] is Map<String, dynamic>) {
-          apiActivity = Map<String, dynamic>.from(body["activity"]);
-        } else {
-          apiActivity = Map<String, dynamic>.from(body);
-        }
+      if (token != null && token.isNotEmpty) {
+        request.headers["Authorization"] = "Bearer $token";
       }
 
-      final Map<String, dynamic> reviewActivity = {
-        ...payload,
-        ...apiActivity,
-      };
+      payload.forEach((key, value) {
+        if (value == null) return;
 
-      await ride.stopAll();
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ActivityReviewScreen(activity: reviewActivity),
-        ),
-      );
-    } else {
-      debugPrint("Save failed: ${response.statusCode}");
-      debugPrint("Response body: ${response.body}");
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Save failed (${response.statusCode})")),
-      );
-    }
-  } catch (e) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Error saving activity: $e")),
-    );
-  } finally {
-    if (mounted) {
-      setState(() {
-        isSaving = false;
+        if (value is List) {
+          request.fields[key] = jsonEncode(value);
+        } else if (value is Map) {
+          request.fields[key] = jsonEncode(value);
+        } else {
+          request.fields[key] = value.toString();
+        }
       });
+
+      for (final image in selectedImages) {
+        request.files.add(
+          await http.MultipartFile.fromPath("images", image.path),
+        );
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      print("Save response status: ${response.statusCode}");
+      print("Save response body: ${response.body}");
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final dynamic body = jsonDecode(response.body);
+
+        Map<String, dynamic> apiActivity = {};
+
+        if (body is Map<String, dynamic>) {
+          if (body["data"] is Map<String, dynamic>) {
+            apiActivity = Map<String, dynamic>.from(body["data"]);
+          } else if (body["activity"] is Map<String, dynamic>) {
+            apiActivity = Map<String, dynamic>.from(body["activity"]);
+          } else {
+            apiActivity = Map<String, dynamic>.from(body);
+          }
+        }
+
+        final Map<String, dynamic> reviewActivity = {
+          ...payload,
+          ...apiActivity,
+        };
+
+        await ride.stopAll();
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ActivityReviewScreen(activity: reviewActivity),
+          ),
+        );
+      } else {
+        debugPrint("Save failed: ${response.statusCode}");
+        debugPrint("Response body: ${response.body}");
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Save failed (${response.statusCode})")),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error saving activity: $e")));
+    } finally {
+      if (mounted) {
+        setState(() {
+          isSaving = false;
+        });
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -158,10 +207,7 @@ Future<void> _saveActivity(RideProvider ride) async {
         centerTitle: true,
         title: const Text(
           "Save Activity",
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
         ),
         leadingWidth: 90,
         leading: TextButton(
@@ -174,10 +220,7 @@ Future<void> _saveActivity(RideProvider ride) async {
                 },
           child: const Text(
             "Back",
-            style: TextStyle(
-              color: Colors.teal,
-              fontWeight: FontWeight.w800,
-            ),
+            style: TextStyle(color: Colors.teal, fontWeight: FontWeight.w800),
           ),
         ),
       ),
@@ -271,10 +314,7 @@ Future<void> _saveActivity(RideProvider ride) async {
                 .map(
                   (e) => DropdownMenuItem<String>(
                     value: e,
-                    child: Text(
-                      e,
-                      style: const TextStyle(color: Colors.white),
-                    ),
+                    child: Text(e, style: const TextStyle(color: Colors.white)),
                   ),
                 )
                 .toList(),
@@ -293,10 +333,7 @@ Future<void> _saveActivity(RideProvider ride) async {
                 .map(
                   (e) => DropdownMenuItem<String>(
                     value: e,
-                    child: Text(
-                      e,
-                      style: const TextStyle(color: Colors.white),
-                    ),
+                    child: Text(e, style: const TextStyle(color: Colors.white)),
                   ),
                 )
                 .toList(),
@@ -319,11 +356,95 @@ Future<void> _saveActivity(RideProvider ride) async {
           _sectionTitle("Ride Summary"),
           const SizedBox(height: 10),
 
+          const SizedBox(height: 16),
+          _sectionTitle("Images"),
+          const SizedBox(height: 10),
+
+          InkWell(
+            onTap: _pickImages,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF151517),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: Row(
+                children: const [
+                  Icon(Icons.photo_library_outlined, color: Colors.white70),
+                  SizedBox(width: 10),
+                  Text(
+                    "Upload Images",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          if (selectedImages.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 90,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: selectedImages.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  return Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Image.file(
+                          selectedImages[index],
+                          width: 90,
+                          height: 90,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: InkWell(
+                          onTap: () => _removeImage(index),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+
+          SizedBox(height: 16),
+
           _infoTile("Elapsed Time", RideMath.formatDuration(ride.elapsed)),
           _infoTile("Moving Time", RideMath.formatDuration(ride.moving)),
           _infoTile("Distance", "${ride.distanceKm.toStringAsFixed(2)} km"),
-          _infoTile("Average Speed", "${ride.avgSpeedKmh.toStringAsFixed(2)} km/h"),
-          _infoTile("Current Speed", "${ride.currentSpeedKmh.toStringAsFixed(2)} km/h"),
+          _infoTile(
+            "Average Speed",
+            "${ride.avgSpeedKmh.toStringAsFixed(2)} km/h",
+          ),
+          _infoTile(
+            "Current Speed",
+            "${ride.currentSpeedKmh.toStringAsFixed(2)} km/h",
+          ),
           _infoTile("Max Speed", "${ride.maxSpeedKmh.toStringAsFixed(2)} km/h"),
           _infoTile("Route Points", "${ride.route.length}"),
 
@@ -468,10 +589,7 @@ Future<void> _saveActivity(RideProvider ride) async {
           value: value,
           isExpanded: true,
           hint: hint != null
-              ? Text(
-                  hint,
-                  style: const TextStyle(color: Colors.white38),
-                )
+              ? Text(hint, style: const TextStyle(color: Colors.white38))
               : null,
           iconEnabledColor: Colors.white70,
           items: items,
