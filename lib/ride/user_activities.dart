@@ -134,6 +134,11 @@ class _UserActivitiesState extends State<UserActivities>
     return prefs.getString("access");
   }
 
+  Future<int?> getUserIdFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt("id");
+  }
+
   Future<void> getActivities({
     bool initial = false,
     bool refresh = false,
@@ -195,10 +200,23 @@ class _UserActivitiesState extends State<UserActivities>
 
         print("RAW LIST LENGTH: ${rawList.length}");
 
+        // final List<Map<String, dynamic>> loadedActivities = rawList
+        //     .map<Map<String, dynamic>>(
+        //       (item) => Map<String, dynamic>.from(item as Map),
+        //     )
+        //     .toList();
+
         final List<Map<String, dynamic>> loadedActivities = rawList
-            .map<Map<String, dynamic>>(
-              (item) => Map<String, dynamic>.from(item as Map),
-            )
+            .map<Map<String, dynamic>>((item) {
+              final map = Map<String, dynamic>.from(item as Map);
+
+              map["likes_count"] =
+                  map["likes_count"] ?? map["total_likes"] ?? 0;
+              map["is_liked"] = map["is_liked"] ?? map["liked"] ?? false;
+              map["comments_count"] = map["comments_count"] ?? 0;
+
+              return map;
+            })
             .toList();
 
         print("LOADED ACTIVITIES LENGTH: ${loadedActivities.length}");
@@ -251,6 +269,171 @@ class _UserActivitiesState extends State<UserActivities>
         isRefreshingData = false;
         isLoadingMore = false;
       });
+    }
+  }
+
+  Future<void> toggleActivityLike(int activityId, int index) async {
+    try {
+      final token = await getTokenFromPrefs();
+
+      final currentLiked = activities[index]["is_liked"] == true;
+      final currentCount =
+          int.tryParse("${activities[index]["likes_count"] ?? 0}") ?? 0;
+
+      setState(() {
+        activities[index]["is_liked"] = !currentLiked;
+        activities[index]["likes_count"] = currentLiked
+            ? (currentCount > 0 ? currentCount - 1 : 0)
+            : currentCount + 1;
+      });
+
+      final response = await http.post(
+        Uri.parse("$api/api/myskates/activity/$activityId/like/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      print("LIKE STATUS: ${response.statusCode}");
+      print("LIKE BODY: ${response.body}");
+
+      if (response.statusCode == 200 ||
+          response.statusCode == 201 ||
+          response.statusCode == 204) {
+        if (response.body.isNotEmpty) {
+          final parsed = jsonDecode(response.body);
+
+          setState(() {
+            activities[index]["is_liked"] = parsed["liked"] ?? false;
+            activities[index]["likes_count"] = parsed["total_likes"] ?? 0;
+          });
+        }
+      } else {
+        setState(() {
+          activities[index]["is_liked"] = currentLiked;
+          activities[index]["likes_count"] = currentCount;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to update like: ${response.statusCode}"),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("LIKE ERROR: $e");
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getActivityComments(int activityId) async {
+    try {
+      final token = await getTokenFromPrefs();
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/activity/$activityId/comments/view/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final parsed = jsonDecode(response.body);
+
+        List raw = [];
+        if (parsed is List) {
+          raw = parsed;
+        } else if (parsed is Map && parsed["data"] is List) {
+          raw = parsed["data"];
+        } else if (parsed is Map && parsed["results"] is List) {
+          raw = parsed["results"];
+        }
+
+        return raw.map<Map<String, dynamic>>((e) {
+          final item = Map<String, dynamic>.from(e);
+
+          final firstName = item["first_name"]?.toString() ?? "";
+          final lastName = item["last_name"]?.toString() ?? "";
+          final fullName = "$firstName $lastName".trim();
+
+          item["user_name"] = fullName.isNotEmpty
+              ? fullName
+              : (item["username"]?.toString() ?? "User");
+
+          item["user_image"] = item["profile_image"];
+
+          return item;
+        }).toList();
+      }
+    } catch (e) {
+      debugPrint("COMMENTS FETCH ERROR: $e");
+    }
+    return [];
+  }
+
+  Future<bool> addActivityComment(int activityId, String comment) async {
+    try {
+      final token = await getTokenFromPrefs();
+
+      final response = await http.post(
+        Uri.parse("$api/api/myskates/activity/$activityId/comment/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({"comment": comment}),
+      );
+      print("ADD COMMENT STATUS: ${response.statusCode}");
+      print("ADD COMMENT BODY: ${response.body}");
+
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      debugPrint("ADD COMMENT ERROR: $e");
+      return false;
+    }
+  }
+
+  Future<bool> updateActivityComment(int commentId, String comment) async {
+    try {
+      final token = await getTokenFromPrefs();
+
+      final response = await http.patch(
+        Uri.parse(
+          "$api/api/myskates/activity/comment/$commentId/update/delete/",
+        ),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({"comment": comment}),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint("UPDATE COMMENT ERROR: $e");
+      return false;
+    }
+  }
+
+  Future<bool> deleteActivityComment(int commentId) async {
+    try {
+      final token = await getTokenFromPrefs();
+
+      final response = await http.delete(
+        Uri.parse(
+          "$api/api/myskates/activity/comment/$commentId/update/delete/",
+        ),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      debugPrint("DELETE COMMENT ERROR: $e");
+      return false;
     }
   }
 
@@ -838,6 +1021,8 @@ class _UserActivitiesState extends State<UserActivities>
 
     final List appreciations = activity["appreciations"] ?? [];
 
+    final List activityImages = activity["images"] ?? [];
+
     String appreciationTitle = "";
     String badgeKey = "";
 
@@ -1061,6 +1246,293 @@ class _UserActivitiesState extends State<UserActivities>
                 ),
               ),
 
+            // if (activityImages.isNotEmpty) ...[
+            //   Padding(
+            //     padding: EdgeInsets.symmetric(
+            //       horizontal: isTablet(context) ? 20 : 16,
+            //     ),
+            //     child: SizedBox(
+            //       height: isTablet(context) ? 220 : 190,
+            //       child: ListView.separated(
+            //         scrollDirection: Axis.horizontal,
+            //         itemCount: activityImages.length,
+            //         separatorBuilder: (_, __) => const SizedBox(width: 10),
+            //         itemBuilder: (context, imgIndex) {
+            //           final imageItem = activityImages[imgIndex];
+            //           final imageUrl = imageItem is String
+            //               ? imageItem
+            //               : (imageItem["image"] ??
+            //                         imageItem["url"] ??
+            //                         imageItem["file"] ??
+            //                         "")
+            //                     .toString();
+
+            //           if (imageUrl.isEmpty) {
+            //             return const SizedBox.shrink();
+            //           }
+
+            //           return ClipRRect(
+            //             borderRadius: BorderRadius.circular(18),
+            //             child: InkWell(
+            //               onTap: () {
+            //                 showDialog(
+            //                   context: context,
+            //                   builder: (_) => Dialog(
+            //                     backgroundColor: Colors.black,
+            //                     insetPadding: const EdgeInsets.all(12),
+            //                     child: Stack(
+            //                       children: [
+            //                         InteractiveViewer(
+            //                           minScale: 0.8,
+            //                           maxScale: 4,
+            //                           child: Image.network(
+            //                             imageUrl,
+            //                             fit: BoxFit.contain,
+            //                             errorBuilder:
+            //                                 (context, error, stackTrace) {
+            //                                   return const SizedBox(
+            //                                     height: 250,
+            //                                     child: Center(
+            //                                       child: Icon(
+            //                                         Icons.broken_image_outlined,
+            //                                         color: Colors.white70,
+            //                                         size: 40,
+            //                                       ),
+            //                                     ),
+            //                                   );
+            //                                 },
+            //                           ),
+            //                         ),
+            //                         Positioned(
+            //                           top: 10,
+            //                           right: 10,
+            //                           child: InkWell(
+            //                             onTap: () => Navigator.pop(context),
+            //                             child: Container(
+            //                               padding: const EdgeInsets.all(8),
+            //                               decoration: const BoxDecoration(
+            //                                 color: Colors.black54,
+            //                                 shape: BoxShape.circle,
+            //                               ),
+            //                               child: const Icon(
+            //                                 Icons.close,
+            //                                 color: Colors.white,
+            //                               ),
+            //                             ),
+            //                           ),
+            //                         ),
+            //                       ],
+            //                     ),
+            //                   ),
+            //                 );
+            //               },
+            //               child: Container(
+            //                 width: isTablet(context) ? 260 : 220,
+            //                 decoration: BoxDecoration(
+            //                   borderRadius: BorderRadius.circular(18),
+            //                   border: Border.all(
+            //                     color: Colors.white.withOpacity(0.06),
+            //                   ),
+            //                   color: softCardColor,
+            //                 ),
+            //                 child: Image.network(
+            //                   imageUrl,
+            //                   fit: BoxFit.cover,
+            //                   loadingBuilder: (context, child, progress) {
+            //                     if (progress == null) return child;
+            //                     return Container(
+            //                       alignment: Alignment.center,
+            //                       child: const CircularProgressIndicator(
+            //                         strokeWidth: 2,
+            //                       ),
+            //                     );
+            //                   },
+            //                   errorBuilder: (context, error, stackTrace) {
+            //                     return const Center(
+            //                       child: Icon(
+            //                         Icons.broken_image_outlined,
+            //                         color: Colors.white54,
+            //                         size: 34,
+            //                       ),
+            //                     );
+            //                   },
+            //                 ),
+            //               ),
+            //             ),
+            //           );
+            //         },
+            //       ),
+            //     ),
+            //   ),
+            //   const SizedBox(height: 14),
+            // ],
+            if (activityImages.isNotEmpty) ...[
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet(context) ? 20 : 16,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(22),
+                  child: SizedBox(
+                    height: isTablet(context) ? 320 : 250,
+                    child: PageView.builder(
+                      itemCount: activityImages.length,
+                      itemBuilder: (context, imgIndex) {
+                        final imageItem = activityImages[imgIndex];
+                        final imageUrl = imageItem is String
+                            ? imageItem
+                            : (imageItem["image"] ??
+                                      imageItem["url"] ??
+                                      imageItem["file"] ??
+                                      "")
+                                  .toString();
+
+                        if (imageUrl.isEmpty) {
+                          return Container(
+                            color: softCardColor,
+                            child: const Center(
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                color: Colors.white54,
+                                size: 34,
+                              ),
+                            ),
+                          );
+                        }
+
+                        return Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.network(
+                              imageUrl,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return Container(
+                                  color: softCardColor,
+                                  alignment: Alignment.center,
+                                  child: const CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: softCardColor,
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.broken_image_outlined,
+                                      color: Colors.white54,
+                                      size: 34,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+
+                            // soft dark gradient for premium look
+                            Positioned.fill(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.black.withOpacity(0.08),
+                                      Colors.transparent,
+                                      Colors.black.withOpacity(0.18),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // image count badge
+                            if (activityImages.length > 1)
+                              Positioned(
+                                top: 12,
+                                right: 12,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.55),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    "${imgIndex + 1}/${activityImages.length}",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                            // tap to zoom
+                            Positioned.fill(
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (_) => Dialog(
+                                        backgroundColor: Colors.black,
+                                        insetPadding: const EdgeInsets.all(12),
+                                        child: Stack(
+                                          children: [
+                                            InteractiveViewer(
+                                              minScale: 0.8,
+                                              maxScale: 4,
+                                              child: Image.network(
+                                                imageUrl,
+                                                fit: BoxFit.contain,
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: 10,
+                                              right: 10,
+                                              child: InkWell(
+                                                onTap: () =>
+                                                    Navigator.pop(context),
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(
+                                                    8,
+                                                  ),
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                        color: Colors.black54,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                  child: const Icon(
+                                                    Icons.close,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
             // Stats grid
             Padding(
               padding: EdgeInsets.all(isTablet(context) ? 20 : 16),
@@ -1098,9 +1570,412 @@ class _UserActivitiesState extends State<UserActivities>
               ),
               child: buildMapPreview(activity),
             ),
+
+            const SizedBox(height: 14),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                isTablet(context) ? 20 : 16,
+                0,
+                isTablet(context) ? 20 : 16,
+                isTablet(context) ? 16 : 12,
+              ),
+              child: Row(
+                children: [
+                  InkWell(
+                    borderRadius: BorderRadius.circular(30),
+                    onTap: () => toggleActivityLike(activity["id"], index),
+                    child: Row(
+                      children: [
+                        Icon(
+                          activity["is_liked"] == true
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          color: activity["is_liked"] == true
+                              ? Colors.redAccent
+                              : Colors.white,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          "${activity["likes_count"] ?? 0}",
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(30),
+                    onTap: () => openCommentsSheet(activity, index),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline_sharp,
+                          color: Colors.white,
+                          size: 23,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          "${activity["comments_count"] ?? 0}",
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> openCommentsSheet(
+    Map<String, dynamic> activity,
+    int activityIndex,
+  ) async {
+    final TextEditingController commentCtrl = TextEditingController();
+    List<Map<String, dynamic>> comments = await getActivityComments(
+      activity["id"],
+    );
+    setState(() {
+      activities[activityIndex]["comments_count"] = comments.length;
+    });
+    bool isSubmitting = false;
+    final myUserId = await getUserIdFromPrefs();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.70,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 50,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      "Comments",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: comments.isEmpty
+                          ? const Center(
+                              child: Text(
+                                "No comments yet",
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: comments.length,
+                              itemBuilder: (context, i) {
+                                final item = comments[i];
+                                final commentId = item["id"];
+                                final commentText =
+                                    item["comment"]?.toString() ?? "";
+
+                                final userName =
+                                    item["user_name"]?.toString() ?? "User";
+                                final userImage = item["user_image"]
+                                    ?.toString();
+
+                                final isMyComment =
+                                    item["user"] == myUserId ||
+                                    item["user_id"] == myUserId;
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: softCardColor,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 20,
+                                        backgroundColor: Colors.white12,
+                                        backgroundImage:
+                                            (userImage != null &&
+                                                userImage.isNotEmpty)
+                                            ? NetworkImage(userImage)
+                                            : null,
+                                        child:
+                                            (userImage == null ||
+                                                userImage.isEmpty)
+                                            ? const Icon(
+                                                Icons.person,
+                                                color: Colors.white70,
+                                              )
+                                            : null,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              userName,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              commentText,
+                                              style: const TextStyle(
+                                                color: Colors.white70,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (isMyComment)
+                                        PopupMenuButton<String>(
+                                          color: softCardColor,
+                                          icon: const Icon(
+                                            Icons.more_vert,
+                                            color: Colors.white70,
+                                          ),
+                                          onSelected: (value) async {
+                                            if (value == "edit") {
+                                              final editCtrl =
+                                                  TextEditingController(
+                                                    text: commentText,
+                                                  );
+
+                                              final updated =
+                                                  await showDialog<bool>(
+                                                    context: context,
+                                                    builder: (_) => AlertDialog(
+                                                      title: const Text(
+                                                        "Edit Comment",
+                                                      ),
+                                                      content: TextField(
+                                                        controller: editCtrl,
+                                                      ),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                context,
+                                                                false,
+                                                              ),
+                                                          child: const Text(
+                                                            "Cancel",
+                                                          ),
+                                                        ),
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                context,
+                                                                true,
+                                                              ),
+                                                          child: const Text(
+                                                            "Update",
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  );
+
+                                              if (updated == true) {
+                                                final ok =
+                                                    await updateActivityComment(
+                                                      commentId,
+                                                      editCtrl.text.trim(),
+                                                    );
+                                                if (ok) {
+                                                  comments =
+                                                      await getActivityComments(
+                                                        activity["id"],
+                                                      );
+                                                  setModalState(() {});
+                                                  setState(() {
+                                                    activities[activityIndex]["comments_count"] =
+                                                        comments.length;
+                                                  });
+                                                }
+                                              }
+                                            }
+
+                                            if (value == "delete") {
+                                              final ok =
+                                                  await deleteActivityComment(
+                                                    commentId,
+                                                  );
+                                              if (ok) {
+                                                comments =
+                                                    await getActivityComments(
+                                                      activity["id"],
+                                                    );
+                                                setModalState(() {});
+                                                setState(() {
+                                                  activities[activityIndex]["comments_count"] =
+                                                      comments.length;
+                                                });
+                                              }
+                                            }
+                                          },
+
+                                          itemBuilder: (context) => const [
+                                            PopupMenuItem(
+                                              value: "edit",
+                                              child: Text(
+                                                "Edit",
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                            PopupMenuItem(
+                                              value: "delete",
+                                              child: Text(
+                                                "Delete",
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: commentCtrl,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              hintText: "Write a comment...",
+                              hintStyle: const TextStyle(color: Colors.white54),
+                              filled: true,
+                              fillColor: softCardColor,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        InkWell(
+                          onTap: isSubmitting
+                              ? null
+                              : () async {
+                                  final text = commentCtrl.text.trim();
+                                  if (text.isEmpty) return;
+
+                                  setModalState(() => isSubmitting = true);
+
+                                  final ok = await addActivityComment(
+                                    activity["id"],
+                                    text,
+                                  );
+
+                                  setModalState(() => isSubmitting = false);
+
+                                  if (ok) {
+                                    commentCtrl.clear();
+                                    comments = await getActivityComments(
+                                      activity["id"],
+                                    );
+
+                                    // setState(() {
+                                    //   final current =
+                                    //       int.tryParse(
+                                    //         "${activities[activityIndex]["comments_count"] ?? 0}",
+                                    //       ) ??
+                                    //       0;
+                                    //   activities[activityIndex]["comments_count"] =
+                                    //       current + 1;
+                                    // });
+
+                                    setState(() {
+                                      activities[activityIndex]["comments_count"] =
+                                          comments.length;
+                                    });
+
+                                    setModalState(() {});
+                                  }
+                                },
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: accentColor,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: isSubmitting
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.send_rounded,
+                                    color: Colors.white,
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1468,7 +2343,6 @@ class _UserActivitiesState extends State<UserActivities>
           ),
         ),
       ),
-
     );
   }
 }
