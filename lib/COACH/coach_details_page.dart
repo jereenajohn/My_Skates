@@ -522,6 +522,8 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
     }
   }
 
+
+
   // Open WhatsApp
   Future<void> openWhatsApp(String phone) async {
     final url = "https://wa.me/$phone";
@@ -533,7 +535,7 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
   }
 
   // Show connect popup
-  void _showConnectPopup() {
+void _showConnectPopup() {
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -571,8 +573,8 @@ class _CoachDetailsPageState extends State<CoachDetailsPage> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Center(
-                      child: Image.network(
-                        "https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Instagram_logo_2022.svg/512px-Instagram_logo_2022.svg.png?20220318173445",
+                      child: Image.asset(
+                        "lib/assets/instalogo.png",
                         height: 45,
                       ),
                     ),
