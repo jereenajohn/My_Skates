@@ -133,12 +133,22 @@ class ClubGridCard extends StatelessWidget {
           ),
           child: Column(
             children: [
-              CircleAvatar(
-                radius: 36,
-                backgroundImage: imageUrl.isNotEmpty
-                    ? NetworkImage(imageUrl)
-                    : const AssetImage("lib/assets/images.png")
-                          as ImageProvider,
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ClubView(clubid: club["id"]),
+                    ),
+                  );
+                },
+                child: CircleAvatar(
+                  radius: 36,
+                  backgroundImage: imageUrl.isNotEmpty
+                      ? NetworkImage(imageUrl)
+                      : const AssetImage("lib/assets/images.png")
+                            as ImageProvider,
+                ),
               ),
 
               const SizedBox(height: 10),

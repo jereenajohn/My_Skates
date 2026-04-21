@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/COACH/coach_view_training_registered_details.dart';
+import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 import 'package:latlong2/latlong.dart'; // <-- REQUIRED
@@ -111,6 +112,7 @@ class _CreateTrainingSessionPageState extends State<CreateTrainingSessionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text("Create Training Session"),
         backgroundColor: Colors.black,
@@ -254,6 +256,7 @@ class _CreateTrainingSessionPageState extends State<CreateTrainingSessionPage> {
           ),
         ),
       ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 4),
     );
   }
 

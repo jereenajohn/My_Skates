@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/api.dart';
@@ -132,7 +133,7 @@ class _StudentListState extends State<StudentList> {
           style: TextStyle(
             color: Colors.white,
             fontFamily: "poppins",
-            fontSize: 16,
+            fontSize: 18,
           ),
         ),
       ),
@@ -355,6 +356,7 @@ class _StudentListState extends State<StudentList> {
                 ),
         ),
       ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 0),
     );
   }
 }

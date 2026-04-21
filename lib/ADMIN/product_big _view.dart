@@ -7,6 +7,7 @@ import 'package:my_skates/ADMIN/wishlist.dart';
 import 'package:my_skates/api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/ADMIN/cart_count_notifier.dart';
 
 class Review {
   final int id;
@@ -71,6 +72,7 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
   Map<String, dynamic>? product;
   int? selectedVariantId;
   Map<String, dynamic>? selectedVariant;
+
   List<Review> allReviews = [];
   List<Review> approvedReviews = [];
 
@@ -119,6 +121,7 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
     // Call API methods
     getproductDetails();
     fetchProductReviews();
+    CartCountNotifier.refreshCartCount();
   }
 
   @override
@@ -347,6 +350,7 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
       final String message = decoded["message"] ?? "Unable to add to cart";
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        await CartCountNotifier.refreshCartCount();
         Future.delayed(const Duration(milliseconds: 800), () {
           _showSnackBar(
             icon: Icons.shopping_cart,
@@ -390,6 +394,10 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
 
       final decoded = jsonDecode(response.body);
       final message = decoded["message"] ?? "Added to cart";
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        await CartCountNotifier.refreshCartCount();
+      }
 
       _showSnackBar(
         icon: Icons.shopping_cart,
@@ -843,46 +851,50 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
 
               const SizedBox(width: 4),
 
-              // Replace your current cart IconButton with this:
               Container(
-                key: _cartIconKey, // Add this key
+                key: _cartIconKey,
                 child: IconButton(
-                  onPressed: () {
-                    Navigator.push(
+                  onPressed: () async {
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const cart()),
                     );
+                    CartCountNotifier.refreshCartCount();
                   },
-                  icon: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      const Icon(
-                        Icons.shopping_cart_outlined,
-                        color: Colors.white,
-                        size: 26,
-                      ),
-
-                      // CART BADGE
-                      Positioned(
-                        right: -2,
-                        top: -2,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.redAccent,
-                            shape: BoxShape.circle,
+                  icon: ValueListenableBuilder<int>(
+                    valueListenable: CartCountNotifier.cartCount,
+                    builder: (context, count, _) {
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Icon(
+                            Icons.shopping_cart_outlined,
+                            color: Colors.white,
+                            size: 26,
                           ),
-                          child: const Text(
-                            "2",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                          if (count > 0)
+                            Positioned(
+                              right: -2,
+                              top: -2,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.redAccent,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  "$count",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ),
-                    ],
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),

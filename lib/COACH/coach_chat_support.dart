@@ -193,7 +193,11 @@ class _CoachChatSupportState extends State<CoachChatSupport> {
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
-                    children: const [
+
+                    children:  [
+                      IconButton(onPressed: (){
+                        Navigator.pop(context);
+                      }, icon: Icon(Icons.arrow_back,color: Colors.white)),
                       Icon(Icons.support_agent, color: Colors.white),
                       SizedBox(width: 10),
                       Text(

@@ -141,28 +141,57 @@ class _CoachClubRequestsState extends State<CoachClubRequests> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text("Club Join Requests", style: TextStyle(fontSize: 14)),
-        backgroundColor: Colors.black,
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+        ),
+        title: const Text(
+          "Club Join Requests",
+          style: TextStyle(fontSize: 18, color: Colors.white),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         foregroundColor: Colors.white,
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : noData
-          ? const Center(
-              child: Text(
-                "No join requests found",
-                style: TextStyle(color: Colors.white70),
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: requests.length,
-              itemBuilder: (context, index) {
-                final req = requests[index];
-                return _buildRequestCard(req);
-              },
-            ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF001A18),
+              Color(0xFF002F2B),
+              Color(0xFF000C0B),
+              Colors.black,
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                )
+              : noData
+              ? const Center(
+                  child: Text(
+                    "No join requests found",
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: requests.length,
+                  itemBuilder: (context, index) {
+                    final req = requests[index];
+                    return _buildRequestCard(req);
+                  },
+                ),
+        ),
+      ),
     );
   }
 
@@ -171,7 +200,7 @@ class _CoachClubRequestsState extends State<CoachClubRequests> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
+        color: Colors.black.withOpacity(0.35),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white12),
       ),

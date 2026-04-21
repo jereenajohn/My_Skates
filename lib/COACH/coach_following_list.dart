@@ -123,8 +123,8 @@ List<Map<String, dynamic>> filteredFollowing = [];
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
         leading: IconButton(onPressed: (){
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => CoachSettings()));
-        }, icon: Icon(Icons.arrow_back)),
+          Navigator.pop(context);
+        }, icon: Icon(Icons.arrow_back))
       ),
       body: loading
     ? const Center(child: CircularProgressIndicator(color: Colors.white))

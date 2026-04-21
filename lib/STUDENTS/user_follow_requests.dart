@@ -15,6 +15,9 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
   List<Map<String, dynamic>> requests = [];
   bool loading = true;
 
+  final TextEditingController searchController = TextEditingController();
+  List<Map<String, dynamic>> filteredRequests = [];
+
   @override
   void initState() {
     super.initState();
@@ -23,6 +26,12 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
 
   Future<void> initLoad() async {
     await fetchRequests();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   // ------------------------------------------------------------
@@ -44,25 +53,30 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
         setState(() {
           requests = raw.map<Map<String, dynamic>>((e) {
             final m = Map<String, dynamic>.from(e);
-            m["status_ui"] = "pending"; // SAME AS COACH
+            m["status_ui"] = "pending";
             m["isLoading"] = false;
             return m;
           }).toList();
+
+          filteredRequests = List.from(requests);
           loading = false;
         });
       } else {
-        loading = false;
+        setState(() {
+          loading = false;
+        });
       }
     } catch (_) {
-      loading = false;
+      setState(() {
+        loading = false;
+      });
     }
   }
 
   // ------------------------------------------------------------
   // CONFIRM REQUEST
   // ------------------------------------------------------------
-  Future<void> confirmRequest(int index) async {
-    final r = requests[index];
+  Future<void> confirmRequest(Map<String, dynamic> r) async {
     r["isLoading"] = true;
     setState(() {});
 
@@ -76,8 +90,9 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
     );
 
     if (res.statusCode == 200) {
-      // 🔥 Immediately remove from UI
-      requests.removeAt(index);
+      final removedId = r["id"];
+      requests.removeWhere((item) => item["id"] == removedId);
+      filteredRequests.removeWhere((item) => item["id"] == removedId);
     }
 
     setState(() {});
@@ -86,13 +101,11 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
   // ------------------------------------------------------------
   // FOLLOW BACK
   // ------------------------------------------------------------
- 
+
   // ------------------------------------------------------------
   // REJECT REQUEST
   // ------------------------------------------------------------
-  Future<void> rejectRequest(int index) async {
-    final r = requests[index];
-
+  Future<void> rejectRequest(Map<String, dynamic> r) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
 
@@ -103,12 +116,26 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
     );
 
     if (res.statusCode == 200) {
-      requests.removeAt(index);
+      final removedId = r["id"];
+      requests.removeWhere((item) => item["id"] == removedId);
+      filteredRequests.removeWhere((item) => item["id"] == removedId);
       setState(() {});
     }
   }
 
- 
+  void filterRequests(String query) {
+    final results = requests.where((request) {
+      final followerName =
+          (request["follower_name"] ?? "").toString().toLowerCase();
+
+      return followerName.contains(query.toLowerCase());
+    }).toList();
+
+    setState(() {
+      filteredRequests = results;
+    });
+  }
+
   // ------------------------------------------------------------
   // UI
   // ------------------------------------------------------------
@@ -127,74 +154,116 @@ class _StudentFollowRequestState extends State<StudentFollowRequest> {
       body: loading
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : requests.isEmpty
-          ? const Center(
-              child: Text(
-                "No Follow Requests",
-                style: TextStyle(color: Colors.white70),
-              ),
-            )
-          : ListView.builder(
-              itemCount: requests.length,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              itemBuilder: (_, i) {
-                final r = requests[i];
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
+              ? const Center(
+                  child: Text(
+                    "No Follow Requests",
+                    style: TextStyle(color: Colors.white70),
                   ),
-                  child: Row(
-                    children: [
-                      const CircleAvatar(
-                        radius: 28,
-                        backgroundImage: AssetImage("lib/assets/img.jpg"),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              r["follower_name"] ?? "",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              r["status_ui"] == "following"
-                                  ? "You are following each other"
-                                  : "Requested to follow you",
-                              style: const TextStyle(
-                                color: Colors.white54,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
+                )
+              : Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: TextField(
+                        controller: searchController,
+                        onChanged: filterRequests,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: "Search requests",
+                          hintStyle: const TextStyle(color: Colors.white54),
+                          prefixIcon: const Icon(
+                            Icons.search,
+                            color: Colors.white54,
+                          ),
+                          filled: true,
+                          fillColor: Colors.black.withOpacity(0.4),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(35),
+                            borderSide: const BorderSide(color: Colors.white12),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(35),
+                            borderSide: const BorderSide(color: Colors.white12),
+                          ),
                         ),
                       ),
+                    ),
+                    Expanded(
+                      child: filteredRequests.isEmpty
+                          ? const Center(
+                              child: Text(
+                                "No matching requests",
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: filteredRequests.length,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              itemBuilder: (_, i) {
+                                final r = filteredRequests[i];
 
-                      if (r["status_ui"] == "pending") ...[
-                        _btn(
-                          text: "Confirm",
-                          color: Colors.teal,
-                          loading: r["isLoading"],
-                          onTap: () => confirmRequest(i),
-                        ),
-                        const SizedBox(width: 8),
-                        _outlineBtn(
-                          text: "Delete",
-                          onTap: () => rejectRequest(i),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              },
-            ),
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const CircleAvatar(
+                                        radius: 28,
+                                        backgroundImage: AssetImage(
+                                          "lib/assets/img.jpg",
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              r["follower_name"] ?? "",
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              r["status_ui"] == "following"
+                                                  ? "You are following each other"
+                                                  : "Requested to follow you",
+                                              style: const TextStyle(
+                                                color: Colors.white54,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      if (r["status_ui"] == "pending") ...[
+                                        _btn(
+                                          text: "Confirm",
+                                          color: Colors.teal,
+                                          loading: r["isLoading"],
+                                          onTap: () => confirmRequest(r),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        _outlineBtn(
+                                          text: "Delete",
+                                          onTap: () => rejectRequest(r),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
     );
   }
 
