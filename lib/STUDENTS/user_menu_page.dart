@@ -17,6 +17,7 @@ import 'package:my_skates/STUDENTS/user_timeline_page.dart';
 import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:my_skates/bottomnavigation.dart';
 
 class UserMenuPage extends StatefulWidget {
   const UserMenuPage({super.key});
@@ -296,7 +297,9 @@ class _UserMenuPageState extends State<UserMenuPage>
           ),
         ),
       ),
-      bottomNavigationBar: _bottomNav(),
+      bottomNavigationBar: const AppBottomNav(
+        currentIndex: 0,
+      ),
     );
   }
 
@@ -335,86 +338,84 @@ class _UserMenuPageState extends State<UserMenuPage>
     );
   }
 
-void _openProfileImageViewer(String imageUrl) {
-  showGeneralDialog(
-    context: context,
-    barrierDismissible: true,
-    barrierLabel: "Profile Image",
-    barrierColor: Colors.black.withOpacity(0.2),
-    transitionDuration: const Duration(milliseconds: 250),
-    pageBuilder: (context, animation, secondaryAnimation) {
-      return GestureDetector(
-        onTap: () => Navigator.pop(context),
-        child: Material(
-          color: Colors.transparent,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                  child: Container(
-                    color: Colors.black.withOpacity(0.35),
+  void _openProfileImageViewer(String imageUrl) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "Profile Image",
+      barrierColor: Colors.black.withOpacity(0.2),
+      transitionDuration: const Duration(milliseconds: 250),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Material(
+            color: Colors.transparent,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                    child: Container(color: Colors.black.withOpacity(0.35)),
                   ),
                 ),
-              ),
-              Center(
-                child: GestureDetector(
-                  onTap: () {},
-                  child: Hero(
-                    tag: "profile_image_view",
-                    child: Container(
-                      width: 300,
-                      height: 300,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        image: DecorationImage(
-                          image: NetworkImage(imageUrl),
-                          fit: BoxFit.cover,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.25),
-                            blurRadius: 25,
-                            spreadRadius: 3,
+                Center(
+                  child: GestureDetector(
+                    onTap: () {},
+                    child: Hero(
+                      tag: "profile_image_view",
+                      child: Container(
+                        width: 300,
+                        height: 300,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          image: DecorationImage(
+                            image: NetworkImage(imageUrl),
+                            fit: BoxFit.cover,
                           ),
-                        ],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.25),
+                              blurRadius: 25,
+                              spreadRadius: 3,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              Positioned(
-                top: 45,
-                right: 20,
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.35),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 24,
+                Positioned(
+                  top: 45,
+                  right: 20,
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.35),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
-    },
-    transitionBuilder: (context, animation, secondaryAnimation, child) {
-      return FadeTransition(
-        opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-        child: child,
-      );
-    },
-  );
-}
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: child,
+        );
+      },
+    );
+  }
 
   // ───────────────── SUPPORT CARD ─────────────────
   Widget _supportCard() {
@@ -555,35 +556,43 @@ void _openProfileImageViewer(String imageUrl) {
                   const SizedBox(height: 10),
 
                   // FOLLOWERS / FOLLOWING
-                 Row(
-  children: [
-    GestureDetector(
-      onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => UserFollowersList()));
-      },
-      child: Column(
-        children: [
-          _countText(followersCount),
-          const SizedBox(height: 2),
-          _labelText("Followers"),
-        ],
-      ),
-    ),
-    const SizedBox(width: 28),
-    GestureDetector(
-      onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => UserFollowing()));
-      },
-      child: Column(
-        children: [
-          _countText(followingCount),
-          const SizedBox(height: 2),
-          _labelText("Following"),
-        ],
-      ),
-    ),
-  ],
-),
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => UserFollowersList(),
+                            ),
+                          );
+                        },
+                        child: Column(
+                          children: [
+                            _countText(followersCount),
+                            const SizedBox(height: 2),
+                            _labelText("Followers"),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 28),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => UserFollowing()),
+                          );
+                        },
+                        child: Column(
+                          children: [
+                            _countText(followingCount),
+                            const SizedBox(height: 2),
+                            _labelText("Following"),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -593,34 +602,31 @@ void _openProfileImageViewer(String imageUrl) {
     );
   }
 
-Widget _countText(int count) {
-  return SizedBox(
-    width: 70,
-    child: Text(
-      count.toString(),
-      textAlign: TextAlign.center,
-      style: const TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.bold,
-        fontSize: 14,
+  Widget _countText(int count) {
+    return SizedBox(
+      width: 70,
+      child: Text(
+        count.toString(),
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-Widget _labelText(String label) {
-  return SizedBox(
-    width: 70,
-    child: Text(
-      label,
-      textAlign: TextAlign.center,
-      style: const TextStyle(
-        color: Colors.white54,
-        fontSize: 11,
+  Widget _labelText(String label) {
+    return SizedBox(
+      width: 70,
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: Colors.white54, fontSize: 11),
       ),
-    ),
-  );
-}
+    );
+  }
 
   // ───────────────── QUICK ACTION ─────────────────
   // Widget _quickActionCard() {

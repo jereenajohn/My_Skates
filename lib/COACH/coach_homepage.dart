@@ -863,7 +863,6 @@ class _CoachHomepageState extends State<CoachHomepage> {
     const double topLimit = 100;
     const double bottomNavHeight = 90;
 
-    
     const double openMenuExtraHeight = 250;
 
     final double maxX = size.width - fabSize - sideMargin;
@@ -1039,6 +1038,15 @@ class _CoachHomepageState extends State<CoachHomepage> {
 
   @override
   Widget build(BuildContext context) {
+    final filteredCoaches = coaches.where((coach) {
+      final int id = coach["id"] ?? 0;
+      return !myFollowing.contains(id) && !myApprovedSent.contains(id);
+    }).toList();
+
+    final filteredStudents = students.where((student) {
+      final int id = student["id"] ?? 0;
+      return !myFollowing.contains(id) && !myApprovedSent.contains(id);
+    }).toList();
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -1500,7 +1508,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                               height: MediaQuery.of(context).size.height * 0.28,
                               child: !followLoaded || coachesLoading
                                   ? _buildCoachShimmer()
-                                  : coachesNoData
+                                  : filteredCoaches.isEmpty
                                   ? const Center(
                                       child: Text(
                                         "No coaches found",
@@ -1509,9 +1517,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                     )
                                   : ListView.builder(
                                       scrollDirection: Axis.horizontal,
-                                      itemCount: coaches.length,
+                                      itemCount: filteredCoaches.length,
                                       itemBuilder: (_, i) => CoachFollowCard(
-                                        coach: coaches[i],
+                                        coach: filteredCoaches[i],
                                         onFollow: sendFollowRequest,
                                         onCancelPending: cancelPendingRequest,
                                         onUnfollow: unfollowCoach,
@@ -1538,7 +1546,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                               height: MediaQuery.of(context).size.height * 0.25,
                               child: studentsLoading
                                   ? _buildCoachShimmer()
-                                  : studentsNoData
+                                  : filteredStudents.isEmpty
                                   ? const Center(
                                       child: Text(
                                         "No students found",
@@ -1547,9 +1555,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                     )
                                   : ListView.builder(
                                       scrollDirection: Axis.horizontal,
-                                      itemCount: students.length,
+                                      itemCount: filteredStudents.length,
                                       itemBuilder: (_, i) => StudentFollowCard(
-                                        student: students[i],
+                                        student: filteredStudents[i],
                                         myFollowing: myFollowing,
                                         myRequests: myRequests,
                                         myApprovedSent: myApprovedSent,

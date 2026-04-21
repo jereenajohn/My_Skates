@@ -185,10 +185,8 @@ class _MyordersState extends State<Myorders> {
   bool isLoading = true;
   String? error;
 
-  // Status filter
   String _selectedStatusFilter = 'ALL';
 
-  // Status options for filter dropdown
   final List<Map<String, String>> statusOptions = [
     {"value": "PLACED", "label": "Placed"},
     {"value": "CONFIRMED", "label": "Confirmed"},
@@ -204,7 +202,6 @@ class _MyordersState extends State<Myorders> {
     fetchOrders();
   }
 
-  // Get filtered orders based on selected status
   List<Order> get _filteredOrders {
     if (_selectedStatusFilter == 'ALL') {
       return orders;
@@ -251,7 +248,7 @@ class _MyordersState extends State<Myorders> {
           orders = orderResponse.data;
           isLoading = false;
         });
-
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
         print("Orders fetched successfully: ${orders.length} orders");
       } else {
         setState(() {

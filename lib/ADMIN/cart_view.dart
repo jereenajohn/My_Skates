@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:my_skates/ADMIN/cart_count_notifier.dart';
 
 class cart extends StatefulWidget {
   const cart({super.key});
@@ -654,6 +655,7 @@ class _cartState extends State<cart> {
         });
 
         fetchCartSummary();
+        await CartCountNotifier.refreshCartCount();
       }
     } catch (e) {
       debugPrint("Remove cart error: $e");
@@ -678,6 +680,7 @@ class _cartState extends State<cart> {
       if (response.statusCode == 200) {
         fetchCart();
         fetchCartSummary();
+        await CartCountNotifier.refreshCartCount();
       }
     } catch (e) {
       debugPrint("Cart update error: $e");
@@ -706,18 +709,23 @@ class _cartState extends State<cart> {
 
         final cartData = decoded["data"];
         final List items = cartData["items"] ?? [];
+
         if (!mounted) return;
         setState(() {
           cartItems = items;
         });
+
+        final int count = items.fold<int>(
+          0,
+          (sum, item) => sum + (((item["quantity"] ?? 0) as num).toInt()),
+        );
+        CartCountNotifier.cartCount.value = count;
 
         await fetchCartSummary();
 
         setState(() {
           loading = false;
         });
-
-        await fetchCartSummary();
       } else {
         setState(() => loading = false);
       }
@@ -1108,7 +1116,10 @@ class _cartState extends State<cart> {
               height: 48,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => UserApprovedProducts( )));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => UserApprovedProducts()),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.tealAccent,

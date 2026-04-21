@@ -11,6 +11,7 @@ import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:my_skates/bottomnavigation.dart';
 
 class RatingData {
   final int id;
@@ -958,7 +959,9 @@ class _ClubViewState extends State<ClubView> {
         return;
       }
 
-      print("Updating feed post ID: $postId with ${imageFiles?.length ?? 0} images");
+      print(
+        "Updating feed post ID: $postId with ${imageFiles?.length ?? 0} images",
+      );
 
       final url = Uri.parse("$api/api/myskates/club/feed/$postId/");
 
@@ -1139,14 +1142,14 @@ class _ClubViewState extends State<ClubView> {
         return;
       }
 
-      bool currentLiked = _likedPosts[postId] ?? false;
-      int currentCount = _likeCounts[postId] ?? 0;
+      final bool previousLiked = _likedPosts[postId] ?? false;
+      final int previousCount = _likeCounts[postId] ?? 0;
 
       setState(() {
-        _likedPosts[postId] = !currentLiked;
-        _likeCounts[postId] = currentLiked
-            ? currentCount - 1
-            : currentCount + 1;
+        _likedPosts[postId] = !previousLiked;
+        _likeCounts[postId] = previousLiked
+            ? previousCount - 1
+            : previousCount + 1;
       });
 
       final url = Uri.parse("$api/api/myskates/club/feed/$postId/like/");
@@ -1162,10 +1165,12 @@ class _ClubViewState extends State<ClubView> {
       print("Like toggle response: ${response.statusCode}");
       print("Like toggle body: ${response.body}");
 
-      if (response.statusCode != 200 && response.statusCode != 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        await fetchClubFeeds();
+      } else {
         setState(() {
-          _likedPosts[postId] = currentLiked;
-          _likeCounts[postId] = currentCount;
+          _likedPosts[postId] = previousLiked;
+          _likeCounts[postId] = previousCount;
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1177,14 +1182,7 @@ class _ClubViewState extends State<ClubView> {
       }
     } catch (e) {
       print("Like toggle error: $e");
-
-      bool currentLiked = _likedPosts[postId] ?? false;
-      int currentCount = _likeCounts[postId] ?? 0;
-
-      setState(() {
-        _likedPosts[postId] = currentLiked;
-        _likeCounts[postId] = currentCount;
-      });
+      await fetchClubFeeds();
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
@@ -2906,7 +2904,8 @@ class _ClubViewState extends State<ClubView> {
                       const SizedBox(height: 20),
 
                       // Existing images
-                      if (existingImageUrls.isNotEmpty && selectedImages.isEmpty) ...[
+                      if (existingImageUrls.isNotEmpty &&
+                          selectedImages.isEmpty) ...[
                         const Text(
                           "Current Images:",
                           style: TextStyle(color: Colors.white70, fontSize: 14),
@@ -2926,7 +2925,9 @@ class _ClubViewState extends State<ClubView> {
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(10),
                                       image: DecorationImage(
-                                        image: NetworkImage(existingImageUrls[index]),
+                                        image: NetworkImage(
+                                          existingImageUrls[index],
+                                        ),
                                         fit: BoxFit.cover,
                                       ),
                                     ),
@@ -2983,7 +2984,9 @@ class _ClubViewState extends State<ClubView> {
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(10),
                                       image: DecorationImage(
-                                        image: FileImage(File(selectedImages[index]!.path)),
+                                        image: FileImage(
+                                          File(selectedImages[index]!.path),
+                                        ),
                                         fit: BoxFit.cover,
                                       ),
                                     ),
@@ -3023,7 +3026,8 @@ class _ClubViewState extends State<ClubView> {
                       GestureDetector(
                         onTap: () async {
                           final picker = ImagePicker();
-                          final List<XFile> images = await picker.pickMultiImage();
+                          final List<XFile> images = await picker
+                              .pickMultiImage();
                           if (images.isNotEmpty) {
                             setStateSB(() {
                               selectedImages.addAll(images);
@@ -3053,7 +3057,8 @@ class _ClubViewState extends State<ClubView> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                selectedImages.isNotEmpty || existingImageUrls.isNotEmpty
+                                selectedImages.isNotEmpty ||
+                                        existingImageUrls.isNotEmpty
                                     ? "Add More Images"
                                     : "Choose Images",
                                 style: const TextStyle(
@@ -3125,8 +3130,9 @@ class _ClubViewState extends State<ClubView> {
                                 );
 
                                 // If there are new images selected, use them; otherwise keep existing
-                                List<XFile?>? imagesToUpdate = selectedImages.isNotEmpty 
-                                    ? selectedImages 
+                                List<XFile?>? imagesToUpdate =
+                                    selectedImages.isNotEmpty
+                                    ? selectedImages
                                     : null;
 
                                 await _updateFeedPost(
@@ -3195,18 +3201,41 @@ class _ClubViewState extends State<ClubView> {
 
     // Get all images
     List<String> imageUrls = [];
+
+    // multiple images list
     if (post['images'] != null && post['images'] is List) {
       final imagesList = post['images'] as List;
       for (var img in imagesList) {
-        if (img is Map && img['image'] != null) {
-          String imageUrl = img['image'].toString().trim();
-          if (imageUrl.isNotEmpty && !imageUrl.startsWith('http')) {
+        String imageUrl = "";
+
+        if (img is Map) {
+          imageUrl =
+              (img['image'] ?? img['images'] ?? img['file'] ?? img['url'] ?? '')
+                  .toString()
+                  .trim();
+        } else {
+          imageUrl = img.toString().trim();
+        }
+
+        if (imageUrl.isNotEmpty) {
+          if (!imageUrl.startsWith('http')) {
             imageUrl = imageUrl.startsWith('/')
                 ? "$api$imageUrl"
                 : "$api/$imageUrl";
           }
           imageUrls.add(imageUrl);
         }
+      }
+    }
+    if (imageUrls.isEmpty && post['image'] != null) {
+      String singleImage = post['image'].toString().trim();
+      if (singleImage.isNotEmpty) {
+        if (!singleImage.startsWith('http')) {
+          singleImage = singleImage.startsWith('/')
+              ? "$api$singleImage"
+              : "$api/$singleImage";
+        }
+        imageUrls.add(singleImage);
       }
     }
 
@@ -3526,9 +3555,10 @@ class _ClubViewState extends State<ClubView> {
                             color: Colors.grey[900],
                             child: Center(
                               child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
+                                value:
+                                    loadingProgress.expectedTotalBytes != null
                                     ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
+                                          loadingProgress.expectedTotalBytes!
                                     : null,
                                 color: Colors.teal,
                               ),
@@ -3543,7 +3573,10 @@ class _ClubViewState extends State<ClubView> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.broken_image, color: Colors.white54),
+                                  Icon(
+                                    Icons.broken_image,
+                                    color: Colors.white54,
+                                  ),
                                   SizedBox(height: 8),
                                   Text(
                                     "Failed to load image",
@@ -4046,7 +4079,7 @@ class _ClubViewState extends State<ClubView> {
                         return _buildFeedPost(feedPosts[index]);
                       },
                     ),
-                  const SizedBox(height: 25),
+                  const SizedBox(height: 10),
 
                   const Text(
                     "Media",
@@ -4068,18 +4101,38 @@ class _ClubViewState extends State<ClubView> {
                             .map((img) => _mediaItem(img))
                             .toList(),
 
-                        Container(
-                          width: 70,
-                          margin: const EdgeInsets.only(right: 10),
-                          decoration: BoxDecoration(
-                            color: Colors.white24,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              "View\nall",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.white),
+                        GestureDetector(
+                          onTap: () {
+                            if (mediaImages.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("No images available"),
+                                ),
+                              );
+                              return;
+                            }
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    ClubMediaViewPage(imageUrls: mediaImages),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: 70,
+                            margin: const EdgeInsets.only(right: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                "View\nall",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.white),
+                              ),
                             ),
                           ),
                         ),
@@ -4087,7 +4140,7 @@ class _ClubViewState extends State<ClubView> {
                     ),
                   ),
 
-                  const SizedBox(height: 35),
+                  const SizedBox(height: 15),
 
                   // REVIEWS SECTION
                   const Text(
@@ -4099,8 +4152,7 @@ class _ClubViewState extends State<ClubView> {
                     ),
                   ),
 
-                  const SizedBox(height: 15),
-
+                  // const SizedBox(height: 5),
                   if (_recentRatings.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(20),
@@ -4154,7 +4206,7 @@ class _ClubViewState extends State<ClubView> {
                       ],
                     ),
 
-                  const SizedBox(height: 35),
+                  const SizedBox(height: 10),
 
                   const Text(
                     "Events",
@@ -4226,22 +4278,23 @@ class _ClubViewState extends State<ClubView> {
             )
           : null,
 
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.black,
-        selectedItemColor: const Color(0xFF00AFA5),
-        unselectedItemColor: Colors.white70,
-        type: BottomNavigationBarType.fixed,
-        currentIndex: 3,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: ""),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ""),
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: ""),
-          BottomNavigationBarItem(icon: Icon(Icons.group), label: ""),
-          BottomNavigationBarItem(icon: Icon(Icons.event), label: ""),
-        ],
-      ),
+      // bottomNavigationBar: BottomNavigationBar(
+      //   backgroundColor: Colors.black,
+      //   selectedItemColor: const Color(0xFF00AFA5),
+      //   unselectedItemColor: Colors.white70,
+      //   type: BottomNavigationBarType.fixed,
+      //   currentIndex: 3,
+      //   showSelectedLabels: false,
+      //   showUnselectedLabels: false,
+      //   items: const [
+      //     BottomNavigationBarItem(icon: Icon(Icons.home), label: ""),
+      //     BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ""),
+      //     BottomNavigationBarItem(icon: Icon(Icons.chat), label: ""),
+      //     BottomNavigationBarItem(icon: Icon(Icons.group), label: ""),
+      //     BottomNavigationBarItem(icon: Icon(Icons.event), label: ""),
+      //   ],
+      // ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 0),
     );
   }
 
@@ -4453,7 +4506,9 @@ class _ClubViewState extends State<ClubView> {
 }
 
 // UPDATED: Feed input box with multi-image support
-Widget _feedInputBox({required Function(String, String, List<XFile?>?) onSubmit}) {
+Widget _feedInputBox({
+  required Function(String, String, List<XFile?>?) onSubmit,
+}) {
   final TextEditingController titleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   List<XFile?> selectedImages = [];
@@ -4543,7 +4598,9 @@ Widget _feedInputBox({required Function(String, String, List<XFile?>?) onSubmit}
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10),
                             image: DecorationImage(
-                              image: FileImage(File(selectedImages[index]!.path)),
+                              image: FileImage(
+                                File(selectedImages[index]!.path),
+                              ),
                               fit: BoxFit.cover,
                             ),
                           ),
@@ -4636,7 +4693,11 @@ Widget _feedInputBox({required Function(String, String, List<XFile?>?) onSubmit}
                         return;
                       }
 
-                      onSubmit(title, description, selectedImages.isEmpty ? null : selectedImages);
+                      onSubmit(
+                        title,
+                        description,
+                        selectedImages.isEmpty ? null : selectedImages,
+                      );
 
                       titleController.clear();
                       descriptionController.clear();
@@ -5044,27 +5105,83 @@ class ClubReviewsViewPage extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              "Average Rating",
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 14,
+                             Text(
+                              "Average Rating: ${avg.toStringAsFixed(1)} / 5",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: List.generate(5, (i) {
-                                return Icon(
-                                  i < avg.floor()
-                                      ? Icons.star
-                                      : i < avg
-                                      ? Icons.star_half
-                                      : Icons.star_border,
-                                  color: const Color(0xFF00AFA5),
-                                  size: 20,
-                                );
-                              }),
+
+                            const SizedBox(height: 12),
+
+                            SizedBox(
+                              height: 180,
+                              child: BarChart(
+                                BarChartData(
+                                  maxY: 5,
+                                  minY: 0,
+                                  borderData: FlBorderData(show: false),
+                                  gridData: FlGridData(
+                                    show: true,
+                                    drawVerticalLine: false,
+                                    horizontalInterval: 1,
+                                  ),
+                                  titlesData: FlTitlesData(
+                                    topTitles: AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    rightTitles: AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    leftTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        interval: 1,
+                                        reservedSize: 28,
+                                      ),
+                                    ),
+                                    bottomTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        getTitlesWidget: (value, meta) {
+                                          return const Text(
+                                            "Club",
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  barGroups: [
+                                    BarChartGroupData(
+                                      x: 0,
+                                      barRods: [
+                                        BarChartRodData(
+                                          toY: avg,
+                                          width: 28,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          gradient: const LinearGradient(
+                                            colors: [
+                                              Color(0xFF00AFA5),
+                                              Color(0xFF00796B),
+                                            ],
+                                            begin: Alignment.bottomCenter,
+                                            end: Alignment.topCenter,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
+
                             const SizedBox(height: 4),
                             Text(
                               "${reviews.length} ${reviews.length == 1 ? 'review' : 'reviews'}",
@@ -5326,4 +5443,85 @@ Widget _eventImageSlider(List images) {
       );
     },
   );
+}
+
+class ClubMediaViewPage extends StatelessWidget {
+  final List<String> imageUrls;
+
+  const ClubMediaViewPage({super.key, required this.imageUrls});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: const Text("Media", style: TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: GridView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: imageUrls.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+        ),
+        itemBuilder: (context, index) {
+          return GestureDetector(
+            onTap: () => _openSquareMediaViewer(context, imageUrls, index),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(imageUrls[index], fit: BoxFit.cover),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _openSquareMediaViewer(
+    BuildContext context,
+    List<String> images,
+    int initialIndex,
+  ) {
+    final PageController controller = PageController(initialPage: initialIndex);
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black,
+      builder: (_) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: EdgeInsets.zero,
+          child: Stack(
+            children: [
+              PageView.builder(
+                controller: controller,
+                itemCount: images.length,
+                itemBuilder: (_, i) {
+                  return InteractiveViewer(
+                    child: Image.network(
+                      images[i],
+                      fit: BoxFit.contain,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                  );
+                },
+              ),
+              Positioned(
+                top: 20,
+                right: 20,
+                child: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }

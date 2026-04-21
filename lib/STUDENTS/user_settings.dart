@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/add_address.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
-import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/add_student_achievements.dart';
 import 'package:my_skates/STUDENTS/products.dart';
@@ -19,6 +18,7 @@ import 'package:my_skates/STUDENTS/user_view_events.dart';
 import 'package:my_skates/ride/ride_map_screen.dart';
 import 'package:my_skates/ride/user_activities.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:my_skates/bottomnavigation.dart';
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
@@ -205,7 +205,6 @@ class _UserSettingsState extends State<UserSettings> {
                     //   ),
                     // ),
                     // const SizedBox(height: 14),
-
                     if (_match("Accounts Center"))
                       _menuTile(
                         icon: Icons.person_outline,
@@ -254,9 +253,7 @@ class _UserSettingsState extends State<UserSettings> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            slideRightToLeftRoute(
-                              const UserActivities(),
-                            ), 
+                            slideRightToLeftRoute(const UserActivities()),
                           );
                         },
                       ),
@@ -282,9 +279,7 @@ class _UserSettingsState extends State<UserSettings> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            slideRightToLeftRoute(
-                              const UserChatSupport(),
-                            ), 
+                            slideRightToLeftRoute(const UserChatSupport()),
                           );
                         },
                       ),
@@ -303,19 +298,17 @@ class _UserSettingsState extends State<UserSettings> {
                         },
                       ),
 
-                    if (_match("View Events"))
-                      _menuTile(
-                        icon: Icons.event_outlined,
-                        text: "View Events",
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            slideRightToLeftRoute(
-                              const UserViewEvents(),
-                            ), 
-                          );
-                        },
-                      ),
+                    // if (_match("View Events"))
+                    //   _menuTile(
+                    //     icon: Icons.event_outlined,
+                    //     text: "View Events",
+                    //     onTap: () {
+                    //       Navigator.push(
+                    //         context,
+                    //         slideRightToLeftRoute(const UserViewEvents()),
+                    //       );
+                    //     },
+                    //   ),
 
                     if (_match("Add Achievements"))
                       _menuTile(
@@ -326,7 +319,7 @@ class _UserSettingsState extends State<UserSettings> {
                             context,
                             slideRightToLeftRoute(
                               const AddstudentAchievements(),
-                            ), 
+                            ),
                           );
                         },
                       ),
@@ -338,9 +331,7 @@ class _UserSettingsState extends State<UserSettings> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            slideRightToLeftRoute(
-                              const AddAddress(),
-                            ),
+                            slideRightToLeftRoute(const AddAddress()),
                           );
                         },
                       ),
@@ -352,9 +343,7 @@ class _UserSettingsState extends State<UserSettings> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            slideRightToLeftRoute(
-                              const StudentFollowRequest(),
-                            ), 
+                            slideRightToLeftRoute(const StudentFollowRequest()),
                           );
                         },
                       ),
@@ -366,9 +355,7 @@ class _UserSettingsState extends State<UserSettings> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            slideRightToLeftRoute(
-                              const UserFollowersList(),
-                            ), 
+                            slideRightToLeftRoute(const UserFollowersList()),
                           );
                         },
                       ),
@@ -380,9 +367,7 @@ class _UserSettingsState extends State<UserSettings> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            slideRightToLeftRoute(
-                              const UserFollowing(),
-                            ), 
+                            slideRightToLeftRoute(const UserFollowing()),
                           );
                         },
                       ),
@@ -436,76 +421,79 @@ class _UserSettingsState extends State<UserSettings> {
       ),
 
       // ✅ keep your bottom nav EXACT navigation, only icon style okay
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-          child: BottomNavigationBar(
-            backgroundColor: Colors.black,
-            selectedItemColor: const Color(0xFF00AFA5),
-            unselectedItemColor: Colors.white70,
-            showSelectedLabels: false,
-            showUnselectedLabels: false,
-            type: BottomNavigationBarType.fixed,
-            currentIndex: 4,
-            onTap: (index) {
-              switch (index) {
-                case 0:
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HomePage()),
-                  );
-                  break;
-                case 1:
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const UserProducts()),
-                  );
-                  break;
-                case 2:
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const CoachNotificationPage(),
-                    ),
-                  );
-                  break;
-                case 3:
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const UserConnectCoaches(),
-                    ),
-                  );
-                  break;
-                case 4:
-                  break;
-              }
-            },
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.shopping_bag),
-                label: '',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.chat_bubble_rounded),
-                label: '',
-              ),
-              BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
-              BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
-            ],
-          ),
-        ),
+      // bottomNavigationBar: Container(
+      //   decoration: const BoxDecoration(
+      //     color: Colors.black,
+      //     borderRadius: BorderRadius.only(
+      //       topLeft: Radius.circular(30),
+      //       topRight: Radius.circular(30),
+      //     ),
+      //   ),
+      //   child: ClipRRect(
+      //     borderRadius: const BorderRadius.only(
+      //       topLeft: Radius.circular(30),
+      //       topRight: Radius.circular(30),
+      //     ),
+      //     child: BottomNavigationBar(
+      //       backgroundColor: Colors.black,
+      //       selectedItemColor: const Color(0xFF00AFA5),
+      //       unselectedItemColor: Colors.white70,
+      //       showSelectedLabels: false,
+      //       showUnselectedLabels: false,
+      //       type: BottomNavigationBarType.fixed,
+      //       currentIndex: 4,
+      //       onTap: (index) {
+      //         switch (index) {
+      //           case 0:
+      //             Navigator.pushReplacement(
+      //               context,
+      //               MaterialPageRoute(builder: (_) => const HomePage()),
+      //             );
+      //             break;
+      //           case 1:
+      //             Navigator.pushReplacement(
+      //               context,
+      //               MaterialPageRoute(builder: (_) => const UserProducts()),
+      //             );
+      //             break;
+      //           case 2:
+      //             Navigator.pushReplacement(
+      //               context,
+      //               MaterialPageRoute(
+      //                 builder: (_) => const CoachNotificationPage(),
+      //               ),
+      //             );
+      //             break;
+      //           case 3:
+      //             Navigator.pushReplacement(
+      //               context,
+      //               MaterialPageRoute(
+      //                 builder: (_) => const UserConnectCoaches(),
+      //               ),
+      //             );
+      //             break;
+      //           case 4:
+      //             break;
+      //         }
+      //       },
+      //       items: const [
+      //         BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
+      //         BottomNavigationBarItem(
+      //           icon: Icon(Icons.shopping_bag),
+      //           label: '',
+      //         ),
+      //         BottomNavigationBarItem(
+      //           icon: Icon(Icons.chat_bubble_rounded),
+      //           label: '',
+      //         ),
+      //         BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
+      //         BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
+      //       ],
+      //     ),
+      //   ),
+      // ),
+      bottomNavigationBar: const AppBottomNav(
+        currentIndex: 4,
       ),
     );
   }

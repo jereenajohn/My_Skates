@@ -212,9 +212,9 @@ class _ViewClubsState extends State<ViewClubs> {
               itemCount: clubs.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                crossAxisSpacing: 15,
+                crossAxisSpacing: 10  ,
                 mainAxisSpacing: 18,
-                childAspectRatio: 0.78,
+                childAspectRatio: 0.68,
               ),
               itemBuilder: (context, index) {
                 final club = clubs[index];
@@ -304,46 +304,47 @@ class ClubCard extends StatelessWidget {
         children: [
           // IMAGE + NAME IN SAME ROW
           Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: image != null && image!.isNotEmpty
-                    ? Image.network(
-                        "$api$image",
-                        width: 40,
-                        height: 40,
-                        fit: BoxFit.cover,
-                      )
-                    : Image.asset(
-                        "lib/assets/placeholder.png",
-                        width: 40,
-                        height: 40,
-                      ),
+  children: [
+    ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        width: 40,
+        height: 40,
+        child: image != null && image!.isNotEmpty
+            ? Image.network(
+                "$api$image",
+                fit: BoxFit.cover,
+              )
+            : Image.asset(
+                "lib/assets/placeholder.png",
+                fit: BoxFit.cover,
               ),
-
-              const SizedBox(width: 10),
-
-              // NAME STRAIGHT NEXT TO IMAGE
-              Expanded(
-                child: Text(
-                  name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
+      ),
+    ),
+    const SizedBox(width: 8),
+    Flexible(
+      child: Text(
+        name,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        softWrap: true,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    ),
+  ],
+),
 
           const SizedBox(height: 10),
 
           // LOCATION BELOW
           Text(
             location,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: Colors.white70, fontSize: 11),
           ),
 

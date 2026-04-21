@@ -18,6 +18,7 @@ import 'package:my_skates/api.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:animations/animations.dart';
+import 'package:my_skates/ADMIN/cart_count_notifier.dart';
 
 class UserApprovedProducts extends StatefulWidget {
   const UserApprovedProducts({super.key});
@@ -37,6 +38,7 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
   String selectedCategoryName = "";
   String? _selectedPriceRange;
   bool _isPriceFilterActive = false;
+  String _userType = "";
 
   bool _animatePage = false;
 
@@ -59,12 +61,21 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
   @override
   void initState() {
     super.initState();
+    _getUserType();
     loadInitialData();
+    CartCountNotifier.refreshCartCount();
 
     Future.delayed(const Duration(milliseconds: 200), () {
       setState(() {
         _animatePage = true;
       });
+    });
+  }
+
+  Future<void> _getUserType() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userType = (prefs.getString("user_type") ?? "").toLowerCase().trim();
     });
   }
 
@@ -730,44 +741,61 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
                                         const SizedBox(width: 4),
 
                                         IconButton(
-                                          onPressed: () {
-                                            Navigator.push(
+                                          onPressed: () async {
+                                            await Navigator.push(
                                               context,
-                                              slideRightToLeftRoute(cart()),
+                                              slideRightToLeftRoute(
+                                                const cart(),
+                                              ),
                                             );
+                                            CartCountNotifier.refreshCartCount();
                                           },
-                                          icon: Stack(
-                                            clipBehavior: Clip.none,
-                                            children: [
-                                              const Icon(
-                                                Icons.shopping_cart_outlined,
-                                                color: Colors.white,
-                                                size: 26,
-                                              ),
-                                              Positioned(
-                                                right: -2,
-                                                top: -2,
-                                                child: Container(
-                                                  padding: const EdgeInsets.all(
-                                                    4,
+                                          icon: ValueListenableBuilder<int>(
+                                            valueListenable:
+                                                CartCountNotifier.cartCount,
+                                            builder: (context, count, _) {
+                                              return Stack(
+                                                clipBehavior: Clip.none,
+                                                children: [
+                                                  const Icon(
+                                                    Icons
+                                                        .shopping_cart_outlined,
+                                                    color: Colors.white,
+                                                    size: 26,
                                                   ),
-                                                  decoration:
-                                                      const BoxDecoration(
-                                                        color: Colors.redAccent,
-                                                        shape: BoxShape.circle,
+                                                  if (count > 0)
+                                                    Positioned(
+                                                      right: -2,
+                                                      top: -2,
+                                                      child: Container(
+                                                        padding:
+                                                            const EdgeInsets.all(
+                                                              4,
+                                                            ),
+                                                        decoration:
+                                                            const BoxDecoration(
+                                                              color: Colors
+                                                                  .redAccent,
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                            ),
+                                                        child: Text(
+                                                          "$count",
+                                                          style:
+                                                              const TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize: 10,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                        ),
                                                       ),
-                                                  child: const Text(
-                                                    "2",
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 10,
-                                                      fontWeight:
-                                                          FontWeight.bold,
                                                     ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
+                                                ],
+                                              );
+                                            },
                                           ),
                                         ),
                                       ],
@@ -780,6 +808,7 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
                                 Row(
                                   children: [
                                     Expanded(
+                                      flex: 3,
                                       child: Container(
                                         height: 40,
                                         decoration: BoxDecoration(
@@ -820,104 +849,113 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
                                     ),
                                     const SizedBox(width: 8),
 
-                                    // Price Filter Button with Badge
-                                    GestureDetector(
-                                      onTap: _showPriceFilter,
-                                      child: Container(
-                                        height: 40,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.25),
-                                          borderRadius: BorderRadius.circular(
-                                            30,
-                                          ),
-                                          border: Border.all(
-                                            color: _isPriceFilterActive
-                                                ? Colors.tealAccent
-                                                : Colors.white24,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            const Text(
-                                              "Price",
-                                              style: TextStyle(
-                                                fontFamily: 'Poppins',
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w400,
-                                                color: Colors.white,
-                                                letterSpacing: 0.2,
-                                              ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: GestureDetector(
+                                        onTap: _showPriceFilter,
+                                        child: Container(
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(
+                                              0.25,
                                             ),
-                                            const SizedBox(width: 8),
-                                            Icon(
-                                              Icons.filter_list,
+                                            borderRadius: BorderRadius.circular(
+                                              30,
+                                            ),
+                                            border: Border.all(
                                               color: _isPriceFilterActive
                                                   ? Colors.tealAccent
-                                                  : Colors.white,
-                                              size: 18,
+                                                  : Colors.white24,
                                             ),
-                                            if (_isPriceFilterActive) ...[
-                                              const SizedBox(width: 4),
-                                              Container(
-                                                padding: const EdgeInsets.all(
-                                                  3,
-                                                ),
-                                                decoration: const BoxDecoration(
-                                                  color: Colors.tealAccent,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                                child: const Icon(
-                                                  Icons.check,
-                                                  color: Colors.black,
-                                                  size: 10,
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              const Text(
+                                                "Price",
+                                                style: TextStyle(
+                                                  fontFamily: 'Poppins',
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w400,
+                                                  color: Colors.white,
+                                                  letterSpacing: 0.2,
                                                 ),
                                               ),
+                                              const SizedBox(width: 6),
+                                              Icon(
+                                                Icons.filter_list,
+                                                color: _isPriceFilterActive
+                                                    ? Colors.tealAccent
+                                                    : Colors.white,
+                                                size: 18,
+                                              ),
+                                              if (_isPriceFilterActive) ...[
+                                                const SizedBox(width: 4),
+                                                Container(
+                                                  padding: const EdgeInsets.all(
+                                                    3,
+                                                  ),
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                        color:
+                                                            Colors.tealAccent,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                  child: const Icon(
+                                                    Icons.check,
+                                                    color: Colors.black,
+                                                    size: 10,
+                                                  ),
+                                                ),
+                                              ],
                                             ],
-                                          ],
+                                          ),
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
 
-                                    // Products Button
-                                    GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          slideRightToLeftRoute(
-                                            ProductsByUser(),
-                                          ),
-                                        );
-                                      },
-                                      child: Container(
-                                        height: 40,
-                                        width: 90,
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.25),
-                                          borderRadius: BorderRadius.circular(
-                                            30,
-                                          ),
-                                          border: Border.all(
-                                            color: Colors.white24,
-                                          ),
-                                        ),
-                                        child: const Center(
-                                          child: Text(
-                                            "Products",
-                                            style: TextStyle(
-                                              fontFamily: 'Poppins',
-                                              fontWeight: FontWeight.w400,
-                                              letterSpacing: 0.2,
-                                              color: Colors.white,
-                                              fontSize: 13,
+                                    if (_userType != "student") ...[
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        flex: 2,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              slideRightToLeftRoute(
+                                                ProductsByUser(),
+                                              ),
+                                            );
+                                          },
+                                          child: Container(
+                                            height: 40,
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(
+                                                0.25,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(30),
+                                              border: Border.all(
+                                                color: Colors.white24,
+                                              ),
+                                            ),
+                                            child: const Center(
+                                              child: Text(
+                                                "Products",
+                                                style: TextStyle(
+                                                  fontFamily: 'Poppins',
+                                                  fontWeight: FontWeight.w400,
+                                                  letterSpacing: 0.2,
+                                                  color: Colors.white,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ),
+                                    ],
                                   ],
                                 ),
 
@@ -1347,6 +1385,13 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
                               p['is_wishlisted'] = !isWishlisted;
                             });
                           },
+                          // onTap: () async {
+                          //   await addwishlist(p['id'], context);
+
+                          //   if (selectedCategoryId != null) {
+                          //     await getProductsByCategory(selectedCategoryId!);
+                          //   }
+                          // },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 180),
                             curve: Curves.easeOut,
@@ -1446,8 +1491,12 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
     );
   }
 
-  void _handleUpdateProduct() {
-    Navigator.push(context, slideRightToLeftRoute(Wishlist()));
+  Future<void> _handleUpdateProduct() async {
+    await Navigator.push(context, slideRightToLeftRoute(const Wishlist()));
+
+    if (selectedCategoryId != null) {
+      await getProductsByCategory(selectedCategoryId!);
+    }
   }
 
   Widget _productGridSkeleton() {

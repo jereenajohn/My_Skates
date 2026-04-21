@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:my_skates/COACH/coach_menu_page.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
+import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 
@@ -189,10 +190,7 @@ class _CoachFollowersListState extends State<CoachFollowersList> {
         backgroundColor: Colors.black,
         leading: IconButton(
           onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => CoachMenuPage()),
-            );
+            Navigator.pop(context);
           },
           icon: Icon(Icons.arrow_back),
         ),
@@ -281,6 +279,7 @@ class _CoachFollowersListState extends State<CoachFollowersList> {
                 ),
               ],
             ),
+            bottomNavigationBar: const AppBottomNav(currentIndex: 4),
     );
   }
 

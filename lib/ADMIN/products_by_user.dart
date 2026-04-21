@@ -6,6 +6,7 @@ import 'package:my_skates/ADMIN/add_product_variant.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/update_product.dart';
 import 'package:my_skates/ADMIN/update_product_variant.dart';
+import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
@@ -26,7 +27,7 @@ class _ProductsByUserState extends State<ProductsByUser> {
   final List<Map<String, String>> statusTabs = [
     {"label": "Approved", "value": "approved"},
     {"label": "Pending", "value": "pending"},
-    {"label": "Disapproved", "value": "disapproved"},
+    {"label": "Rejected", "value": "disapproved"},
   ];
 
   @override
@@ -460,6 +461,7 @@ class _ProductsByUserState extends State<ProductsByUser> {
                 ),
         ),
       ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
     );
   }
 

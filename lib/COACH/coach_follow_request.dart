@@ -15,6 +15,9 @@ class _CoachFollowRequestState extends State<CoachFollowRequest> {
   List<Map<String, dynamic>> requests = [];
   bool loading = true;
 
+  final TextEditingController searchController = TextEditingController();
+  List<Map<String, dynamic>> filteredRequests = [];
+
   @override
   void initState() {
     super.initState();
@@ -47,22 +50,22 @@ class _CoachFollowRequestState extends State<CoachFollowRequest> {
         setState(() {
           requests = raw.map<Map<String, dynamic>>((e) {
             final m = Map<String, dynamic>.from(e);
-            m["status_ui"] =
-                "pending"; // pending | follow_back | requested | following
+            m["status_ui"] = "pending";
             m["isLoading"] = false;
-            print("MAPPED REQUEST ITEM: $m");
             return m;
           }).toList();
+
+          filteredRequests = List.from(requests);
           loading = false;
         });
         print("REQUESTS STATE UPDATED. COUNT: ${requests.length}");
       } else {
-        print("❌ NON-200 RESPONSE");
+        print(" NON-200 RESPONSE");
 
         loading = false;
       }
     } catch (e) {
-      print("🔥 FETCH REQUESTS ERROR: $e");
+      print(" FETCH REQUESTS ERROR: $e");
       loading = false;
     }
   }
@@ -86,11 +89,13 @@ class _CoachFollowRequestState extends State<CoachFollowRequest> {
     );
 
     if (res.statusCode == 200) {
-      // Remove request completely after approval
-      requests.removeAt(index);
-    }
+  // Remove request completely after approval
+  requests.removeAt(index);
+  filterRequests(searchController.text);
+  return;
+}
 
-    setState(() {});
+setState(() {});
   }
 
   // ------------------------------------------------------------
@@ -121,14 +126,28 @@ class _CoachFollowRequestState extends State<CoachFollowRequest> {
     print("REJECT RESPONSE BODY: ${res.body}");
 
     if (res.statusCode == 200) {
-      print("REQUEST REMOVED FROM UI LIST");
-      requests.removeAt(index);
-      setState(() {});
-    } else {
-      print("REJECT FAILED");
-    }
+  print("REQUEST REMOVED FROM UI LIST");
+  requests.removeAt(index);
+  filterRequests(searchController.text);
+  return;
+} else {
+  print("REJECT FAILED");
+}       
 
     print("===== REJECT END =====");
+  }
+
+  void filterRequests(String value) {
+    setState(() {
+      if (value.trim().isEmpty) {
+        filteredRequests = List.from(requests);
+      } else {
+        filteredRequests = requests.where((item) {
+          final name = (item["follower_name"] ?? "").toString().toLowerCase();
+          return name.contains(value.toLowerCase());
+        }).toList();
+      }
+    });
   }
 
   // ------------------------------------------------------------
@@ -148,76 +167,110 @@ class _CoachFollowRequestState extends State<CoachFollowRequest> {
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : requests.isEmpty
-          ? const Center(
-              child: Text(
-                "No Follow Requests",
-                style: TextStyle(color: Colors.white70),
-              ),
-            )
-          : ListView.builder(
-              itemCount: requests.length,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              itemBuilder: (_, i) {
-                final r = requests[i];
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  child: Row(
-                    children: [
-                      const CircleAvatar(
-                        radius: 28,
-                        backgroundImage: AssetImage("lib/assets/img.jpg"),
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: TextField(
+                    controller: searchController,
+                    onChanged: filterRequests,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: "Search requests",
+                      hintStyle: const TextStyle(color: Colors.white54),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Colors.white70,
                       ),
-                      const SizedBox(width: 12),
-
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              r["follower_name"] ?? "",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                      suffixIcon: searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white70,
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              r["status_ui"] == "following"
-                                  ? "You are following each other"
-                                  : "Requested to follow you",
-                              style: const TextStyle(
-                                color: Colors.white54,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
+                              onPressed: () {
+                                searchController.clear();
+                                filterRequests('');
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: Colors.white10,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
                       ),
-
-                      // ---------------- BUTTON STATES ----------------
-                      if (r["status_ui"] == "pending") ...[
-                        _btn(
-                          text: "Confirm",
-                          color: Colors.teal,
-                          loading: r["isLoading"],
-                          onTap: () => confirmRequest(i),
-                        ),
-                        const SizedBox(width: 8),
-                        _outlineBtn(
-                          text: "Delete",
-                          onTap: () => rejectRequest(i),
-                        ),
-                      ],
-                    ],
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Colors.teal),
+                      ),
+                    ),
                   ),
-                );
-              },
+                ),
+                Expanded(
+                  child: filteredRequests.isEmpty
+                      ? const Center(
+                          child: Text(
+                            "No Follow Requests",
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: filteredRequests.length,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          itemBuilder: (_, i) {
+                            final r = filteredRequests[i];
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                              child: Row(
+                                children: [
+                                  const CircleAvatar(
+                                    radius: 28,
+                                    backgroundImage: AssetImage(
+                                      "lib/assets/img.jpg",
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          r["follower_name"] ?? "",
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          r["status_ui"] == "following"
+                                              ? "You are following each other"
+                                              : "Requested to follow you",
+                                          style: const TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
             ),
     );
   }

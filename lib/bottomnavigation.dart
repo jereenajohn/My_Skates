@@ -7,6 +7,7 @@ import 'package:my_skates/COACH/coach_event_list.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
+import 'package:my_skates/STUDENTS/user_view_events.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppBottomNav extends StatefulWidget {
@@ -135,7 +136,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
         BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
         BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ''),
         BottomNavigationBarItem(
-          icon: Icon(Icons.chat_bubble_rounded),
+          icon: Icon(Icons.chat_outlined),
           label: '',
         ),
         BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),

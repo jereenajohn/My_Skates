@@ -188,6 +188,7 @@ class _ClubGridPageState extends State<ClubGridPage> {
             ),
     ),
   ),
+  bottomNavigationBar: const AppBottomNav(currentIndex: 0),
 );
   }
 }
