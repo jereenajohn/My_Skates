@@ -9,7 +9,11 @@ import 'package:my_skates/api.dart';
 
 class CoachChatSupport extends StatefulWidget {
   final String from;
-  const CoachChatSupport({super.key,required this.from});
+
+  const CoachChatSupport({
+    super.key,
+    required this.from,
+  });
 
   @override
   State<CoachChatSupport> createState() => _CoachChatSupportState();
@@ -17,8 +21,8 @@ class CoachChatSupport extends StatefulWidget {
 
 class _CoachChatSupportState extends State<CoachChatSupport> {
   List<Map<String, dynamic>> messages = [];
-  TextEditingController messageController = TextEditingController();
-  ScrollController scrollController = ScrollController();
+  final TextEditingController messageController = TextEditingController();
+  final ScrollController scrollController = ScrollController();
   bool sending = false;
 
   @override
@@ -27,8 +31,40 @@ class _CoachChatSupportState extends State<CoachChatSupport> {
 
     messages.add({
       "type": "bot",
-      "message": "Hi 👋 Welcome to MySkates Support. How can we help you?"
+      "message": "Hi 👋 Welcome to MySkates Support. How can we help you?",
     });
+  }
+
+  @override
+  void dispose() {
+    messageController.dispose();
+    scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<bool> _handleBack() async {
+    if (!mounted) return false;
+
+    if (widget.from == "coach") {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const CoachHomepage()),
+      );
+    } else if (widget.from == "admin") {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardPage()),
+      );
+    } else if (widget.from == "student") {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomePage()),
+      );
+    } else {
+      Navigator.pop(context);
+    }
+
+    return false;
   }
 
   void scrollToBottom() {
@@ -63,7 +99,7 @@ class _CoachChatSupportState extends State<CoachChatSupport> {
         setState(() {
           messages.add({
             "type": "bot",
-            "message": "Session expired. Please login again."
+            "message": "Session expired. Please login again.",
           });
           sending = false;
         });
@@ -88,15 +124,15 @@ class _CoachChatSupportState extends State<CoachChatSupport> {
         setState(() {
           messages.add({
             "type": "bot",
-            "message": data["bot_reply"] ??
-                "Our support team will contact you shortly."
+            "message":
+                data["bot_reply"] ?? "Our support team will contact you shortly.",
           });
         });
       } else {
         setState(() {
           messages.add({
             "type": "bot",
-            "message": "Unable to process request. Try again."
+            "message": "Unable to process request. Try again.",
           });
         });
       }
@@ -104,7 +140,7 @@ class _CoachChatSupportState extends State<CoachChatSupport> {
       setState(() {
         messages.add({
           "type": "bot",
-          "message": "Server error. Please try later."
+          "message": "Server error. Please try later.",
         });
       });
     }
@@ -114,7 +150,7 @@ class _CoachChatSupportState extends State<CoachChatSupport> {
   }
 
   Widget buildMessageBubble(Map<String, dynamic> msg) {
-    final isUser = msg["type"] == "user";
+    final bool isUser = msg["type"] == "user";
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -141,7 +177,7 @@ class _CoachChatSupportState extends State<CoachChatSupport> {
           ),
         ),
         child: Text(
-          msg["message"],
+          msg["message"] ?? "",
           style: const TextStyle(
             color: Colors.white,
             fontSize: 15,
@@ -154,27 +190,9 @@ class _CoachChatSupportState extends State<CoachChatSupport> {
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: () async {
-
-      if (widget.from == "coach") {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CoachHomepage()),
-        );
-      } else if (widget.from == "admin") {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const DashboardPage()),
-        );
-      }else if (widget.from == "student") {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomePage()),
-        );
-
-      }return false;
-    },
+      onWillPop: _handleBack,
       child: Scaffold(
+        backgroundColor: Colors.black,
         body: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -189,18 +207,25 @@ class _CoachChatSupportState extends State<CoachChatSupport> {
           child: SafeArea(
             child: Column(
               children: [
-                /// Header
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
-
-                    children:  [
-                      IconButton(onPressed: (){
-                        Navigator.pop(context);
-                      }, icon: Icon(Icons.arrow_back,color: Colors.white)),
-                      Icon(Icons.support_agent, color: Colors.white),
-                      SizedBox(width: 10),
-                      Text(
+                    children: [
+                      IconButton(
+                        onPressed: () async {
+                          await _handleBack();
+                        },
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.support_agent,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
                         "MySkates Support",
                         style: TextStyle(
                           color: Colors.white,
@@ -211,8 +236,7 @@ class _CoachChatSupportState extends State<CoachChatSupport> {
                     ],
                   ),
                 ),
-      
-                /// Chat List
+
                 Expanded(
                   child: ListView.builder(
                     controller: scrollController,
@@ -223,14 +247,13 @@ class _CoachChatSupportState extends State<CoachChatSupport> {
                     },
                   ),
                 ),
-      
+
                 if (sending)
                   const Padding(
                     padding: EdgeInsets.only(bottom: 10),
                     child: CircularProgressIndicator(color: Colors.white),
                   ),
-      
-                /// Input Field
+
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
                   child: Container(
@@ -250,8 +273,7 @@ class _CoachChatSupportState extends State<CoachChatSupport> {
                             style: const TextStyle(color: Colors.white),
                             decoration: const InputDecoration(
                               hintText: "Ask something...",
-                              hintStyle:
-                                  TextStyle(color: Colors.white70),
+                              hintStyle: TextStyle(color: Colors.white70),
                               border: InputBorder.none,
                             ),
                             onSubmitted: (_) => sendMessage(),
@@ -263,8 +285,10 @@ class _CoachChatSupportState extends State<CoachChatSupport> {
                             color: Color(0xFF00312D),
                           ),
                           child: IconButton(
-                            icon:
-                                const Icon(Icons.send, color: Colors.white),
+                            icon: const Icon(
+                              Icons.send,
+                              color: Colors.white,
+                            ),
                             onPressed: sendMessage,
                           ),
                         ),

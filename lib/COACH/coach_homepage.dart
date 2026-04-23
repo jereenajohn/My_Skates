@@ -5,6 +5,7 @@ import 'package:my_skates/COACH/club_detailed_view.dart';
 import 'package:my_skates/COACH/coach_chat_support.dart';
 import 'package:my_skates/COACH/coach_home_feedcard.dart';
 import 'package:my_skates/COACH/coach_timeline_page.dart';
+import 'package:my_skates/COACH/used_products.dart';
 import 'package:my_skates/Providers/coach_homepage_feed_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
@@ -1345,6 +1346,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                              buildButton("Orders"),
                             buildButton("Find Events"),
                             buildButton("Buy and Sell products"),
+                            buildButton("Used products"),
 
                             // const SizedBox(height: 25),
 
@@ -1612,6 +1614,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
             pushWithSlide(const Events());
           } else if (title == "Buy and Sell products") {
             pushWithSlide(const UserApprovedProducts());
+          }
+          else if (title == "Used products") {
+            pushWithSlide(const UsedProducts());
           }
         },
         child: Text(

@@ -1,0 +1,250 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:my_skates/api.dart';
+
+class AddUsedProductPage extends StatefulWidget {
+  const AddUsedProductPage({super.key});
+
+  @override
+  State<AddUsedProductPage> createState() => _AddUsedProductPageState();
+}
+
+class _AddUsedProductPageState extends State<AddUsedProductPage> {
+  final _formKey = GlobalKey<FormState>();
+
+  final TextEditingController titleController = TextEditingController();
+  final TextEditingController descriptionController = TextEditingController();
+  final TextEditingController priceController = TextEditingController();
+  final TextEditingController discountController = TextEditingController();
+  final TextEditingController categoryController = TextEditingController();
+
+  File? selectedImage;
+  bool isSubmitting = false;
+
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString("access");
+  }
+
+  Future<void> pickImage() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() {
+        selectedImage = File(picked.path);
+      });
+    }
+  }
+
+Future<void> submitUsedProduct() async {
+  if (!_formKey.currentState!.validate()) return;
+
+  try {
+    setState(() {
+      isSubmitting = true;
+    });
+
+    final token = await getToken();
+
+    final request = http.MultipartRequest(
+      "POST",
+      Uri.parse("$api/api/myskates/used/products/view/"),
+    );
+
+    request.headers["Authorization"] = "Bearer $token";
+    request.headers["Accept"] = "application/json";
+
+    request.fields["title"] = titleController.text.trim();
+    request.fields["description"] = descriptionController.text.trim();
+    request.fields["price"] = priceController.text.trim();
+    request.fields["discount"] = discountController.text.trim();
+
+    if (categoryController.text.trim().isNotEmpty) {
+      request.fields["category"] = categoryController.text.trim();
+    }
+
+    if (selectedImage != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath("image", selectedImage!.path),
+      );
+    }
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    print("ADD USED PRODUCT STATUS: ${response.statusCode}");
+    print("ADD USED PRODUCT BODY: ${response.body}");
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Used product added successfully")),
+      );
+
+      Navigator.pop(context, true);
+    } else {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed: ${response.body}")),
+      );
+    }
+  } catch (e) {
+    print("ADD USED PRODUCT ERROR: $e");
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Error: $e")),
+    );
+  } finally {
+    if (mounted) {
+      setState(() {
+        isSubmitting = false;
+      });
+    }
+  }
+}
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    descriptionController.dispose();
+    priceController.dispose();
+    discountController.dispose();
+    categoryController.dispose();
+    super.dispose();
+  }
+
+  Widget buildField(
+    String label,
+    TextEditingController controller, {
+    TextInputType? keyboardType,
+    int maxLines = 1,
+    bool requiredField = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        maxLines: maxLines,
+        style: const TextStyle(color: Colors.white),
+        validator: (value) {
+          if (requiredField && (value == null || value.trim().isEmpty)) {
+            return "$label is required";
+          }
+          return null;
+        },
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(color: Colors.white70),
+          filled: true,
+          fillColor: Colors.white10,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Colors.white24),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFF00AFA5)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text("Add Used Product",style: TextStyle(color: Colors.white),),
+        backgroundColor: Colors.black,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              buildField("Title", titleController, requiredField: true),
+              buildField("Description", descriptionController, maxLines: 3),
+              buildField(
+                "Price",
+                priceController,
+                keyboardType: TextInputType.number,
+              ),
+              buildField(
+                "Discount",
+                discountController,
+                keyboardType: TextInputType.number,
+              ),
+              buildField(
+                "Category ID",
+                categoryController,
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: pickImage,
+                child: Container(
+                  height: 150,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white10,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: selectedImage != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.file(
+                            selectedImage!,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : const Center(
+                          child: Text(
+                            "Tap to select image",
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: isSubmitting ? null : submitUsedProduct,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00AFA5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: isSubmitting
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          "Post Used Product",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
