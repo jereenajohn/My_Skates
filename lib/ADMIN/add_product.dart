@@ -20,11 +20,11 @@ class AddProduct extends StatefulWidget {
 class _AddProductState extends State<AddProduct> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  // Store IDs only
-  String? gender; // "male", "female", "other"
-  String? selectedCountry; // ID
-  String? selectedState; // ID
-  String? selectedDistrict; // ID
+ 
+  String? gender; 
+  String? selectedCountry;
+  String? selectedState; 
+  String? selectedDistrict; 
 
   List<Map<String, dynamic>> countryList = [];
   List<Map<String, dynamic>> categoryList = [];
@@ -218,7 +218,7 @@ class _AddProductState extends State<AddProduct> {
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: Form(  
+            child: Form(
               key: _formKey,
               child: Column(
                 children: [
@@ -378,14 +378,14 @@ class _AddProductState extends State<AddProduct> {
                       onPressed: () {
                         if (!_formKey.currentState!.validate()) return;
 
-                        if (dob == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Date of Birth is required"),
-                            ),
-                          );
-                          return;
-                        }
+                        // if (dob == null) {
+                        //   ScaffoldMessenger.of(context).showSnackBar(
+                        //     const SnackBar(
+                        //       content: Text("Date of Birth is required"),
+                        //     ),
+                        //   );
+                        //   return;
+                        // }
 
                         if (productType == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -443,7 +443,6 @@ class _AddProductState extends State<AddProduct> {
     );
   }
 
-  // ---------------- REUSABLE ----------------
 
   Widget _inputField(
     String label,
@@ -587,49 +586,49 @@ class _AddProductState extends State<AddProduct> {
     );
   }
 
-  Widget _dobPicker() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: GestureDetector(
-        onTap: () async {
-          DateTime? picked = await showDatePicker(
-            context: context,
-            initialDate: DateTime(2005),
-            firstDate: DateTime(1950),
-            lastDate: DateTime.now(),
-            builder: (c, child) => Theme(data: ThemeData.dark(), child: child!),
-          );
-          if (picked != null) setState(() => dob = picked);
-        },
-        child: FormField(
-          validator: (_) => dob == null ? "Date of Birth is required" : null,
-          builder: (state) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              InputDecorator(
-                decoration: _dec("Date of Birth"),
-                child: Text(
-                  dob == null
-                      ? "Select Date"
-                      : "${dob!.day}/${dob!.month}/${dob!.year}",
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ),
-              if (state.hasError)
-                Padding(
-                  padding: const EdgeInsets.only(top: 5, left: 12),
-                  child: Text(
-                    state.errorText!,
-                    style: const TextStyle(
-                      color: Colors.redAccent,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // Widget _dobPicker() {
+  //   return Padding(
+  //     padding: const EdgeInsets.only(bottom: 20),
+  //     child: GestureDetector(
+  //       onTap: () async {
+  //         DateTime? picked = await showDatePicker(
+  //           context: context,
+  //           initialDate: DateTime(2005),
+  //           firstDate: DateTime(1950),
+  //           lastDate: DateTime.now(),
+  //           builder: (c, child) => Theme(data: ThemeData.dark(), child: child!),
+  //         );
+  //         if (picked != null) setState(() => dob = picked);
+  //       },
+  //       child: FormField(
+  //         validator: (_) => dob == null ? "Date of Birth is required" : null,
+  //         builder: (state) => Column(
+  //           crossAxisAlignment: CrossAxisAlignment.start,
+  //           children: [
+  //             InputDecorator(
+  //               decoration: _dec("Date of Birth"),
+  //               child: Text(
+  //                 dob == null
+  //                     ? "Select Date"
+  //                     : "${dob!.day}/${dob!.month}/${dob!.year}",
+  //                 style: const TextStyle(color: Colors.white),
+  //               ),
+  //             ),
+  //             if (state.hasError)
+  //               Padding(
+  //                 padding: const EdgeInsets.only(top: 5, left: 12),
+  //                 child: Text(
+  //                   state.errorText!,
+  //                   style: const TextStyle(
+  //                     color: Colors.redAccent,
+  //                     fontSize: 12,
+  //                   ),
+  //                 ),
+  //               ),
+  //           ],
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 }

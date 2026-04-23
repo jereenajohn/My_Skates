@@ -14,11 +14,7 @@ class AppBottomNav extends StatefulWidget {
   final int currentIndex;
   final Function(int)? onTap;
 
-  const AppBottomNav({
-    super.key,
-    required this.currentIndex,
-    this.onTap,
-  });
+  const AppBottomNav({super.key, required this.currentIndex, this.onTap});
 
   @override
   State<AppBottomNav> createState() => _AppBottomNavState();
@@ -26,7 +22,6 @@ class AppBottomNav extends StatefulWidget {
 
 class _AppBottomNavState extends State<AppBottomNav> {
   String userType = "";
-
   @override
   void initState() {
     super.initState();
@@ -116,9 +111,19 @@ class _AppBottomNavState extends State<AppBottomNav> {
       }
     }
 
+    // Navigator.pushReplacement(
+    //   context,
+    //   MaterialPageRoute(builder: (_) => targetPage),
+    // );
+
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => targetPage),
+      PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (_, __, ___) => targetPage,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
     );
   }
 
@@ -128,17 +133,20 @@ class _AppBottomNavState extends State<AppBottomNav> {
         BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: ''),
         BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ''),
         BottomNavigationBarItem(icon: Icon(Icons.support_agent), label: ''),
-        BottomNavigationBarItem(icon: Icon(Icons.inventory_outlined), label: ''),
-        BottomNavigationBarItem(icon: Icon(Icons.production_quantity_limits), label: ''),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.inventory_outlined),
+          label: '',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.production_quantity_limits),
+          label: '',
+        ),
       ];
     } else if (userType == "student") {
       return const [
         BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
         BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: ''),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.chat_outlined),
-          label: '',
-        ),
+        BottomNavigationBarItem(icon: Icon(Icons.chat_outlined), label: ''),
         BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
         BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
       ];
@@ -153,6 +161,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
         BottomNavigationBarItem(icon: Icon(Icons.group), label: ''),
         BottomNavigationBarItem(icon: Icon(Icons.event), label: ''),
       ];
+      
     }
   }
 

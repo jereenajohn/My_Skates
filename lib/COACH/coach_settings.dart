@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/add_address.dart';
+import 'package:my_skates/ADMIN/admin_orders_page.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/view_address.dart';
 import 'package:my_skates/COACH/add_club.dart';
@@ -234,7 +235,7 @@ class _CoachSettingsState extends State<CoachSettings> {
                       _menuTile(
                         icon: Icons.shopping_bag,
                         text: "My Orders",
-                        onTap: () => pushWithSlide(Myorders()),
+                        onTap: () => pushWithSlide(Admin_order_page()),
                       ),
 
                     if ("Product Review Approval".toLowerCase().contains(
