@@ -116,9 +116,19 @@ class _AppBottomNavState extends State<AppBottomNav> {
       }
     }
 
+    // Navigator.pushReplacement(
+    //   context,
+    //   MaterialPageRoute(builder: (_) => targetPage),
+    // );
+
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => targetPage),
+      PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (_, __, ___) => targetPage,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
     );
   }
 

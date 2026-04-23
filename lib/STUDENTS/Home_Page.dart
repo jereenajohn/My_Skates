@@ -7,6 +7,7 @@ import 'package:my_skates/ADMIN/view_all_events.dart';
 import 'package:my_skates/COACH/club_detailed_view.dart';
 import 'package:my_skates/COACH/club_list.dart';
 import 'package:my_skates/COACH/coach_details_page.dart';
+import 'package:my_skates/COACH/used_products.dart';
 // import 'package:my_skates/STUDENTS/bottomnavigation_student.dart';
 import 'package:my_skates/STUDENTS/products.dart';
 import 'package:my_skates/STUDENTS/student_list.dart';
@@ -1385,6 +1386,7 @@ class _HomePageState extends State<HomePage> {
                           buildButton("Find Clubs"),
                           buildButton("Find Events"),
                           buildButton("Buy and Sell products"),
+                          buildButton("Used products"),
 
                           const SizedBox(height: 25),
 
@@ -1650,6 +1652,11 @@ class _HomePageState extends State<HomePage> {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const UserProducts()),
+            );
+          } else if (title == "Used products") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const UsedProducts()),
             );
           }
         },

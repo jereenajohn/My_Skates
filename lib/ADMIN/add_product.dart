@@ -378,14 +378,14 @@ class _AddProductState extends State<AddProduct> {
                       onPressed: () {
                         if (!_formKey.currentState!.validate()) return;
 
-                        if (dob == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Date of Birth is required"),
-                            ),
-                          );
-                          return;
-                        }
+                        // if (dob == null) {
+                        //   ScaffoldMessenger.of(context).showSnackBar(
+                        //     const SnackBar(
+                        //       content: Text("Date of Birth is required"),
+                        //     ),
+                        //   );
+                        //   return;
+                        // }
 
                         if (productType == null) {
                           ScaffoldMessenger.of(context).showSnackBar(

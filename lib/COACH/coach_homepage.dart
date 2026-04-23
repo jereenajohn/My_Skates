@@ -4,6 +4,7 @@ import 'package:my_skates/COACH/club_detailed_view.dart';
 import 'package:my_skates/COACH/coach_chat_support.dart';
 import 'package:my_skates/COACH/coach_home_feedcard.dart';
 import 'package:my_skates/COACH/coach_timeline_page.dart';
+import 'package:my_skates/COACH/used_products.dart';
 import 'package:my_skates/Providers/coach_homepage_feed_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
@@ -1213,16 +1214,16 @@ class _CoachHomepageState extends State<CoachHomepage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (!trainingLoading &&
-                              trainingSessions.isEmpty &&
-                              !eventsLoading &&
-                              events.isEmpty &&
-                              !coachesLoading &&
-                              coaches.isEmpty &&
-                              !studentsLoading &&
-                              students.isEmpty)
-                            const SizedBox.shrink()
-                          else ...[
+                          // if (!trainingLoading &&
+                          //     trainingSessions.isEmpty &&
+                          //     !eventsLoading &&
+                          //     events.isEmpty &&
+                          //     !coachesLoading &&
+                          //     coaches.isEmpty &&
+                          //     !studentsLoading &&
+                          //     students.isEmpty)
+                          //   const SizedBox.shrink()
+                          // else ...[
                             Container(
                               height: MediaQuery.of(context).size.height * 0.2,
                               width: double.infinity,
@@ -1343,6 +1344,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                             buildButton("Find Clubs"),
                             buildButton("Find Events"),
                             buildButton("Buy and Sell products"),
+                            buildButton("Used products"),
 
                             // const SizedBox(height: 25),
 
@@ -1570,7 +1572,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                             ),
 
                             const SizedBox(height: 12),
-                          ],
+                          // ],
                         ],
                       ),
                     ),
@@ -1610,6 +1612,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
             pushWithSlide(const Events());
           } else if (title == "Buy and Sell products") {
             pushWithSlide(const UserApprovedProducts());
+          }
+          else if (title == "Used products") {
+            pushWithSlide(const UsedProducts());
           }
         },
         child: Text(
