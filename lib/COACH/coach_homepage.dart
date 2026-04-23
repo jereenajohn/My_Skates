@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'package:my_skates/ADMIN/admin_orders_page.dart';
 import 'package:my_skates/COACH/club_detailed_view.dart';
 import 'package:my_skates/COACH/coach_chat_support.dart';
 import 'package:my_skates/COACH/coach_home_feedcard.dart';
@@ -1342,6 +1343,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                             buildButton("Find Coaches"),
                             buildButton("Find Skaters"),
                             buildButton("Find Clubs"),
+                             buildButton("Orders"),
                             buildButton("Find Events"),
                             buildButton("Buy and Sell products"),
                             buildButton("Used products"),
@@ -1364,9 +1366,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                             //     },
                             //   ),
                             // ),
-
                             // SizedBox(height: 20),
-
                             // CLUBS
                             // const Text(
                             //   "Recommended Clubs near you",
@@ -1391,12 +1391,12 @@ class _CoachHomepageState extends State<CoachHomepage> {
                             //       ),
                             //     ),
                             //   ),
-
                             // const SizedBox(height: 20),
                             // const Text(
                             //   "Upcoming Training Sessions",
                             //   style: TextStyle(color: Colors.white, fontSize: 14),
                             // ),
+
                             const SizedBox(height: 15),
 
                             if (trainingLoading)
@@ -1466,7 +1466,6 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                   final image2 = images.length > 1
                                       ? "$api${images[1]['image']}"
                                       : "";
-
                                   return buildEventCardWithImages(
                                     context: context,
                                     clubName:
@@ -1493,10 +1492,8 @@ class _CoachHomepageState extends State<CoachHomepage> {
 
                               const SizedBox(height: 12),
                             ],
-
                             const SizedBox(height: 12),
 
-                            // COACHES
                             const Text(
                               "Suggested Coaches",
                               style: TextStyle(
@@ -1505,7 +1502,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
+
                             const SizedBox(height: 15),
+
                             SizedBox(
                               height: MediaQuery.of(context).size.height * 0.28,
                               child: !followLoaded || coachesLoading
@@ -1543,7 +1542,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
+
                             const SizedBox(height: 12),
+
                             SizedBox(
                               height: MediaQuery.of(context).size.height * 0.25,
                               child: studentsLoading
@@ -1570,7 +1571,6 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                       ),
                                     ),
                             ),
-
                             const SizedBox(height: 12),
                           // ],
                         ],
@@ -1608,6 +1608,8 @@ class _CoachHomepageState extends State<CoachHomepage> {
             pushWithSlide(const StudentList());
           } else if (title == "Find Clubs") {
             pushWithSlide(const ClubGridPage());
+            } else if (title == "Orders") {
+            pushWithSlide(const Admin_order_page());
           } else if (title == "Find Events") {
             pushWithSlide(const Events());
           } else if (title == "Buy and Sell products") {
