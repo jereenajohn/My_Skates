@@ -1614,8 +1614,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
             pushWithSlide(const Events());
           } else if (title == "Buy and Sell products") {
             pushWithSlide(const UserApprovedProducts());
-          }
-          else if (title == "Used products") {
+          }else if (title == "Used products") {
             pushWithSlide(const UsedProducts());
           }
         },
