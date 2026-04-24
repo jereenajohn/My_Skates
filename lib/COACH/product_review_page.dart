@@ -394,23 +394,28 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Fixed Star Rating Row - No overflow
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(5, (i) {
-                      return IconButton(
-                        onPressed: () {
+                      return GestureDetector(
+                        onTap: () {
                           setStateDialog(() {
                             tempRating = (i + 1).toDouble();
                           });
                         },
-                        icon: Icon(
-                          i < tempRating ? Icons.star : Icons.star_border,
-                          color: Colors.amber,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(
+                            i < tempRating ? Icons.star : Icons.star_border,
+                            color: Colors.amber,
+                            size: 32,
+                          ),
                         ),
                       );
                     }),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                   TextField(
                     controller: tempCtrl,
                     maxLines: 4,

@@ -15,6 +15,7 @@ import 'package:my_skates/ADMIN/admin_orders_page.dart';
 import 'package:my_skates/ADMIN/approved_products.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/menu.dart';
+import 'package:my_skates/ADMIN/platform_fee.dart';
 import 'package:my_skates/ADMIN/productapprove_tab.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/COACH/coach_chat_support.dart';
@@ -539,18 +540,18 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
 
         adminCard(
-          icon: Icons.shopping_bag,
-          title: "Orders",
+          icon: Icons.chat,
+          title: "Support",
           onTap: () {
-            pushWithSlide(const Admin_order_page());
+            pushWithSlide(const AddChatSupportQuestions());
           },
         ),
 
         adminCard(
           icon: Icons.chat,
-          title: "Support",
+          title: "Fee\nManagement",
           onTap: () {
-            pushWithSlide(const AddChatSupportQuestions());
+            pushWithSlide(const AdminPlatformFeePage());
           },
         ),
       ],
