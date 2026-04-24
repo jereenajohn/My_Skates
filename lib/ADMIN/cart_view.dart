@@ -1383,6 +1383,7 @@ class _cartState extends State<cart> {
     final double bagSavingsValue = double.tryParse(bagSavings) ?? 0;
     final double couponDiscountValue = double.tryParse(couponDiscount) ?? 0;
     final double platformFeeValue = double.tryParse(platformFee) ?? 0;
+    final double convieniencefeevalue = double.tryParse(convenienceFee) ?? 0;
     final double payableValue = double.tryParse(amountPayable) ?? 0;
 
     return Container(
@@ -1450,7 +1451,7 @@ class _cartState extends State<cart> {
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
-                children: const [
+                children: [
                   Text(
                     "Free",
                     style: TextStyle(
@@ -1460,7 +1461,7 @@ class _cartState extends State<cart> {
                     ),
                   ),
                   Text(
-                    "₹99.00",
+                    "₹$convieniencefeevalue",
                     style: TextStyle(
                       color: Colors.white38,
                       fontSize: 11,

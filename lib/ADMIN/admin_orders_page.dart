@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/admin_product_review.dart';
+import 'package:my_skates/COACH/product_review_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -188,6 +189,7 @@ class OrderResponse {
   }
 }
 
+// Enum to track which view is selected
 enum OrderViewType { allOrders, myOrders, mySoldOrders }
 
 class Admin_order_page extends StatefulWidget {
@@ -333,7 +335,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                 ),
               ],
             ),
-            backgroundColor: Colors.white,
+            backgroundColor: Colors.tealAccent,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -1103,9 +1105,9 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Status badge — tappable in My Orders only, read-only in All Orders & My Sold Orders
+                // Status badge — tappable in My Sold Orders only, read-only in All Orders & My Orders
                 GestureDetector(
-                  onTap: _selectedView == OrderViewType.myOrders
+                  onTap: _selectedView == OrderViewType.mySoldOrders
                       ? () => _showStatusBottomSheet(order)
                       : null,
                   child: Container(
@@ -1132,7 +1134,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        if (_selectedView == OrderViewType.myOrders) ...[
+                        if (_selectedView == OrderViewType.mySoldOrders) ...[
                           const SizedBox(width: 4),
                           Icon(
                             Icons.expand_more_rounded,
@@ -1168,7 +1170,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => AdminProductReview(
+                          builder: (_) => ProductReviewPage(
                             productId: item.product,
                             productTitle: item.productTitle,
                             productImage: item.productImage,
@@ -1339,6 +1341,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
     }
   }
 }
+// ==================== ORDER DETAIL PAGE ====================
 
 // ==================== ORDER DETAIL PAGE ====================
 
@@ -1355,11 +1358,13 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   late Order _order;
   bool _isRefreshing = false;
   String? _fetchError;
+  bool _hasTriggeredReviewPopup = false;
+  Map<int, bool> _reviewCheckedStatus = {};
+  Map<int, ReviewModel?> _existingReviews = {}; // Store existing reviews
 
   @override
   void initState() {
     super.initState();
-    // Show the list-passed data immediately, then fetch fresh from API
     _order = widget.order;
     _fetchOrderDetail();
   }
@@ -1395,12 +1400,17 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
-        // Handle both {data: {...}} and direct object responses
         final orderJson = jsonResponse['data'] ?? jsonResponse;
         setState(() {
           _order = Order.fromJson(orderJson);
           _isRefreshing = false;
         });
+
+        // After order is loaded, check reviews for all items
+        await _checkAllReviews();
+
+        // Then check if we should show review popup
+        _checkAndShowReviewPopup();
       } else {
         setState(() {
           _fetchError = 'Failed to load order: ${response.statusCode}';
@@ -1414,6 +1424,152 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         _isRefreshing = false;
       });
     }
+  }
+
+  // Check all products in the order for existing reviews
+  Future<void> _checkAllReviews() async {
+    for (var item in _order.items) {
+      if (!_reviewCheckedStatus.containsKey(item.product)) {
+        final review = await _getExistingReview(item.product);
+        if (review != null) {
+          _existingReviews[item.product] = review;
+        }
+        _reviewCheckedStatus[item.product] = true;
+      }
+    }
+    setState(() {}); // Refresh to show/hide the review icon
+  }
+
+  // Get existing review for a product
+  Future<ReviewModel?> _getExistingReview(int productId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      final userId = prefs.getInt('user_id') ?? prefs.getInt('id');
+
+      if (token == null || userId == null) return null;
+
+      final response = await http.get(
+        Uri.parse('$api/api/myskates/products/$productId/ratings/'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(response.body);
+        List<dynamic> reviews = [];
+
+        if (jsonData is List) {
+          reviews = jsonData;
+        } else if (jsonData is Map &&
+            jsonData.containsKey('data') &&
+            jsonData['data'] is List) {
+          reviews = jsonData['data'];
+        }
+
+        // Find review by current user
+        final userReview = reviews.firstWhere(
+          (review) => (review['user'] ?? 0) == userId,
+          orElse: () => null,
+        );
+
+        if (userReview != null) {
+          return ReviewModel.fromJson(userReview);
+        }
+      }
+    } catch (e) {
+      print("Error getting existing review: $e");
+    }
+    return null;
+  }
+
+  // Check if user has existing review (for popup logic)
+  Future<bool> _hasUserReviewed(int productId) async {
+    return _existingReviews.containsKey(productId) &&
+        _existingReviews[productId] != null;
+  }
+
+  // Check if ANY product in the order has a review
+  bool get _hasAnyReview {
+    return _existingReviews.values.any((review) => review != null);
+  }
+
+  // Get the first product that has a review (for navigation)
+  OrderItem? _getFirstReviewedProduct() {
+    for (var item in _order.items) {
+      if (_existingReviews.containsKey(item.product) &&
+          _existingReviews[item.product] != null) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  // Check and show review popup for items without review
+  Future<void> _checkAndShowReviewPopup() async {
+    // Only proceed if order is delivered and popup hasn't been triggered yet
+    if (_order.status.toLowerCase() == 'delivered' &&
+        !_hasTriggeredReviewPopup) {
+      // Check each item in the order
+      for (var item in _order.items) {
+        final hasReview = await _hasUserReviewed(item.product);
+
+        // If no review found for this product, show the popup
+        if (!hasReview) {
+          _hasTriggeredReviewPopup = true;
+          _showReviewDialog(item);
+          break; // Only show one popup at a time
+        }
+      }
+    }
+  }
+
+  // Show review dialog
+  void _showReviewDialog(OrderItem item) {
+    // Add a small delay to ensure the page is fully loaded
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return ReviewDialog(
+              productId: item.product,
+              productTitle: item.productTitle,
+              variantId: item.variantId,
+              variantLabel: item.variantLabel,
+              productImage: item.productImage,
+              variantImage: item.variantImage,
+              hasReview: false,
+            );
+          },
+        ).then((_) {
+          // Refresh reviews after dialog closes (in case user wrote a review)
+          _checkAllReviews();
+          setState(() {});
+        });
+      }
+    });
+  }
+
+  // Navigate to review screen for a specific product
+  void _navigateToReviewScreen(OrderItem item, {ReviewModel? existingReview}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductReviewPage(
+          productId: item.product,
+          productTitle: item.productTitle,
+          productImage: item.productImage,
+          variantId: item.variantId,
+          variantLabel: item.variantLabel,
+          variantImage: item.variantImage,
+        ),
+      ),
+    ).then((_) {
+      // Refresh reviews after returning
+      _checkAllReviews();
+      setState(() {});
+    });
   }
 
   Color _getStatusColor(String status) {
@@ -1549,7 +1705,67 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     );
   }
 
-  // Shimmer skeleton for the detail page while refreshing
+  Widget _infoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    double valueSize = 16,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.tealAccent, size: 18),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+              Text(
+                value,
+                style: TextStyle(color: Colors.white, fontSize: valueSize),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _infoRowMultiline({
+    required IconData icon,
+    required String label,
+    required List<String> lines,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: Colors.tealAccent, size: 18),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+              const SizedBox(height: 2),
+              ...lines.map(
+                (line) => Text(
+                  line,
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDetailShimmer() {
     return Shimmer.fromColors(
       baseColor: const Color(0xFF1A2B2A),
@@ -1557,7 +1773,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Order summary card skeleton
           _glassWrap(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -1597,7 +1812,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             ),
           ),
           const SizedBox(height: 16),
-          // Customer info skeleton
           _glassWrap(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -1657,7 +1871,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             ),
           ),
           const SizedBox(height: 16),
-          // Items skeleton
           _glassWrap(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -1748,6 +1961,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Get the first product that has a review for the icon navigation
+    final reviewedProduct = _getFirstReviewedProduct();
+    final hasReview = _hasAnyReview && reviewedProduct != null;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Container(
@@ -1769,7 +1986,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header
+                  // Header with Review Icon
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 4,
@@ -1795,7 +2012,51 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             ),
                           ),
                         ),
-                        // Subtle refresh indicator in top-right
+                        // Review Icon - shows only if order is delivered and has review
+                        if (_order.status.toLowerCase() == 'delivered' &&
+                            hasReview &&
+                            reviewedProduct != null)
+                          Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            child: GestureDetector(
+                              onTap: () {
+                                _navigateToReviewScreen(
+                                  reviewedProduct,
+                                  existingReview:
+                                      _existingReviews[reviewedProduct.product],
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.tealAccent.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.tealAccent.withOpacity(0.5),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.rate_review,
+                                      color: Colors.tealAccent,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      'Review',
+                                      style: TextStyle(
+                                        color: Colors.tealAccent,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                         if (_isRefreshing)
                           const SizedBox(
                             width: 18,
@@ -1819,7 +2080,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     ),
                   ),
 
-                  // Error banner (non-blocking — still shows cached data below)
                   if (_fetchError != null && !_isRefreshing) ...[
                     const SizedBox(height: 8),
                     Container(
@@ -1859,12 +2119,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
                   const SizedBox(height: 16),
 
-                  // Show shimmer only on first load (when order has no items yet — impossible since
-                  // we always pre-populate from list, so shimmer is only shown if needed)
                   if (_isRefreshing && _order.items.isEmpty)
                     _buildDetailShimmer()
                   else ...[
-                    // ── Order Summary ──────────────────────────────────────
+                    // Order Summary
                     _glassWrap(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -1911,9 +2169,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               ),
                             ],
                           ),
-
                           const SizedBox(height: 16),
-
                           Row(
                             children: [
                               const Icon(
@@ -1931,7 +2187,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               ),
                             ],
                           ),
-
                           if (_order.updatedAt != _order.createdAt) ...[
                             const SizedBox(height: 8),
                             Row(
@@ -1958,7 +2213,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
                     const SizedBox(height: 16),
 
-                    // ── Customer Information ───────────────────────────────
+                    // Customer Information
                     _glassWrap(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -1973,7 +2228,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             ),
                           ),
                           const SizedBox(height: 16),
-
                           _infoRow(
                             icon: Icons.person_outline,
                             label: 'Name',
@@ -2001,7 +2255,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
                     const SizedBox(height: 16),
 
-                    // ── Payment Information ────────────────────────────────
+                    // Payment Information
                     _glassWrap(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -2016,7 +2270,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             ),
                           ),
                           const SizedBox(height: 16),
-
                           _infoRow(
                             icon: _order.paymentMethod == 'COD'
                                 ? Icons.money
@@ -2024,7 +2277,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             label: 'Payment Method',
                             value: _order.paymentMethod,
                           ),
-
                           if (_order.paymentRef != null) ...[
                             const SizedBox(height: 12),
                             _infoRow(
@@ -2034,7 +2286,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               valueSize: 14,
                             ),
                           ],
-
                           if (_order.note != null &&
                               _order.note!.isNotEmpty) ...[
                             const SizedBox(height: 12),
@@ -2051,7 +2302,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
                     const SizedBox(height: 16),
 
-                    // ── Order Items + Pricing ──────────────────────────────
+                    // Order Items + Pricing
                     _glassWrap(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -2081,153 +2332,167 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
                           ..._order.items
                               .map(
-                                (item) => GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => AdminProductReview(
-                                          productId: item.product,
-                                          productTitle: item.productTitle,
-                                          productImage: item.productImage,
-                                          variantId: item.variantId,
-                                          variantLabel: item.variantLabel,
-                                          variantImage: item.variantImage,
-                                        ),
+                                (item) => Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 16,
                                       ),
-                                    );
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 16),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Container(
-                                          width: 70,
-                                          height: 70,
-                                          decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Container(
+                                            width: 70,
+                                            height: 70,
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              child: _buildProductImage(item),
                                             ),
                                           ),
-                                          child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                            child: _buildProductImage(item),
-                                          ),
-                                        ),
-
-                                        const SizedBox(width: 16),
-
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                item.productTitle,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w600,
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  item.productTitle,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
                                                 ),
-                                              ),
-                                              if (item
-                                                  .variantLabel
-                                                  .isNotEmpty) ...[
-                                                const SizedBox(height: 4),
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 2,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.tealAccent
-                                                        .withOpacity(0.2),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          4,
+                                                if (item
+                                                    .variantLabel
+                                                    .isNotEmpty) ...[
+                                                  const SizedBox(height: 4),
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 2,
                                                         ),
-                                                  ),
-                                                  child: Text(
-                                                    item.variantLabel,
-                                                    style: const TextStyle(
-                                                      color: Colors.tealAccent,
-                                                      fontSize: 11,
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.tealAccent
+                                                          .withOpacity(0.2),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            4,
+                                                          ),
                                                     ),
-                                                  ),
-                                                ),
-                                              ],
-                                              const SizedBox(height: 8),
-                                              Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
-                                                children: [
-                                                  Text(
-                                                    'Qty: ${item.quantity}',
-                                                    style: const TextStyle(
-                                                      color: Colors.white70,
-                                                      fontSize: 13,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    '₹${double.parse(item.lineTotal).toStringAsFixed(2)}',
-                                                    style: const TextStyle(
-                                                      color: Colors.tealAccent,
-                                                      fontSize: 13,
-                                                      fontWeight:
-                                                          FontWeight.w600,
+                                                    child: Text(
+                                                      item.variantLabel,
+                                                      style: const TextStyle(
+                                                        color:
+                                                            Colors.tealAccent,
+                                                        fontSize: 11,
+                                                      ),
                                                     ),
                                                   ),
                                                 ],
-                                              ),
-                                              if (item.productUserType !=
-                                                  null) ...[
-                                                const SizedBox(height: 4),
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 6,
-                                                        vertical: 2,
+                                                const SizedBox(height: 8),
+                                                Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
+                                                  children: [
+                                                    Text(
+                                                      'Qty: ${item.quantity}',
+                                                      style: const TextStyle(
+                                                        color: Colors.white70,
+                                                        fontSize: 13,
                                                       ),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.white
-                                                        .withOpacity(0.08),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          4,
+                                                    ),
+                                                    Text(
+                                                      '₹${double.parse(item.lineTotal).toStringAsFixed(2)}',
+                                                      style: const TextStyle(
+                                                        color:
+                                                            Colors.tealAccent,
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                // Show review badge for items that have a review
+                                                if (_existingReviews
+                                                        .containsKey(
+                                                          item.product,
+                                                        ) &&
+                                                    _existingReviews[item
+                                                            .product] !=
+                                                        null)
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          top: 8,
                                                         ),
-                                                  ),
-                                                  child: Text(
-                                                    item.productUserType!
-                                                        .toUpperCase(),
-                                                    style: const TextStyle(
-                                                      color: Colors.white38,
-                                                      fontSize: 9,
-                                                      letterSpacing: 0.8,
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 8,
+                                                            vertical: 4,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.green
+                                                            .withOpacity(0.2),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              12,
+                                                            ),
+                                                        border: Border.all(
+                                                          color: Colors.green
+                                                              .withOpacity(0.5),
+                                                        ),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          const Icon(
+                                                            Icons.star,
+                                                            color: Colors.amber,
+                                                            size: 12,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 4,
+                                                          ),
+                                                          Text(
+                                                            'Reviewed (${_existingReviews[item.product]!.rating}★)',
+                                                            style:
+                                                                const TextStyle(
+                                                                  color: Colors
+                                                                      .green,
+                                                                  fontSize: 10,
+                                                                ),
+                                                          ),
+                                                        ],
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
                                               ],
-                                            ],
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ),
                               )
                               .toList(),
 
                           const Divider(color: Colors.white24, height: 24),
 
-                          // Pricing breakdown
                           _pricingRow('Subtotal', _order.subtotal),
-
                           if (double.parse(_order.discountTotal) > 0) ...[
                             const SizedBox(height: 8),
                             _pricingRow(
@@ -2236,12 +2501,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               isDiscount: true,
                             ),
                           ],
-
                           if (double.parse(_order.platformFee) > 0) ...[
                             const SizedBox(height: 8),
                             _pricingRow('Platform Fee', _order.platformFee),
                           ],
-
                           if (double.parse(_order.convenienceFee) > 0) ...[
                             const SizedBox(height: 8),
                             _pricingRow(
@@ -2249,7 +2512,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               _order.convenienceFee,
                             ),
                           ],
-
                           if (double.parse(_order.couponDiscount) > 0) ...[
                             const SizedBox(height: 8),
                             _pricingRow(
@@ -2260,7 +2522,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               isDiscount: true,
                             ),
                           ],
-
                           const Divider(color: Colors.white24, height: 24),
 
                           Row(
@@ -2339,67 +2600,221 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       ),
     );
   }
+}
 
-  // ── Helper widgets ─────────────────────────────────────────────────────────
+// Review Dialog Widget (same as before)
+class ReviewDialog extends StatelessWidget {
+  final int productId;
+  final String productTitle;
+  final int variantId;
+  final String variantLabel;
+  final String? productImage;
+  final String? variantImage;
+  final bool hasReview;
 
-  Widget _infoRow({
-    required IconData icon,
-    required String label,
-    required String value,
-    double valueSize = 16,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, color: Colors.tealAccent, size: 18),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
-              ),
-              Text(
-                value,
-                style: TextStyle(color: Colors.white, fontSize: valueSize),
-              ),
-            ],
-          ),
+  const ReviewDialog({
+    Key? key,
+    required this.productId,
+    required this.productTitle,
+    required this.variantId,
+    required this.variantLabel,
+    this.productImage,
+    this.variantImage,
+    this.hasReview = false,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D2B28),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
-      ],
-    );
-  }
-
-  Widget _infoRowMultiline({
-    required IconData icon,
-    required String label,
-    required List<String> lines,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: Colors.tealAccent, size: 18),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.2),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 2),
-              ...lines.map(
-                (line) => Text(
-                  line,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
+              child: Icon(
+                hasReview ? Icons.edit : Icons.star_outline,
+                color: Colors.amber,
+                size: 40,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              hasReview ? 'Update Your Review' : 'Write a Review',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              productTitle,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.white.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (variantLabel.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.tealAccent.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  variantLabel,
+                  style: const TextStyle(
+                    color: Colors.tealAccent,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ],
-          ),
+            const SizedBox(height: 20),
+            Text(
+              hasReview
+                  ? 'You have already reviewed this product. Would you like to update your review?'
+                  : 'Would you like to share your experience with this product?',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.6),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 25),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                      ),
+                    ),
+                    child: const Text(
+                      'Maybe Later',
+                      style: TextStyle(fontSize: 16, color: Colors.white70),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProductReviewPage(
+                            productId: productId,
+                            productTitle: productTitle,
+                            productImage: productImage,
+                            variantId: variantId,
+                            variantLabel: variantLabel,
+                            variantImage: variantImage,
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.tealAccent,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      hasReview ? 'Update Review' : 'Write a Review',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+}
+
+// lib/models/review_model.dart
+class ReviewModel {
+  final int id;
+  final String productName;
+  final String userFirstName;
+  final String userLastName;
+  final String? userProfile;
+  final int rating;
+  final String review;
+  final String approvalStatus;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final int product;
+  final int user;
+
+  ReviewModel({
+    required this.id,
+    required this.productName,
+    required this.userFirstName,
+    required this.userLastName,
+    this.userProfile,
+    required this.rating,
+    required this.review,
+    required this.approvalStatus,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.product,
+    required this.user,
+  });
+
+  factory ReviewModel.fromJson(Map<String, dynamic> json) {
+    return ReviewModel(
+      id: json['id'],
+      productName: json['product_name'],
+      userFirstName: json['user_first_name'],
+      userLastName: json['user_last_name'],
+      userProfile: json['user_profile'],
+      rating: json['rating'],
+      review: json['review'],
+      approvalStatus: json['approval_status'],
+      createdAt: DateTime.parse(json['created_at']),
+      updatedAt: DateTime.parse(json['updated_at']),
+      product: json['product'],
+      user: json['user'],
     );
   }
 }
