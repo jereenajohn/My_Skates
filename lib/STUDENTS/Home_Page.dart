@@ -25,6 +25,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'package:my_skates/widgets/coachfeedcommentsheet.dart';
+import 'package:share_plus/share_plus.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -68,6 +70,10 @@ class _HomePageState extends State<HomePage> {
   bool trainingLoading = true;
   bool trainingNoData = false;
 
+  List<Map<String, dynamic>> homeFeeds = [];
+  bool homeFeedsLoading = true;
+  bool homeFeedsNoData = false;
+
   Offset _fabOffset = const Offset(20, 520);
   bool _fabMenuOpen = false;
 
@@ -89,6 +95,8 @@ class _HomePageState extends State<HomePage> {
     fetchRegisteredTrainings();
     loadEverything();
     fetchNotificationCount();
+
+    fetchHomeFeeds();
 
     _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
       if (mounted) {
@@ -119,6 +127,8 @@ class _HomePageState extends State<HomePage> {
       fetchRegisteredTrainings(),
       loadEverything(),
       fetchNotificationCount(),
+
+      fetchHomeFeeds(),
     ]);
 
     if (mounted) {
@@ -147,6 +157,48 @@ class _HomePageState extends State<HomePage> {
       setState(() {});
     }
   }
+
+  Map<String, dynamic> safeMap(dynamic value) {
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return <String, dynamic>{};
+  }
+
+  int safeInt(dynamic value, {int defaultValue = 0}) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? defaultValue;
+    return defaultValue;
+  }
+
+  int getFeedOwnerId(Map<String, dynamic> feed) {
+  // Some APIs return user as int
+  if (feed["user"] is int) return safeInt(feed["user"]);
+
+  // Some APIs return user as object
+  if (feed["user"] is Map) {
+    return safeInt(feed["user"]["id"]);
+  }
+
+  // Some APIs return created_by as object
+  if (feed["created_by"] is Map) {
+    return safeInt(feed["created_by"]["id"]);
+  }
+
+  // Some APIs return author as object
+  if (feed["author"] is Map) {
+    return safeInt(feed["author"]["id"]);
+  }
+
+  // Extra possible keys
+  return safeInt(
+    feed["user_id"] ??
+        feed["created_by_id"] ??
+        feed["author_id"] ??
+        feed["posted_by"],
+  );
+}
 
   Future<void> _navigateFromFab(Widget page) async {
     setState(() => _fabMenuOpen = false);
@@ -307,6 +359,519 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       debugPrint("CLUB LEAVE ERROR: $e");
     }
+  }
+
+Future<void> fetchHomeFeeds() async {
+  try {
+    if (!mounted) return;
+
+    setState(() {
+      homeFeedsLoading = true;
+      homeFeedsNoData = false;
+    });
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+    final userId = prefs.getInt("id") ?? prefs.getInt("user_id");
+
+    if (token == null || userId == null) {
+      if (!mounted) return;
+      setState(() {
+        homeFeeds = [];
+        homeFeedsLoading = false;
+        homeFeedsNoData = true;
+      });
+      return;
+    }
+
+    // ✅ HOME PAGE: fetch all posts
+    final response = await http.get(
+      Uri.parse("$api/api/myskates/feeds/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
+
+    print("HOME ALL FEEDS STATUS: ${response.statusCode}");
+    print("HOME ALL FEEDS BODY: ${response.body}");
+
+    List<Map<String, dynamic>> allFeeds = [];
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+
+      final List data = decoded is List
+          ? decoded
+          : decoded["data"] ?? decoded["results"] ?? [];
+
+      allFeeds = data
+          .map<Map<String, dynamic>>(
+            (item) => Map<String, dynamic>.from(item),
+          )
+          .toList();
+    }
+
+    // ✅ IMPORTANT FIX:
+    // Homepage should show only OTHER PEOPLE'S posts.
+    final List<Map<String, dynamic>> otherPeopleFeeds = allFeeds.where((feed) {
+      final ownerId = getFeedOwnerId(feed);
+      return ownerId != userId;
+    }).toList();
+
+    otherPeopleFeeds.sort((a, b) {
+      final aDate = (a["created_at"] ?? "").toString();
+      final bDate = (b["created_at"] ?? "").toString();
+
+      final aTime =
+          DateTime.tryParse(aDate) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bTime =
+          DateTime.tryParse(bDate) ?? DateTime.fromMillisecondsSinceEpoch(0);
+
+      return bTime.compareTo(aTime);
+    });
+
+    if (!mounted) return;
+
+    setState(() {
+      homeFeeds = otherPeopleFeeds;
+      homeFeedsLoading = false;
+      homeFeedsNoData = otherPeopleFeeds.isEmpty;
+    });
+
+    print("HOME OTHER PEOPLE FEED COUNT: ${otherPeopleFeeds.length}");
+  } catch (e) {
+    print("FETCH HOME FEEDS ERROR: $e");
+
+    if (!mounted) return;
+
+    setState(() {
+      homeFeeds = [];
+      homeFeedsLoading = false;
+      homeFeedsNoData = true;
+    });
+  }
+}
+
+  Future<void> toggleHomeFeedLike(int feedId) async {
+    final index = homeFeeds.indexWhere((feed) {
+      final bool isRepostFeed = feed["feed"] != null;
+      final actualFeed = isRepostFeed ? feed["feed"] : feed;
+      return actualFeed["id"] == feedId;
+    });
+
+    if (index == -1) return;
+
+    final bool isRepostFeed = homeFeeds[index]["feed"] != null;
+
+    final Map<String, dynamic> displayFeed = isRepostFeed
+        ? Map<String, dynamic>.from(homeFeeds[index]["feed"])
+        : Map<String, dynamic>.from(homeFeeds[index]);
+
+    final bool wasLiked = displayFeed["is_liked"] == true;
+    final int oldLikeCount = displayFeed["likes_count"] ?? 0;
+
+    setState(() {
+      displayFeed["is_liked"] = !wasLiked;
+      displayFeed["likes_count"] = wasLiked
+          ? oldLikeCount - 1
+          : oldLikeCount + 1;
+
+      if (isRepostFeed) {
+        homeFeeds[index]["feed"] = displayFeed;
+      } else {
+        homeFeeds[index] = displayFeed;
+      }
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final response = await http.post(
+        Uri.parse("$api/api/myskates/feeds/$feedId/like/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        setState(() {
+          displayFeed["is_liked"] = wasLiked;
+          displayFeed["likes_count"] = oldLikeCount;
+
+          if (isRepostFeed) {
+            homeFeeds[index]["feed"] = displayFeed;
+          } else {
+            homeFeeds[index] = displayFeed;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("HOME FEED LIKE ERROR: $e");
+
+      setState(() {
+        displayFeed["is_liked"] = wasLiked;
+        displayFeed["likes_count"] = oldLikeCount;
+
+        if (isRepostFeed) {
+          homeFeeds[index]["feed"] = displayFeed;
+        } else {
+          homeFeeds[index] = displayFeed;
+        }
+      });
+    }
+  }
+
+  Future<void> toggleHomeFeedRepost(int feedId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) return;
+
+      final response = await http.post(
+        Uri.parse("$api/api/myskates/feeds/repost/$feedId/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      print("HOME FEED REPOST STATUS: ${response.statusCode}");
+      print("HOME FEED REPOST BODY: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        await fetchHomeFeeds();
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Reposted successfully"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Failed to repost"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print("HOME FEED REPOST ERROR: $e");
+    }
+  }
+
+  void shareHomeFeed(Map<String, dynamic> displayFeed, int feedId) {
+    final String desc = (displayFeed["description"] ?? "").toString().trim();
+
+    final String deepLink = "https://myskates.app/feed/$feedId";
+
+    final String shareText = [
+      if (desc.isNotEmpty) desc,
+      "",
+      "Open in MySkates 👇",
+      deepLink,
+    ].join("\n");
+
+    Share.share(shareText, subject: "MySkates Feed");
+  }
+
+  Widget buildHomeFeedsSection() {
+    if (homeFeedsLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: CircularProgressIndicator(color: Color(0xFF2EE6A6)),
+        ),
+      );
+    }
+
+    if (homeFeedsNoData || homeFeeds.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Latest Posts",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: homeFeeds.length,
+          itemBuilder: (context, index) {
+            return buildHomeFeedCard(homeFeeds[index]);
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget buildHomeFeedCard(Map<String, dynamic> feed) {
+    final bool isRepostFeed = feed["feed"] != null && feed["feed"] is Map;
+
+    final Map<String, dynamic> displayFeed = isRepostFeed
+        ? Map<String, dynamic>.from(feed["feed"])
+        : Map<String, dynamic>.from(feed);
+
+    final int actualFeedId = safeInt(displayFeed["id"]);
+
+    final List images = displayFeed["feed_image"] is List
+        ? displayFeed["feed_image"]
+        : [];
+
+    final int likeCount = safeInt(displayFeed["likes_count"]);
+    final int repostCount = safeInt(displayFeed["shares_count"]);
+    final int commentCount = safeInt(displayFeed["comments_count"]);
+
+    final bool isLiked = displayFeed["is_liked"] == true;
+    final bool isReposted =
+        feed["is_reposted"] == true || displayFeed["is_reposted"] == true;
+
+    final Map<String, dynamic> user = safeMap(displayFeed["user"]).isNotEmpty
+        ? safeMap(displayFeed["user"])
+        : safeMap(displayFeed["created_by"]).isNotEmpty
+        ? safeMap(displayFeed["created_by"])
+        : safeMap(displayFeed["author"]);
+
+    // final String firstName = (user["first_name"] ?? "").toString();
+    // final String lastName = (user["last_name"] ?? "").toString();
+
+    // final String userName = "$firstName $lastName".trim().isEmpty
+    //     ? "MySkates User"
+    //     : "$firstName $lastName".trim();
+
+    final String apiUserName = (displayFeed["user_name"] ?? "").toString();
+
+    final String firstName = (user["first_name"] ?? "").toString();
+    final String lastName = (user["last_name"] ?? "").toString();
+
+    final String fullName = "$firstName $lastName".trim();
+
+    final String userName = apiUserName.isNotEmpty
+        ? apiUserName
+        : fullName.isNotEmpty
+        ? fullName
+        : "MySkates User";
+
+    final String profile = (displayFeed["profile"] ??
+        user["profile"] ??
+        user["profile_image"] ??
+        "")
+    .toString();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (isRepostFeed)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.repeat, size: 16, color: Color(0xFF2EE6A6)),
+                  const SizedBox(width: 6),
+                  Text(
+                    "${feed["reposted_by"]?["first_name"] ?? "Someone"} reposted this",
+                    style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: Colors.white12,
+                backgroundImage: profile.isNotEmpty
+                    ? NetworkImage(
+                        profile.startsWith("http") ? profile : "$api$profile",
+                      )
+                    : const AssetImage("lib/assets/img.jpg") as ImageProvider,
+              ),
+              const SizedBox(width: 10),
+
+              Expanded(
+                child: Text(
+                  userName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          if ((displayFeed["description"] ?? "").toString().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              displayFeed["description"].toString(),
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ],
+
+          if (images.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 220,
+              child: PageView.builder(
+                itemCount: images.length,
+                itemBuilder: (context, imgIndex) {
+                  final imgData = images[imgIndex];
+
+                  final String img = imgData is Map
+                      ? (imgData["image"] ?? "").toString()
+                      : imgData.toString();
+
+                  final String imageUrl = img.startsWith("http")
+                      ? img
+                      : "$api$img";
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) {
+                          return Container(
+                            color: Colors.white10,
+                            child: const Center(
+                              child: Icon(
+                                Icons.broken_image,
+                                color: Colors.white54,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              InkWell(
+                onTap: () => toggleHomeFeedLike(actualFeedId),
+                child: Row(
+                  children: [
+                    Icon(
+                      isLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
+                      color: isLiked ? const Color(0xFF2EE6A6) : Colors.white70,
+                      size: 21,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      "$likeCount",
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 20),
+
+              InkWell(
+                onTap: () => toggleHomeFeedRepost(actualFeedId),
+                child: Row(
+                  children: [
+                    Icon(
+                      isReposted ? Icons.repeat : Icons.repeat_outlined,
+                      color: isReposted
+                          ? const Color(0xFF2EE6A6)
+                          : Colors.white70,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      "$repostCount",
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 20),
+
+              InkWell(
+                onTap: () async {
+                  await showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => FeedCommentsSheet(feedId: actualFeedId),
+                  );
+
+                  fetchHomeFeeds();
+                },
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.chat_bubble_outline,
+                      color: Colors.white70,
+                      size: 21,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      "$commentCount",
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Spacer(),
+
+              InkWell(
+                onTap: () => shareHomeFeed(displayFeed, actualFeedId),
+                child: const Icon(
+                  Icons.share_outlined,
+                  color: Colors.white70,
+                  size: 21,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> toggleEventLike(int eventId) async {
@@ -1148,7 +1713,7 @@ class _HomePageState extends State<HomePage> {
             ),
             // child: SafeArea(
             child: RefreshIndicator(
-              key: _refreshIndicatorKey,                                                                         
+              key: _refreshIndicatorKey,
               onRefresh: _refreshData,
               color: const Color(0xFF00AFA5),
               backgroundColor: Colors.black87,
@@ -1462,7 +2027,10 @@ class _HomePageState extends State<HomePage> {
                                 );
                               }).toList(),
                             ),
+                          const SizedBox(height: 25),
+                          buildHomeFeedsSection(),
 
+                          // const SizedBox(height: 20),
                           const SizedBox(height: 25),
 
                           const Text(
@@ -1607,9 +2175,7 @@ class _HomePageState extends State<HomePage> {
           _movableFabMenu(),
         ],
       ),
-      bottomNavigationBar: const AppBottomNav(
-        currentIndex: 0,
-      ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 0),
     );
   }
 

@@ -21,10 +21,16 @@ class OrderItem {
   final String? variantImage;
   final String unitPrice;
   final String unitDiscount;
+  final String variantPrice;
+  final String variantDiscount;
   final int quantity;
   final String lineTotal;
   final String? productUserType;
+  final int? coachId;
+  final String? coachName;
+  final String? coachPhone;
   final DateTime createdAt;
+  final DateTime updatedAt;
 
   OrderItem({
     required this.id,
@@ -37,10 +43,16 @@ class OrderItem {
     this.variantImage,
     required this.unitPrice,
     required this.unitDiscount,
+    required this.variantPrice,
+    required this.variantDiscount,
     required this.quantity,
     required this.lineTotal,
     this.productUserType,
+    this.coachId,
+    this.coachName,
+    this.coachPhone,
     required this.createdAt,
+    required this.updatedAt,
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
@@ -49,18 +61,140 @@ class OrderItem {
       product: json['product'] ?? 0,
       productTitle: json['product_title'] ?? '',
       productImage: json['product_image'],
-      variantId: json['variant_id'] ?? 0,
+      variantId: json['variant_id'] ?? json['variant'] ?? 0,
       sku: json['sku'],
       variantLabel: json['variant_label'] ?? '',
       variantImage: json['variant_image'],
       unitPrice: json['unit_price']?.toString() ?? '0',
       unitDiscount: json['unit_discount']?.toString() ?? '0',
+      variantPrice: json['variant_price']?.toString() ?? '0',
+      variantDiscount: json['variant_discount']?.toString() ?? '0',
       quantity: json['quantity'] ?? 0,
       lineTotal: json['line_total']?.toString() ?? '0',
       productUserType: json['product_user_type'],
-      createdAt: DateTime.parse(
-        json['created_at'] ?? DateTime.now().toIso8601String(),
-      ),
+      coachId: json['coach_id'],
+      coachName: json['coach_name'],
+      coachPhone: json['coach_phone'],
+      createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),
+    );
+  }
+
+  double get displayTotal {
+    final line = double.tryParse(lineTotal) ?? 0.0;
+    if (line > 0) return line;
+
+    final price = double.tryParse(variantPrice) ?? 0.0;
+    final discount = double.tryParse(variantDiscount) ?? 0.0;
+    return (price - discount) * quantity;
+  }
+}
+
+class SellerBankDetails {
+  final int id;
+  final String coachName;
+  final String phone;
+  final String accountHolderName;
+  final String bankName;
+  final String branchName;
+  final String accountNumber;
+  final String ifscCode;
+  final String upiId;
+
+  SellerBankDetails({
+    required this.id,
+    required this.coachName,
+    required this.phone,
+    required this.accountHolderName,
+    required this.bankName,
+    required this.branchName,
+    required this.accountNumber,
+    required this.ifscCode,
+    required this.upiId,
+  });
+
+  factory SellerBankDetails.fromJson(Map<String, dynamic> json) {
+    return SellerBankDetails(
+      id: json['id'] ?? 0,
+      coachName: json['coach_name'] ?? '',
+      phone: json['phone'] ?? '',
+      accountHolderName: json['account_holder_name'] ?? '',
+      bankName: json['bank_name'] ?? '',
+      branchName: json['branch_name'] ?? '',
+      accountNumber: json['account_number'] ?? '',
+      ifscCode: json['ifsc_code'] ?? '',
+      upiId: json['upi_id'] ?? '',
+    );
+  }
+}
+
+class SellerBreakdownItem {
+  final int itemId;
+  final String productTitle;
+  final int quantity;
+  final String variantPrice;
+  final String variantDiscount;
+  final String itemTotal;
+  final String percentageAmount;
+  final String sellerPayable;
+
+  SellerBreakdownItem({
+    required this.itemId,
+    required this.productTitle,
+    required this.quantity,
+    required this.variantPrice,
+    required this.variantDiscount,
+    required this.itemTotal,
+    required this.percentageAmount,
+    required this.sellerPayable,
+  });
+
+  factory SellerBreakdownItem.fromJson(Map<String, dynamic> json) {
+    return SellerBreakdownItem(
+      itemId: json['item_id'] ?? 0,
+      productTitle: json['product_title'] ?? '',
+      quantity: json['quantity'] ?? 0,
+      variantPrice: json['variant_price']?.toString() ?? '0',
+      variantDiscount: json['variant_discount']?.toString() ?? '0',
+      itemTotal: json['item_total']?.toString() ?? '0',
+      percentageAmount: json['percentage_amount']?.toString() ?? '0',
+      sellerPayable: json['seller_payable']?.toString() ?? '0',
+    );
+  }
+}
+
+class SellerBreakdown {
+  final int coachId;
+  final String coachName;
+  final String coachPhone;
+  final String sellerTotal;
+  final String sellerPayable;
+  final SellerBankDetails? bankDetails;
+  final List<SellerBreakdownItem> items;
+
+  SellerBreakdown({
+    required this.coachId,
+    required this.coachName,
+    required this.coachPhone,
+    required this.sellerTotal,
+    required this.sellerPayable,
+    this.bankDetails,
+    required this.items,
+  });
+
+  factory SellerBreakdown.fromJson(Map<String, dynamic> json) {
+    final itemList = json['items'] as List? ?? [];
+
+    return SellerBreakdown(
+      coachId: json['coach_id'] ?? 0,
+      coachName: json['coach_name'] ?? '',
+      coachPhone: json['coach_phone'] ?? '',
+      sellerTotal: json['seller_total']?.toString() ?? '0',
+      sellerPayable: json['seller_payable']?.toString() ?? '0',
+      bankDetails: json['bank_details'] == null
+          ? null
+          : SellerBankDetails.fromJson(json['bank_details']),
+      items: itemList.map((e) => SellerBreakdownItem.fromJson(e)).toList(),
     );
   }
 }
@@ -93,6 +227,9 @@ class Order {
   final DateTime updatedAt;
   final String? address;
   final int user;
+  final String shipmentCharge;
+  final String productPercentage;
+  final List<SellerBreakdown> sellerBreakdown;
 
   Order({
     required this.id,
@@ -122,12 +259,20 @@ class Order {
     required this.updatedAt,
     this.address,
     required this.user,
+    required this.shipmentCharge,
+    required this.productPercentage,
+    required this.sellerBreakdown,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
     var itemsList = json['items'] as List? ?? [];
     List<OrderItem> orderItems = itemsList
         .map((i) => OrderItem.fromJson(i))
+        .toList();
+
+    final breakdownList = json['seller_breakdown'] as List? ?? [];
+    final sellerBreakdown = breakdownList
+        .map((e) => SellerBreakdown.fromJson(e))
         .toList();
 
     return Order(
@@ -162,6 +307,9 @@ class Order {
       ),
       address: json['address'],
       user: json['user'] ?? 0,
+      shipmentCharge: json['shipment_charge']?.toString() ?? '0',
+      productPercentage: json['product_percentage']?.toString() ?? '0',
+      sellerBreakdown: sellerBreakdown,
     );
   }
 }
@@ -190,7 +338,7 @@ class OrderResponse {
 }
 
 // Enum to track which view is selected
-enum OrderViewType { allOrders, myOrders, mySoldOrders }
+enum OrderViewType { allOrders, myOrders, mySoldOrders, coachProductOrders }
 
 class Admin_order_page extends StatefulWidget {
   const Admin_order_page({super.key});
@@ -203,6 +351,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
   List<Order> orders = [];
   bool isLoading = true;
   String? error;
+  bool _isAdmin = false;
 
   // Only two options: All Orders and My Orders
   OrderViewType _selectedView = OrderViewType.allOrders;
@@ -210,7 +359,25 @@ class _Admin_order_pageState extends State<Admin_order_page> {
   @override
   void initState() {
     super.initState();
-    fetchOrders();
+    _loadUserRoleAndFetchOrders();
+  }
+
+  Future<void> _loadUserRoleAndFetchOrders() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final role =
+        (prefs.getString('role') ??
+                prefs.getString('user_type') ??
+                prefs.getString('account_type') ??
+                '')
+            .toLowerCase()
+            .trim();
+
+    setState(() {
+      _isAdmin = role == 'admin';
+    });
+
+    await fetchOrders();
   }
 
   /// Returns the correct API URL based on selected view
@@ -222,6 +389,8 @@ class _Admin_order_pageState extends State<Admin_order_page> {
         return '$api/api/myskates/orders/';
       case OrderViewType.mySoldOrders:
         return '$api/api/myskates/seller/orders/';
+      case OrderViewType.coachProductOrders:
+        return '$api/api/myskates/coach/orders/view/';
     }
   }
 
@@ -238,6 +407,15 @@ class _Admin_order_pageState extends State<Admin_order_page> {
       if (token == null) {
         setState(() {
           error = 'Authentication token missing';
+          isLoading = false;
+        });
+        return;
+      }
+
+      if (_selectedView == OrderViewType.coachProductOrders && !_isAdmin) {
+        setState(() {
+          orders = [];
+          error = 'Only admin can view coach product orders';
           isLoading = false;
         });
         return;
@@ -519,7 +697,13 @@ class _Admin_order_pageState extends State<Admin_order_page> {
   void _navigateToOrderDetail(Order order) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => OrderDetailPage(order: order)),
+      MaterialPageRoute(
+        builder: (context) => OrderDetailPage(
+          order: order,
+          isCoachProductOrder:
+              _selectedView == OrderViewType.coachProductOrders,
+        ),
+      ),
     );
   }
 
@@ -727,6 +911,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                 ],
               ),
             ),
+
             DropdownMenuItem<OrderViewType>(
               value: OrderViewType.myOrders,
               child: Row(
@@ -756,6 +941,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                 ],
               ),
             ),
+
             DropdownMenuItem<OrderViewType>(
               value: OrderViewType.mySoldOrders,
               child: Row(
@@ -785,6 +971,37 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                 ],
               ),
             ),
+
+            if (_isAdmin)
+              DropdownMenuItem<OrderViewType>(
+                value: OrderViewType.coachProductOrders,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: Colors.tealAccent.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.sports_rounded,
+                        color: Colors.tealAccent,
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Coach Product Orders',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -953,6 +1170,9 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                                       : _selectedView ==
                                             OrderViewType.mySoldOrders
                                       ? 'No sold orders yet'
+                                      : _selectedView ==
+                                            OrderViewType.coachProductOrders
+                                      ? 'No coach product orders yet'
                                       : 'No orders found',
                                   style: const TextStyle(
                                     color: Colors.white70,
@@ -966,6 +1186,9 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                                       : _selectedView ==
                                             OrderViewType.mySoldOrders
                                       ? 'Orders for your products will appear here'
+                                      : _selectedView ==
+                                            OrderViewType.coachProductOrders
+                                      ? 'Coach product orders will appear here'
                                       : 'All orders will appear here',
                                   style: const TextStyle(
                                     color: Colors.white38,
@@ -1051,6 +1274,9 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                                         : _selectedView ==
                                               OrderViewType.mySoldOrders
                                         ? 'My Sold Orders'
+                                        : _selectedView ==
+                                              OrderViewType.coachProductOrders
+                                        ? 'Coach Product Orders'
                                         : 'All Orders',
                                     style: const TextStyle(
                                       color: Colors.tealAccent,
@@ -1202,7 +1428,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
 
                           Expanded(
                             child: GestureDetector(
-                              onTap: () => _navigateToOrderDetail(order),
+                              onTap: () => (order),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -1224,6 +1450,21 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                                       fontSize: 12,
                                     ),
                                   ),
+                                  if (_selectedView ==
+                                          OrderViewType.coachProductOrders &&
+                                      item.productUserType == 'coach') ...[
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      'Coach Product',
+                                      style: TextStyle(
+                                        color: Colors.tealAccent.withOpacity(
+                                          0.9,
+                                        ),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -1232,7 +1473,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                           GestureDetector(
                             onTap: () => _navigateToOrderDetail(order),
                             child: Text(
-                              '₹${double.parse(item.lineTotal).toStringAsFixed(2)}',
+                              '₹${item.displayTotal.toStringAsFixed(2)}',
                               style: const TextStyle(
                                 color: Colors.tealAccent,
                                 fontSize: 14,
@@ -1343,12 +1584,15 @@ class _Admin_order_pageState extends State<Admin_order_page> {
 }
 // ==================== ORDER DETAIL PAGE ====================
 
-// ==================== ORDER DETAIL PAGE ====================
-
 class OrderDetailPage extends StatefulWidget {
   final Order order; // passed from list for instant display
+  final bool isCoachProductOrder;
 
-  const OrderDetailPage({super.key, required this.order});
+  const OrderDetailPage({
+    super.key,
+    required this.order,
+    this.isCoachProductOrder = false,
+  });
 
   @override
   State<OrderDetailPage> createState() => _OrderDetailPageState();
@@ -1387,8 +1631,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         return;
       }
 
+      final detailUrl = widget.isCoachProductOrder
+          ? '$api/api/myskates/coach/orders/detail/view/${widget.order.id}/'
+          : '$api/api/myskates/orders/${widget.order.id}/';
+
       final response = await http.get(
-        Uri.parse('$api/api/myskates/orders/${widget.order.id}/'),
+        Uri.parse(detailUrl),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -1407,10 +1655,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         });
 
         // After order is loaded, check reviews for all items
-        await _checkAllReviews();
-
-        // Then check if we should show review popup
-        _checkAndShowReviewPopup();
+        if (!widget.isCoachProductOrder) {
+          await _checkAllReviews();
+          _checkAndShowReviewPopup();
+        }
       } else {
         setState(() {
           _fetchError = 'Failed to load order: ${response.statusCode}';
@@ -1589,6 +1837,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     }
   }
 
+  double _amount(String value) {
+    return double.tryParse(value) ?? 0.0;
+  }
+
   Widget _glassWrap({required Widget child, EdgeInsets? padding}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
@@ -1682,6 +1934,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         ? Colors.green
         : (isBold ? Colors.white : Colors.white70);
     final prefix = isDiscount ? '-₹' : '₹';
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -1694,11 +1947,86 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           ),
         ),
         Text(
-          '$prefix${double.parse(amount).toStringAsFixed(2)}',
+          '$prefix${_amount(amount).toStringAsFixed(2)}',
           style: TextStyle(
             color: color,
             fontSize: 14,
             fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _smallAmountBox({
+    required String title,
+    required String value,
+    required IconData icon,
+    Color valueColor = Colors.tealAccent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: Colors.white54, size: 14),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _normalTextRow(
+    String label,
+    String value, {
+    Color valueColor = Colors.white,
+    bool isBold = false,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 13,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+            ),
           ),
         ),
       ],
@@ -2411,6 +2739,87 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                                         fontSize: 13,
                                                       ),
                                                     ),
+                                                    if (widget
+                                                        .isCoachProductOrder) ...[
+                                                      const SizedBox(height: 6),
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 8,
+                                                              vertical: 5,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors
+                                                              .tealAccent
+                                                              .withOpacity(
+                                                                0.12,
+                                                              ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                8,
+                                                              ),
+                                                          border: Border.all(
+                                                            color: Colors
+                                                                .tealAccent
+                                                                .withOpacity(
+                                                                  0.25,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        child: Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            Text(
+                                                              'Seller Type: ${item.productUserType ?? '-'}',
+                                                              style: const TextStyle(
+                                                                color: Colors
+                                                                    .tealAccent,
+                                                                fontSize: 11,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
+                                                            ),
+                                                            if (item.coachName !=
+                                                                    null &&
+                                                                item
+                                                                    .coachName!
+                                                                    .isNotEmpty) ...[
+                                                              const SizedBox(
+                                                                height: 3,
+                                                              ),
+                                                              Text(
+                                                                'Coach: ${item.coachName}',
+                                                                style: const TextStyle(
+                                                                  color: Colors
+                                                                      .white70,
+                                                                  fontSize: 11,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                            if (item.coachPhone !=
+                                                                    null &&
+                                                                item
+                                                                    .coachPhone!
+                                                                    .isNotEmpty) ...[
+                                                              const SizedBox(
+                                                                height: 3,
+                                                              ),
+                                                              Text(
+                                                                'Phone: ${item.coachPhone}',
+                                                                style: const TextStyle(
+                                                                  color: Colors
+                                                                      .white70,
+                                                                  fontSize: 11,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ],
                                                     Text(
                                                       '₹${double.parse(item.lineTotal).toStringAsFixed(2)}',
                                                       style: const TextStyle(
@@ -2512,6 +2921,13 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               _order.convenienceFee,
                             ),
                           ],
+                          if (_amount(_order.shipmentCharge) > 0) ...[
+                            const SizedBox(height: 8),
+                            _pricingRow(
+                              'Shipment Charge',
+                              _order.shipmentCharge,
+                            ),
+                          ],
                           if (double.parse(_order.couponDiscount) > 0) ...[
                             const SizedBox(height: 8),
                             _pricingRow(
@@ -2585,10 +3001,478 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                 ],
                               ),
                             ),
+                            if (widget.isCoachProductOrder &&
+                                _order.sellerBreakdown.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+
+                              _glassWrap(
+                                padding: const EdgeInsets.all(20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Seller Payment Summary',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 16),
+
+                                    ..._order.sellerBreakdown.map((seller) {
+                                      final bank = seller.bankDetails;
+
+                                      return Container(
+                                        margin: const EdgeInsets.only(
+                                          bottom: 16,
+                                        ),
+                                        padding: const EdgeInsets.all(14),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orangeAccent
+                                              .withOpacity(0.08),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.orangeAccent
+                                                .withOpacity(0.25),
+                                            width: 0.7,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            // Seller Header
+                                            Row(
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.all(
+                                                    8,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.orangeAccent
+                                                        .withOpacity(0.15),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.storefront_rounded,
+                                                    color: Colors.orangeAccent,
+                                                    size: 18,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        seller.coachName.isEmpty
+                                                            ? 'Seller'
+                                                            : seller.coachName,
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 15,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 2),
+                                                      Text(
+                                                        seller
+                                                                .coachPhone
+                                                                .isEmpty
+                                                            ? '-'
+                                                            : seller.coachPhone,
+                                                        style: const TextStyle(
+                                                          color: Colors.white54,
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+
+                                            const SizedBox(height: 14),
+
+                                            // Seller Amount Summary
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: _smallAmountBox(
+                                                    title: 'Seller Total',
+                                                    value:
+                                                        '₹${_amount(seller.sellerTotal).toStringAsFixed(2)}',
+                                                    icon: Icons
+                                                        .receipt_long_outlined,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: _smallAmountBox(
+                                                    title: 'Seller Payable',
+                                                    value:
+                                                        '₹${_amount(seller.sellerPayable).toStringAsFixed(2)}',
+                                                    icon:
+                                                        Icons.payments_outlined,
+                                                    valueColor:
+                                                        Colors.orangeAccent,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+
+                                            const SizedBox(height: 14),
+
+                                            // Product Items
+                                            const Text(
+                                              'Product Details',
+                                              style: TextStyle(
+                                                color: Colors.tealAccent,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+
+                                            const SizedBox(height: 10),
+
+                                            ...seller.items.map((item) {
+                                              return Container(
+                                                margin: const EdgeInsets.only(
+                                                  bottom: 10,
+                                                ),
+                                                padding: const EdgeInsets.all(
+                                                  12,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black
+                                                      .withOpacity(0.18),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  border: Border.all(
+                                                    color: Colors.white
+                                                        .withOpacity(0.08),
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    // Product title
+                                                    Row(
+                                                      children: [
+                                                        const Icon(
+                                                          Icons
+                                                              .inventory_2_outlined,
+                                                          color:
+                                                              Colors.tealAccent,
+                                                          size: 17,
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                        Expanded(
+                                                          child: Text(
+                                                            item
+                                                                    .productTitle
+                                                                    .isEmpty
+                                                                ? 'Product'
+                                                                : item.productTitle,
+                                                            style:
+                                                                const TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize: 14,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                ),
+                                                            maxLines: 2,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+
+                                                    const SizedBox(height: 12),
+
+                                                    Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child: _smallAmountBox(
+                                                            title:
+                                                                'Variant Price',
+                                                            value:
+                                                                '₹${_amount(item.variantPrice).toStringAsFixed(2)}',
+                                                            icon: Icons
+                                                                .sell_outlined,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 10,
+                                                        ),
+                                                        Expanded(
+                                                          child: _smallAmountBox(
+                                                            title:
+                                                                'Variant Discount',
+                                                            value:
+                                                                '₹${_amount(item.variantDiscount).toStringAsFixed(2)}',
+                                                            icon: Icons
+                                                                .discount_outlined,
+                                                            valueColor: Colors
+                                                                .greenAccent,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+
+                                                    const SizedBox(height: 10),
+
+                                                    _normalTextRow(
+                                                      'Quantity',
+                                                      item.quantity.toString(),
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    _normalTextRow(
+                                                      'Item Total',
+                                                      '₹${_amount(item.itemTotal).toStringAsFixed(2)}',
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    _normalTextRow(
+                                                      'Percentage Amount (${_order.productPercentage}%)',
+                                                      '₹${_amount(item.percentageAmount).toStringAsFixed(2)}',
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    _normalTextRow(
+                                                      'Item Seller Payable',
+                                                      '₹${_amount(item.sellerPayable).toStringAsFixed(2)}',
+                                                      valueColor:
+                                                          Colors.orangeAccent,
+                                                      isBold: true,
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            }).toList(),
+
+                                            const SizedBox(height: 12),
+
+                                            // Bank Details inside same seller card
+                                            Container(
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withOpacity(
+                                                  0.04,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color: Colors.white
+                                                      .withOpacity(0.08),
+                                                ),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    'Bank Details',
+                                                    style: TextStyle(
+                                                      color: Colors.tealAccent,
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+
+                                                  const SizedBox(height: 12),
+
+                                                  if (bank == null)
+                                                    const Text(
+                                                      'No bank details available',
+                                                      style: TextStyle(
+                                                        color: Colors.white54,
+                                                        fontSize: 13,
+                                                      ),
+                                                    )
+                                                  else ...[
+                                                    _normalTextRow(
+                                                      'Account Holder',
+                                                      bank
+                                                              .accountHolderName
+                                                              .isEmpty
+                                                          ? '-'
+                                                          : bank.accountHolderName,
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    _normalTextRow(
+                                                      'Bank Name',
+                                                      bank.bankName.isEmpty
+                                                          ? '-'
+                                                          : bank.bankName,
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    _normalTextRow(
+                                                      'Branch',
+                                                      bank.branchName.isEmpty
+                                                          ? '-'
+                                                          : bank.branchName,
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    _normalTextRow(
+                                                      'Account Number',
+                                                      bank.accountNumber.isEmpty
+                                                          ? '-'
+                                                          : bank.accountNumber,
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    _normalTextRow(
+                                                      'IFSC Code',
+                                                      bank.ifscCode.isEmpty
+                                                          ? '-'
+                                                          : bank.ifscCode,
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    _normalTextRow(
+                                                      'UPI ID',
+                                                      bank.upiId.isEmpty
+                                                          ? '-'
+                                                          : bank.upiId,
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ],
                       ),
                     ),
+                    // if (widget.isCoachProductOrder &&
+                    //  _order.sellerBreakdown.any(
+                    //       (e) => e.bankDetails != null,
+                    //     )) ...[
+                    //   const SizedBox(height: 16),
+
+                    //   _glassWrap(
+                    //     padding: const EdgeInsets.all(20),
+                    //     child: Column(
+                    //       crossAxisAlignment: CrossAxisAlignment.start,
+                    //       children: [
+                    //         const Text(
+                    //           'Seller Bank Details',
+                    //           style: TextStyle(
+                    //             color: Colors.white,
+                    //             fontSize: 16,
+                    //             fontWeight: FontWeight.bold,
+                    //           ),
+                    //         ),
+                    //         const SizedBox(height: 16),
+
+                    //         ..._order.sellerBreakdown
+                    //             .where((seller) => seller.bankDetails != null)
+                    //             .map((seller) {
+                    //               final bank = seller.bankDetails!;
+                    //               return Container(
+                    //                 margin: const EdgeInsets.only(bottom: 14),
+                    //                 padding: const EdgeInsets.all(14),
+                    //                 decoration: BoxDecoration(
+                    //                   color: Colors.white.withOpacity(0.04),
+                    //                   borderRadius: BorderRadius.circular(14),
+                    //                   border: Border.all(
+                    //                     color: Colors.white.withOpacity(0.08),
+                    //                   ),
+                    //                 ),
+                    //                 child: Column(
+                    //                   children: [
+                    //                     _infoRow(
+                    //                       icon: Icons.person_outline,
+                    //                       label: 'Coach Name',
+                    //                       value: bank.coachName.isEmpty
+                    //                           ? '-'
+                    //                           : bank.coachName,
+                    //                     ),
+                    //                     const SizedBox(height: 12),
+                    //                     _infoRow(
+                    //                       icon: Icons.phone_outlined,
+                    //                       label: 'Phone',
+                    //                       value: bank.phone.isEmpty
+                    //                           ? '-'
+                    //                           : bank.phone,
+                    //                     ),
+                    //                     const SizedBox(height: 12),
+                    //                     _infoRow(
+                    //                       icon: Icons.account_circle_outlined,
+                    //                       label: 'Account Holder Name',
+                    //                       value: bank.accountHolderName.isEmpty
+                    //                           ? '-'
+                    //                           : bank.accountHolderName,
+                    //                     ),
+                    //                     const SizedBox(height: 12),
+                    //                     _infoRow(
+                    //                       icon: Icons.account_balance_outlined,
+                    //                       label: 'Bank Name',
+                    //                       value: bank.bankName.isEmpty
+                    //                           ? '-'
+                    //                           : bank.bankName,
+                    //                     ),
+                    //                     const SizedBox(height: 12),
+                    //                     _infoRow(
+                    //                       icon: Icons.location_city_outlined,
+                    //                       label: 'Branch Name',
+                    //                       value: bank.branchName.isEmpty
+                    //                           ? '-'
+                    //                           : bank.branchName,
+                    //                     ),
+                    //                     const SizedBox(height: 12),
+                    //                     _infoRow(
+                    //                       icon: Icons.numbers_outlined,
+                    //                       label: 'Account Number',
+                    //                       value: bank.accountNumber.isEmpty
+                    //                           ? '-'
+                    //                           : bank.accountNumber,
+                    //                     ),
+                    //                     const SizedBox(height: 12),
+                    //                     _infoRow(
+                    //                       icon: Icons
+                    //                           .confirmation_number_outlined,
+                    //                       label: 'IFSC Code',
+                    //                       value: bank.ifscCode.isEmpty
+                    //                           ? '-'
+                    //                           : bank.ifscCode,
+                    //                     ),
+                    //                     const SizedBox(height: 12),
+                    //                     _infoRow(
+                    //                       icon: Icons.qr_code_2_outlined,
+                    //                       label: 'UPI ID',
+                    //                       value: bank.upiId.isEmpty
+                    //                           ? '-'
+                    //                           : bank.upiId,
+                    //                     ),
+                    //                   ],
+                    //                 ),
+                    //               );
+                    //             })
+                    //             .toList(),
+                    //       ],
+                    //     ),
+                    //   ),
+                    // ],
                   ],
 
                   const SizedBox(height: 20),

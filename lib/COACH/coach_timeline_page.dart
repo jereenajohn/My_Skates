@@ -1013,10 +1013,51 @@ class _FeedCard extends StatelessWidget {
     final bool repostLoading =
         index != -1 && feedProvider.feeds[index]["_repost_loading"] == true;
 
-    final List images = displayFeed["feed_image"] ?? [];
+    // final List images = displayFeed["feed_image"] ?? [];
+    // final int actualFeedId = feed["feed"] != null
+    //     ? feed["feed"]["id"]
+    //     : feed["id"];
+
+    final List images = displayFeed["feed_image"] is List
+        ? displayFeed["feed_image"]
+        : [];
+
     final int actualFeedId = feed["feed"] != null
         ? feed["feed"]["id"]
         : feed["id"];
+
+    // ✅ ORIGINAL POST OWNER DETAILS
+    final Map<String, dynamic> feedUser = displayFeed["user"] is Map
+        ? Map<String, dynamic>.from(displayFeed["user"])
+        : {};
+
+    final String firstName = (feedUser["first_name"] ?? "").toString();
+    final String lastName = (feedUser["last_name"] ?? "").toString();
+
+    final String ownerName =
+        (displayFeed["user_name"] ?? "$firstName $lastName")
+            .toString()
+            .trim()
+            .isNotEmpty
+        ? (displayFeed["user_name"] ?? "$firstName $lastName").toString().trim()
+        : "MySkates User";
+
+    final String ownerProfile =
+        (displayFeed["profile"] ??
+                feedUser["profile"] ??
+                feedUser["profile_image"] ??
+                "")
+            .toString();
+
+    ImageProvider ownerProfileImage() {
+      if (ownerProfile.isEmpty) {
+        return const AssetImage("lib/assets/img.jpg");
+      }
+
+      return NetworkImage(
+        ownerProfile.startsWith("http") ? ownerProfile : "$api$ownerProfile",
+      );
+    }
 
     return FutureBuilder<int?>(
       future: _myUserId(),
@@ -1096,25 +1137,39 @@ class _FeedCard extends StatelessWidget {
                     // 🔹 HEADER (PROFILE + NAME)
                     Row(
                       children: [
+                        // CircleAvatar(
+                        //   radius: 16,
+                        //   backgroundImage:
+                        //       (profile.image != null &&
+                        //           profile.image!.isNotEmpty)
+                        //       ? NetworkImage("$api${profile.image}")
+                        //       : const AssetImage("lib/assets/img.jpg")
+                        //             as ImageProvider,
+                        // ),
                         CircleAvatar(
                           radius: 16,
-                          backgroundImage:
-                              (profile.image != null &&
-                                  profile.image!.isNotEmpty)
-                              ? NetworkImage("$api${profile.image}")
-                              : const AssetImage("lib/assets/img.jpg")
-                                    as ImageProvider,
+                          backgroundImage: ownerProfileImage(),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            profile.name,
+                            ownerName,
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
+                        // const SizedBox(width: 8),
+                        // Expanded(
+                        //   child: Text(
+                        //     profile.name,
+                        //     style: const TextStyle(
+                        //       color: Colors.white,
+                        //       fontWeight: FontWeight.w600,
+                        //     ),
+                        //   ),
+                        // ),
                         PopupMenuButton(
                           icon: const Icon(
                             Icons.more_vert,
