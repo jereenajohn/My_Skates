@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/ADMIN/admin_orders_page.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
-import 'package:my_skates/ADMIN/products_by_user.dart';
-import 'dart:async';
 
-import 'package:my_skates/COACH/myorders.dart';
+
 
 class OrderSuccessPage extends StatefulWidget {
   final String orderId;
@@ -220,7 +219,7 @@ class _OrderSuccessPageState extends State<OrderSuccessPage>
                   height: 50,
                   child: OutlinedButton(
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (context)=>Myorders()));
+                      Navigator.push(context, MaterialPageRoute(builder: (context)=>Admin_order_page()));
 
                       // Here you can push Orders Page instead
                       // Navigator.push(context, MaterialPageRoute(builder: (_) => OrdersPage()));

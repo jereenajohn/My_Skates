@@ -86,6 +86,7 @@ class Order {
   final String total;
   final String platformFee;
   final String convenienceFee;
+  final String shipmentcharge;
   final String couponDiscount;
   final String finalPayable;
   final String? couponName;
@@ -115,6 +116,7 @@ class Order {
     required this.total,
     required this.platformFee,
     required this.convenienceFee,
+    required this.shipmentcharge,
     required this.couponDiscount,
     required this.finalPayable,
     this.couponName,
@@ -151,6 +153,7 @@ class Order {
       total: json['total']?.toString() ?? '0',
       platformFee: json['platform_fee']?.toString() ?? '0',
       convenienceFee: json['convenience_fee']?.toString() ?? '0',
+      shipmentcharge: json['shipment_charge']?.toString() ?? '0',
       couponDiscount: json['coupon_discount']?.toString() ?? '0',
       finalPayable: json['final_payable']?.toString() ?? '0',
       couponName: json['coupon_name'],
@@ -1279,7 +1282,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                     ),
                   ),
                   Text(
-                    '₹${double.parse(order.total).toStringAsFixed(2)}',
+                    '₹${double.parse(order.finalPayable).toStringAsFixed(2)}',
                     style: const TextStyle(
                       color: Colors.tealAccent,
                       fontSize: 18,
@@ -2512,6 +2515,13 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               _order.convenienceFee,
                             ),
                           ],
+                          if (double.parse(_order.shipmentcharge) > 0) ...[
+                            const SizedBox(height: 8),
+                            _pricingRow(
+                              'Shipment Charge',
+                              _order.shipmentcharge,
+                            ),
+                          ],
                           if (double.parse(_order.couponDiscount) > 0) ...[
                             const SizedBox(height: 8),
                             _pricingRow(
@@ -2524,28 +2534,27 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                           ],
                           const Divider(color: Colors.white24, height: 24),
 
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Total',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                '₹${double.parse(_order.total).toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  color: Colors.tealAccent,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-
+                          // Row(
+                          //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          //   children: [
+                          //     const Text(
+                          //       'Total',
+                          //       style: TextStyle(
+                          //         color: Colors.white,
+                          //         fontSize: 16,
+                          //         fontWeight: FontWeight.bold,
+                          //       ),
+                          //     ),
+                          //     Text(
+                          //       '₹${double.parse(_order.total).toStringAsFixed(2)}',
+                          //       style: const TextStyle(
+                          //         color: Colors.tealAccent,
+                          //         fontSize: 20,
+                          //         fontWeight: FontWeight.bold,
+                          //       ),
+                          //     ),
+                          //   ],
+                          // ),
                           if (double.parse(_order.finalPayable) !=
                               double.parse(_order.total)) ...[
                             const SizedBox(height: 10),
