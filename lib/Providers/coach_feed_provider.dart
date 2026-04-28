@@ -33,6 +33,103 @@ class CoachFeedProvider extends ChangeNotifier {
   /* -----------------------------------------------------------
    * FETCH FEEDS (MERGED)
    * --------------------------------------------------------- */
+  // Future<void> fetchFeeds() async {
+  //   loading = true;
+  //   notifyListeners();
+
+  //   try {
+  //     final prefs = await SharedPreferences.getInstance();
+  //     final token = prefs.getString("access");
+  //     final id = prefs.getInt("id");
+  //     if (token == null || id == null) return;
+
+  //     final responses = await Future.wait([
+  //       http.get(
+  //         Uri.parse("$api/api/myskates/feeds/user/$id/"),
+  //         headers: {"Authorization": "Bearer $token"},
+  //       ),
+  //       http.get(
+  //         Uri.parse("$api/api/myskates/feeds/"),
+  //         headers: {"Authorization": "Bearer $token"},
+  //       ),
+  //       http.get(
+  //         Uri.parse("$api/api/myskates/feeds/reposts/user/$id/"),
+  //         headers: {"Authorization": "Bearer $token"},
+  //       ),
+  //     ]);
+
+  //     // USER FEEDS
+  //     if (responses[0].statusCode == 200) {
+  //       final decoded = jsonDecode(responses[0].body);
+  //       _userFeeds = decoded is List ? decoded : decoded["data"] ?? [];
+  //     }
+
+  //     // GLOBAL FEEDS (COUNTS)
+  //     if (responses[1].statusCode == 200) {
+  //       final decoded = jsonDecode(responses[1].body);
+  //       _allFeeds = decoded is List ? decoded : [];
+  //     }
+
+  //     // ✅ REPOST FEEDS
+  //     if (responses[2].statusCode == 200) {
+  //       final decoded = jsonDecode(responses[2].body);
+  //       final List data = decoded["data"] ?? [];
+
+  //       _repostFeeds = data.map((item) {
+  //         final originalFeed = _userFeeds.firstWhere(
+  //           (f) => f["id"] == item["feed_id"],
+  //           orElse: () => {},
+  //         );
+
+  //         return {
+  //           "id": "repost_${item["id"]}",
+  //           "repost_id": item["id"],
+  //           "text": item["text"],
+  //           "created_at": item["created_at"],
+  //           "reposted_by": item["reposted_by"],
+
+  //           "feed": {
+  //             "id": item["feed_id"],
+  //             "description": item["feed_description"],
+  //             "likes_count": item["likes_count"],
+  //             "comments_count": item["comments_count"],
+  //             "shares_count": item["reposts_count"],
+  //             "is_liked": false,
+  //             "is_reposted": true,
+
+  //             // ✅ IMAGE RESTORED
+  //             // "feed_image": originalFeed["feed_image"] ?? [],
+  //             "feed_image":
+  //                 (item["feed"] is Map &&
+  //                     item["feed"]["feed_image"] is List &&
+  //                     item["feed"]["feed_image"].isNotEmpty)
+  //                 ? item["feed"]["feed_image"]
+  //                 : (originalFeed["feed_image"] ?? []),
+  //             "user_name":
+  //                 originalFeed["user_name"] ??
+  //                 item["feed"]?["user_name"] ??
+  //                 "MySkates User",
+
+  //             "profile":
+  //                 originalFeed["profile"] ?? item["feed"]?["profile"] ?? "",
+
+  //             "user": originalFeed["user"] ?? item["feed"]?["user"],
+  //           },
+  //         };
+  //       }).toList();
+
+  //       print("✅ Fetched ${_repostFeeds.length} repost feeds");
+  //       print("📦 Repost Feeds Data: $_repostFeeds");
+  //       print("📦 User Feeds Data: $_userFeeds");
+  //     }
+  //   } catch (e) {
+  //     print("❌ fetchFeeds ERROR: $e");
+  //   }
+
+  //   loading = false;
+  //   notifyListeners();
+  // }
+
   Future<void> fetchFeeds() async {
     loading = true;
     notifyListeners();
@@ -40,75 +137,214 @@ class CoachFeedProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
-      final id = prefs.getInt("id");
-      if (token == null || id == null) return;
+      final id = prefs.getInt("id") ?? prefs.getInt("user_id");
+
+      if (token == null || id == null) {
+        _userFeeds = [];
+        _allFeeds = [];
+        _repostFeeds = [];
+        loading = false;
+        notifyListeners();
+        return;
+      }
 
       final responses = await Future.wait([
+        // My own feed posts
         http.get(
           Uri.parse("$api/api/myskates/feeds/user/$id/"),
           headers: {"Authorization": "Bearer $token"},
         ),
+
+        // All feed posts - needed to get original repost image
         http.get(
           Uri.parse("$api/api/myskates/feeds/"),
           headers: {"Authorization": "Bearer $token"},
         ),
+
+        // My reposted feed posts
         http.get(
           Uri.parse("$api/api/myskates/feeds/reposts/user/$id/"),
           headers: {"Authorization": "Bearer $token"},
         ),
       ]);
 
+      print("👤 USER FEEDS STATUS: ${responses[0].statusCode}");
+      print("👤 USER FEEDS BODY: ${responses[0].body}");
+
+      print("🌍 ALL FEEDS STATUS: ${responses[1].statusCode}");
+      print("🌍 ALL FEEDS BODY: ${responses[1].body}");
+
+      print("🔁 REPOST FEEDS STATUS: ${responses[2].statusCode}");
+      print("🔁 REPOST FEEDS BODY: ${responses[2].body}");
+
+      // ---------------------------------------------------------
       // USER FEEDS
+      // ---------------------------------------------------------
       if (responses[0].statusCode == 200) {
         final decoded = jsonDecode(responses[0].body);
-        _userFeeds = decoded is List ? decoded : decoded["data"] ?? [];
+
+        final List data = decoded is List
+            ? decoded
+            : decoded["data"] ?? decoded["results"] ?? [];
+
+        _userFeeds = data
+            .map<Map<String, dynamic>>(
+              (item) => Map<String, dynamic>.from(item),
+            )
+            .toList();
+      } else {
+        _userFeeds = [];
       }
 
-      // GLOBAL FEEDS (COUNTS)
+      // ---------------------------------------------------------
+      // ALL FEEDS
+      // ---------------------------------------------------------
       if (responses[1].statusCode == 200) {
         final decoded = jsonDecode(responses[1].body);
-        _allFeeds = decoded is List ? decoded : [];
+
+        final List data = decoded is List
+            ? decoded
+            : decoded["data"] ?? decoded["results"] ?? [];
+
+        _allFeeds = data
+            .map<Map<String, dynamic>>(
+              (item) => Map<String, dynamic>.from(item),
+            )
+            .toList();
+      } else {
+        _allFeeds = [];
       }
 
-      // ✅ REPOST FEEDS
+      // ---------------------------------------------------------
+      // REPOST FEEDS
+      // ---------------------------------------------------------
       if (responses[2].statusCode == 200) {
         final decoded = jsonDecode(responses[2].body);
-        final List data = decoded["data"] ?? [];
 
-        _repostFeeds = data.map((item) {
-          final originalFeed = _userFeeds.firstWhere(
-            (f) => f["id"] == item["feed_id"],
-            orElse: () => {},
+        final List data = decoded is List
+            ? decoded
+            : decoded["data"] ?? decoded["results"] ?? [];
+
+        _repostFeeds = data.map<Map<String, dynamic>>((item) {
+          final Map<String, dynamic> repostItem = Map<String, dynamic>.from(
+            item,
           );
 
+          final Map<String, dynamic> repostFeedObj = repostItem["feed"] is Map
+              ? Map<String, dynamic>.from(repostItem["feed"])
+              : {};
+
+          int feedId = 0;
+
+          if (repostItem["feed_id"] != null) {
+            feedId = int.tryParse(repostItem["feed_id"].toString()) ?? 0;
+          }
+
+          if (feedId == 0 && repostFeedObj["id"] != null) {
+            feedId = int.tryParse(repostFeedObj["id"].toString()) ?? 0;
+          }
+
+          // ✅ IMPORTANT:
+          // Find original post from ALL feeds, not user feeds.
+          // Because reposted post may belong to another user.
+          final Map<String, dynamic> originalFeed = _allFeeds.firstWhere(
+            (f) => f["id"].toString() == feedId.toString(),
+            orElse: () => <String, dynamic>{},
+          );
+
+          final List repostImages = repostFeedObj["feed_image"] is List
+              ? repostFeedObj["feed_image"]
+              : [];
+
+          final List originalImages = originalFeed["feed_image"] is List
+              ? originalFeed["feed_image"]
+              : [];
+
+          print("🔁 REPOST ID: ${repostItem["id"]}");
+          print("🔁 ORIGINAL FEED ID: $feedId");
+          print("🔍 ORIGINAL FEED FOUND: $originalFeed");
+          print("🖼 REPOST API IMAGES: $repostImages");
+          print("🖼 ORIGINAL FEED IMAGES: $originalImages");
+
           return {
-            "id": "repost_${item["id"]}",
-            "repost_id": item["id"],
-            "text": item["text"],
-            "created_at": item["created_at"],
-            "reposted_by": item["reposted_by"],
+            "id": "repost_${repostItem["id"]}",
+            "is_repost": true,
+            "repost_id": repostItem["id"],
+            "text": repostItem["text"],
+            "created_at": repostItem["created_at"],
+            "reposted_by": repostItem["reposted_by"],
 
             "feed": {
-              "id": item["feed_id"],
-              "description": item["feed_description"],
-              "likes_count": item["likes_count"],
-              "comments_count": item["comments_count"],
-              "shares_count": item["reposts_count"],
-              "is_liked": false,
+              "id": feedId,
+
+              "description":
+                  repostFeedObj["description"] ??
+                  repostItem["feed_description"] ??
+                  originalFeed["description"] ??
+                  "",
+
+              "likes_count":
+                  repostFeedObj["likes_count"] ??
+                  repostItem["likes_count"] ??
+                  originalFeed["likes_count"] ??
+                  0,
+
+              "comments_count":
+                  repostFeedObj["comments_count"] ??
+                  repostItem["comments_count"] ??
+                  originalFeed["comments_count"] ??
+                  0,
+
+              "shares_count":
+                  repostFeedObj["shares_count"] ??
+                  repostItem["reposts_count"] ??
+                  originalFeed["shares_count"] ??
+                  0,
+
+              "is_liked":
+                  repostFeedObj["is_liked"] ??
+                  originalFeed["is_liked"] ??
+                  false,
+
               "is_reposted": true,
 
-              // ✅ IMAGE RESTORED
-              "feed_image": originalFeed["feed_image"] ?? [],
+              // ✅ MAIN IMAGE FIX
+              "feed_image": repostImages.isNotEmpty
+                  ? repostImages
+                  : originalImages,
+
+              // ✅ Original post owner details
+              "user_name":
+                  originalFeed["user_name"] ??
+                  repostFeedObj["user_name"] ??
+                  "MySkates User",
+
+              "profile":
+                  originalFeed["profile"] ?? repostFeedObj["profile"] ?? "",
+
+              "user": originalFeed["user"] ?? repostFeedObj["user"],
+
+              "created_at":
+                  originalFeed["created_at"] ??
+                  repostFeedObj["created_at"] ??
+                  repostItem["created_at"],
             },
           };
         }).toList();
-
-        print("✅ Fetched ${_repostFeeds.length} repost feeds");
-        print("📦 Repost Feeds Data: $_repostFeeds");
-        print("📦 User Feeds Data: $_userFeeds");
+      } else {
+        _repostFeeds = [];
       }
+
+      print("✅ FINAL USER FEEDS COUNT: ${_userFeeds.length}");
+      print("✅ FINAL ALL FEEDS COUNT: ${_allFeeds.length}");
+      print("✅ FINAL REPOST FEEDS COUNT: ${_repostFeeds.length}");
+      print("📦 FINAL REPOST FEEDS DATA: $_repostFeeds");
     } catch (e) {
       print("❌ fetchFeeds ERROR: $e");
+
+      _userFeeds = [];
+      _allFeeds = [];
+      _repostFeeds = [];
     }
 
     loading = false;

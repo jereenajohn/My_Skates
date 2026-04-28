@@ -2002,6 +2002,195 @@ class _cartState extends State<cart> {
     );
   }
 
+  void _showCodConfirmationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: const Color(0xFF121212),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 58,
+                  width: 58,
+                  decoration: BoxDecoration(
+                    color: Colors.tealAccent.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.tealAccent.withOpacity(0.45),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.payments_outlined,
+                    color: Colors.tealAccent,
+                    size: 30,
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                const Text(
+                  "Confirm Cash on Delivery",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: "Poppins",
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                Text(
+                  "Your order will be placed with Cash on Delivery. You can pay ₹$amountPayable when the order arrives.",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    height: 1.4,
+                    fontFamily: "Poppins",
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.35),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
+                        color: Colors.tealAccent,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          selectedAddress == null
+                              ? "No address selected"
+                              : "${selectedAddress!["full_name"] ?? ""}, ${selectedAddress!["city"] ?? ""}, ${selectedAddress!["pincode"] ?? ""}",
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontFamily: "Poppins",
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 22),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          setState(() {
+                            placingOrder = false;
+                          });
+                          Navigator.pop(context);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: Colors.white.withOpacity(0.25),
+                          ),
+                          foregroundColor: Colors.white70,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                        ),
+                        child: const Text(
+                          "Cancel",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontFamily: "Poppins",
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+
+                          checkoutOrder(
+                            paymentMethod: "COD",
+                            paymentRef: "",
+                            fullName: (selectedAddress?["full_name"] ?? "")
+                                .toString(),
+                            phone: (selectedAddress?["phone"] ?? "").toString(),
+                            addressLine1:
+                                (selectedAddress?["address_line1"] ?? "")
+                                    .toString(),
+                            addressLine2:
+                                (selectedAddress?["address_line2"] ?? "")
+                                    .toString(),
+                            city: (selectedAddress?["city"] ?? "").toString(),
+                            state:
+                                (selectedAddress?["state_name"] ??
+                                        selectedAddress?["state"] ??
+                                        "")
+                                    .toString()
+                                    .trim(),
+                            pincode: (selectedAddress?["pincode"] ?? "")
+                                .toString(),
+                            country:
+                                (selectedAddress?["country_name"] ??
+                                        selectedAddress?["country"] ??
+                                        "India")
+                                    .toString(),
+                            note: "",
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.tealAccent,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                        ),
+                        child: const Text(
+                          "Place Order",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontFamily: "Poppins",
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   // ================= BOTTOM BAR =================
   Widget _buildBottomBar(BuildContext context) {
     return Container(
@@ -2062,34 +2251,7 @@ class _cartState extends State<cart> {
                         });
 
                         if (selectedPayment == "cod") {
-                          checkoutOrder(
-                            paymentMethod: "COD",
-                            paymentRef: "",
-                            fullName: (selectedAddress?["full_name"] ?? "")
-                                .toString(),
-                            phone: (selectedAddress?["phone"] ?? "").toString(),
-                            addressLine1:
-                                (selectedAddress?["address_line1"] ?? "")
-                                    .toString(),
-                            addressLine2:
-                                (selectedAddress?["address_line2"] ?? "")
-                                    .toString(),
-                            city: (selectedAddress?["city"] ?? "").toString(),
-                            state:
-                                (selectedAddress?["state_name"] ??
-                                        selectedAddress?["state"] ??
-                                        "")
-                                    .toString()
-                                    .trim(),
-                            pincode: (selectedAddress?["pincode"] ?? "")
-                                .toString(),
-                            country:
-                                (selectedAddress?["country_name"] ??
-                                        selectedAddress?["country"] ??
-                                        "India")
-                                    .toString(),
-                            note: "",
-                          );
+                          _showCodConfirmationDialog();
                         } else {
                           ordercreate();
                         }
