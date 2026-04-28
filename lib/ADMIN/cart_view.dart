@@ -40,6 +40,7 @@ class _cartState extends State<cart> {
   String platformFee = "0.00";
   String convenienceFee = "0.00";
   String amountPayable = "0.00";
+  String shipmentfee = "0.00";
 
   // ================= ADDRESS =================
   Map<String, dynamic>? selectedAddress;
@@ -120,6 +121,7 @@ class _cartState extends State<cart> {
             platformFee = data["platform_fee"].toString();
             convenienceFee = data["convenience_fee"].toString();
             amountPayable = data["amount_payable"].toString();
+            shipmentfee = data["shipment_charge"].toString();
 
             if (couponCode.isNotEmpty) {
               couponController.text = couponCode;
@@ -1385,6 +1387,7 @@ class _cartState extends State<cart> {
     final double platformFeeValue = double.tryParse(platformFee) ?? 0;
     final double convieniencefeevalue = double.tryParse(convenienceFee) ?? 0;
     final double payableValue = double.tryParse(amountPayable) ?? 0;
+    final double shipmentcharge = double.tryParse(shipmentfee) ?? 0;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 12),
@@ -1453,19 +1456,33 @@ class _cartState extends State<cart> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    "Free",
-                    style: TextStyle(
-                      color: Colors.greenAccent,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
                     "₹$convieniencefeevalue",
+                    style: TextStyle(color: Colors.white, fontSize: 11),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Text(
+                    "Shipment Charge",
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    "₹$shipmentcharge",
                     style: TextStyle(
-                      color: Colors.white38,
+                      color: Colors.white,
                       fontSize: 11,
-                      decoration: TextDecoration.lineThrough,
+                      // decoration: TextDecoration.lineThrough,
                     ),
                   ),
                 ],
