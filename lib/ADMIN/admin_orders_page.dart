@@ -117,11 +117,11 @@ class SellerBankDetails {
     return SellerBankDetails(
       id: json['id'] ?? 0,
       coachName: json['coach_name'] ?? '',
-      phone: json['phone'] ?? '',
+      phone: json['phone']?.toString() ?? '',
       accountHolderName: json['account_holder_name'] ?? '',
       bankName: json['bank_name'] ?? '',
       branchName: json['branch_name'] ?? '',
-      accountNumber: json['account_number'] ?? '',
+      accountNumber: json['account_number']?.toString() ?? '',
       ifscCode: json['ifsc_code'] ?? '',
       upiId: json['upi_id'] ?? '',
     );
@@ -282,7 +282,7 @@ class Order {
       items: orderItems,
       orderNo: json['order_no'] ?? '',
       status: json['status'] ?? '',
-      paymentMethod: json['payment_method'] ?? '',
+      paymentMethod: json['payment_method']?.toString() ?? '',
       paymentRef: json['payment_ref'],
       fullName: json['full_name'] ?? '',
       phone: json['phone'] ?? '',
