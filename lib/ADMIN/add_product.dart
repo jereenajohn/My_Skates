@@ -20,11 +20,10 @@ class AddProduct extends StatefulWidget {
 class _AddProductState extends State<AddProduct> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
- 
-  String? gender; 
+  String? gender;
   String? selectedCountry;
-  String? selectedState; 
-  String? selectedDistrict; 
+  String? selectedState;
+  String? selectedDistrict;
 
   List<Map<String, dynamic>> countryList = [];
   List<Map<String, dynamic>> categoryList = [];
@@ -44,14 +43,23 @@ class _AddProductState extends State<AddProduct> {
   final TextEditingController titleCtrl = TextEditingController();
   final TextEditingController descriptionCtrl = TextEditingController();
   final TextEditingController priceCtrl = TextEditingController();
+  final TextEditingController returnPolicyCtrl = TextEditingController();
   final List<Map<String, String>> productTypeList = [
     {"id": "single", "name": "Single Product"},
     {"id": "variant", "name": "Has Variants"},
   ];
 
+  final TextEditingController paymentNameCtrl = TextEditingController();
+  final TextEditingController paymentCodeCtrl = TextEditingController();
+
+  bool isPaymentActive = true;
+  List paymentMethods = [];
+  List<String> selectedPaymentMethods = [];
+
   @override
   void initState() {
     super.initState();
+    fetchPaymentMethods();
     loadAllData();
   }
 
@@ -62,6 +70,9 @@ class _AddProductState extends State<AddProduct> {
     titleCtrl.dispose();
     descriptionCtrl.dispose();
     priceCtrl.dispose();
+    returnPolicyCtrl.dispose();
+    paymentNameCtrl.dispose();
+    paymentCodeCtrl.dispose();
     super.dispose();
   }
 
@@ -161,6 +172,10 @@ class _AddProductState extends State<AddProduct> {
       request.fields["title"] = titleCtrl.text.trim();
       request.fields["description"] = descriptionCtrl.text.trim();
       request.fields["base_price"] = priceCtrl.text.trim();
+      request.fields["return_policy_days"] = returnPolicyCtrl.text.trim();
+      for (int i = 0; i < selectedPaymentMethods.length; i++) {
+        request.fields["payment_methods[$i]"] = selectedPaymentMethods[i];
+      }
 
       if (selectedState != null) {
         request.fields["category"] = selectedState.toString();
@@ -198,6 +213,236 @@ class _AddProductState extends State<AddProduct> {
         context,
       ).showSnackBar(const SnackBar(content: Text("Something went wrong")));
     }
+  }
+
+  Future<void> fetchPaymentMethods() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/payment/methods/view/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      print("PAYMENT METHOD GET STATUS: ${response.statusCode}");
+      print("PAYMENT METHOD GET BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+
+        setState(() {
+          paymentMethods = decoded["data"] ?? [];
+        });
+      }
+    } catch (e) {
+      print("Payment method fetch error: $e");
+    }
+  }
+
+  Future<void> addPaymentMethod() async {
+    if (paymentNameCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Payment method name is required")),
+      );
+      return;
+    }
+
+    if (paymentCodeCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Payment method code is required")),
+      );
+      return;
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      final body = {
+        "name": paymentNameCtrl.text.trim(),
+        "code": paymentCodeCtrl.text.trim().toUpperCase(),
+        "is_active": isPaymentActive,
+      };
+
+      final response = await http.post(
+        Uri.parse("$api/api/myskates/payment/methods/view/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode(body),
+      );
+
+      print("PAYMENT METHOD POST STATUS: ${response.statusCode}");
+      print("PAYMENT METHOD POST BODY: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Payment method added successfully")),
+        );
+
+        paymentNameCtrl.clear();
+        paymentCodeCtrl.clear();
+
+        setState(() {
+          isPaymentActive = true;
+        });
+
+        fetchPaymentMethods();
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Failed: ${response.body}")));
+      }
+    } catch (e) {
+      print("Payment method add error: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Something went wrong")));
+    }
+  }
+
+  Widget _paymentMethodDropdown() {
+    final selectedNames = paymentMethods
+        .where((item) => selectedPaymentMethods.contains(item["id"].toString()))
+        .map((item) => "${item["name"]} (${item["code"]})")
+        .join(", ");
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: GestureDetector(
+        onTap: () {
+          _showPaymentMethodBottomSheet();
+        },
+        child: InputDecorator(
+          decoration: _dec("Payment Methods"),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  selectedPaymentMethods.isEmpty
+                      ? "Select payment methods"
+                      : selectedNames,
+                  style: TextStyle(
+                    color: selectedPaymentMethods.isEmpty
+                        ? Colors.white54
+                        : Colors.white,
+                    fontSize: 14,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Colors.white70,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPaymentMethodBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF001F1D),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, sheetSetState) {
+            final activePaymentMethods = paymentMethods
+                .where((item) => item["is_active"] == true)
+                .toList();
+
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    "Select Payment Methods",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  if (activePaymentMethods.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text(
+                        "No active payment methods available",
+                        style: TextStyle(color: Colors.white54),
+                      ),
+                    ),
+
+                  ...activePaymentMethods.map((item) {
+                    final id = item["id"].toString();
+                    final isSelected = selectedPaymentMethods.contains(id);
+
+                    return CheckboxListTile(
+                      value: isSelected,
+                      activeColor: Colors.teal,
+                      checkColor: Colors.white,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        "${item["name"]} (${item["code"]})",
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      subtitle: Text(
+                        "Code: ${item["code"]}",
+                        style: const TextStyle(color: Colors.white54),
+                      ),
+                      onChanged: (value) {
+                        sheetSetState(() {
+                          setState(() {
+                            if (value == true) {
+                              selectedPaymentMethods.add(id);
+                            } else {
+                              selectedPaymentMethods.remove(id);
+                            }
+                          });
+                        });
+                      },
+                    );
+                  }),
+
+                  const SizedBox(height: 14),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        "Done",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   // ---------------- UI ----------------
@@ -368,7 +613,15 @@ class _AddProductState extends State<AddProduct> {
                   if (productType == "single")
                     _inputField("Discount", discount, isNumber: true),
 
-                  _inputField("Price", priceCtrl),
+                  _inputField("Price", priceCtrl, isNumber: true),
+
+                  _inputField(
+                    "Return Policy Days",
+                    returnPolicyCtrl,
+                    isNumber: true,
+                  ),
+
+                  _paymentMethodDropdown(),
 
                   const SizedBox(height: 20),
 
@@ -419,6 +672,26 @@ class _AddProductState extends State<AddProduct> {
                           return;
                         }
 
+                        if (returnPolicyCtrl.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Return Policy Days is required"),
+                            ),
+                          );
+                          return;
+                        }
+
+                        if (selectedPaymentMethods.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                "At least one payment method is required",
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
                         submitProduct();
                       },
                       style: ElevatedButton.styleFrom(
@@ -434,6 +707,8 @@ class _AddProductState extends State<AddProduct> {
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 35),
                 ],
               ),
             ),
@@ -442,7 +717,6 @@ class _AddProductState extends State<AddProduct> {
       ),
     );
   }
-
 
   Widget _inputField(
     String label,
@@ -485,6 +759,17 @@ class _AddProductState extends State<AddProduct> {
       ),
     );
   }
+
+  // Widget _paymentInputField(String label, TextEditingController controller) {
+  //   return Padding(
+  //     padding: const EdgeInsets.only(bottom: 20),
+  //     child: TextField(
+  //       controller: controller,
+  //       style: const TextStyle(color: Colors.white),
+  //       decoration: _dec(label),
+  //     ),
+  //   );
+  // }
 
   Widget _inputFieldmax(
     String label,

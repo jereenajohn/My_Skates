@@ -430,8 +430,20 @@ class _cartState extends State<cart> {
     }
 
     // ✅ Create order first
+    if (selectedPaymentId == null) {
+      setState(() {
+        placingOrder = false;
+        loading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select payment method")),
+      );
+      return;
+    }
+
     bool orderCreated = await checkoutOrder(
-      paymentMethod: "ONLINE",
+      paymentMethodId: selectedPaymentId!,
       paymentRef: response.paymentId ?? "",
       fullName: (selectedAddress?["full_name"] ?? "").toString(),
       phone: (selectedAddress?["phone"] ?? "").toString(),
@@ -483,7 +495,7 @@ class _cartState extends State<cart> {
 
   // ================= CHECKOUT =================
   Future<bool> checkoutOrder({
-    required String paymentMethod,
+    required int paymentMethodId,
     required String paymentRef,
     required String fullName,
     required String phone,
@@ -515,7 +527,7 @@ class _cartState extends State<cart> {
           "Content-Type": "application/json",
         },
         body: jsonEncode({
-          "payment_method": paymentMethod,
+          "payment_method": paymentMethodId,
           "payment_ref": paymentRef,
           "full_name": fullName,
           "phone": phone,
@@ -716,6 +728,7 @@ class _cartState extends State<cart> {
         setState(() {
           cartItems = items;
         });
+        calculateDynamicPaymentMethods(items);
 
         final int count = items.fold<int>(
           0,
@@ -1278,8 +1291,81 @@ class _cartState extends State<cart> {
     );
   }
 
-  // ================= PAYMENT METHOD =================
-  String selectedPayment = "cod";
+  void calculateDynamicPaymentMethods(List items) {
+    final Map<String, Map<String, dynamic>> allMethods = {};
+
+    // Step 1: Collect all payment methods from all cart items
+    for (final item in items) {
+      final List methods = item["payment_methods"] ?? [];
+
+      for (final method in methods) {
+        final code = method["code"]?.toString().toUpperCase() ?? "";
+
+        if (code.isNotEmpty) {
+          allMethods[code] = {
+            "id": method["id"],
+            "name": method["name"],
+            "code": code,
+            "is_available": true,
+            "reason": "",
+          };
+        }
+      }
+    }
+
+    // Step 2: Check each method is available in every cart item
+    for (final code in allMethods.keys) {
+      for (final item in items) {
+        final variant = item["variant"];
+        final productName =
+            variant?["product_title"]?.toString() ?? "One product";
+
+        final List methods = item["payment_methods"] ?? [];
+
+        final List<String> itemCodes = methods
+            .map((m) => m["code"].toString().toUpperCase())
+            .toList();
+
+        if (!itemCodes.contains(code)) {
+          allMethods[code]!["is_available"] = false;
+          allMethods[code]!["reason"] =
+              "$productName does not have ${allMethods[code]!["name"]} option";
+          break;
+        }
+      }
+    }
+
+    final List<Map<String, dynamic>> methodsList = allMethods.values.toList();
+
+    Map<String, dynamic>? firstAvailable;
+
+    for (final method in methodsList) {
+      if (method["is_available"] == true) {
+        firstAvailable = method;
+        break;
+      }
+    }
+
+    setState(() {
+      dynamicPaymentMethods = methodsList;
+
+      if (firstAvailable != null) {
+        selectedPaymentId = firstAvailable["id"];
+        selectedPaymentCode = firstAvailable["code"];
+        selectedPaymentName = firstAvailable["name"];
+      } else {
+        selectedPaymentId = null;
+        selectedPaymentCode = "";
+        selectedPaymentName = "";
+      }
+    });
+  }
+
+  String selectedPaymentCode = "";
+  String selectedPaymentName = "";
+  int? selectedPaymentId;
+
+  List<Map<String, dynamic>> dynamicPaymentMethods = [];
 
   Widget _buildPaymentMethodSection() {
     return Container(
@@ -1302,78 +1388,166 @@ class _cartState extends State<cart> {
               fontFamily: 'Poppins',
             ),
           ),
+
           const SizedBox(height: 13),
-          _paymentTile(
-            value: "cod",
-            title: "Cash on Delivery",
-            subtitle: "Pay when your order arrives",
-            icon: Icons.payments_outlined,
-          ),
-          const SizedBox(height: 10),
-          _paymentTile(
-            value: "online",
-            title: "Online Payment",
-            subtitle: "UPI / Card / Netbanking",
-            icon: Icons.credit_card,
-          ),
-          const SizedBox(height: 12),
+
+          if (dynamicPaymentMethods.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                "No payment methods available for these cart items",
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                  fontFamily: "Poppins",
+                ),
+              ),
+            )
+          else
+            ...dynamicPaymentMethods.map((method) {
+              final bool isAvailable = method["is_available"] == true;
+              final String code = method["code"]?.toString() ?? "";
+              final String name = method["name"]?.toString() ?? "";
+              final String reason = method["reason"]?.toString() ?? "";
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _paymentTile(
+                  id: method["id"],
+                  code: code,
+                  title: name,
+
+                  icon: Icons.credit_card,
+                  isEnabled: isAvailable,
+                ),
+              );
+            }).toList(),
+
+          if (dynamicPaymentMethods.any((e) => e["is_available"] == false))
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orangeAccent.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.orangeAccent.withOpacity(0.35),
+                ),
+              ),
+              child: const Text(
+                "Some payment methods are disabled because all cart products do not support them.",
+                style: TextStyle(
+                  color: Colors.orangeAccent,
+                  fontSize: 11,
+                  height: 1.4,
+                  fontFamily: "Poppins",
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 2),
         ],
       ),
     );
   }
 
   Widget _paymentTile({
-    required String value,
+    required int id,
+    required String code,
     required String title,
-    required String subtitle,
+
     required IconData icon,
+    required bool isEnabled,
   }) {
-    final bool selected = selectedPayment == value;
+    final bool selected = selectedPaymentCode == code;
 
     return InkWell(
       borderRadius: BorderRadius.circular(13),
-      onTap: () {
-        setState(() {
-          selectedPayment = value;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? Colors.tealAccent : Colors.white24,
+      onTap: isEnabled
+          ? () {
+              setState(() {
+                selectedPaymentId = id;
+                selectedPaymentCode = code;
+                selectedPaymentName = title;
+              });
+
+              debugPrint("SELECTED PAYMENT ID: $selectedPaymentId");
+              debugPrint("SELECTED PAYMENT CODE: $selectedPaymentCode");
+              debugPrint("SELECTED PAYMENT NAME: $selectedPaymentName");
+            }
+          : null,
+      child: Opacity(
+        opacity: isEnabled ? 1 : 0.45,
+        child: Container(
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: isEnabled
+                ? Colors.transparent
+                : Colors.white.withOpacity(0.03),
+            border: Border.all(
+              color: selected ? Colors.tealAccent : Colors.white24,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.tealAccent),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+          child: Row(
+            children: [
+              Icon(icon, color: isEnabled ? Colors.tealAccent : Colors.white38),
+
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              color: isEnabled ? Colors.white : Colors.white54,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+
+                        if (!isEnabled)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withOpacity(0.18),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              "Unavailable",
+                              style: TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: Colors.white60, fontSize: 12),
-                  ),
-                ],
+
+                    const SizedBox(height: 2),
+                  ],
+                ),
               ),
-            ),
-            Icon(
-              selected ? Icons.radio_button_checked : Icons.radio_button_off,
-              color: Colors.tealAccent,
-            ),
-          ],
+
+              const SizedBox(width: 8),
+
+              Icon(
+                selected ? Icons.radio_button_checked : Icons.radio_button_off,
+                color: isEnabled ? Colors.tealAccent : Colors.white24,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2135,8 +2309,17 @@ class _cartState extends State<cart> {
                         onPressed: () {
                           Navigator.pop(context);
 
+                          if (selectedPaymentId == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Please select payment method"),
+                              ),
+                            );
+                            return;
+                          }
+
                           checkoutOrder(
-                            paymentMethod: "COD",
+                            paymentMethodId: selectedPaymentId!,
                             paymentRef: "",
                             fullName: (selectedAddress?["full_name"] ?? "")
                                 .toString(),
@@ -2250,7 +2433,22 @@ class _cartState extends State<cart> {
                           placingOrder = true;
                         });
 
-                        if (selectedPayment == "cod") {
+                        if (selectedPaymentCode.isEmpty) {
+                          setState(() {
+                            placingOrder = false;
+                          });
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                "No payment method available for all cart items",
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        if (selectedPaymentCode == "COD") {
                           _showCodConfirmationDialog();
                         } else {
                           ordercreate();
