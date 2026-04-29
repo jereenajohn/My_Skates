@@ -8,6 +8,7 @@ import 'package:my_skates/ADMIN/add_chat_support_questions.dart';
 import 'package:my_skates/ADMIN/add_country.dart';
 import 'package:my_skates/ADMIN/add_coupon.dart';
 import 'package:my_skates/ADMIN/add_district.dart';
+import 'package:my_skates/ADMIN/add_payment_method.dart';
 import 'package:my_skates/ADMIN/add_product.dart';
 import 'package:my_skates/ADMIN/add_state.dart';
 import 'package:my_skates/ADMIN/admin_notificationpage.dart';
@@ -554,6 +555,13 @@ class _DashboardPageState extends State<DashboardPage> {
             pushWithSlide(const AdminPlatformFeePage());
           },
         ),
+        adminCard(
+          icon: Icons.chat,
+          title: "Payment\nMethod",
+          onTap: () {
+            pushWithSlide(const AdminPaymentMethodsPage());
+          },
+        ),
       ],
     );
   }
@@ -734,7 +742,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
                       const SizedBox(height: 20),
 
-                      // BANNER SECTION WITH SHIMMER
                       GestureDetector(
                         onTap: () {
                           pushWithSlide(const AddBanner());
