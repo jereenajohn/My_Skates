@@ -19,13 +19,12 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
   bool loading = true;
   bool noData = false;
   List followers = [];
-  bool showFollowBack = false; // determines whether to show the follow-back banner
+  bool showFollowBack = false;
 
   @override
   void initState() {
     super.initState();
     fetchNotifications();
-
     fetchFollowers();
   }
 
