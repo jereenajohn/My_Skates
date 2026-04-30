@@ -37,26 +37,26 @@ class OrderItem {
     required this.lineTotal,
     required this.createdAt,
   });
-
-  factory OrderItem.fromJson(Map<String, dynamic> json) {
-    return OrderItem(
-      id: json['id'] ?? 0,
-      product: json['product'] ?? 0,
-      productTitle: json['product_title'] ?? '',
-      productImage: json['product_image'],
-      variantId: json['variant_id'] ?? 0,
-      sku: json['sku'],
-      variantLabel: json['variant_label'] ?? '',
-      variantImage: json['variant_image'],
-      unitPrice: json['unit_price']?.toString() ?? '0',
-      unitDiscount: json['unit_discount']?.toString() ?? '0',
-      quantity: json['quantity'] ?? 0,
-      lineTotal: json['line_total']?.toString() ?? '0',
-      createdAt: DateTime.parse(
-        json['created_at'] ?? DateTime.now().toIso8601String(),
-      ),
-    );
-  }
+factory OrderItem.fromJson(Map<String, dynamic> json) {
+  return OrderItem(
+    id: json['id'] ?? 0,
+    product: json['product'] ?? 0,
+    productTitle: json['product_title']?.toString() ?? '',
+    productImage: json['product_image']?.toString(),
+    variantId: json['variant_id'] ?? 0,
+    sku: json['sku']?.toString(),
+    variantLabel: json['variant_label']?.toString() ?? '',
+    variantImage: json['variant_image']?.toString(),
+    unitPrice: json['unit_price']?.toString() ?? '0',
+    unitDiscount: json['unit_discount']?.toString() ?? '0',
+    quantity: json['quantity'] ?? 0,
+    lineTotal: json['line_total']?.toString() ?? '0',
+    createdAt: DateTime.tryParse(
+          json['created_at']?.toString() ?? '',
+        ) ??
+        DateTime.now(),
+  );
+}
 }
 
 class Order {
@@ -108,40 +108,45 @@ class Order {
     required this.user,
   });
 
-  factory Order.fromJson(Map<String, dynamic> json) {
-    var itemsList = json['items'] as List? ?? [];
-    List<OrderItem> orderItems =
-        itemsList.map((i) => OrderItem.fromJson(i)).toList();
+factory Order.fromJson(Map<String, dynamic> json) {
+  final itemsList = json['items'] as List? ?? [];
 
-    return Order(
-      id: json['id'] ?? 0,
-      items: orderItems,
-      orderNo: json['order_no'] ?? '',
-      status: json['status'] ?? '',
-      paymentMethod: json['payment_method'] ?? '',
-      paymentRef: json['payment_ref'],
-      fullName: json['full_name'] ?? '',
-      phone: json['phone'] ?? '',
-      addressLine1: json['address_line1'] ?? '',
-      addressLine2: json['address_line2'],
-      city: json['city'] ?? '',
-      state: json['state'] ?? '',
-      pincode: json['pincode'] ?? '',
-      country: json['country'] ?? '',
-      note: json['note'],
-      subtotal: json['subtotal']?.toString() ?? '0',
-      discountTotal: json['discount_total']?.toString() ?? '0',
-      total: json['total']?.toString() ?? '0',
-      createdAt: DateTime.parse(
-        json['created_at'] ?? DateTime.now().toIso8601String(),
-      ).toLocal(),
-      updatedAt: DateTime.parse(
-        json['updated_at'] ?? DateTime.now().toIso8601String(),
-      ).toLocal(),
-      address: json['address'],
-      user: json['user'] ?? 0,
-    );
-  }
+  final List<OrderItem> orderItems = itemsList
+      .whereType<Map<String, dynamic>>()
+      .map((i) => OrderItem.fromJson(i))
+      .toList();
+
+  return Order(
+    id: json['id'] ?? 0,
+    items: orderItems,
+    orderNo: json['order_no']?.toString() ?? '',
+    status: json['status']?.toString() ?? '',
+    paymentMethod: json['payment_method']?.toString() ?? '',
+    paymentRef: json['payment_ref']?.toString(),
+    fullName: json['full_name']?.toString() ?? '',
+    phone: json['phone']?.toString() ?? '',
+    addressLine1: json['address_line1']?.toString() ?? '',
+    addressLine2: json['address_line2']?.toString(),
+    city: json['city']?.toString() ?? '',
+    state: json['state']?.toString() ?? '',
+    pincode: json['pincode']?.toString() ?? '',
+    country: json['country']?.toString() ?? '',
+    note: json['note']?.toString(),
+    subtotal: json['subtotal']?.toString() ?? '0',
+    discountTotal: json['discount_total']?.toString() ?? '0',
+    total: json['total']?.toString() ?? '0',
+    createdAt: DateTime.tryParse(
+          json['created_at']?.toString() ?? '',
+        )?.toLocal() ??
+        DateTime.now(),
+    updatedAt: DateTime.tryParse(
+          json['updated_at']?.toString() ?? '',
+        )?.toLocal() ??
+        DateTime.now(),
+    address: json['address']?.toString(),
+    user: json['user'] ?? 0,
+  );
+}
 }
 
 class OrderResponse {
@@ -178,6 +183,10 @@ class _Student_order_pageState extends State<Student_order_page> {
   List<Order> orders = [];
   bool isLoading = true;
   String? error;
+    double _toDouble(String value) {
+    return double.tryParse(value) ?? 0.0;
+  }
+
 
   String _selectedStatusFilter = 'ALL';
 
@@ -473,7 +482,7 @@ class _Student_order_pageState extends State<Student_order_page> {
                     ),
                   ),
                   Text(
-                    '₹${double.parse(item.lineTotal).toStringAsFixed(2)}',
+                    '₹${'₹${_toDouble(item.lineTotal).toStringAsFixed(2)}'}',
                     style: const TextStyle(
                       color: Colors.tealAccent,
                       fontSize: 14,
@@ -512,7 +521,7 @@ class _Student_order_pageState extends State<Student_order_page> {
                 ),
               ),
               Text(
-                '₹${double.parse(order.total).toStringAsFixed(2)}',
+                '₹${_toDouble(order.total).toStringAsFixed(2)}',
                 style: const TextStyle(
                   color: Colors.tealAccent,
                   fontSize: 18,
