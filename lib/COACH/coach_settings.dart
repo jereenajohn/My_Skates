@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/add_address.dart';
+import 'package:my_skates/ADMIN/add_attributes.dart';
+import 'package:my_skates/ADMIN/add_values.dart';
 import 'package:my_skates/ADMIN/admin_orders_page.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/view_address.dart';
@@ -290,6 +292,21 @@ class _CoachSettingsState extends State<CoachSettings> {
                         text: "Add address",
                         onTap: () => pushWithSlide(ViewAddress()),
                       ),
+
+                    if ("Attributes".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.home,
+                        text: "Attributes",
+                        onTap: () => pushWithSlide(attributes()),
+                      ),
+
+                    if ("Values".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.home,
+                        text: "Values",
+                        onTap: () => pushWithSlide(AddValues()),
+                      ),  
+
 
                     if ("View Club".toLowerCase().contains(_searchQuery))
                       _menuTile(
