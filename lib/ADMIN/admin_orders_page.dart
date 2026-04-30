@@ -1976,34 +1976,284 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     }
   }
 
-  Widget _pricingRow(
-    String label,
-    String amount, {
-    bool isDiscount = false,
-    bool isBold = false,
-  }) {
-    final color = isDiscount
-        ? Colors.green
-        : (isBold ? Colors.white : Colors.white70);
-    final prefix = isDiscount ? '-₹' : '₹';
+  Widget _pricingRow(String label, String value, {bool isDiscount = false}) {
+    final amount = double.tryParse(value) ?? 0;
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 14,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
+
+        const SizedBox(width: 12),
+
+        SizedBox(
+          width: 110,
+          child: Text(
+            '${isDiscount ? '- ' : ''}₹${amount.toStringAsFixed(2)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: isDiscount ? Colors.redAccent : Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOrderItemCard({required OrderItem item, required bool isLast}) {
+    final itemPrice = double.tryParse(item.discountprice) ?? item.displayTotal;
+    final hasSellerInfo =
+        widget.isCoachProductOrder &&
+        ((item.productUserType ?? '').isNotEmpty ||
+            (item.coachName ?? '').isNotEmpty ||
+            (item.coachPhone ?? '').isNotEmpty);
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.08),
+                    width: 0.8,
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: _buildProductImage(item),
+              ),
+
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.productTitle.isEmpty
+                          ? 'Unnamed Product'
+                          : item.productTitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        height: 1.25,
+                      ),
+                    ),
+
+                    if (item.variantLabel.isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        item.variantLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.tealAccent.withOpacity(0.9),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 8),
+
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _smallInfoChip(
+                          icon: Icons.shopping_bag_outlined,
+                          text: 'Qty ${item.quantity}',
+                          color: Colors.white70,
+                          backgroundColor: Colors.white.withOpacity(0.06),
+                          borderColor: Colors.white.withOpacity(0.10),
+                        ),
+
+                        if ((item.productUserType ?? '').isNotEmpty)
+                          _smallInfoChip(
+                            icon: Icons.storefront_rounded,
+                            text: item.productUserType!,
+                            color: Colors.tealAccent,
+                            backgroundColor: Colors.tealAccent.withOpacity(
+                              0.10,
+                            ),
+                            borderColor: Colors.tealAccent.withOpacity(0.22),
+                          ),
+                      ],
+                    ),
+
+                    if (hasSellerInfo) ...[
+                      const SizedBox(height: 8),
+                      _compactSellerDetails(item),
+                    ],
+
+                    if (_existingReviews.containsKey(item.product) &&
+                        _existingReviews[item.product] != null) ...[
+                      const SizedBox(height: 8),
+                      _smallInfoChip(
+                        icon: Icons.star_rounded,
+                        text:
+                            'Reviewed ${_existingReviews[item.product]!.rating}★',
+                        color: Colors.greenAccent,
+                        backgroundColor: Colors.greenAccent.withOpacity(0.10),
+                        borderColor: Colors.greenAccent.withOpacity(0.25),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 8),
+
+              SizedBox(
+                width: 86,
+                child: Text(
+                  '₹${itemPrice.toStringAsFixed(2)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: Colors.tealAccent,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        if (!isLast)
+          Divider(
+            color: Colors.white.withOpacity(0.08),
+            height: 1,
+            thickness: 0.8,
+          ),
+      ],
+    );
+  }
+
+  Widget _smallInfoChip({
+    required IconData icon,
+    required String text,
+    required Color color,
+    required Color backgroundColor,
+    required Color borderColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: borderColor, width: 0.8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _compactSellerDetails(OrderItem item) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFF021F1D).withOpacity(0.55),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.tealAccent.withOpacity(0.18),
+          width: 0.8,
+        ),
+      ),
+      child: Column(
+        children: [
+          if ((item.coachName ?? '').isNotEmpty)
+            _sellerMiniRow(
+              icon: Icons.person_outline_rounded,
+              label: 'Coach',
+              value: item.coachName!,
+            ),
+
+          if ((item.coachName ?? '').isNotEmpty &&
+              (item.coachPhone ?? '').isNotEmpty)
+            const SizedBox(height: 5),
+
+          if ((item.coachPhone ?? '').isNotEmpty)
+            _sellerMiniRow(
+              icon: Icons.phone_outlined,
+              label: 'Phone',
+              value: item.coachPhone!,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sellerMiniRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 13, color: Colors.tealAccent.withOpacity(0.9)),
+        const SizedBox(width: 6),
         Text(
-          '$prefix${_amount(amount).toStringAsFixed(2)}',
-          style: TextStyle(
-            color: color,
-            fontSize: 14,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          '$label: ',
+          style: const TextStyle(
+            color: Colors.white38,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
@@ -2624,246 +2874,251 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          ..._order.items
-                              .map(
-                                (item) => Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 16,
+                          ..._order.items.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final item = entry.value;
+                            final isLast = index == _order.items.length - 1;
+
+                            return Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // PRODUCT IMAGE
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: Container(
+                                          width: 58,
+                                          height: 58,
+                                          color: Colors.white.withOpacity(0.06),
+                                          child: _buildProductImage(item),
+                                        ),
                                       ),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Container(
-                                            width: 70,
-                                            height: 70,
-                                            decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
+
+                                      const SizedBox(width: 12),
+
+                                      // LEFT CONTENT
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              item.productTitle,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                height: 1.25,
+                                              ),
                                             ),
-                                            child: ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                              child: _buildProductImage(item),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
+
+                                            if (item
+                                                .variantLabel
+                                                .isNotEmpty) ...[
+                                              const SizedBox(height: 5),
+                                              Text(
+                                                item.variantLabel,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  color: Colors.tealAccent,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+
+                                            const SizedBox(height: 8),
+
+                                            Row(
                                               children: [
-                                                Text(
-                                                  item.productTitle,
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w600,
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white
+                                                        .withOpacity(0.07),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: Colors.white
+                                                          .withOpacity(0.08),
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    'Qty: ${item.quantity}',
+                                                    style: const TextStyle(
+                                                      color: Colors.white70,
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
                                                   ),
                                                 ),
-                                                if (item
-                                                    .variantLabel
-                                                    .isNotEmpty) ...[
-                                                  const SizedBox(height: 4),
-                                                  Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 8,
-                                                          vertical: 2,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.tealAccent
-                                                          .withOpacity(0.2),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            4,
-                                                          ),
-                                                    ),
-                                                    child: Text(
-                                                      item.variantLabel,
+                                              ],
+                                            ),
+
+                                            if (widget.isCoachProductOrder) ...[
+                                              const SizedBox(height: 8),
+                                              Align(
+                                                alignment: Alignment.centerLeft,
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Seller Type: ${item.productUserType ?? '-'}',
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      textAlign: TextAlign.left,
                                                       style: const TextStyle(
                                                         color:
                                                             Colors.tealAccent,
                                                         fontSize: 11,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                                const SizedBox(height: 8),
-                                                Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment
-                                                          .spaceBetween,
-                                                  children: [
-                                                    Text(
-                                                      'Qty: ${item.quantity}',
-                                                      style: const TextStyle(
-                                                        color: Colors.white70,
-                                                        fontSize: 13,
-                                                      ),
-                                                    ),
-                                                    if (widget
-                                                        .isCoachProductOrder) ...[
-                                                      const SizedBox(height: 6),
-                                                      Container(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 8,
-                                                              vertical: 5,
-                                                            ),
-                                                        decoration: BoxDecoration(
-                                                          color: Colors
-                                                              .tealAccent
-                                                              .withOpacity(
-                                                                0.12,
-                                                              ),
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                8,
-                                                              ),
-                                                          border: Border.all(
-                                                            color: Colors
-                                                                .tealAccent
-                                                                .withOpacity(
-                                                                  0.25,
-                                                                ),
-                                                          ),
-                                                        ),
-                                                        child: Column(
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .start,
-                                                          children: [
-                                                            Text(
-                                                              'Seller Type: ${item.productUserType ?? '-'}',
-                                                              style: const TextStyle(
-                                                                color: Colors
-                                                                    .tealAccent,
-                                                                fontSize: 11,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w600,
-                                                              ),
-                                                            ),
-                                                            if (item.coachName !=
-                                                                    null &&
-                                                                item
-                                                                    .coachName!
-                                                                    .isNotEmpty) ...[
-                                                              const SizedBox(
-                                                                height: 3,
-                                                              ),
-                                                              Text(
-                                                                'Coach: ${item.coachName}',
-                                                                style: const TextStyle(
-                                                                  color: Colors
-                                                                      .white70,
-                                                                  fontSize: 11,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                            if (item.coachPhone !=
-                                                                    null &&
-                                                                item
-                                                                    .coachPhone!
-                                                                    .isNotEmpty) ...[
-                                                              const SizedBox(
-                                                                height: 3,
-                                                              ),
-                                                              Text(
-                                                                'Phone: ${item.coachPhone}',
-                                                                style: const TextStyle(
-                                                                  color: Colors
-                                                                      .white70,
-                                                                  fontSize: 11,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ],
-                                                    Text(
-                                                      '₹${double.parse(item.discountprice).toStringAsFixed(2)}',
-                                                      style: const TextStyle(
-                                                        color:
-                                                            Colors.tealAccent,
-                                                        fontSize: 13,
                                                         fontWeight:
                                                             FontWeight.w600,
                                                       ),
                                                     ),
+
+                                                    if (item.coachName !=
+                                                            null &&
+                                                        item
+                                                            .coachName!
+                                                            .isNotEmpty) ...[
+                                                      const SizedBox(height: 3),
+                                                      Text(
+                                                        'Coach: ${item.coachName}',
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        textAlign:
+                                                            TextAlign.left,
+                                                        style: const TextStyle(
+                                                          color: Colors.white70,
+                                                          fontSize: 11,
+                                                        ),
+                                                      ),
+                                                    ],
+
+                                                    if (item.coachPhone !=
+                                                            null &&
+                                                        item
+                                                            .coachPhone!
+                                                            .isNotEmpty) ...[
+                                                      const SizedBox(height: 3),
+                                                      Text(
+                                                        'Phone: ${item.coachPhone}',
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        textAlign:
+                                                            TextAlign.left,
+                                                        style: const TextStyle(
+                                                          color: Colors.white70,
+                                                          fontSize: 11,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ],
                                                 ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
 
-                                                if (_existingReviews
-                                                        .containsKey(
-                                                          item.product,
-                                                        ) &&
-                                                    _existingReviews[item
-                                                            .product] !=
-                                                        null)
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          top: 8,
-                                                        ),
-                                                    child: Container(
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 8,
-                                                            vertical: 4,
-                                                          ),
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.green
-                                                            .withOpacity(0.2),
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              12,
-                                                            ),
-                                                        border: Border.all(
-                                                          color: Colors.green
-                                                              .withOpacity(0.5),
-                                                        ),
-                                                      ),
-                                                      child: Row(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          const Icon(
-                                                            Icons.star,
-                                                            color: Colors.amber,
-                                                            size: 12,
-                                                          ),
-                                                          const SizedBox(
-                                                            width: 4,
-                                                          ),
-                                                          Text(
-                                                            'Reviewed (${_existingReviews[item.product]!.rating}★)',
-                                                            style:
-                                                                const TextStyle(
-                                                                  color: Colors
-                                                                      .green,
-                                                                  fontSize: 10,
-                                                                ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ),
-                                              ],
+                                      const SizedBox(width: 10),
+
+                                      // RIGHT PRICE COLUMN - FIXED WIDTH TO ALIGN WITH SUBTOTAL
+                                      SizedBox(
+                                        width: 82,
+                                        child: Text(
+                                          '₹${(double.tryParse(item.discountprice) ?? 0).toStringAsFixed(2)}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.right,
+                                          style: const TextStyle(
+                                            color: Colors.tealAccent,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                if (_existingReviews.containsKey(
+                                      item.product,
+                                    ) &&
+                                    _existingReviews[item.product] != null)
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(
+                                        left: 70,
+                                        bottom: 8,
+                                      ),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.green.withOpacity(
+                                              0.5,
                                             ),
                                           ),
-                                        ],
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.star,
+                                              color: Colors.amber,
+                                              size: 12,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Reviewed (${_existingReviews[item.product]!.rating}★)',
+                                              style: const TextStyle(
+                                                color: Colors.green,
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ],
-                                ),
-                              )
-                              .toList(),
+                                  ),
+
+                                if (!isLast)
+                                  Divider(
+                                    color: Colors.white.withOpacity(0.08),
+                                    height: 1,
+                                  ),
+                              ],
+                            );
+                          }).toList(),
 
                           const Divider(color: Colors.white24, height: 24),
 
@@ -2977,7 +3232,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               ),
                               const SizedBox(height: 12),
 
-                             
                               ..._order.sellerBreakdown.asMap().entries.map((
                                 entry,
                               ) {
@@ -3133,10 +3387,17 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                                             children: [
                                                               Text(
                                                                 item.productTitle,
+                                                                maxLines: 2,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
                                                                 style: const TextStyle(
                                                                   color: Colors
                                                                       .white,
-                                                                  fontSize: 13,
+                                                                  fontSize: 15,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
                                                                 ),
                                                               ),
                                                               const SizedBox(
@@ -3204,7 +3465,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                         ),
                                       ),
 
-                                     
                                       Padding(
                                         padding: const EdgeInsets.fromLTRB(
                                           14,
@@ -3329,7 +3589,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                  
                                       Row(
                                         children: [
                                           Container(
@@ -3367,7 +3626,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                       ),
                                       const SizedBox(height: 12),
 
-                                      
                                       Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
@@ -3447,7 +3705,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                       ),
                                       const SizedBox(height: 12),
 
-                                     
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 12,
@@ -3736,7 +3993,6 @@ class ReviewDialog extends StatelessWidget {
     );
   }
 }
-
 
 class ReviewModel {
   final int id;
