@@ -36,7 +36,7 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
-      final userId = prefs.getInt("user_id");
+      final userId = prefs.getInt("id") ?? prefs.getInt("user_id");
 
       if (token == null) {
         setState(() => loading = false);
@@ -369,42 +369,81 @@ class _CoachNotificationPageState extends State<CoachNotificationPage> {
     return DateFormat("dd MMM").format(dt);
   }
 
+  // String notificationText(Map<String, dynamic> n) {
+  //   switch (n["notification_type"]) {
+  //     case "follow_request":
+  //       return "requested to follow you.";
+
+  //     case "follow_approved":
+  //       return "accepted your follow request.";
+
+  //     case "follow_back_accepted":
+  //       return "you are now following each other.";
+
+  //     case "following_each_other": //  NEW CASE
+  //       return "you are now following each other.";
+
+  //     case "follow_back_request":
+  //       return "requested to follow you.";
+
+  //     case "event_like":
+  //       return "liked your event.";
+
+  //      case "club_join_request":
+  //     return "requested to join ${n["club_name"] ?? "your club"}.";
+
+  //   case "club_join_approved":
+  //     return "joined ${n["club_name"] ?? "your club"}.";
+
+  //     case "post_like":
+  //       return "liked your post.";
+
+  //     case "comment":
+  //       return "commented on your post.";
+
+  //     default:
+  //       return "sent you a notification.";
+  //   }
+  // }
+
   String notificationText(Map<String, dynamic> n) {
-    switch (n["notification_type"]) {
-      case "follow_request":
-        return "requested to follow you.";
+  switch (n["notification_type"]) {
+    case "follow_request":
+      return "requested to follow you.";
 
-      case "follow_approved":
-        return "accepted your follow request.";
+    case "follow_approved":
+      return "accepted your follow request.";
 
-      case "follow_back_accepted":
-        return "you are now following each other.";
+    case "follow_back_request":
+      return "requested you to follow back.";
 
-      case "following_each_other": //  NEW CASE
-        return "you are now following each other.";
+    case "follow_back_accepted":
+    case "following_each_other":
+      return "you are now following each other.";
 
-      case "follow_back_request":
-        return "requested to follow you.";
+    case "feed_like":
+      return "liked your post.";
 
-      case "event_like":
-        return "liked your event.";
+    case "feed_repost":
+      return "reposted your post.";
 
-       case "club_join_request":
+    case "comment":
+    case "feed_comment":
+      return "commented on your post.";
+
+    case "event_like":
+      return "liked your event.";
+
+    case "club_join_request":
       return "requested to join ${n["club_name"] ?? "your club"}.";
 
     case "club_join_approved":
-      return "joined ${n["club_name"] ?? "your club"}.";
+      return "accepted your club join request.";
 
-      case "post_like":
-        return "liked your post.";
-
-      case "comment":
-        return "commented on your post.";
-
-      default:
-        return "sent you a notification.";
-    }
+    default:
+      return "sent you a notification.";
   }
+}
 
   String getSectionTitle(DateTime dt) {
     final now = DateTime.now();

@@ -62,9 +62,15 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
           data.map<Map<String, dynamic>>((e) {
             final m = Map<String, dynamic>.from(e);
 
-            m["created_at"] =
-                DateTime.tryParse(m["created_at"] ?? "") ?? DateTime.now();
+            // m["created_at"] =
+            //     DateTime.tryParse(m["created_at"] ?? "") ?? DateTime.now();
 
+            // m["isLoading"] = false;
+
+            m["created_at"] =
+                DateTime.tryParse(m["created_at"]?.toString() ?? "") ??
+                DateTime.now();
+            m["is_read"] = m["is_read"] ?? false;
             m["isLoading"] = false;
 
             switch (m["notification_type"]) {
@@ -161,7 +167,6 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
         final decoded = jsonDecode(response.body);
         final List raw = decoded["data"] ?? [];
 
-        // show the follow-back container only if the API returned at least one follower
         showFollowBack = raw.isNotEmpty;
 
         final normalized = raw.map<Map<String, dynamic>>((e) {
@@ -208,6 +213,43 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
     return DateFormat("dd MMM").format(dt);
   }
 
+  // String notificationText(Map<String, dynamic> n) {
+  //   switch (n["notification_type"]) {
+  //     case "follow_request":
+  //       return "requested to follow you.";
+
+  //     case "follow_approved":
+  //       return "accepted your follow request.";
+
+  //     case "follow_back_accepted":
+  //       return "you are now following each other.";
+
+  //     case "following_each_other":
+  //       return "and you are now following each other.";
+
+  //     case "follow_back_request":
+  //       return "requested you to follow back.";
+
+  //     case "event_like":
+  //       return "liked your event.";
+
+  //     case "club_join_request":
+  //       return "requested to join your club.";
+
+  //     case "club_join_approved":
+  //       return "accepted your club join request.";
+
+  //     case "post_like":
+  //       return "liked your post.";
+
+  //     case "comment":
+  //       return "commented on your post.";
+
+  //     default:
+  //       return "sent you a notification.";
+  //   }
+  // }
+
   String notificationText(Map<String, dynamic> n) {
     switch (n["notification_type"]) {
       case "follow_request":
@@ -216,29 +258,31 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
       case "follow_approved":
         return "accepted your follow request.";
 
-      case "follow_back_accepted":
-        return "you are now following each other.";
-
-      case "following_each_other":
-        return "and you are now following each other.";
-
       case "follow_back_request":
         return "requested you to follow back.";
+
+      case "follow_back_accepted":
+      case "following_each_other":
+        return "you are now following each other.";
+
+      case "feed_like":
+        return "liked your post.";
+
+      case "feed_repost":
+        return "reposted your post.";
+
+      case "comment":
+      case "feed_comment":
+        return "commented on your post.";
 
       case "event_like":
         return "liked your event.";
 
       case "club_join_request":
-        return "requested to join your club.";
+        return "requested to join ${n["club_name"] ?? "your club"}.";
 
       case "club_join_approved":
         return "accepted your club join request.";
-
-      case "post_like":
-        return "liked your post.";
-
-      case "comment":
-        return "commented on your post.";
 
       default:
         return "sent you a notification.";
@@ -256,8 +300,8 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
       child: Text(
         name.isNotEmpty ? name[0].toUpperCase() : "?",
         style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
         ),
       ),
     );
@@ -269,9 +313,9 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        leading: IconButton(
+      backgroundColor: Colors.black,
+      elevation: 0,
+      leading: IconButton(
           onPressed: () {
             Navigator.push(
               context,
@@ -289,8 +333,6 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // 🔵 TOP FOLLOW REQUEST DESIGN
-                // show banner only when server data indicated followers > 0
                 if (showFollowBack)
                   InkWell(
                     onTap: () {
@@ -300,7 +342,6 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                           builder: (context) => UserFollowersList(),
                         ),
                       );
-                      // 👉 navigate wherever you want later
                     },
                     child: Container(
                       margin: const EdgeInsets.symmetric(
