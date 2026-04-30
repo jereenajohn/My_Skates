@@ -23,6 +23,7 @@ class OrderItem {
   final String unitDiscount;
   final String variantPrice;
   final String variantDiscount;
+  final String discountprice;
   final int quantity;
   final String lineTotal;
   final String? productUserType;
@@ -45,6 +46,7 @@ class OrderItem {
     required this.unitDiscount,
     required this.variantPrice,
     required this.variantDiscount,
+    required this.discountprice,
     required this.quantity,
     required this.lineTotal,
     this.productUserType,
@@ -69,6 +71,7 @@ class OrderItem {
       unitDiscount: json['unit_discount']?.toString() ?? '0',
       variantPrice: json['variant_price']?.toString() ?? '0',
       variantDiscount: json['variant_discount']?.toString() ?? '0',
+      discountprice: json['discounted_price']?.toString() ?? '0',
       quantity: json['quantity'] ?? 0,
       lineTotal: json['line_total']?.toString() ?? '0',
       productUserType: json['product_user_type'],
@@ -217,6 +220,8 @@ class Order {
   final String? note;
   final String subtotal;
   final String discountTotal;
+  final String discountprice;
+  final String adjustedfinalpayable;
   final String total;
   final String platformFee;
   final String convenienceFee;
@@ -250,6 +255,8 @@ class Order {
     this.note,
     required this.subtotal,
     required this.discountTotal,
+    required this.discountprice,
+    required this.adjustedfinalpayable,
     required this.total,
     required this.platformFee,
     required this.convenienceFee,
@@ -295,6 +302,8 @@ class Order {
       note: json['note'],
       subtotal: json['subtotal']?.toString() ?? '0',
       discountTotal: json['discount_total']?.toString() ?? '0',
+      discountprice: json['discounted_price']?.toString() ?? '0',
+      adjustedfinalpayable: json['adjusted_final_payable']?.toString() ?? '0',
       total: json['total']?.toString() ?? '0',
       platformFee: json['platform_fee']?.toString() ?? '0',
       convenienceFee: json['convenience_fee']?.toString() ?? '0',
@@ -400,6 +409,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
   Future<void> fetchOrders() async {
     setState(() {
       isLoading = true;
+
       error = null;
     });
 
@@ -2586,7 +2596,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
                     const SizedBox(height: 16),
 
-                    // Payment Information
                     _glassWrap(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -2824,7 +2833,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                                       ),
                                                     ],
                                                     Text(
-                                                      '₹${double.parse(item.lineTotal).toStringAsFixed(2)}',
+                                                      '₹${double.parse(item.discountprice).toStringAsFixed(2)}',
                                                       style: const TextStyle(
                                                         color:
                                                             Colors.tealAccent,
@@ -2993,7 +3002,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                     ),
                                   ),
                                   Text(
-                                    '₹${double.parse(_order.finalPayable).toStringAsFixed(2)}',
+                                    '₹${double.parse(_order.adjustedfinalpayable).toStringAsFixed(2)}',
                                     style: const TextStyle(
                                       color: Colors.tealAccent,
                                       fontSize: 22,
