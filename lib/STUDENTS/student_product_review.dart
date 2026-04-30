@@ -391,21 +391,30 @@ class _StudentProductReviewpageState extends State<StudentProductReviewpage> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(5, (i) {
-                      return IconButton(
-                        onPressed: () {
-                          setStateDialog(() {
-                            tempRating = (i + 1).toDouble();
-                          });
-                        },
-                        icon: Icon(
-                          i < tempRating ? Icons.star : Icons.star_border,
-                          color: Colors.amber,
-                        ),
-                      );
-                    }),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(5, (i) {
+                        return IconButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          constraints: const BoxConstraints(
+                            minWidth: 36,
+                            minHeight: 36,
+                          ),
+                          onPressed: () {
+                            setStateDialog(() {
+                              tempRating = (i + 1).toDouble();
+                            });
+                          },
+                          icon: Icon(
+                            i < tempRating ? Icons.star : Icons.star_border,
+                            color: Colors.amber,
+                            size: 30,
+                          ),
+                        );
+                      }),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   TextField(
@@ -615,29 +624,32 @@ class _StudentProductReviewpageState extends State<StudentProductReviewpage> {
                   const SizedBox(height: 16),
 
                   Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(5, (index) {
-                        return GestureDetector(
-                          onTap: disableInput
-                              ? null
-                              : () {
-                                  setState(() {
-                                    _selectedRating = index + 1.0;
-                                  });
-                                },
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            child: Icon(
-                              index < _selectedRating
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              color: Colors.amber,
-                              size: 40,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(5, (index) {
+                          return GestureDetector(
+                            onTap: disableInput
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _selectedRating = index + 1.0;
+                                    });
+                                  },
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              child: Icon(
+                                index < _selectedRating
+                                    ? Icons.star
+                                    : Icons.star_border,
+                                color: Colors.amber,
+                                size: 40,
+                              ),
                             ),
-                          ),
-                        );
-                      }),
+                          );
+                        }),
+                      ),
                     ),
                   ),
 
