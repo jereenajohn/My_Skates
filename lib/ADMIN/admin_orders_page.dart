@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:my_skates/ADMIN/admin_product_review.dart';
 import 'package:my_skates/COACH/product_review_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -170,8 +169,11 @@ class SellerBreakdown {
   final int coachId;
   final String coachName;
   final String coachPhone;
+  final String sellerPercentageTotal;
   final String sellerTotal;
+  final String sellerDiscountedTotal;
   final String sellerPayable;
+
   final SellerBankDetails? bankDetails;
   final List<SellerBreakdownItem> items;
 
@@ -179,7 +181,10 @@ class SellerBreakdown {
     required this.coachId,
     required this.coachName,
     required this.coachPhone,
+    required this.sellerPercentageTotal,
     required this.sellerTotal,
+    required this.sellerDiscountedTotal,
+
     required this.sellerPayable,
     this.bankDetails,
     required this.items,
@@ -192,12 +197,36 @@ class SellerBreakdown {
       coachId: json['coach_id'] ?? 0,
       coachName: json['coach_name'] ?? '',
       coachPhone: json['coach_phone'] ?? '',
+      sellerPercentageTotal: json['seller_percentage_total']?.toString() ?? '0',
       sellerTotal: json['seller_total']?.toString() ?? '0',
+      sellerDiscountedTotal: json['seller_discounted_total']?.toString() ?? '0',
       sellerPayable: json['seller_payable']?.toString() ?? '0',
+
       bankDetails: json['bank_details'] == null
           ? null
           : SellerBankDetails.fromJson(json['bank_details']),
       items: itemList.map((e) => SellerBreakdownItem.fromJson(e)).toList(),
+    );
+  }
+}
+
+// Also update the Order class to include summary if needed
+class OrderSummary {
+  final String totalPercentageAmount;
+  final String totalSellerPayable;
+  final String totalProfit;
+
+  OrderSummary({
+    required this.totalPercentageAmount,
+    required this.totalSellerPayable,
+    required this.totalProfit,
+  });
+
+  factory OrderSummary.fromJson(Map<String, dynamic> json) {
+    return OrderSummary(
+      totalPercentageAmount: json['total_percentage_amount']?.toString() ?? '0',
+      totalSellerPayable: json['total_seller_payable']?.toString() ?? '0',
+      totalProfit: json['total_profit']?.toString() ?? '0',
     );
   }
 }
@@ -235,6 +264,7 @@ class Order {
   final int user;
   final String shipmentCharge;
   final String productPercentage;
+  final OrderSummary? summary;
   final List<SellerBreakdown> sellerBreakdown;
 
   Order({
@@ -271,6 +301,7 @@ class Order {
     required this.shipmentCharge,
     required this.productPercentage,
     required this.sellerBreakdown,
+    this.summary,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -283,6 +314,9 @@ class Order {
     final sellerBreakdown = breakdownList
         .map((e) => SellerBreakdown.fromJson(e))
         .toList();
+
+    // ✅ Extract pricing from nested object, fallback to root
+    final pricing = json['pricing'] as Map<String, dynamic>? ?? json;
 
     return Order(
       id: json['id'] ?? 0,
@@ -300,16 +334,18 @@ class Order {
       pincode: json['pincode'] ?? '',
       country: json['country'] ?? '',
       note: json['note'],
-      subtotal: json['subtotal']?.toString() ?? '0',
-      discountTotal: json['discount_total']?.toString() ?? '0',
-      discountprice: json['discounted_price']?.toString() ?? '0',
-      adjustedfinalpayable: json['adjusted_final_payable']?.toString() ?? '0',
-      total: json['total']?.toString() ?? '0',
-      platformFee: json['platform_fee']?.toString() ?? '0',
-      convenienceFee: json['convenience_fee']?.toString() ?? '0',
-      shipmentcharge: json['shipment_charge']?.toString() ?? '0',
-      couponDiscount: json['coupon_discount']?.toString() ?? '0',
-      finalPayable: json['final_payable']?.toString() ?? '0',
+      // ✅ Use pricing map for all financial fields
+      subtotal: pricing['subtotal']?.toString() ?? '0',
+      discountTotal: pricing['discount_total']?.toString() ?? '0',
+      discountprice: pricing['discounted_price']?.toString() ?? '0',
+      adjustedfinalpayable:
+          pricing['adjusted_final_payable']?.toString() ?? '0',
+      total: pricing['total']?.toString() ?? '0',
+      platformFee: pricing['platform_fee']?.toString() ?? '0',
+      convenienceFee: pricing['convenience_fee']?.toString() ?? '0',
+      shipmentcharge: pricing['shipment_charge']?.toString() ?? '0',
+      couponDiscount: pricing['coupon_discount']?.toString() ?? '0',
+      finalPayable: pricing['final_payable']?.toString() ?? '0',
       couponName: json['coupon_name'],
       createdAt: DateTime.parse(
         json['created_at'] ?? DateTime.now().toIso8601String(),
@@ -319,8 +355,11 @@ class Order {
       ),
       address: json['address'],
       user: json['user'] ?? 0,
-      shipmentCharge: json['shipment_charge']?.toString() ?? '0',
-      productPercentage: json['product_percentage']?.toString() ?? '0',
+      shipmentCharge: pricing['shipment_charge']?.toString() ?? '0',
+      productPercentage: pricing['product_percentage']?.toString() ?? '0',
+      summary: json['summary'] != null
+          ? OrderSummary.fromJson(json['summary'])
+          : null,
       sellerBreakdown: sellerBreakdown,
     );
   }
@@ -1971,81 +2010,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     );
   }
 
-  Widget _smallAmountBox({
-    required String title,
-    required String value,
-    required IconData icon,
-    Color valueColor = Colors.tealAccent,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: Colors.white54, size: 14),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(color: Colors.white54, fontSize: 11),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              color: valueColor,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _normalTextRow(
-    String label,
-    String value, {
-    Color valueColor = Colors.white,
-    bool isBold = false,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              color: valueColor,
-              fontSize: 13,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _infoRow({
     required IconData icon,
     required String label,
@@ -2457,13 +2421,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                       ),
                     ),
                   ],
-
                   const SizedBox(height: 16),
-
                   if (_isRefreshing && _order.items.isEmpty)
                     _buildDetailShimmer()
                   else ...[
-                    // Order Summary
                     _glassWrap(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -2551,9 +2512,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 16),
-
                     // Customer Information
                     _glassWrap(
                       padding: const EdgeInsets.all(20),
@@ -2593,9 +2552,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 16),
-
                     _glassWrap(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -2639,9 +2596,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 16),
-
                     // Order Items + Pricing
                     _glassWrap(
                       padding: const EdgeInsets.all(20),
@@ -2669,7 +2624,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             ],
                           ),
                           const SizedBox(height: 16),
-
                           ..._order.items
                               .map(
                                 (item) => Column(
@@ -2844,7 +2798,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                                     ),
                                                   ],
                                                 ),
-                                                // Show review badge for items that have a review
+
                                                 if (_existingReviews
                                                         .containsKey(
                                                           item.product,
@@ -2952,27 +2906,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                           ],
                           const Divider(color: Colors.white24, height: 24),
 
-                          // Row(
-                          //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          //   children: [
-                          //     const Text(
-                          //       'Total',
-                          //       style: TextStyle(
-                          //         color: Colors.white,
-                          //         fontSize: 16,
-                          //         fontWeight: FontWeight.bold,
-                          //       ),
-                          //     ),
-                          //     Text(
-                          //       '₹${double.parse(_order.total).toStringAsFixed(2)}',
-                          //       style: const TextStyle(
-                          //         color: Colors.tealAccent,
-                          //         fontSize: 20,
-                          //         fontWeight: FontWeight.bold,
-                          //       ),
-                          //     ),
-                          //   ],
-                          // ),
                           if (double.parse(_order.finalPayable) !=
                               double.parse(_order.total)) ...[
                             const SizedBox(height: 10),
@@ -3014,478 +2947,558 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             ),
                             if (widget.isCoachProductOrder &&
                                 _order.sellerBreakdown.isNotEmpty) ...[
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 24),
 
-                              _glassWrap(
-                                padding: const EdgeInsets.all(20),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Seller Payment Summary',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.withOpacity(0.15),
+                                      shape: BoxShape.circle,
                                     ),
+                                    child: const Icon(
+                                      Icons.payments_outlined,
+                                      color: Colors.amber,
+                                      size: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Text(
+                                    'Seller payment summary',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
 
-                                    const SizedBox(height: 16),
+                             
+                              ..._order.sellerBreakdown.asMap().entries.map((
+                                entry,
+                              ) {
+                                final index = entry.key;
+                                final seller = entry.value;
+                                final bank = seller.bankDetails;
+                                final initials = seller.coachName.isNotEmpty
+                                    ? seller.coachName
+                                          .trim()
+                                          .split(' ')
+                                          .take(2)
+                                          .map((w) => w[0].toUpperCase())
+                                          .join()
+                                    : 'S${index + 1}';
 
-                                    ..._order.sellerBreakdown.map((seller) {
-                                      final bank = seller.bankDetails;
-
-                                      return Container(
-                                        margin: const EdgeInsets.only(
-                                          bottom: 16,
-                                        ),
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0D1F1D),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.08),
+                                    ),
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // ── Seller header row ──
+                                      Padding(
                                         padding: const EdgeInsets.all(14),
-                                        decoration: BoxDecoration(
-                                          color: Colors.orangeAccent
-                                              .withOpacity(0.08),
-                                          borderRadius: BorderRadius.circular(
-                                            14,
-                                          ),
-                                          border: Border.all(
-                                            color: Colors.orangeAccent
-                                                .withOpacity(0.25),
-                                            width: 0.7,
-                                          ),
+                                        child: Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 18,
+                                              backgroundColor: Colors.tealAccent
+                                                  .withOpacity(0.15),
+                                              child: Text(
+                                                initials,
+                                                style: const TextStyle(
+                                                  color: Colors.tealAccent,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    seller.coachName.isEmpty
+                                                        ? 'Seller ${index + 1}'
+                                                        : seller.coachName,
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  if (seller
+                                                      .coachPhone
+                                                      .isNotEmpty)
+                                                    Text(
+                                                      seller.coachPhone,
+                                                      style: const TextStyle(
+                                                        color: Colors.white54,
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                            Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              children: [
+                                                const Text(
+                                                  'net payable',
+                                                  style: TextStyle(
+                                                    color: Colors.white38,
+                                                    fontSize: 10,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '₹${_amount(seller.sellerPayable).toStringAsFixed(2)}',
+                                                  style: const TextStyle(
+                                                    color: Colors.greenAccent,
+                                                    fontSize: 17,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      const Divider(
+                                        color: Colors.white10,
+                                        height: 1,
+                                      ),
+
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          14,
+                                          12,
+                                          14,
+                                          0,
                                         ),
                                         child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            // Seller Header
-                                            Row(
-                                              children: [
-                                                Container(
-                                                  padding: const EdgeInsets.all(
-                                                    8,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.orangeAccent
-                                                        .withOpacity(0.15),
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                  child: const Icon(
-                                                    Icons.storefront_rounded,
-                                                    color: Colors.orangeAccent,
-                                                    size: 18,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 10),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        seller.coachName.isEmpty
-                                                            ? 'Seller'
-                                                            : seller.coachName,
-                                                        style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 15,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                      const SizedBox(height: 2),
-                                                      Text(
-                                                        seller
-                                                                .coachPhone
-                                                                .isEmpty
-                                                            ? '-'
-                                                            : seller.coachPhone,
-                                                        style: const TextStyle(
-                                                          color: Colors.white54,
-                                                          fontSize: 12,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-
-                                            const SizedBox(height: 14),
-
-                                            // Seller Amount Summary
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: _smallAmountBox(
-                                                    title: 'Seller Total',
-                                                    value:
-                                                        '₹${_amount(seller.sellerTotal).toStringAsFixed(2)}',
-                                                    icon: Icons
-                                                        .receipt_long_outlined,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 10),
-                                                Expanded(
-                                                  child: _smallAmountBox(
-                                                    title: 'Seller Payable',
-                                                    value:
-                                                        '₹${_amount(seller.sellerPayable).toStringAsFixed(2)}',
-                                                    icon:
-                                                        Icons.payments_outlined,
-                                                    valueColor:
-                                                        Colors.orangeAccent,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-
-                                            const SizedBox(height: 14),
-
-                                            // Product Items
                                             const Text(
-                                              'Product Details',
+                                              'ITEMS',
                                               style: TextStyle(
-                                                color: Colors.tealAccent,
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white38,
+                                                fontSize: 10,
+                                                letterSpacing: 1.0,
                                               ),
                                             ),
+                                            const SizedBox(height: 8),
 
-                                            const SizedBox(height: 10),
-
-                                            ...seller.items.map((item) {
-                                              return Container(
-                                                margin: const EdgeInsets.only(
-                                                  bottom: 10,
-                                                ),
-                                                padding: const EdgeInsets.all(
-                                                  12,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.black
-                                                      .withOpacity(0.18),
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  border: Border.all(
-                                                    color: Colors.white
-                                                        .withOpacity(0.08),
-                                                  ),
-                                                ),
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    // Product title
-                                                    Row(
+                                            ...seller.items.asMap().entries.map((
+                                              e,
+                                            ) {
+                                              final isLast =
+                                                  e.key ==
+                                                  seller.items.length - 1;
+                                              final item = e.value;
+                                              return Column(
+                                                children: [
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          top: 8,
+                                                        ),
+                                                    child: Row(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
                                                       children: [
-                                                        const Icon(
-                                                          Icons
-                                                              .inventory_2_outlined,
-                                                          color:
-                                                              Colors.tealAccent,
-                                                          size: 17,
+                                                        Expanded(
+                                                          child: Column(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              Text(
+                                                                item.productTitle,
+                                                                style: const TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize: 13,
+                                                                ),
+                                                              ),
+                                                              const SizedBox(
+                                                                height: 2,
+                                                              ),
+
+                                                              Text(
+                                                                'Qty ${item.quantity}',
+                                                                style: const TextStyle(
+                                                                  color: Colors
+                                                                      .white54,
+                                                                  fontSize: 11,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
                                                         ),
                                                         const SizedBox(
                                                           width: 8,
                                                         ),
-                                                        Expanded(
-                                                          child: Text(
-                                                            item
-                                                                    .productTitle
-                                                                    .isEmpty
-                                                                ? 'Product'
-                                                                : item.productTitle,
-                                                            style:
-                                                                const TextStyle(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  fontSize: 14,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                ),
-                                                            maxLines: 2,
-                                                            overflow:
-                                                                TextOverflow
-                                                                    .ellipsis,
-                                                          ),
+                                                        Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .end,
+                                                          children: [
+                                                            Text(
+                                                              '₹${_amount(item.itemTotal).toStringAsFixed(2)}',
+                                                              style:
+                                                                  const TextStyle(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontSize:
+                                                                        13,
+                                                                  ),
+                                                            ),
+                                                            Text(
+                                                              'after ${_order.productPercentage}% → ₹${_amount(item.sellerPayable).toStringAsFixed(2)}',
+                                                              style: const TextStyle(
+                                                                color: Colors
+                                                                    .greenAccent,
+                                                                fontSize: 11,
+                                                              ),
+                                                            ),
+                                                          ],
                                                         ),
                                                       ],
-                                                    ),
-
-                                                    const SizedBox(height: 12),
-
-                                                    Row(
-                                                      children: [
-                                                        Expanded(
-                                                          child: _smallAmountBox(
-                                                            title:
-                                                                'Variant Price',
-                                                            value:
-                                                                '₹${_amount(item.variantPrice).toStringAsFixed(2)}',
-                                                            icon: Icons
-                                                                .sell_outlined,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 10,
-                                                        ),
-                                                        Expanded(
-                                                          child: _smallAmountBox(
-                                                            title:
-                                                                'Variant Discount',
-                                                            value:
-                                                                '₹${_amount(item.variantDiscount).toStringAsFixed(2)}',
-                                                            icon: Icons
-                                                                .discount_outlined,
-                                                            valueColor: Colors
-                                                                .greenAccent,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-
-                                                    const SizedBox(height: 10),
-
-                                                    _normalTextRow(
-                                                      'Quantity',
-                                                      item.quantity.toString(),
-                                                    ),
-                                                    const SizedBox(height: 6),
-                                                    _normalTextRow(
-                                                      'Item Total',
-                                                      '₹${_amount(item.itemTotal).toStringAsFixed(2)}',
-                                                    ),
-                                                    const SizedBox(height: 6),
-                                                    _normalTextRow(
-                                                      'Percentage Amount (${_order.productPercentage}%)',
-                                                      '₹${_amount(item.percentageAmount).toStringAsFixed(2)}',
-                                                    ),
-                                                    const SizedBox(height: 6),
-                                                    _normalTextRow(
-                                                      'Item Seller Payable',
-                                                      '₹${_amount(item.sellerPayable).toStringAsFixed(2)}',
-                                                      valueColor:
-                                                          Colors.orangeAccent,
-                                                      isBold: true,
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                            }).toList(),
-
-                                            const SizedBox(height: 12),
-
-                                            // Bank Details inside same seller card
-                                            Container(
-                                              padding: const EdgeInsets.all(12),
-                                              decoration: BoxDecoration(
-                                                color: Colors.white.withOpacity(
-                                                  0.04,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                border: Border.all(
-                                                  color: Colors.white
-                                                      .withOpacity(0.08),
-                                                ),
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  const Text(
-                                                    'Bank Details',
-                                                    style: TextStyle(
-                                                      color: Colors.tealAccent,
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.bold,
                                                     ),
                                                   ),
-
-                                                  const SizedBox(height: 12),
-
-                                                  if (bank == null)
-                                                    const Text(
-                                                      'No bank details available',
-                                                      style: TextStyle(
-                                                        color: Colors.white54,
-                                                        fontSize: 13,
-                                                      ),
-                                                    )
-                                                  else ...[
-                                                    _normalTextRow(
-                                                      'Account Holder',
-                                                      bank
-                                                              .accountHolderName
-                                                              .isEmpty
-                                                          ? '-'
-                                                          : bank.accountHolderName,
+                                                  _receiptRow(
+                                                    'Product Charge (${_order.productPercentage}%)',
+                                                    '− ₹${_amount(item.percentageAmount).toStringAsFixed(2)}',
+                                                    valueColor:
+                                                        Colors.redAccent,
+                                                  ),
+                                                  SizedBox(height: 5),
+                                                  if (!isLast)
+                                                    const Divider(
+                                                      color: Colors.white10,
+                                                      height: 1,
                                                     ),
-                                                    const SizedBox(height: 8),
-                                                    _normalTextRow(
-                                                      'Bank Name',
-                                                      bank.bankName.isEmpty
-                                                          ? '-'
-                                                          : bank.bankName,
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    _normalTextRow(
-                                                      'Branch',
-                                                      bank.branchName.isEmpty
-                                                          ? '-'
-                                                          : bank.branchName,
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    _normalTextRow(
-                                                      'Account Number',
-                                                      bank.accountNumber.isEmpty
-                                                          ? '-'
-                                                          : bank.accountNumber,
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    _normalTextRow(
-                                                      'IFSC Code',
-                                                      bank.ifscCode.isEmpty
-                                                          ? '-'
-                                                          : bank.ifscCode,
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    _normalTextRow(
-                                                      'UPI ID',
-                                                      bank.upiId.isEmpty
-                                                          ? '-'
-                                                          : bank.upiId,
-                                                    ),
-                                                  ],
                                                 ],
+                                              );
+                                            }).toList(),
+                                          ],
+                                        ),
+                                      ),
+
+                                     
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          14,
+                                          4,
+                                          14,
+                                          14,
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            const Divider(
+                                              color: Colors.white10,
+                                              height: 20,
+                                            ),
+                                            _receiptRow(
+                                              'Subtotal',
+                                              '₹${_amount(seller.sellerDiscountedTotal).toStringAsFixed(2)}',
+                                            ),
+                                            _receiptRow(
+                                              'Product Charge (${_order.productPercentage}%)',
+                                              '− ₹${_amount(seller.sellerPercentageTotal).toStringAsFixed(2)}',
+                                              valueColor: Colors.redAccent,
+                                            ),
+                                            const Divider(
+                                              color: Colors.white10,
+                                              height: 16,
+                                            ),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                const Text(
+                                                  'Net payable',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '₹${_amount(seller.sellerPayable).toStringAsFixed(2)}',
+                                                  style: const TextStyle(
+                                                    color: Colors.greenAccent,
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      if (bank != null &&
+                                          _hasAnyBankDetail(bank)) ...[
+                                        Container(
+                                          width: double.infinity,
+                                          color: Colors.white.withOpacity(0.04),
+                                          padding: const EdgeInsets.fromLTRB(
+                                            14,
+                                            12,
+                                            14,
+                                            14,
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'BANK DETAILS',
+                                                style: TextStyle(
+                                                  color: Colors.white38,
+                                                  fontSize: 10,
+                                                  letterSpacing: 1.0,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 10),
+                                              if (bank
+                                                  .accountHolderName
+                                                  .isNotEmpty)
+                                                _bankRow(
+                                                  'Account holder',
+                                                  bank.accountHolderName,
+                                                ),
+                                              if (bank.bankName.isNotEmpty)
+                                                _bankRow('Bank', bank.bankName),
+                                              if (bank.branchName.isNotEmpty)
+                                                _bankRow(
+                                                  'Branch',
+                                                  bank.branchName,
+                                                ),
+                                              if (bank.accountNumber.isNotEmpty)
+                                                _bankRow(
+                                                  'Account no.',
+                                                  bank.accountNumber,
+                                                ),
+                                              if (bank.ifscCode.isNotEmpty)
+                                                _bankRow('IFSC', bank.ifscCode),
+                                              if (bank.upiId.isNotEmpty)
+                                                _bankRow('UPI', bank.upiId),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+
+                              if (_order.summary != null) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0D1F1D),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.08),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                  
+                                      Row(
+                                        children: [
+                                          Container(
+                                            width: 28,
+                                            height: 28,
+                                            decoration: BoxDecoration(
+                                              color: Colors.amber.withOpacity(
+                                                0.15,
+                                              ),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.bar_chart_rounded,
+                                              color: Colors.amber,
+                                              size: 15,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          const Text(
+                                            'ORDER TOTALS',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+
+                                      const SizedBox(height: 14),
+                                      const Divider(
+                                        color: Colors.white10,
+                                        height: 1,
+                                      ),
+                                      const SizedBox(height: 12),
+
+                                      
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                width: 6,
+                                                height: 6,
+                                                decoration: const BoxDecoration(
+                                                  color: Colors.redAccent,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              const Text(
+                                                'Platform fees collected',
+                                                style: TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Text(
+                                            '₹${_amount(_order.summary!.totalPercentageAmount).toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              color: Colors.redAccent,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+
+                                      const SizedBox(height: 10),
+
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                width: 6,
+                                                height: 6,
+                                                decoration: const BoxDecoration(
+                                                  color: Colors.white38,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              const Text(
+                                                'Total payout to sellers',
+                                                style: TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Text(
+                                            '₹${_amount(_order.summary!.totalSellerPayable).toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+
+                                      const SizedBox(height: 12),
+                                      const Divider(
+                                        color: Colors.white10,
+                                        height: 1,
+                                      ),
+                                      const SizedBox(height: 12),
+
+                                     
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.greenAccent.withOpacity(
+                                            0.07,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.greenAccent
+                                                .withOpacity(0.2),
+                                            width: 0.5,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            const Text(
+                                              'Platform profit',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            Text(
+                                              '₹${_amount(_order.summary!.totalProfit).toStringAsFixed(2)}',
+                                              style: const TextStyle(
+                                                color: Colors.greenAccent,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
                                               ),
                                             ),
                                           ],
                                         ),
-                                      );
-                                    }).toList(),
-                                  ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
+                              ],
                             ],
                           ],
                         ],
                       ),
                     ),
-                    // if (widget.isCoachProductOrder &&
-                    //  _order.sellerBreakdown.any(
-                    //       (e) => e.bankDetails != null,
-                    //     )) ...[
-                    //   const SizedBox(height: 16),
-
-                    //   _glassWrap(
-                    //     padding: const EdgeInsets.all(20),
-                    //     child: Column(
-                    //       crossAxisAlignment: CrossAxisAlignment.start,
-                    //       children: [
-                    //         const Text(
-                    //           'Seller Bank Details',
-                    //           style: TextStyle(
-                    //             color: Colors.white,
-                    //             fontSize: 16,
-                    //             fontWeight: FontWeight.bold,
-                    //           ),
-                    //         ),
-                    //         const SizedBox(height: 16),
-
-                    //         ..._order.sellerBreakdown
-                    //             .where((seller) => seller.bankDetails != null)
-                    //             .map((seller) {
-                    //               final bank = seller.bankDetails!;
-                    //               return Container(
-                    //                 margin: const EdgeInsets.only(bottom: 14),
-                    //                 padding: const EdgeInsets.all(14),
-                    //                 decoration: BoxDecoration(
-                    //                   color: Colors.white.withOpacity(0.04),
-                    //                   borderRadius: BorderRadius.circular(14),
-                    //                   border: Border.all(
-                    //                     color: Colors.white.withOpacity(0.08),
-                    //                   ),
-                    //                 ),
-                    //                 child: Column(
-                    //                   children: [
-                    //                     _infoRow(
-                    //                       icon: Icons.person_outline,
-                    //                       label: 'Coach Name',
-                    //                       value: bank.coachName.isEmpty
-                    //                           ? '-'
-                    //                           : bank.coachName,
-                    //                     ),
-                    //                     const SizedBox(height: 12),
-                    //                     _infoRow(
-                    //                       icon: Icons.phone_outlined,
-                    //                       label: 'Phone',
-                    //                       value: bank.phone.isEmpty
-                    //                           ? '-'
-                    //                           : bank.phone,
-                    //                     ),
-                    //                     const SizedBox(height: 12),
-                    //                     _infoRow(
-                    //                       icon: Icons.account_circle_outlined,
-                    //                       label: 'Account Holder Name',
-                    //                       value: bank.accountHolderName.isEmpty
-                    //                           ? '-'
-                    //                           : bank.accountHolderName,
-                    //                     ),
-                    //                     const SizedBox(height: 12),
-                    //                     _infoRow(
-                    //                       icon: Icons.account_balance_outlined,
-                    //                       label: 'Bank Name',
-                    //                       value: bank.bankName.isEmpty
-                    //                           ? '-'
-                    //                           : bank.bankName,
-                    //                     ),
-                    //                     const SizedBox(height: 12),
-                    //                     _infoRow(
-                    //                       icon: Icons.location_city_outlined,
-                    //                       label: 'Branch Name',
-                    //                       value: bank.branchName.isEmpty
-                    //                           ? '-'
-                    //                           : bank.branchName,
-                    //                     ),
-                    //                     const SizedBox(height: 12),
-                    //                     _infoRow(
-                    //                       icon: Icons.numbers_outlined,
-                    //                       label: 'Account Number',
-                    //                       value: bank.accountNumber.isEmpty
-                    //                           ? '-'
-                    //                           : bank.accountNumber,
-                    //                     ),
-                    //                     const SizedBox(height: 12),
-                    //                     _infoRow(
-                    //                       icon: Icons
-                    //                           .confirmation_number_outlined,
-                    //                       label: 'IFSC Code',
-                    //                       value: bank.ifscCode.isEmpty
-                    //                           ? '-'
-                    //                           : bank.ifscCode,
-                    //                     ),
-                    //                     const SizedBox(height: 12),
-                    //                     _infoRow(
-                    //                       icon: Icons.qr_code_2_outlined,
-                    //                       label: 'UPI ID',
-                    //                       value: bank.upiId.isEmpty
-                    //                           ? '-'
-                    //                           : bank.upiId,
-                    //                     ),
-                    //                   ],
-                    //                 ),
-                    //               );
-                    //             })
-                    //             .toList(),
-                    //       ],
-                    //     ),
-                    //   ),
-                    // ],
                   ],
-
                   const SizedBox(height: 20),
                 ],
               ),
@@ -3495,9 +3508,67 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       ),
     );
   }
+
+  Widget _receiptRow(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor ?? Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bankRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: const TextStyle(color: Colors.white38, fontSize: 12),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _hasAnyBankDetail(SellerBankDetails bank) {
+    return bank.accountHolderName.isNotEmpty ||
+        bank.bankName.isNotEmpty ||
+        bank.branchName.isNotEmpty ||
+        bank.accountNumber.isNotEmpty ||
+        bank.ifscCode.isNotEmpty ||
+        bank.upiId.isNotEmpty;
+  }
 }
 
-// Review Dialog Widget (same as before)
 class ReviewDialog extends StatelessWidget {
   final int productId;
   final String productTitle;
@@ -3666,7 +3737,7 @@ class ReviewDialog extends StatelessWidget {
   }
 }
 
-// lib/models/review_model.dart
+
 class ReviewModel {
   final int id;
   final String productName;
