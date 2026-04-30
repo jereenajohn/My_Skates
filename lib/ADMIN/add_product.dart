@@ -44,6 +44,7 @@ class _AddProductState extends State<AddProduct> {
   final TextEditingController descriptionCtrl = TextEditingController();
   final TextEditingController priceCtrl = TextEditingController();
   final TextEditingController returnPolicyCtrl = TextEditingController();
+  final TextEditingController shipmentChargeCtrl = TextEditingController();
   final List<Map<String, String>> productTypeList = [
     {"id": "single", "name": "Single Product"},
     {"id": "variant", "name": "Has Variants"},
@@ -73,6 +74,7 @@ class _AddProductState extends State<AddProduct> {
     returnPolicyCtrl.dispose();
     paymentNameCtrl.dispose();
     paymentCodeCtrl.dispose();
+    shipmentChargeCtrl.dispose();
     super.dispose();
   }
 
@@ -173,6 +175,7 @@ class _AddProductState extends State<AddProduct> {
       request.fields["description"] = descriptionCtrl.text.trim();
       request.fields["base_price"] = priceCtrl.text.trim();
       request.fields["return_policy_days"] = returnPolicyCtrl.text.trim();
+      request.fields["shipment_charge"] = shipmentChargeCtrl.text.trim();
       for (int i = 0; i < selectedPaymentMethods.length; i++) {
         request.fields["payment_methods[$i]"] = selectedPaymentMethods[i];
       }
@@ -560,8 +563,8 @@ class _AddProductState extends State<AddProduct> {
                   _inputFieldmax(
                     "Description",
                     descriptionCtrl,
-                    maxLines: 4,
-                    maxLength: 100,
+                    maxLines: null,
+                    minLines: 4,
                     isNumber: false,
                   ),
 
@@ -621,6 +624,12 @@ class _AddProductState extends State<AddProduct> {
                     isNumber: true,
                   ),
 
+                  _inputField(
+                    "Shipment Charge",
+                    shipmentChargeCtrl,
+                    isNumber: true,
+                  ),
+
                   _paymentMethodDropdown(),
 
                   const SizedBox(height: 20),
@@ -676,6 +685,15 @@ class _AddProductState extends State<AddProduct> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text("Return Policy Days is required"),
+                            ),
+                          );
+                          return;
+                        }
+
+                        if (shipmentChargeCtrl.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Shipment Charge is required"),
                             ),
                           );
                           return;
@@ -770,14 +788,14 @@ class _AddProductState extends State<AddProduct> {
   //     ),
   //   );
   // }
-
   Widget _inputFieldmax(
     String label,
     TextEditingController controller, {
     bool readOnly = false,
     bool isNumber = false,
     int? maxLength,
-    int maxLines = 1,
+    int? maxLines = 1,
+    int minLines = 1,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -785,16 +803,18 @@ class _AddProductState extends State<AddProduct> {
         controller: controller,
         readOnly: readOnly,
         autovalidateMode: AutovalidateMode.onUserInteraction,
-        keyboardType: maxLines > 1
+        keyboardType: maxLines == null || maxLines > 1
             ? TextInputType.multiline
             : (isNumber ? TextInputType.number : TextInputType.text),
         maxLines: maxLines,
+        minLines: minLines,
         inputFormatters: [
           if (isNumber && maxLines == 1) FilteringTextInputFormatter.digitsOnly,
           if (maxLength != null) LengthLimitingTextInputFormatter(maxLength),
         ],
         style: TextStyle(color: readOnly ? Colors.white70 : Colors.white),
         decoration: _dec(label).copyWith(
+          alignLabelWithHint: true,
           fillColor: readOnly
               ? Colors.white.withOpacity(0.05)
               : Colors.white.withOpacity(0.05),

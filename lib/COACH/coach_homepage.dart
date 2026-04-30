@@ -166,32 +166,32 @@ class _CoachHomepageState extends State<CoachHomepage> {
   }
 
   int getFeedOwnerId(Map<String, dynamic> feed) {
-  // Some APIs return user as int
-  if (feed["user"] is int) return safeInt(feed["user"]);
+    // Some APIs return user as int
+    if (feed["user"] is int) return safeInt(feed["user"]);
 
-  // Some APIs return user as object
-  if (feed["user"] is Map) {
-    return safeInt(feed["user"]["id"]);
+    // Some APIs return user as object
+    if (feed["user"] is Map) {
+      return safeInt(feed["user"]["id"]);
+    }
+
+    // Some APIs return created_by as object
+    if (feed["created_by"] is Map) {
+      return safeInt(feed["created_by"]["id"]);
+    }
+
+    // Some APIs return author as object
+    if (feed["author"] is Map) {
+      return safeInt(feed["author"]["id"]);
+    }
+
+    // Extra possible keys
+    return safeInt(
+      feed["user_id"] ??
+          feed["created_by_id"] ??
+          feed["author_id"] ??
+          feed["posted_by"],
+    );
   }
-
-  // Some APIs return created_by as object
-  if (feed["created_by"] is Map) {
-    return safeInt(feed["created_by"]["id"]);
-  }
-
-  // Some APIs return author as object
-  if (feed["author"] is Map) {
-    return safeInt(feed["author"]["id"]);
-  }
-
-  // Extra possible keys
-  return safeInt(
-    feed["user_id"] ??
-        feed["created_by_id"] ??
-        feed["author_id"] ??
-        feed["posted_by"],
-  );
-}
 
   void _onBottomNavTap(int index) {
     if (index == _currentIndex) return;
@@ -259,6 +259,8 @@ class _CoachHomepageState extends State<CoachHomepage> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
 
+      final userId = prefs.getInt("id") ?? prefs.getInt("user_id");
+
       if (token == null) return;
 
       final response = await http.get(
@@ -273,9 +275,22 @@ class _CoachHomepageState extends State<CoachHomepage> {
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
+        final List data = decoded["data"] ?? [];
+
+        final filteredUnreadCount = data.where((e) {
+          final type = e["notification_type"];
+
+          if (type == "follow_back_accepted") return false;
+
+          if (type == "follow_approved" && e["actor"] == userId) {
+            return false;
+          }
+
+          return e["is_read"] == false;
+        }).length;
 
         setState(() {
-          notificationUnreadCount = decoded["unread_count"] ?? 0;
+          notificationUnreadCount = filteredUnreadCount;
         });
       }
     } catch (e) {
@@ -829,97 +844,99 @@ class _CoachHomepageState extends State<CoachHomepage> {
     );
   }
 
-Future<void> fetchHomeFeeds() async {
-  try {
-    if (!mounted) return;
-
-    setState(() {
-      homeFeedsLoading = true;
-      homeFeedsNoData = false;
-    });
-
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-    final userId = prefs.getInt("id") ?? prefs.getInt("user_id");
-
-    if (token == null || userId == null) {
+  Future<void> fetchHomeFeeds() async {
+    try {
       if (!mounted) return;
+
+      setState(() {
+        homeFeedsLoading = true;
+        homeFeedsNoData = false;
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      final userId = prefs.getInt("id") ?? prefs.getInt("user_id");
+
+      if (token == null || userId == null) {
+        if (!mounted) return;
+        setState(() {
+          homeFeeds = [];
+          homeFeedsLoading = false;
+          homeFeedsNoData = true;
+        });
+        return;
+      }
+
+      // ✅ HOME PAGE: fetch all posts
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/feeds/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      print("HOME ALL FEEDS STATUS: ${response.statusCode}");
+      print("HOME ALL FEEDS BODY: ${response.body}");
+
+      List<Map<String, dynamic>> allFeeds = [];
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+
+        final List data = decoded is List
+            ? decoded
+            : decoded["data"] ?? decoded["results"] ?? [];
+
+        allFeeds = data
+            .map<Map<String, dynamic>>(
+              (item) => Map<String, dynamic>.from(item),
+            )
+            .toList();
+      }
+
+      // ✅ IMPORTANT FIX:
+      // Homepage should show only OTHER PEOPLE'S posts.
+      final List<Map<String, dynamic>> otherPeopleFeeds = allFeeds.where((
+        feed,
+      ) {
+        final ownerId = getFeedOwnerId(feed);
+        return ownerId != userId;
+      }).toList();
+
+      otherPeopleFeeds.sort((a, b) {
+        final aDate = (a["created_at"] ?? "").toString();
+        final bDate = (b["created_at"] ?? "").toString();
+
+        final aTime =
+            DateTime.tryParse(aDate) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bTime =
+            DateTime.tryParse(bDate) ?? DateTime.fromMillisecondsSinceEpoch(0);
+
+        return bTime.compareTo(aTime);
+      });
+
+      if (!mounted) return;
+
+      setState(() {
+        homeFeeds = otherPeopleFeeds;
+        homeFeedsLoading = false;
+        homeFeedsNoData = otherPeopleFeeds.isEmpty;
+      });
+
+      print("HOME OTHER PEOPLE FEED COUNT: ${otherPeopleFeeds.length}");
+    } catch (e) {
+      print("FETCH HOME FEEDS ERROR: $e");
+
+      if (!mounted) return;
+
       setState(() {
         homeFeeds = [];
         homeFeedsLoading = false;
         homeFeedsNoData = true;
       });
-      return;
     }
-
-    // ✅ HOME PAGE: fetch all posts
-    final response = await http.get(
-      Uri.parse("$api/api/myskates/feeds/"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
-    );
-
-    print("HOME ALL FEEDS STATUS: ${response.statusCode}");
-    print("HOME ALL FEEDS BODY: ${response.body}");
-
-    List<Map<String, dynamic>> allFeeds = [];
-
-    if (response.statusCode == 200) {
-      final decoded = jsonDecode(response.body);
-
-      final List data = decoded is List
-          ? decoded
-          : decoded["data"] ?? decoded["results"] ?? [];
-
-      allFeeds = data
-          .map<Map<String, dynamic>>(
-            (item) => Map<String, dynamic>.from(item),
-          )
-          .toList();
-    }
-
-    // ✅ IMPORTANT FIX:
-    // Homepage should show only OTHER PEOPLE'S posts.
-    final List<Map<String, dynamic>> otherPeopleFeeds = allFeeds.where((feed) {
-      final ownerId = getFeedOwnerId(feed);
-      return ownerId != userId;
-    }).toList();
-
-    otherPeopleFeeds.sort((a, b) {
-      final aDate = (a["created_at"] ?? "").toString();
-      final bDate = (b["created_at"] ?? "").toString();
-
-      final aTime =
-          DateTime.tryParse(aDate) ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bTime =
-          DateTime.tryParse(bDate) ?? DateTime.fromMillisecondsSinceEpoch(0);
-
-      return bTime.compareTo(aTime);
-    });
-
-    if (!mounted) return;
-
-    setState(() {
-      homeFeeds = otherPeopleFeeds;
-      homeFeedsLoading = false;
-      homeFeedsNoData = otherPeopleFeeds.isEmpty;
-    });
-
-    print("HOME OTHER PEOPLE FEED COUNT: ${otherPeopleFeeds.length}");
-  } catch (e) {
-    print("FETCH HOME FEEDS ERROR: $e");
-
-    if (!mounted) return;
-
-    setState(() {
-      homeFeeds = [];
-      homeFeedsLoading = false;
-      homeFeedsNoData = true;
-    });
   }
-}
 
   Future<void> toggleHomeFeedLike(int feedId) async {
     final index = homeFeeds.indexWhere((feed) {
@@ -1134,11 +1151,12 @@ Future<void> fetchHomeFeeds() async {
         ? fullName
         : "MySkates User";
 
-    final String profile = (displayFeed["profile"] ??
-        user["profile"] ??
-        user["profile_image"] ??
-        "")
-    .toString();
+    final String profile =
+        (displayFeed["profile"] ??
+                user["profile"] ??
+                user["profile_image"] ??
+                "")
+            .toString();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),

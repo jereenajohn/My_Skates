@@ -271,96 +271,135 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _movableFabMenu() {
     final size = MediaQuery.of(context).size;
+    final bottomSafe = MediaQuery.of(context).padding.bottom;
 
-    double dx = _fabOffset.dx.clamp(12.0, size.width - 72.0);
-    double dy = _fabOffset.dy.clamp(120.0, size.height - 140.0);
+    const double fabSize = 56;
+    const double sideMargin = 12;
+    const double topLimit = 90;
+    const double bottomNavHeight = 90;
+
+    const double menuWidth = 210;
+    const double menuHeight = 270;
+
+    final double maxX = size.width - fabSize - sideMargin;
+    final double maxY = size.height - fabSize - bottomNavHeight - bottomSafe;
+
+    final double dx = _fabOffset.dx.clamp(sideMargin, maxX);
+    final double dy = _fabOffset.dy.clamp(topLimit, maxY);
 
     final bool openToLeft = dx > size.width / 2;
+    final bool openUp = dy > size.height / 2;
 
-    return Positioned(
-      left: dx,
-      top: dy,
-      child: Column(
-        crossAxisAlignment: openToLeft
-            ? CrossAxisAlignment.start
-            : CrossAxisAlignment.end,
-        children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            child: _fabMenuOpen
-                ? Column(
-                    key: const ValueKey("openMenu"),
-                    crossAxisAlignment: openToLeft
-                        ? CrossAxisAlignment.start
-                        : CrossAxisAlignment.end,
-                    children: [
-                      _fabMiniItem(
-                        icon: Icons.person,
-                        label: "Profile",
-                        openToLeft: openToLeft,
-                        onTap: () => _navigateFromFab(const ProfilePage()),
-                      ),
-                      const SizedBox(height: 10),
+    final double menuLeft = openToLeft
+        ? (dx + fabSize - menuWidth).clamp(
+            sideMargin,
+            size.width - menuWidth - sideMargin,
+          )
+        : dx.clamp(sideMargin, size.width - menuWidth - sideMargin);
 
-                      // _fabMiniItem(
-                      //   icon: Icons.notifications_none,
-                      //   label: "Notifications",
-                      //   openToLeft: openToLeft,
-                      //   onTap: () => _navigateFromFab(const AdminNotificationPage()),
-                      // ),
-                      // const SizedBox(height: 10),
-                      _fabMiniItem(
-                        icon: Icons.shopping_bag,
-                        label: "Orders",
-                        openToLeft: openToLeft,
-                        onTap: () => _navigateFromFab(const Admin_order_page()),
-                      ),
-                      const SizedBox(height: 10),
+    final double menuTop = openUp
+        ? (dy - menuHeight - 12).clamp(
+            topLimit,
+            size.height - menuHeight - bottomNavHeight,
+          )
+        : (dy + fabSize + 12).clamp(
+            topLimit,
+            size.height - menuHeight - bottomNavHeight,
+          );
 
-                      _fabMiniItem(
-                        icon: Icons.check_circle_outline,
-                        label: "Approve Products",
-                        openToLeft: openToLeft,
-                        onTap: () =>
-                            _navigateFromFab(const ProductapproveTab()),
-                      ),
-                      const SizedBox(height: 10),
-
-                      _fabMiniItem(
-                        icon: Icons.support_agent,
-                        label: "Support",
-                        openToLeft: openToLeft,
-                        onTap: () =>
-                            _navigateFromFab(const AddChatSupportQuestions()),
-                      ),
-                      const SizedBox(height: 14),
-                    ],
-                  )
-                : const SizedBox.shrink(),
+    return Stack(
+      children: [
+        if (_fabMenuOpen)
+          Positioned(
+            left: menuLeft,
+            top: menuTop,
+            child: SizedBox(width: menuWidth, child: _fabMenuItems(openToLeft)),
           ),
 
-          GestureDetector(
+        Positioned(
+          left: dx,
+          top: dy,
+          child: GestureDetector(
             onPanUpdate: (details) {
               setState(() {
-                _fabOffset = _fabOffset + details.delta;
+                final next = _fabOffset + details.delta;
+
+                _fabOffset = Offset(
+                  next.dx.clamp(sideMargin, maxX),
+                  next.dy.clamp(topLimit, maxY),
+                );
               });
             },
-            child: Align(
-              alignment: openToLeft
-                  ? Alignment.centerLeft
-                  : Alignment.centerRight,
-              child: FloatingActionButton(
-                heroTag: "movableFabAdmin",
-                backgroundColor: const Color(0xFF00AFA5),
-                onPressed: () {
-                  setState(() => _fabMenuOpen = !_fabMenuOpen);
-                },
-                child: Icon(
-                  _fabMenuOpen ? Icons.close : Icons.skateboarding,
-                  color: Colors.white,
-                ),
+            child: FloatingActionButton(
+              heroTag: "movableFabAdmin",
+              backgroundColor: const Color(0xFF00AFA5),
+              onPressed: () {
+                setState(() {
+                  _fabMenuOpen = !_fabMenuOpen;
+
+                  _fabOffset = Offset(
+                    _fabOffset.dx.clamp(sideMargin, maxX),
+                    _fabOffset.dy.clamp(topLimit, maxY),
+                  );
+                });
+              },
+              child: Icon(
+                _fabMenuOpen ? Icons.close : Icons.skateboarding,
+                color: Colors.white,
               ),
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _fabMenuItems(bool openToLeft) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 180),
+      child: Column(
+        key: const ValueKey("openMenu"),
+        crossAxisAlignment: openToLeft
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          _fabMiniItem(
+            icon: Icons.person,
+            label: "Profile",
+            openToLeft: openToLeft,
+            onTap: () => _navigateFromFab(const ProfilePage()),
+          ),
+          const SizedBox(height: 10),
+
+          _fabMiniItem(
+            icon: Icons.notifications_none,
+            label: "Notifications",
+            openToLeft: openToLeft,
+            onTap: () => _navigateFromFab(AdminNotificationpage()),
+          ),
+          const SizedBox(height: 10),
+
+          _fabMiniItem(
+            icon: Icons.shopping_bag,
+            label: "Orders",
+            openToLeft: openToLeft,
+            onTap: () => _navigateFromFab(Admin_order_page()),
+          ),
+          const SizedBox(height: 10),
+
+          _fabMiniItem(
+            icon: Icons.check_circle_outline,
+            label: "Approve Products",
+            openToLeft: openToLeft,
+            onTap: () => _navigateFromFab(const ProductapproveTab()),
+          ),
+          const SizedBox(height: 10),
+
+          _fabMiniItem(
+            icon: Icons.support_agent,
+            label: "Support",
+            openToLeft: openToLeft,
+            onTap: () => _navigateFromFab(const AddChatSupportQuestions()),
           ),
         ],
       ),
@@ -727,15 +766,28 @@ class _DashboardPageState extends State<DashboardPage> {
 
                           const Spacer(),
 
-                          IconButton(
-                            onPressed: () {
-                              pushWithSlide(MenuPage());
-                            },
-                            icon: const Icon(
-                              Icons.menu,
-                              color: Colors.tealAccent,
-                              size: 28,
-                            ),
+                          Row(
+                            children: [
+                              IconButton(
+                                onPressed: () {
+                                  pushWithSlide(AdminNotificationpage());
+                                },
+                                icon: Icon(
+                                  Icons.notifications_none,
+                                  color: Colors.tealAccent,
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () {
+                                  pushWithSlide(MenuPage());
+                                },
+                                icon: const Icon(
+                                  Icons.menu,
+                                  color: Colors.tealAccent,
+                                  size: 28,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
