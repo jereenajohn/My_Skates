@@ -92,6 +92,63 @@ class OrderItem {
   }
 }
 
+class BoughtProductItem {
+  final int id;
+  final int orderId;
+  final String orderNo;
+  final String orderStatus;
+  final DateTime orderCreatedAt;
+  final int product;
+  final String productTitle;
+  final String? productImage;
+  final String? productUserType;
+  final int variantId;
+  final String variantLabel;
+  final String? variantImage;
+  final String? sku;
+  final int quantity;
+  final DateTime createdAt;
+
+  BoughtProductItem({
+    required this.id,
+    required this.orderId,
+    required this.orderNo,
+    required this.orderStatus,
+    required this.orderCreatedAt,
+    required this.product,
+    required this.productTitle,
+    this.productImage,
+    this.productUserType,
+    required this.variantId,
+    required this.variantLabel,
+    this.variantImage,
+    this.sku,
+    required this.quantity,
+    required this.createdAt,
+  });
+
+  factory BoughtProductItem.fromJson(Map<String, dynamic> json) {
+    return BoughtProductItem(
+      id: json['id'] ?? 0,
+      orderId: json['order_id'] ?? 0,
+      orderNo: json['order_no'] ?? '',
+      orderStatus: json['order_status'] ?? '',
+      orderCreatedAt:
+          DateTime.tryParse(json['order_created_at'] ?? '') ?? DateTime.now(),
+      product: json['product'] ?? 0,
+      productTitle: json['product_title'] ?? '',
+      productImage: json['product_image'],
+      productUserType: json['product_user_type'],
+      variantId: json['variant_id'] ?? 0,
+      variantLabel: json['variant_label'] ?? '',
+      variantImage: json['variant_image'],
+      sku: json['sku'],
+      quantity: json['quantity'] ?? 0,
+      createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+    );
+  }
+}
+
 class SellerBankDetails {
   final int id;
   final String coachName;
@@ -132,6 +189,7 @@ class SellerBankDetails {
 
 class SellerBreakdownItem {
   final int itemId;
+  final int productId;
   final String productTitle;
   final int quantity;
   final String variantPrice;
@@ -139,9 +197,12 @@ class SellerBreakdownItem {
   final String itemTotal;
   final String percentageAmount;
   final String sellerPayable;
+  final String? productUserType;
+  final String productShippingCharge;
 
   SellerBreakdownItem({
     required this.itemId,
+    required this.productId,
     required this.productTitle,
     required this.quantity,
     required this.variantPrice,
@@ -149,11 +210,15 @@ class SellerBreakdownItem {
     required this.itemTotal,
     required this.percentageAmount,
     required this.sellerPayable,
+    required this.productShippingCharge,
+
+    this.productUserType,
   });
 
   factory SellerBreakdownItem.fromJson(Map<String, dynamic> json) {
     return SellerBreakdownItem(
       itemId: json['item_id'] ?? 0,
+      productId: json['product_id'] ?? 0,
       productTitle: json['product_title'] ?? '',
       quantity: json['quantity'] ?? 0,
       variantPrice: json['variant_price']?.toString() ?? '0',
@@ -161,6 +226,9 @@ class SellerBreakdownItem {
       itemTotal: json['item_total']?.toString() ?? '0',
       percentageAmount: json['percentage_amount']?.toString() ?? '0',
       sellerPayable: json['seller_payable']?.toString() ?? '0',
+      productShippingCharge: json['product_shipping_charge']?.toString() ?? '0',
+
+      productUserType: json['product_user_type'],
     );
   }
 }
@@ -173,7 +241,8 @@ class SellerBreakdown {
   final String sellerTotal;
   final String sellerDiscountedTotal;
   final String sellerPayable;
-
+  final String sellershipmenttotal;
+  final String sellerpayableTotal;
   final SellerBankDetails? bankDetails;
   final List<SellerBreakdownItem> items;
 
@@ -184,7 +253,8 @@ class SellerBreakdown {
     required this.sellerPercentageTotal,
     required this.sellerTotal,
     required this.sellerDiscountedTotal,
-
+    required this.sellershipmenttotal,
+    required this.sellerpayableTotal,
     required this.sellerPayable,
     this.bankDetails,
     required this.items,
@@ -201,7 +271,8 @@ class SellerBreakdown {
       sellerTotal: json['seller_total']?.toString() ?? '0',
       sellerDiscountedTotal: json['seller_discounted_total']?.toString() ?? '0',
       sellerPayable: json['seller_payable']?.toString() ?? '0',
-
+      sellershipmenttotal: json['seller_shipping_total']?.toString() ?? '0',
+      sellerpayableTotal: json['seller_payable_total']?.toString() ?? '0',
       bankDetails: json['bank_details'] == null
           ? null
           : SellerBankDetails.fromJson(json['bank_details']),
@@ -210,23 +281,64 @@ class SellerBreakdown {
   }
 }
 
+class SellerPayableBreakdown {
+  final String name;
+  final String userType;
+  final String sellerPayableTotal;
+
+  SellerPayableBreakdown({
+    required this.name,
+    required this.userType,
+    required this.sellerPayableTotal,
+  });
+
+  factory SellerPayableBreakdown.fromJson(Map<String, dynamic> json) {
+    return SellerPayableBreakdown(
+      name: json['name'] ?? '',
+      userType: json['user_type'] ?? '',
+      sellerPayableTotal: json['seller_payable_total']?.toString() ?? '0',
+    );
+  }
+}
+
 // Also update the Order class to include summary if needed
 class OrderSummary {
   final String totalPercentageAmount;
+  final String total;
   final String totalSellerPayable;
   final String totalProfit;
+  final String platformFee;
+  final String convenienceFee;
+  final String totalProductShipping;
+  final String finalPayable;
+  final List<SellerPayableBreakdown> sellerPayableBreakdown;
 
   OrderSummary({
     required this.totalPercentageAmount,
+    required this.total,
     required this.totalSellerPayable,
     required this.totalProfit,
+    required this.platformFee,
+    required this.convenienceFee,
+    required this.totalProductShipping,
+    required this.finalPayable,
+    required this.sellerPayableBreakdown,
   });
 
   factory OrderSummary.fromJson(Map<String, dynamic> json) {
+    final breakdownList = json['seller_payable_breakdown'] as List? ?? [];
     return OrderSummary(
       totalPercentageAmount: json['total_percentage_amount']?.toString() ?? '0',
+      total: json['total']?.toString() ?? '0',
       totalSellerPayable: json['total_seller_payable']?.toString() ?? '0',
       totalProfit: json['total_profit']?.toString() ?? '0',
+      platformFee: json['platform_fee']?.toString() ?? '0',
+      convenienceFee: json['convenience_fee']?.toString() ?? '0',
+      totalProductShipping: json['total_product_shipping']?.toString() ?? '0',
+      finalPayable: json['final_payable']?.toString() ?? '0',
+      sellerPayableBreakdown: breakdownList
+          .map((e) => SellerPayableBreakdown.fromJson(e))
+          .toList(),
     );
   }
 }
@@ -400,6 +512,7 @@ class Admin_order_page extends StatefulWidget {
 
 class _Admin_order_pageState extends State<Admin_order_page> {
   List<Order> orders = [];
+  List<BoughtProductItem> boughtProducts = [];
   bool isLoading = true;
   String? error;
   bool _isAdmin = false;
@@ -437,7 +550,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
       case OrderViewType.allOrders:
         return '$api/api/myskates/all/orders/';
       case OrderViewType.myOrders:
-        return '$api/api/myskates/orders/';
+        return '$api/api/myskates/orders/bought/products/';
       case OrderViewType.mySoldOrders:
         return '$api/api/myskates/seller/orders/';
       case OrderViewType.coachProductOrders:
@@ -486,14 +599,33 @@ class _Admin_order_pageState extends State<Admin_order_page> {
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
-        final orderResponse = OrderResponse.fromJson(jsonResponse);
 
-        setState(() {
-          orders = orderResponse.data;
-          isLoading = false;
-        });
+        if (_selectedView == OrderViewType.myOrders) {
+          final productList = jsonResponse['data'] as List? ?? [];
 
-        print("Orders fetched successfully: ${orders.length} orders");
+          setState(() {
+            boughtProducts = productList
+                .map((e) => BoughtProductItem.fromJson(e))
+                .toList();
+
+            orders = [];
+            isLoading = false;
+          });
+
+          print(
+            "Bought products fetched successfully: ${boughtProducts.length}",
+          );
+        } else {
+          final orderResponse = OrderResponse.fromJson(jsonResponse);
+
+          setState(() {
+            orders = orderResponse.data;
+            boughtProducts = [];
+            isLoading = false;
+          });
+
+          print("Orders fetched successfully: ${orders.length} orders");
+        }
       } else {
         setState(() {
           error = 'Failed to load orders: ${response.statusCode}';
@@ -759,6 +891,73 @@ class _Admin_order_pageState extends State<Admin_order_page> {
     );
   }
 
+  Future<void> _navigateToBoughtProductOrderDetail(
+    BoughtProductItem item,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authentication token missing')),
+        );
+        return;
+      }
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: CircularProgressIndicator(color: Colors.tealAccent),
+        ),
+      );
+
+      final response = await http.get(
+        Uri.parse('$api/api/myskates/orders/${item.orderId}/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      print("MY ORDER DETAIL STATUS: ${response.statusCode}");
+      print("MY ORDER DETAIL BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        final orderJson = jsonResponse['data'] ?? jsonResponse;
+        final order = Order.fromJson(orderJson);
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => OrderDetailPage(order: order)),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to open order detail: ${response.statusCode}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   Widget _glassWrap({required Widget child, EdgeInsets? padding}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
@@ -929,6 +1128,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
               setState(() {
                 _selectedView = newValue;
                 orders = [];
+                boughtProducts = [];
               });
               fetchOrders();
             }
@@ -1169,7 +1369,9 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                         ),
                       ),
                     )
-                  : orders.isEmpty
+                  : (_selectedView == OrderViewType.myOrders
+                        ? boughtProducts.isEmpty
+                        : orders.isEmpty)
                   ? SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: Column(
@@ -1300,7 +1502,9 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                             child: Row(
                               children: [
                                 Text(
-                                  '${orders.length} order${orders.length == 1 ? '' : 's'} found',
+                                  _selectedView == OrderViewType.myOrders
+                                      ? '${boughtProducts.length} product${boughtProducts.length == 1 ? '' : 's'} found'
+                                      : '${orders.length} order${orders.length == 1 ? '' : 's'} found',
                                   style: const TextStyle(
                                     color: Colors.white54,
                                     fontSize: 12,
@@ -1341,9 +1545,14 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                           ),
 
                           // Order cards
-                          ...orders
-                              .map((order) => _buildOrderCard(order))
-                              .toList(),
+                          if (_selectedView == OrderViewType.myOrders)
+                            ...boughtProducts
+                                .map((item) => _buildBoughtProductCard(item))
+                                .toList()
+                          else
+                            ...orders
+                                .map((order) => _buildOrderCard(order))
+                                .toList(),
 
                           const SizedBox(height: 20),
                         ],
@@ -1502,21 +1711,21 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                                       fontSize: 12,
                                     ),
                                   ),
-                                  if (_selectedView ==
-                                          OrderViewType.coachProductOrders &&
-                                      item.productUserType == 'coach') ...[
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      'Coach Product',
-                                      style: TextStyle(
-                                        color: Colors.tealAccent.withOpacity(
-                                          0.9,
-                                        ),
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
+                                  // if (_selectedView ==
+                                  //         OrderViewType.coachProductOrders &&
+                                  //     item.productUserType == 'coach') ...[
+                                  //   const SizedBox(height: 3),
+                                  //   Text(
+                                  //     'Coach Product',
+                                  //     style: TextStyle(
+                                  //       color: Colors.tealAccent.withOpacity(
+                                  //         0.9,
+                                  //       ),
+                                  //       fontSize: 11,
+                                  //       fontWeight: FontWeight.w500,
+                                  //     ),
+                                  //   ),
+                                  // ],
                                 ],
                               ),
                             ),
@@ -1525,7 +1734,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                           GestureDetector(
                             onTap: () => _navigateToOrderDetail(order),
                             child: Text(
-                              '₹${item.displayTotal.toStringAsFixed(2)}',
+                              '₹${item.discountprice}',
                               style: const TextStyle(
                                 color: Colors.tealAccent,
                                 fontSize: 14,
@@ -1588,6 +1797,201 @@ class _Admin_order_pageState extends State<Admin_order_page> {
     );
   }
 
+  Widget _buildBoughtProductCard(BoughtProductItem item) {
+    return GestureDetector(
+      onTap: () => _navigateToBoughtProductOrderDetail(item),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        child: _glassWrap(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Order #${item.orderNo}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(item.orderStatus).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _getStatusColor(
+                          item.orderStatus,
+                        ).withOpacity(0.5),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Text(
+                      item.orderStatus,
+                      style: TextStyle(
+                        color: _getStatusColor(item.orderStatus),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              Row(
+                children: [
+                  SizedBox(
+                    width: 58,
+                    height: 58,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: _buildBoughtProductImage(item),
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.productTitle,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+
+                        const SizedBox(height: 5),
+
+                        Text(
+                          'Qty: ${item.quantity}',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+
+                        if (item.productUserType != null &&
+                            item.productUserType!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            item.productUserType == 'coach'
+                                ? 'Coach Product'
+                                : 'Admin Product',
+                            style: TextStyle(
+                              color: item.productUserType == 'coach'
+                                  ? Colors.tealAccent
+                                  : Colors.orangeAccent,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 4),
+
+                        Text(
+                          DateFormat(
+                            'dd MMM yyyy, hh:mm a',
+                          ).format(item.orderCreatedAt),
+                          style: const TextStyle(
+                            color: Colors.white38,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              const Divider(color: Colors.white24, height: 24),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Tap to view details',
+                    style: TextStyle(color: Colors.white38, fontSize: 12),
+                  ),
+
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProductReviewPage(
+                            productId: item.product,
+                            productTitle: item.productTitle,
+                            productImage: item.productImage,
+                            variantId: item.variantId,
+                            variantLabel: item.variantLabel,
+                            variantImage: item.variantImage,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.tealAccent.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.tealAccent.withOpacity(0.4),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.rate_review_outlined,
+                            color: Colors.tealAccent,
+                            size: 15,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Review',
+                            style: TextStyle(
+                              color: Colors.tealAccent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildProductImage(OrderItem item) {
     if (item.variantImage != null) {
       return Image.network(
@@ -1633,7 +2037,31 @@ class _Admin_order_pageState extends State<Admin_order_page> {
       );
     }
   }
+
+  Widget _buildBoughtProductImage(BoughtProductItem item) {
+    final imagePath = item.variantImage ?? item.productImage;
+
+    if (imagePath != null && imagePath.isNotEmpty) {
+      return Image.network(
+        '$api$imagePath',
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => const Icon(
+          Icons.image_not_supported,
+          color: Colors.white38,
+          size: 24,
+        ),
+      );
+    }
+
+    return const Icon(
+      Icons.image_not_supported,
+      color: Colors.white38,
+      size: 24,
+    );
+  }
 }
+
 // ==================== ORDER DETAIL PAGE ====================
 
 class OrderDetailPage extends StatefulWidget {
@@ -1701,6 +2129,9 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         final orderJson = jsonResponse['data'] ?? jsonResponse;
+        if (orderJson['seller_breakdown'] != null) {
+          print("SELLER BREAKDOWN DATA: ${orderJson['seller_breakdown']}");
+        }
         setState(() {
           _order = Order.fromJson(orderJson);
           _isRefreshing = false;
@@ -1976,34 +2407,284 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     }
   }
 
-  Widget _pricingRow(
-    String label,
-    String amount, {
-    bool isDiscount = false,
-    bool isBold = false,
-  }) {
-    final color = isDiscount
-        ? Colors.green
-        : (isBold ? Colors.white : Colors.white70);
-    final prefix = isDiscount ? '-₹' : '₹';
+  Widget _pricingRow(String label, String value, {bool isDiscount = false}) {
+    final amount = double.tryParse(value) ?? 0;
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 14,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
+
+        const SizedBox(width: 12),
+
+        SizedBox(
+          width: 110,
+          child: Text(
+            '${isDiscount ? '- ' : ''}₹${amount.toStringAsFixed(2)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: isDiscount ? Colors.redAccent : Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOrderItemCard({required OrderItem item, required bool isLast}) {
+    final itemPrice = double.tryParse(item.discountprice) ?? item.displayTotal;
+    final hasSellerInfo =
+        widget.isCoachProductOrder &&
+        ((item.productUserType ?? '').isNotEmpty ||
+            (item.coachName ?? '').isNotEmpty ||
+            (item.coachPhone ?? '').isNotEmpty);
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.08),
+                    width: 0.8,
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: _buildProductImage(item),
+              ),
+
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.productTitle.isEmpty
+                          ? 'Unnamed Product'
+                          : item.productTitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        height: 1.25,
+                      ),
+                    ),
+
+                    if (item.variantLabel.isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        item.variantLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.tealAccent.withOpacity(0.9),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 8),
+
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _smallInfoChip(
+                          icon: Icons.shopping_bag_outlined,
+                          text: 'Qty ${item.quantity}',
+                          color: Colors.white70,
+                          backgroundColor: Colors.white.withOpacity(0.06),
+                          borderColor: Colors.white.withOpacity(0.10),
+                        ),
+
+                        if ((item.productUserType ?? '').isNotEmpty)
+                          _smallInfoChip(
+                            icon: Icons.storefront_rounded,
+                            text: item.productUserType!,
+                            color: Colors.tealAccent,
+                            backgroundColor: Colors.tealAccent.withOpacity(
+                              0.10,
+                            ),
+                            borderColor: Colors.tealAccent.withOpacity(0.22),
+                          ),
+                      ],
+                    ),
+
+                    if (hasSellerInfo) ...[
+                      const SizedBox(height: 8),
+                      _compactSellerDetails(item),
+                    ],
+
+                    if (_existingReviews.containsKey(item.product) &&
+                        _existingReviews[item.product] != null) ...[
+                      const SizedBox(height: 8),
+                      _smallInfoChip(
+                        icon: Icons.star_rounded,
+                        text:
+                            'Reviewed ${_existingReviews[item.product]!.rating}★',
+                        color: Colors.greenAccent,
+                        backgroundColor: Colors.greenAccent.withOpacity(0.10),
+                        borderColor: Colors.greenAccent.withOpacity(0.25),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 8),
+
+              SizedBox(
+                width: 86,
+                child: Text(
+                  '₹${itemPrice.toStringAsFixed(2)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: Colors.tealAccent,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        if (!isLast)
+          Divider(
+            color: Colors.white.withOpacity(0.08),
+            height: 1,
+            thickness: 0.8,
+          ),
+      ],
+    );
+  }
+
+  Widget _smallInfoChip({
+    required IconData icon,
+    required String text,
+    required Color color,
+    required Color backgroundColor,
+    required Color borderColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: borderColor, width: 0.8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _compactSellerDetails(OrderItem item) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFF021F1D).withOpacity(0.55),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.tealAccent.withOpacity(0.18),
+          width: 0.8,
+        ),
+      ),
+      child: Column(
+        children: [
+          if ((item.coachName ?? '').isNotEmpty)
+            _sellerMiniRow(
+              icon: Icons.person_outline_rounded,
+              label: 'Coach',
+              value: item.coachName!,
+            ),
+
+          if ((item.coachName ?? '').isNotEmpty &&
+              (item.coachPhone ?? '').isNotEmpty)
+            const SizedBox(height: 5),
+
+          if ((item.coachPhone ?? '').isNotEmpty)
+            _sellerMiniRow(
+              icon: Icons.phone_outlined,
+              label: 'Phone',
+              value: item.coachPhone!,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sellerMiniRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 13, color: Colors.tealAccent.withOpacity(0.9)),
+        const SizedBox(width: 6),
         Text(
-          '$prefix${_amount(amount).toStringAsFixed(2)}',
-          style: TextStyle(
-            color: color,
-            fontSize: 14,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          '$label: ',
+          style: const TextStyle(
+            color: Colors.white38,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
@@ -2624,257 +3305,257 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          ..._order.items
-                              .map(
-                                (item) => Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 16,
+                          ..._order.items.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final item = entry.value;
+                            final isLast = index == _order.items.length - 1;
+
+                            return Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // PRODUCT IMAGE
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: Container(
+                                          width: 58,
+                                          height: 58,
+                                          color: Colors.white.withOpacity(0.06),
+                                          child: _buildProductImage(item),
+                                        ),
                                       ),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Container(
-                                            width: 70,
-                                            height: 70,
-                                            decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
+
+                                      const SizedBox(width: 12),
+
+                                      // LEFT CONTENT
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              item.productTitle,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                height: 1.25,
+                                              ),
                                             ),
-                                            child: ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                              child: _buildProductImage(item),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
+
+                                            if (item
+                                                .variantLabel
+                                                .isNotEmpty) ...[
+                                              const SizedBox(height: 5),
+                                              Text(
+                                                item.variantLabel,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  color: Colors.tealAccent,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+
+                                            const SizedBox(height: 8),
+
+                                            Row(
                                               children: [
-                                                Text(
-                                                  item.productTitle,
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w600,
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white
+                                                        .withOpacity(0.07),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: Colors.white
+                                                          .withOpacity(0.08),
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    'Qty: ${item.quantity}',
+                                                    style: const TextStyle(
+                                                      color: Colors.white70,
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
                                                   ),
                                                 ),
-                                                if (item
-                                                    .variantLabel
-                                                    .isNotEmpty) ...[
-                                                  const SizedBox(height: 4),
-                                                  Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 8,
-                                                          vertical: 2,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.tealAccent
-                                                          .withOpacity(0.2),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            4,
-                                                          ),
-                                                    ),
-                                                    child: Text(
-                                                      item.variantLabel,
+                                              ],
+                                            ),
+
+                                            if (widget.isCoachProductOrder) ...[
+                                              const SizedBox(height: 8),
+                                              Align(
+                                                alignment: Alignment.centerLeft,
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Seller Type: ${item.productUserType ?? '-'}',
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      textAlign: TextAlign.left,
                                                       style: const TextStyle(
                                                         color:
                                                             Colors.tealAccent,
                                                         fontSize: 11,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                                const SizedBox(height: 8),
-                                                Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment
-                                                          .spaceBetween,
-                                                  children: [
-                                                    Text(
-                                                      'Qty: ${item.quantity}',
-                                                      style: const TextStyle(
-                                                        color: Colors.white70,
-                                                        fontSize: 13,
-                                                      ),
-                                                    ),
-                                                    if (widget
-                                                        .isCoachProductOrder) ...[
-                                                      const SizedBox(height: 6),
-                                                      Container(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 8,
-                                                              vertical: 5,
-                                                            ),
-                                                        decoration: BoxDecoration(
-                                                          color: Colors
-                                                              .tealAccent
-                                                              .withOpacity(
-                                                                0.12,
-                                                              ),
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                8,
-                                                              ),
-                                                          border: Border.all(
-                                                            color: Colors
-                                                                .tealAccent
-                                                                .withOpacity(
-                                                                  0.25,
-                                                                ),
-                                                          ),
-                                                        ),
-                                                        child: Column(
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .start,
-                                                          children: [
-                                                            Text(
-                                                              'Seller Type: ${item.productUserType ?? '-'}',
-                                                              style: const TextStyle(
-                                                                color: Colors
-                                                                    .tealAccent,
-                                                                fontSize: 11,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w600,
-                                                              ),
-                                                            ),
-                                                            if (item.coachName !=
-                                                                    null &&
-                                                                item
-                                                                    .coachName!
-                                                                    .isNotEmpty) ...[
-                                                              const SizedBox(
-                                                                height: 3,
-                                                              ),
-                                                              Text(
-                                                                'Coach: ${item.coachName}',
-                                                                style: const TextStyle(
-                                                                  color: Colors
-                                                                      .white70,
-                                                                  fontSize: 11,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                            if (item.coachPhone !=
-                                                                    null &&
-                                                                item
-                                                                    .coachPhone!
-                                                                    .isNotEmpty) ...[
-                                                              const SizedBox(
-                                                                height: 3,
-                                                              ),
-                                                              Text(
-                                                                'Phone: ${item.coachPhone}',
-                                                                style: const TextStyle(
-                                                                  color: Colors
-                                                                      .white70,
-                                                                  fontSize: 11,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ],
-                                                    Text(
-                                                      '₹${double.parse(item.discountprice).toStringAsFixed(2)}',
-                                                      style: const TextStyle(
-                                                        color:
-                                                            Colors.tealAccent,
-                                                        fontSize: 13,
                                                         fontWeight:
                                                             FontWeight.w600,
                                                       ),
                                                     ),
+
+                                                    if (item.coachName !=
+                                                            null &&
+                                                        item
+                                                            .coachName!
+                                                            .isNotEmpty) ...[
+                                                      const SizedBox(height: 3),
+                                                      Text(
+                                                        'Coach: ${item.coachName}',
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        textAlign:
+                                                            TextAlign.left,
+                                                        style: const TextStyle(
+                                                          color: Colors.white70,
+                                                          fontSize: 11,
+                                                        ),
+                                                      ),
+                                                    ],
+
+                                                    if (item.coachPhone !=
+                                                            null &&
+                                                        item
+                                                            .coachPhone!
+                                                            .isNotEmpty) ...[
+                                                      const SizedBox(height: 3),
+                                                      Text(
+                                                        'Phone: ${item.coachPhone}',
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        textAlign:
+                                                            TextAlign.left,
+                                                        style: const TextStyle(
+                                                          color: Colors.white70,
+                                                          fontSize: 11,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ],
                                                 ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
 
-                                                if (_existingReviews
-                                                        .containsKey(
-                                                          item.product,
-                                                        ) &&
-                                                    _existingReviews[item
-                                                            .product] !=
-                                                        null)
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          top: 8,
-                                                        ),
-                                                    child: Container(
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 8,
-                                                            vertical: 4,
-                                                          ),
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.green
-                                                            .withOpacity(0.2),
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              12,
-                                                            ),
-                                                        border: Border.all(
-                                                          color: Colors.green
-                                                              .withOpacity(0.5),
-                                                        ),
-                                                      ),
-                                                      child: Row(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          const Icon(
-                                                            Icons.star,
-                                                            color: Colors.amber,
-                                                            size: 12,
-                                                          ),
-                                                          const SizedBox(
-                                                            width: 4,
-                                                          ),
-                                                          Text(
-                                                            'Reviewed (${_existingReviews[item.product]!.rating}★)',
-                                                            style:
-                                                                const TextStyle(
-                                                                  color: Colors
-                                                                      .green,
-                                                                  fontSize: 10,
-                                                                ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ),
-                                              ],
+                                      const SizedBox(width: 10),
+
+                                      // RIGHT PRICE COLUMN - FIXED WIDTH TO ALIGN WITH SUBTOTAL
+                                      SizedBox(
+                                        width: 82,
+                                        child: Text(
+                                          '₹${(double.tryParse(item.discountprice) ?? 0).toStringAsFixed(2)}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.right,
+                                          style: const TextStyle(
+                                            color: Colors.tealAccent,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                if (_existingReviews.containsKey(
+                                      item.product,
+                                    ) &&
+                                    _existingReviews[item.product] != null)
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(
+                                        left: 70,
+                                        bottom: 8,
+                                      ),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.green.withOpacity(
+                                              0.5,
                                             ),
                                           ),
-                                        ],
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.star,
+                                              color: Colors.amber,
+                                              size: 12,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Reviewed (${_existingReviews[item.product]!.rating}★)',
+                                              style: const TextStyle(
+                                                color: Colors.green,
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ],
-                                ),
-                              )
-                              .toList(),
+                                  ),
+
+                                if (!isLast)
+                                  Divider(
+                                    color: Colors.white.withOpacity(0.08),
+                                    height: 1,
+                                  ),
+                              ],
+                            );
+                          }).toList(),
 
                           const Divider(color: Colors.white24, height: 24),
 
-                          _pricingRow('Subtotal', _order.subtotal),
+                          _pricingRow('Subtotal', _order.total),
                           if (double.parse(_order.discountTotal) > 0) ...[
-                            const SizedBox(height: 8),
-                            _pricingRow(
-                              'Discount',
-                              _order.discountTotal,
-                              isDiscount: true,
-                            ),
+                            const SizedBox(height: 5),
                           ],
                           if (double.parse(_order.platformFee) > 0) ...[
                             const SizedBox(height: 8),
@@ -2935,7 +3616,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                     ),
                                   ),
                                   Text(
-                                    '₹${double.parse(_order.adjustedfinalpayable).toStringAsFixed(2)}',
+                                    '₹${double.parse(_order.finalPayable).toStringAsFixed(2)}',
                                     style: const TextStyle(
                                       color: Colors.tealAccent,
                                       fontSize: 22,
@@ -2977,7 +3658,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               ),
                               const SizedBox(height: 12),
 
-                             
                               ..._order.sellerBreakdown.asMap().entries.map((
                                 entry,
                               ) {
@@ -3067,7 +3747,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                                   ),
                                                 ),
                                                 Text(
-                                                  '₹${_amount(seller.sellerPayable).toStringAsFixed(2)}',
+                                                  '₹${_amount(seller.sellerpayableTotal).toStringAsFixed(2)}',
                                                   style: const TextStyle(
                                                     color: Colors.greenAccent,
                                                     fontSize: 17,
@@ -3133,23 +3813,21 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                                             children: [
                                                               Text(
                                                                 item.productTitle,
+                                                                maxLines: 2,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
                                                                 style: const TextStyle(
                                                                   color: Colors
                                                                       .white,
-                                                                  fontSize: 13,
+                                                                  fontSize: 15,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
                                                                 ),
                                                               ),
                                                               const SizedBox(
                                                                 height: 2,
-                                                              ),
-
-                                                              Text(
-                                                                'Qty ${item.quantity}',
-                                                                style: const TextStyle(
-                                                                  color: Colors
-                                                                      .white54,
-                                                                  fontSize: 11,
-                                                                ),
                                                               ),
                                                             ],
                                                           ),
@@ -3172,27 +3850,46 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                                                         13,
                                                                   ),
                                                             ),
-                                                            Text(
-                                                              'after ${_order.productPercentage}% → ₹${_amount(item.sellerPayable).toStringAsFixed(2)}',
-                                                              style: const TextStyle(
-                                                                color: Colors
-                                                                    .greenAccent,
-                                                                fontSize: 11,
-                                                              ),
-                                                            ),
                                                           ],
                                                         ),
                                                       ],
                                                     ),
                                                   ),
+                                                  // Only show Product Charge if seller is NOT admin
+                                                  if (!_isSellerAdmin(
+                                                    seller,
+                                                  )) ...[
+                                                    _receiptRow(
+                                                      'Product Charge (${_order.productPercentage}%)',
+                                                      '− ₹${_amount(item.percentageAmount).toStringAsFixed(2)}',
+                                                      valueColor:
+                                                          Colors.redAccent,
+                                                    ),
+                                                    const SizedBox(height: 5),
+                                                  ],
+                                                  // Show Shipping Charge for all sellers (including admin)
+                                                  _receiptRowWithIcon(
+                                                    'Shipping Charge',
+                                                    '+ ₹${_amount(item.productShippingCharge).toStringAsFixed(2)}',
+                                                    icon: Icons.local_shipping,
+                                                    valueColor: Colors.green,
+                                                  ),
+                                                  const SizedBox(height: 5),
                                                   _receiptRow(
-                                                    'Product Charge (${_order.productPercentage}%)',
-                                                    '− ₹${_amount(item.percentageAmount).toStringAsFixed(2)}',
+                                                    'Seller Payable',
+                                                    '₹${_amount(item.sellerPayable).toStringAsFixed(2)}',
                                                     valueColor:
                                                         Colors.redAccent,
                                                   ),
-                                                  SizedBox(height: 5),
-                                                  if (!isLast)
+                                                  const SizedBox(height: 5),
+                                                  if (!isLast &&
+                                                      !_isSellerAdmin(seller))
+                                                    const Divider(
+                                                      color: Colors.white10,
+                                                      height: 1,
+                                                    ),
+                                                  if (!isLast &&
+                                                      _isSellerAdmin(seller))
                                                     const Divider(
                                                       color: Colors.white10,
                                                       height: 1,
@@ -3204,7 +3901,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                         ),
                                       ),
 
-                                     
                                       Padding(
                                         padding: const EdgeInsets.fromLTRB(
                                           14,
@@ -3222,9 +3918,17 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                               'Subtotal',
                                               '₹${_amount(seller.sellerDiscountedTotal).toStringAsFixed(2)}',
                                             ),
+                                            // Only show Product Charge if seller is NOT admin
+                                            if (!_isSellerAdmin(seller)) ...[
+                                              _receiptRow(
+                                                'Product Charge (${_order.productPercentage}%)',
+                                                '− ₹${_amount(seller.sellerPercentageTotal).toStringAsFixed(2)}',
+                                                valueColor: Colors.redAccent,
+                                              ),
+                                            ],
                                             _receiptRow(
-                                              'Product Charge (${_order.productPercentage}%)',
-                                              '− ₹${_amount(seller.sellerPercentageTotal).toStringAsFixed(2)}',
+                                              'Total Shipment',
+                                              '+ ₹${_amount(seller.sellershipmenttotal).toStringAsFixed(2)}',
                                               valueColor: Colors.redAccent,
                                             ),
                                             const Divider(
@@ -3245,7 +3949,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                                   ),
                                                 ),
                                                 Text(
-                                                  '₹${_amount(seller.sellerPayable).toStringAsFixed(2)}',
+                                                  '₹${_amount(seller.sellerpayableTotal).toStringAsFixed(2)}',
                                                   style: const TextStyle(
                                                     color: Colors.greenAccent,
                                                     fontSize: 15,
@@ -3329,7 +4033,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                  
                                       Row(
                                         children: [
                                           Container(
@@ -3359,7 +4062,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                           ),
                                         ],
                                       ),
-
                                       const SizedBox(height: 14),
                                       const Divider(
                                         color: Colors.white10,
@@ -3367,7 +4069,84 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                       ),
                                       const SizedBox(height: 12),
 
-                                      
+<<<<<<< HEAD
+                                      // Total
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                width: 6,
+                                                height: 6,
+                                                decoration: const BoxDecoration(
+                                                  color: Colors.green,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              const Text(
+                                                'Total',
+                                                style: TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Text(
+                                            '+ ₹${_amount(_order.summary!.finalPayable).toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              color: Colors.green,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+
+                                      // Product Percentage collected
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                width: 6,
+                                                height: 6,
+                                                decoration: const BoxDecoration(
+                                                  color: Colors.green,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              const Text(
+                                                'Product Percentage collected',
+                                                style: TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Text(
+                                            '+ ₹${_amount(_order.summary!.totalPercentageAmount).toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              color: Colors.green,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+
+                                      // Total payout to sellers
+=======
+>>>>>>> 27d2fc914d16820ac0cf503c812f8c7a64056e6f
                                       Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
@@ -3384,43 +4163,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                               ),
                                               const SizedBox(width: 8),
                                               const Text(
-                                                'Platform fees collected',
-                                                style: TextStyle(
-                                                  color: Colors.white54,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          Text(
-                                            '₹${_amount(_order.summary!.totalPercentageAmount).toStringAsFixed(2)}',
-                                            style: const TextStyle(
-                                              color: Colors.redAccent,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-
-                                      const SizedBox(height: 10),
-
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Container(
-                                                width: 6,
-                                                height: 6,
-                                                decoration: const BoxDecoration(
-                                                  color: Colors.white38,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              const Text(
                                                 'Total payout to sellers',
                                                 style: TextStyle(
                                                   color: Colors.white54,
@@ -3430,24 +4172,149 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                             ],
                                           ),
                                           Text(
-                                            '₹${_amount(_order.summary!.totalSellerPayable).toStringAsFixed(2)}',
+                                            ' - ₹${_amount(_order.summary!.totalSellerPayable).toStringAsFixed(2)}',
                                             style: const TextStyle(
-                                              color: Colors.white70,
+                                              color: Colors.redAccent,
                                               fontSize: 13,
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
                                         ],
                                       ),
-
-                                      const SizedBox(height: 12),
-                                      const Divider(
-                                        color: Colors.white10,
-                                        height: 1,
-                                      ),
                                       const SizedBox(height: 12),
 
-                                     
+<<<<<<< HEAD
+                                      // Seller Details Section
+                                      if (_order
+                                          .summary!
+                                          .sellerPayableBreakdown
+                                          .isNotEmpty) ...[
+                                        const Divider(
+                                          color: Colors.white10,
+                                          height: 1,
+                                        ),
+                                        const SizedBox(height: 10),
+                                        const Text(
+                                          'SELLER BREAKDOWN',
+                                          style: TextStyle(
+                                            color: Colors.white38,
+                                            fontSize: 10,
+                                            letterSpacing: 1.0,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        ..._order
+                                            .summary!
+                                            .sellerPayableBreakdown
+                                            .map(
+                                              (seller) => Padding(
+                                                padding: const EdgeInsets.only(
+                                                  bottom: 8,
+                                                ),
+                                                child: Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Container(
+                                                          width: 6,
+                                                          height: 6,
+                                                          decoration: BoxDecoration(
+                                                            color:
+                                                                seller.userType ==
+                                                                    'admin'
+                                                                ? Colors.orange
+                                                                : Colors
+                                                                      .tealAccent,
+                                                            shape:
+                                                                BoxShape.circle,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                        Text(
+                                                          seller.name,
+                                                          style:
+                                                              const TextStyle(
+                                                                color: Colors
+                                                                    .white70,
+                                                                fontSize: 12,
+                                                              ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 6,
+                                                        ),
+                                                        Container(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 6,
+                                                                vertical: 2,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            color:
+                                                                seller.userType ==
+                                                                    'admin'
+                                                                ? Colors.orange
+                                                                      .withOpacity(
+                                                                        0.2,
+                                                                      )
+                                                                : Colors
+                                                                      .tealAccent
+                                                                      .withOpacity(
+                                                                        0.2,
+                                                                      ),
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  4,
+                                                                ),
+                                                          ),
+                                                          child: Text(
+                                                            seller.userType,
+                                                            style: TextStyle(
+                                                              color:
+                                                                  seller.userType ==
+                                                                      'admin'
+                                                                  ? Colors
+                                                                        .orange
+                                                                  : Colors
+                                                                        .tealAccent,
+                                                              fontSize: 9,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w500,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    Text(
+                                                      '₹${_amount(seller.sellerPayableTotal).toStringAsFixed(2)}',
+                                                      style: const TextStyle(
+                                                        color: Colors.white70,
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                        const SizedBox(height: 8),
+                                        const Divider(
+                                          color: Colors.white10,
+                                          height: 1,
+                                        ),
+                                        const SizedBox(height: 12),
+                                      ],
+
+                                      // Total profit
+=======
+>>>>>>> 27d2fc914d16820ac0cf503c812f8c7a64056e6f
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 12,
@@ -3471,7 +4338,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                               MainAxisAlignment.spaceBetween,
                                           children: [
                                             const Text(
-                                              'Platform profit',
+                                              'Total profit',
                                               style: TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 14,
@@ -3507,6 +4374,69 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         ),
       ),
     );
+  }
+
+  Widget _receiptRowWithIcon(
+    String label,
+    String value, {
+    required IconData icon,
+    required Color valueColor,
+    bool isPositive = true,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: Colors.tealAccent, size: 14),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ],
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _isSellerAdmin(SellerBreakdown seller) {
+    if (seller.items.isEmpty) return false;
+
+    // Check if any item in this seller's breakdown belongs to an admin
+    for (var sellerItem in seller.items) {
+      // Find matching order item by product title
+
+      try {
+        final matchingOrderItem = _order.items.firstWhere(
+          (orderItem) => orderItem.productTitle == sellerItem.productTitle,
+        );
+
+        final userType = matchingOrderItem.productUserType?.toLowerCase() ?? '';
+        print(
+          "Seller: ${seller.coachName}, Product: ${sellerItem.productTitle}, UserType: $userType",
+        );
+        if (userType == 'admin' || userType == 'sadmin') {
+          return true;
+        }
+      } catch (e) {
+        // No matching item found, continue to next seller item
+        continue;
+      }
+    }
+
+    return false;
   }
 
   Widget _receiptRow(String label, String value, {Color? valueColor}) {
@@ -3736,7 +4666,6 @@ class ReviewDialog extends StatelessWidget {
     );
   }
 }
-
 
 class ReviewModel {
   final int id;
