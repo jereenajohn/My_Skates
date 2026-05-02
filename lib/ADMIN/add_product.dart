@@ -361,7 +361,6 @@ class _AddProductState extends State<AddProduct> {
             final activePaymentMethods = paymentMethods
                 .where((item) => item["is_active"] == true)
                 .toList();
-
             return Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
