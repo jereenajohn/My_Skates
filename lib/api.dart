@@ -1,2 +1,2 @@
-String api = "https://hist-thus-anonymous-moreover.trycloudflare.com";
+String api = "https://touched-fig-stats-douglas.trycloudflare.com";
 
