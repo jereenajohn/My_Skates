@@ -4069,7 +4069,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                       ),
                                       const SizedBox(height: 12),
 
-<<<<<<< HEAD
                                       // Total
                                       Row(
                                         mainAxisAlignment:
@@ -4145,8 +4144,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                       const SizedBox(height: 10),
 
                                       // Total payout to sellers
-=======
->>>>>>> 27d2fc914d16820ac0cf503c812f8c7a64056e6f
                                       Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
@@ -4183,7 +4180,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                       ),
                                       const SizedBox(height: 12),
 
-<<<<<<< HEAD
                                       // Seller Details Section
                                       if (_order
                                           .summary!
@@ -4313,8 +4309,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                       ],
 
                                       // Total profit
-=======
->>>>>>> 27d2fc914d16820ac0cf503c812f8c7a64056e6f
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 12,
