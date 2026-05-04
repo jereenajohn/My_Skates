@@ -347,7 +347,7 @@ class _UpdateProductVariantState extends State<UpdateProductVariant> {
                   ),
 
                   _inputField("Price", priceCtrl),
-                  _inputField("Discount", discount),
+                  _inputField("Discount %", discount),
                   _inputField("Stock", stockCtrl),
 
                   const SizedBox(height: 20),

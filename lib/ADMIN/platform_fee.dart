@@ -2298,23 +2298,23 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
                                 const SizedBox(height: 32),
 
                                 // ── Shipment Charge ───────────────────────
-                                _buildDivider('SHIPMENT CHARGE'),
-                                const SizedBox(height: 12),
-                                if (_shipmentError != null)
-                                  _buildSectionError(
-                                    _shipmentError!,
-                                    _fetchShipmentCharge,
-                                  )
-                                else ...[
-                                  _buildShipmentCurrentCard(),
-                                  const SizedBox(height: 20),
-                                  _buildShipmentEditCard(),
-                                  const SizedBox(height: 12),
-                                  _buildInfoNote(
-                                    'Low charge applies when order total ≤ threshold amount; high charge applies when order total > threshold amount. All three values are sent together on update.',
-                                    Colors.tealAccent,
-                                  ),
-                                ],
+                                // _buildDivider('SHIPMENT CHARGE'),
+                                // const SizedBox(height: 12),
+                                // if (_shipmentError != null)
+                                //   _buildSectionError(
+                                //     _shipmentError!,
+                                //     _fetchShipmentCharge,
+                                //   )
+                                // else ...[
+                                //   _buildShipmentCurrentCard(),
+                                //   const SizedBox(height: 20),
+                                //   _buildShipmentEditCard(),
+                                //   const SizedBox(height: 12),
+                                //   _buildInfoNote(
+                                //     'Low charge applies when order total ≤ threshold amount; high charge applies when order total > threshold amount. All three values are sent together on update.',
+                                //     Colors.tealAccent,
+                                //   ),
+                                // ],
                               ],
                             ),
                           ),
