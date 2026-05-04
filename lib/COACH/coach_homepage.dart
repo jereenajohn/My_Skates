@@ -1083,7 +1083,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          "Latest Posts",
+          "Latest Postssss",
           style: TextStyle(
             color: Colors.white,
             fontSize: 16,
@@ -1911,7 +1911,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                           const SizedBox(height: 22),
 
                           const Text(
-                            "We offer training and an e-commerce platform\nthat connects students and coaches.",
+                            "Weee offer training and an e-commerce platform\nthat connects students and coaches.",
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 14,
