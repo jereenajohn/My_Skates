@@ -1081,25 +1081,55 @@ class _CoachHomepageState extends State<CoachHomepage> {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        const Text(
-          "Latest Postssss",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+        Row(
+          children: [
+            Container(
+              width: 4,
+              height: 22,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2EE6A6),
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              "Latest Posts",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2EE6A6).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: const Color(0xFF2EE6A6).withOpacity(0.35),
+                ),
+              ),
+              child: Text(
+                "${homeFeeds.length} posts",
+                style: const TextStyle(
+                  color: Color(0xFF2EE6A6),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
         ),
 
-        // const SizedBox(height: 12),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: homeFeeds.length,
-          itemBuilder: (context, index) {
-            return buildHomeFeedCard(homeFeeds[index]);
-          },
-        ),
+        const SizedBox(height: 12),
+
+        ...homeFeeds.map((feed) {
+          return buildHomeFeedCard(feed);
+        }).toList(),
       ],
     );
   }
@@ -1131,13 +1161,6 @@ class _CoachHomepageState extends State<CoachHomepage> {
         ? safeMap(displayFeed["created_by"])
         : safeMap(displayFeed["author"]);
 
-    // final String firstName = (user["first_name"] ?? "").toString();
-    // final String lastName = (user["last_name"] ?? "").toString();
-
-    // final String userName = "$firstName $lastName".trim().isEmpty
-    //     ? "MySkates User"
-    //     : "$firstName $lastName".trim();
-
     final String apiUserName = (displayFeed["user_name"] ?? "").toString();
 
     final String firstName = (user["first_name"] ?? "").toString();
@@ -1158,204 +1181,462 @@ class _CoachHomepageState extends State<CoachHomepage> {
                 "")
             .toString();
 
+    final String description = (displayFeed["description"] ?? "")
+        .toString()
+        .trim();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (isRepostFeed)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.repeat, size: 16, color: Color(0xFF2EE6A6)),
-                  const SizedBox(width: 6),
-                  Text(
-                    "${feed["reposted_by"]?["first_name"] ?? "Someone"} reposted this",
-                    style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: Colors.white12,
-                backgroundImage: profile.isNotEmpty
-                    ? NetworkImage(
-                        profile.startsWith("http") ? profile : "$api$profile",
-                      )
-                    : const AssetImage("lib/assets/img.jpg") as ImageProvider,
-              ),
-              const SizedBox(width: 10),
-
-              Expanded(
-                child: Text(
-                  userName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          if ((displayFeed["description"] ?? "").toString().isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(
-              displayFeed["description"].toString(),
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 13,
-                height: 1.4,
-              ),
-            ),
-          ],
-
-          if (images.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 220,
-              child: PageView.builder(
-                itemCount: images.length,
-                itemBuilder: (context, imgIndex) {
-                  final imgData = images[imgIndex];
-
-                  final String img = imgData is Map
-                      ? (imgData["image"] ?? "").toString()
-                      : imgData.toString();
-
-                  final String imageUrl = img.startsWith("http")
-                      ? img
-                      : "$api$img";
-
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) {
-                          return Container(
-                            color: Colors.white10,
-                            child: const Center(
-                              child: Icon(
-                                Icons.broken_image,
-                                color: Colors.white54,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              InkWell(
-                onTap: () => toggleHomeFeedLike(actualFeedId),
-                child: Row(
-                  children: [
-                    Icon(
-                      isLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
-                      color: isLiked ? const Color(0xFF2EE6A6) : Colors.white70,
-                      size: 21,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      "$likeCount",
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: 20),
-
-              InkWell(
-                onTap: () => toggleHomeFeedRepost(actualFeedId),
-                child: Row(
-                  children: [
-                    Icon(
-                      isReposted ? Icons.repeat : Icons.repeat_outlined,
-                      color: isReposted
-                          ? const Color(0xFF2EE6A6)
-                          : Colors.white70,
-                      size: 22,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      "$repostCount",
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: 20),
-
-              InkWell(
-                onTap: () async {
-                  await showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => FeedCommentsSheet(feedId: actualFeedId),
-                  );
-
-                  fetchHomeFeeds();
-                },
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.chat_bubble_outline,
-                      color: Colors.white70,
-                      size: 21,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      "$commentCount",
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ),
-
-              const Spacer(),
-
-              InkWell(
-                onTap: () => shareHomeFeed(displayFeed, actualFeedId),
-                child: const Icon(
-                  Icons.share_outlined,
-                  color: Colors.white70,
-                  size: 21,
-                ),
-              ),
-            ],
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withOpacity(0.13),
+                  Colors.white.withOpacity(0.055),
+                  const Color(0xFF003E38).withOpacity(0.30),
+                ],
+              ),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.13),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (isRepostFeed)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2EE6A6).withOpacity(0.10),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: const Color(0xFF2EE6A6).withOpacity(0.25),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.repeat,
+                                size: 15,
+                                color: Color(0xFF2EE6A6),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                "${feed["reposted_by"]?["first_name"] ?? "Someone"} reposted this",
+                                style: const TextStyle(
+                                  color: Color(0xFFBFFFEF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF2EE6A6), Color(0xFF00AFA5)],
+                              ),
+                            ),
+                            child: CircleAvatar(
+                              radius: 23,
+                              backgroundColor: Colors.black,
+                              backgroundImage: profile.isNotEmpty
+                                  ? NetworkImage(
+                                      profile.startsWith("http")
+                                          ? profile
+                                          : "$api$profile",
+                                    )
+                                  : const AssetImage("lib/assets/img.jpg")
+                                        as ImageProvider,
+                            ),
+                          ),
+
+                          const SizedBox(width: 11),
+
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  userName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.public,
+                                      size: 12,
+                                      color: Colors.white.withOpacity(0.48),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      "Shared on MySkates",
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.48),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          Container(
+                            height: 34,
+                            width: 34,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.10),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.more_horiz,
+                              color: Colors.white70,
+                              size: 20,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      if (description.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          description,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.82),
+                            fontSize: 13.5,
+                            height: 1.45,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                if (images.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    height: 235,
+                    child: PageView.builder(
+                      itemCount: images.length,
+                      itemBuilder: (context, imgIndex) {
+                        final imgData = images[imgIndex];
+
+                        final String img = imgData is Map
+                            ? (imgData["image"] ?? "").toString()
+                            : imgData.toString();
+
+                        final String imageUrl = img.startsWith("http")
+                            ? img
+                            : "$api$img";
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                debugPrint("POST IMAGE CLICKED: $imageUrl");
+                                showHomeFeedImagePopup(context, imageUrl);
+                              },
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Image.network(
+                                    imageUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) {
+                                      return Container(
+                                        color: Colors.white10,
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.broken_image,
+                                            color: Colors.white54,
+                                            size: 34,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+
+                                  Positioned.fill(
+                                    child: IgnorePointer(
+                                      ignoring: true,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Colors.transparent,
+                                              Colors.black.withOpacity(0.18),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 12),
+
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.22),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: Colors.white.withOpacity(0.08)),
+                    ),
+                    child: Row(
+                      children: [
+                        InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => toggleHomeFeedLike(actualFeedId),
+                          child: _feedActionButton(
+                            icon: isLiked
+                                ? Icons.thumb_up
+                                : Icons.thumb_up_alt_outlined,
+                            count: likeCount,
+                            active: isLiked,
+                          ),
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => toggleHomeFeedRepost(actualFeedId),
+                          child: _feedActionButton(
+                            icon: isReposted
+                                ? Icons.repeat
+                                : Icons.repeat_outlined,
+                            count: repostCount,
+                            active: isReposted,
+                          ),
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () async {
+                            await showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) =>
+                                  FeedCommentsSheet(feedId: actualFeedId),
+                            );
+
+                            fetchHomeFeeds();
+                          },
+                          child: _feedActionButton(
+                            icon: Icons.chat_bubble_outline,
+                            count: commentCount,
+                            active: false,
+                          ),
+                        ),
+
+                        const Spacer(),
+
+                        InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => shareHomeFeed(displayFeed, actualFeedId),
+                          child: Container(
+                            height: 36,
+                            width: 36,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.10),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.share_outlined,
+                              color: Colors.white70,
+                              size: 19,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _feedActionButton({
+    required IconData icon,
+    required int count,
+    required bool active,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: active
+            ? const Color(0xFF2EE6A6).withOpacity(0.13)
+            : Colors.white.withOpacity(0.055),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: active
+              ? const Color(0xFF2EE6A6).withOpacity(0.35)
+              : Colors.white.withOpacity(0.08),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: active ? const Color(0xFF2EE6A6) : Colors.white70,
+            size: 19,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            "$count",
+            style: TextStyle(
+              color: active ? const Color(0xFF2EE6A6) : Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void showHomeFeedImagePopup(BuildContext context, String imageUrl) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.88),
+      builder: (_) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(12),
+          child: Stack(
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 4.0,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) {
+                        return Container(
+                          height: 260,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.broken_image,
+                              color: Colors.white54,
+                              size: 42,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+
+              Positioned(
+                top: 10,
+                right: 10,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    height: 38,
+                    width: 38,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.65),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -1978,11 +2259,13 @@ class _CoachHomepageState extends State<CoachHomepage> {
                           // ),
                           const SizedBox(height: 15),
 
-                          if (trainingLoading)
-                            _buildTrainingShimmer()
-                          else if (trainingSessions.isEmpty)
-                            const SizedBox.shrink()
-                          else ...[
+                          // ---------------- UPCOMING TRAINING SESSIONS ----------------
+                          // Show shimmer only while loading.
+                          // After loading, show section only if data exists.
+                          if (trainingLoading) ...[
+                            _buildTrainingShimmer(),
+                            const SizedBox(height: 25),
+                          ] else if (trainingSessions.isNotEmpty) ...[
                             const Text(
                               "Upcoming Training Sessions",
                               style: TextStyle(
@@ -2013,20 +2296,25 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                 );
                               }).toList(),
                             ),
-                            const SizedBox(height: 25),
-                            buildHomeFeedsSection(),
 
-                            // const SizedBox(height: 20),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 25),
                           ],
 
-                          const SizedBox(height: 12),
+                          // ---------------- LATEST POSTS ----------------
+                          // Important: this must be outside training section.
+                          if (homeFeedsLoading) ...[
+                            buildHomeFeedsSection(),
+                            const SizedBox(height: 25),
+                          ] else if (homeFeeds.isNotEmpty) ...[
+                            buildHomeFeedsSection(),
+                            const SizedBox(height: 25),
+                          ],
 
-                          if (eventsLoading)
-                            _buildEventShimmer()
-                          else if (events.isEmpty)
-                            const SizedBox.shrink()
-                          else ...[
+                          // ---------------- UPCOMING EVENTS ----------------
+                          if (eventsLoading) ...[
+                            _buildEventShimmer(),
+                            const SizedBox(height: 25),
+                          ] else if (events.isNotEmpty) ...[
                             const Text(
                               "Upcoming Events",
                               style: TextStyle(
@@ -2047,6 +2335,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                 final image2 = images.length > 1
                                     ? "$api${images[1]['image']}"
                                     : "";
+
                                 return buildEventCardWithImages(
                                   context: context,
                                   clubName:
@@ -2071,89 +2360,84 @@ class _CoachHomepageState extends State<CoachHomepage> {
                               }).toList(),
                             ),
 
+                            const SizedBox(height: 25),
+                          ],
+
+                          // ---------------- SUGGESTED COACHES ----------------
+                          // Show shimmer while loading.
+                          // After loading, hide full section if filteredCoaches is empty.
+                          if (!followLoaded || coachesLoading) ...[
+                            _buildCoachShimmer(),
+                            const SizedBox(height: 25),
+                          ] else if (filteredCoaches.isNotEmpty) ...[
+                            const Text(
+                              "Suggested Coaches",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.28,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: filteredCoaches.length,
+                                itemBuilder: (_, i) => CoachFollowCard(
+                                  coach: filteredCoaches[i],
+                                  onFollow: sendFollowRequest,
+                                  onCancelPending: cancelPendingRequest,
+                                  onUnfollow: unfollowCoach,
+                                  myFollowing: myFollowing,
+                                  myRequests: myRequests,
+                                  myApprovedSent: myApprovedSent,
+                                  refreshParent: () => setState(() {}),
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 25),
+                          ],
+
+                          // ---------------- SUGGESTED STUDENTS ----------------
+                          // Show shimmer while loading.
+                          // After loading, hide full section if filteredStudents is empty.
+                          if (studentsLoading) ...[
+                            _buildCoachShimmer(),
+                            const SizedBox(height: 25),
+                          ] else if (filteredStudents.isNotEmpty) ...[
+                            const Text(
+                              "Suggested Students",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.25,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: filteredStudents.length,
+                                itemBuilder: (_, i) => StudentFollowCard(
+                                  student: filteredStudents[i],
+                                  myFollowing: myFollowing,
+                                  myRequests: myRequests,
+                                  myApprovedSent: myApprovedSent,
+                                  onFollow: followStudent,
+                                  onCancelPending: cancelPendingRequest,
+                                  onUnfollow: unfollowUser,
+                                  refreshParent: () => setState(() {}),
+                                ),
+                              ),
+                            ),
+
                             const SizedBox(height: 12),
                           ],
-                          const SizedBox(height: 12),
-
-                          const Text(
-                            "Suggested Coaches",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-
-                          const SizedBox(height: 15),
-
-                          SizedBox(
-                            height: MediaQuery.of(context).size.height * 0.28,
-                            child: !followLoaded || coachesLoading
-                                ? _buildCoachShimmer()
-                                : filteredCoaches.isEmpty
-                                ? const Center(
-                                    child: Text(
-                                      "No coaches found",
-                                      style: TextStyle(color: Colors.white70),
-                                    ),
-                                  )
-                                : ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: filteredCoaches.length,
-                                    itemBuilder: (_, i) => CoachFollowCard(
-                                      coach: filteredCoaches[i],
-                                      onFollow: sendFollowRequest,
-                                      onCancelPending: cancelPendingRequest,
-                                      onUnfollow: unfollowCoach,
-                                      myFollowing: myFollowing,
-                                      myRequests: myRequests,
-                                      myApprovedSent: myApprovedSent,
-                                      refreshParent: () => setState(() {}),
-                                    ),
-                                  ),
-                          ),
-
-                          SizedBox(height: 20),
-
-                          const Text(
-                            "Suggested Students",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          SizedBox(
-                            height: MediaQuery.of(context).size.height * 0.25,
-                            child: studentsLoading
-                                ? _buildCoachShimmer()
-                                : filteredStudents.isEmpty
-                                ? const Center(
-                                    child: Text(
-                                      "No students found",
-                                      style: TextStyle(color: Colors.white70),
-                                    ),
-                                  )
-                                : ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: filteredStudents.length,
-                                    itemBuilder: (_, i) => StudentFollowCard(
-                                      student: filteredStudents[i],
-                                      myFollowing: myFollowing,
-                                      myRequests: myRequests,
-                                      myApprovedSent: myApprovedSent,
-                                      onFollow: followStudent,
-                                      onCancelPending: cancelPendingRequest,
-                                      onUnfollow: unfollowUser,
-                                      refreshParent: () => setState(() {}),
-                                    ),
-                                  ),
-                          ),
-                          const SizedBox(height: 12),
-                          // ],
                         ],
                       ),
                     ),
