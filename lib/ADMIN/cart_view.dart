@@ -1903,13 +1903,34 @@ class _cartState extends State<cart> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      "₹${variant["price"]}",
-                      style: const TextStyle(
-                        color: Colors.tealAccent,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          "₹${item["product_price"] ?? "0.00"}",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+
+                        const SizedBox(width: 7),
+
+                        Text(
+                          "₹${variant["price"] ?? "0.00"}",
+                          style: const TextStyle(
+                            color: Colors.white38,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: Colors.white38,
+                            decorationThickness: 1.5,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+
+                      ],
                     ),
                   ],
                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/COACH/my_sold_order_detail_page.dart';
 import 'package:my_skates/COACH/product_review_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -22,7 +23,7 @@ class OrderItem {
   final String unitDiscount;
   final String variantPrice;
   final String variantDiscount;
-  final String discountprice;
+  final String productPrice;
   final int quantity;
   final String lineTotal;
   final String? productUserType;
@@ -45,7 +46,7 @@ class OrderItem {
     required this.unitDiscount,
     required this.variantPrice,
     required this.variantDiscount,
-    required this.discountprice,
+    required this.productPrice,
     required this.quantity,
     required this.lineTotal,
     this.productUserType,
@@ -70,7 +71,7 @@ class OrderItem {
       unitDiscount: json['unit_discount']?.toString() ?? '0',
       variantPrice: json['variant_price']?.toString() ?? '0',
       variantDiscount: json['variant_discount']?.toString() ?? '0',
-      discountprice: json['discounted_price']?.toString() ?? '0',
+      productPrice: json['product_price']?.toString() ?? '0',
       quantity: json['quantity'] ?? 0,
       lineTotal: json['line_total']?.toString() ?? '0',
       productUserType: json['product_user_type'],
@@ -518,7 +519,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
   bool _isAdmin = false;
 
   // Only two options: All Orders and My Orders
-  OrderViewType _selectedView = OrderViewType.allOrders;
+  OrderViewType _selectedView = OrderViewType.myOrders;
 
   @override
   void initState() {
@@ -539,6 +540,12 @@ class _Admin_order_pageState extends State<Admin_order_page> {
 
     setState(() {
       _isAdmin = role == 'admin';
+
+      // ✅ Admin can start with All Orders
+      // ✅ Non-admin should never start with All Orders
+      _selectedView = _isAdmin
+          ? OrderViewType.allOrders
+          : OrderViewType.myOrders;
     });
 
     await fetchOrders();
@@ -553,6 +560,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
         return '$api/api/myskates/orders/bought/products/';
       case OrderViewType.mySoldOrders:
         return '$api/api/myskates/seller/orders/';
+
       case OrderViewType.coachProductOrders:
         return '$api/api/myskates/coach/orders/view/';
     }
@@ -575,6 +583,14 @@ class _Admin_order_pageState extends State<Admin_order_page> {
           isLoading = false;
         });
         return;
+      }
+                                                         
+      if (_selectedView == OrderViewType.allOrders && !_isAdmin) {
+        setState(() {
+          _selectedView = OrderViewType.myOrders;
+          orders = [];
+          boughtProducts = [];
+        });
       }
 
       if (_selectedView == OrderViewType.coachProductOrders && !_isAdmin) {
@@ -878,7 +894,30 @@ class _Admin_order_pageState extends State<Admin_order_page> {
     }
   }
 
+  // void _navigateToOrderDetail(Order order) {
+  //   Navigator.push(
+  //     context,
+  //     MaterialPageRoute(
+  //       builder: (context) => OrderDetailPage(
+  //         order: order,
+  //         isCoachProductOrder:
+  //             _selectedView == OrderViewType.coachProductOrders,
+  //       ),
+  //     ),
+  //   );
+  // }
+
   void _navigateToOrderDetail(Order order) {
+    if (_selectedView == OrderViewType.mySoldOrders) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SellerOrderDetailPage(orderId: order.id),
+        ),
+      );
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1134,35 +1173,36 @@ class _Admin_order_pageState extends State<Admin_order_page> {
             }
           },
           items: [
-            DropdownMenuItem<OrderViewType>(
-              value: OrderViewType.allOrders,
-              child: Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: Colors.tealAccent.withOpacity(0.15),
-                      shape: BoxShape.circle,
+            if (_isAdmin)
+              DropdownMenuItem<OrderViewType>(
+                value: OrderViewType.allOrders,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: Colors.tealAccent.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.list_alt_rounded,
+                        color: Colors.tealAccent,
+                        size: 16,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.list_alt_rounded,
-                      color: Colors.tealAccent,
-                      size: 16,
+                    const SizedBox(width: 10),
+                    const Text(
+                      'All Orders',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'All Orders',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
 
             DropdownMenuItem<OrderViewType>(
               value: OrderViewType.myOrders,
@@ -1734,7 +1774,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                           GestureDetector(
                             onTap: () => _navigateToOrderDetail(order),
                             child: Text(
-                              '₹${item.discountprice}',
+                              '₹${item.productPrice}',
                               style: const TextStyle(
                                 color: Colors.tealAccent,
                                 fontSize: 14,
@@ -2065,7 +2105,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
 // ==================== ORDER DETAIL PAGE ====================
 
 class OrderDetailPage extends StatefulWidget {
-  final Order order; // passed from list for instant display
+  final Order order; 
   final bool isCoachProductOrder;
 
   const OrderDetailPage({
@@ -2256,6 +2296,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
   // Show review dialog
   void _showReviewDialog(OrderItem item) {
+    
     // Add a small delay to ensure the page is fully loaded
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
@@ -2447,7 +2488,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   Widget _buildOrderItemCard({required OrderItem item, required bool isLast}) {
-    final itemPrice = double.tryParse(item.discountprice) ?? item.displayTotal;
+    final itemPrice = double.tryParse(item.productPrice) ?? item.displayTotal;
     final hasSellerInfo =
         widget.isCoachProductOrder &&
         ((item.productUserType ?? '').isNotEmpty ||
@@ -3478,7 +3519,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                       SizedBox(
                                         width: 82,
                                         child: Text(
-                                          '₹${(double.tryParse(item.discountprice) ?? 0).toStringAsFixed(2)}',
+                                          '₹${(double.tryParse(item.productPrice) ?? 0).toStringAsFixed(2)}',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           textAlign: TextAlign.right,

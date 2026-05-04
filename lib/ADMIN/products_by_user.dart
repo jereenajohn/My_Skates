@@ -397,11 +397,11 @@ class _ProductsByUserState extends State<ProductsByUser> {
 
                                 confirmDismiss: (direction) async {
                                   // SWIPE RIGHT → UPDATE (NO UI)
-                                  if (direction ==
-                                      DismissDirection.startToEnd) {
-                                    _handleUpdateProduct(p);
-                                    return false; // do NOT dismiss
-                                  }
+                                  // if (direction ==
+                                  //     DismissDirection.startToEnd) {
+                                  //   _handleUpdateProduct(p);
+                                  //   return false; // do NOT dismiss
+                                  // }
 
                                   //  SWIPE LEFT → DELETE (RED UI SAME AS BEFORE)
                                   if (direction ==
@@ -543,13 +543,13 @@ class _ProductsByUserState extends State<ProductsByUser> {
     );
   }
 
-  void _handleUpdateProduct(Map<String, dynamic> product) {
-    print("UPDATE ${product['id']}");
-    Navigator.push(
-      context,
-      slideRightToLeftRoute(UpdateProduct(productId: product['id'])),
-    );
-  }
+  // void _handleUpdateProduct(Map<String, dynamic> product) {
+  //   print("UPDATE ${product['id']}");
+  //   Navigator.push(
+  //     context,
+  //     slideRightToLeftRoute(UpdateProduct(productId: product['id'])),
+  //   );
+  // }
 
   void addvariant(Map<String, dynamic> product) {
     print("ad dvariant ${product['id']}");
