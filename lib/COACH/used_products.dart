@@ -881,82 +881,331 @@ class UsedProductDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isSold = product["status"] == "sold";
+    final bool hasDiscount = (product['discount'] ?? 0) > 0;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF0A0A0A),
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text("Used Product Details"),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share, color: Colors.white),
+            onPressed: () {
+              // Share functionality can be added here
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.favorite_border, color: Colors.white),
+            onPressed: () {
+              // Favorite functionality can be added here
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.network(
-              product["image"],
-              height: 280,
+            // Product Image Section
+            Container(
+              height: 350,
               width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                height: 280,
-                color: Colors.white10,
-                child: const Center(
-                  child: Icon(Icons.broken_image, color: Colors.white54),
-                ),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
                 children: [
-                  Text(
-                    product["title"] ?? "",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                  Positioned.fill(
+                    child: Image.network(
+                      product["image"],
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Colors.grey.shade900,
+                        child: const Center(
+                          child: Icon(
+                            Icons.broken_image,
+                            color: Colors.white54,
+                            size: 80,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    product["category_name"] ?? "",
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    product["description"] ?? "",
-                    style: const TextStyle(color: Colors.white60, fontSize: 14),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    "₹${product["final_price"].toStringAsFixed(0)}",
-                    style: const TextStyle(
-                      color: Colors.tealAccent,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSold
-                          ? Colors.redAccent.withOpacity(0.2)
-                          : Colors.tealAccent.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      isSold ? "Sold" : "Active",
-                      style: TextStyle(
-                        color: isSold ? Colors.redAccent : Colors.tealAccent,
-                        fontWeight: FontWeight.bold,
+                  Positioned(
+                    bottom: 20,
+                    right: 20,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSold
+                            ? Colors.redAccent.withOpacity(0.9)
+                            : Colors.tealAccent.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        isSold ? "Sold Out" : "Available",
+                        style: TextStyle(
+                          color: isSold ? Colors.white : Colors.black,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Poppins',
+                        ),
                       ),
                     ),
                   ),
                 ],
+              ),
+            ),
+
+            // Product Details Section
+            Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFF0A0A0A),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(30),
+                  topRight: Radius.circular(30),
+                ),
+              ),
+              transform: Matrix4.translationValues(0, -20, 0),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 30, 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Category Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.tealAccent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.tealAccent.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Text(
+                        product["category_name"] ?? "",
+                        style: const TextStyle(
+                          color: Colors.tealAccent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Product Title
+                    Text(
+                      product["title"] ?? "",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Poppins',
+                        height: 1.2,
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Price Section
+                    Row(
+                      children: [
+                        if (hasDiscount) ...[
+                          Text(
+                            "₹${product['price'].toStringAsFixed(0)}",
+                            style: const TextStyle(
+                              color: Colors.white38,
+                              fontSize: 18,
+                              decoration: TextDecoration.lineThrough,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Text(
+                          "₹${product['final_price'].toStringAsFixed(0)}",
+                          style: const TextStyle(
+                            color: Colors.tealAccent,
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                        if (hasDiscount) ...[
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              "-₹${product['discount'].toStringAsFixed(0)}",
+                              style: const TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Description Section
+                    const Text(
+                      "Description",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Text(
+                      product["description"]?.toString().isNotEmpty == true
+                          ? product["description"]
+                          : "No description available for this product.",
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                        fontFamily: 'Poppins',
+                        height: 1.6,
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: isSold ? null : () {
+                              // Contact seller functionality
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Contact seller functionality"),
+                                  backgroundColor: Colors.tealAccent,
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isSold
+                                  ? Colors.grey.shade700
+                                  : Colors.tealAccent,
+                              foregroundColor: isSold ? Colors.white : Colors.black,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: Text(
+                              isSold ? "Sold Out" : "Contact Seller",
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                            ),
+                          ),
+                          child: IconButton(
+                            onPressed: () {
+                              // Message functionality
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Message seller functionality"),
+                                  backgroundColor: Colors.tealAccent,
+                                ),
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.message,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Additional Info
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.1),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.access_time,
+                            color: Colors.tealAccent,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              "Listed on ${product["created_at"]?.toString().isNotEmpty == true ? product["created_at"] : "N/A"}",
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
             ),
           ],
