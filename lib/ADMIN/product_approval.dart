@@ -21,6 +21,13 @@ class _ApproveproductState extends State<Approveproduct> {
   Map<int, bool> expandedProducts = {};
   Set<int> approvedMainProducts = {};
 
+  int currentPage = 1;
+  int totalCount = 0;
+  String? nextPageUrl;
+  String? previousPageUrl;
+  bool isPageLoading = false;
+  final int pageSize = 10;
+
   @override
   void initState() {
     super.initState();
@@ -83,7 +90,7 @@ class _ApproveproductState extends State<Approveproduct> {
           });
         }
         Navigator.pop(context);
-        getproduct("pending");
+        getproduct("pending", page: currentPage);
       }
     } catch (e) {
       print(e);
@@ -122,7 +129,7 @@ class _ApproveproductState extends State<Approveproduct> {
           ),
         );
         Navigator.pop(context);
-        getproduct("pending");
+        getproduct("pending", page: currentPage);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -241,33 +248,54 @@ class _ApproveproductState extends State<Approveproduct> {
     );
   }
 
-  Future<void> getproduct(var status) async {
+  Future<void> getproduct(String status, {int page = 1}) async {
     try {
       setState(() {
-        isLoading = true;
+        if (page == 1) {
+          isLoading = true;
+        } else {
+          isPageLoading = true;
+        }
       });
 
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
 
+      if (token == null) {
+        setState(() {
+          isLoading = false;
+          isPageLoading = false;
+        });
+        return;
+      }
+
       final response = await http.get(
-        Uri.parse('$api/api/myskates/products/status/view/$status/'),
+        Uri.parse('$api/api/myskates/products/status/view/$status/?page=$page'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
 
+      print("PRODUCT STATUS: ${response.statusCode}");
+      print("PRODUCT BODY: ${response.body}");
+
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        final List<dynamic> parsed = decoded['data'] ?? [];
+
+        totalCount = decoded['count'] ?? 0;
+        nextPageUrl = decoded['next'];
+        previousPageUrl = decoded['previous'];
+        currentPage = page;
+
+        final List<dynamic> parsed = decoded['results']?['data'] ?? [];
 
         Map<int, Map<String, dynamic>> productMap = {};
 
         for (final item in parsed) {
           if (item.containsKey('title') &&
               item['title'] != null &&
-              item['title'].isNotEmpty &&
+              item['title'].toString().isNotEmpty &&
               item.containsKey('variants')) {
             int productId = item['id'];
 
@@ -276,8 +304,10 @@ class _ApproveproductState extends State<Approveproduct> {
             if (item['variants'] != null && item['variants'].isNotEmpty) {
               for (var variant in item['variants']) {
                 String variantImage = "";
+
                 if (variant['images'] != null && variant['images'].isNotEmpty) {
-                  String imagePath = variant['images'][0]['image'];
+                  String imagePath = variant['images'][0]['image'] ?? "";
+
                   if (imagePath.startsWith('http://') ||
                       imagePath.startsWith('https://')) {
                     variantImage = imagePath;
@@ -295,15 +325,18 @@ class _ApproveproductState extends State<Approveproduct> {
                   'category_name':
                       variant['category_name'] ?? item['category_name'] ?? "",
                   'image': variantImage,
-                  'approval_status': variant['approval_status'] ?? "pending",
+                  'approval_status': variant['approval_status'] ?? status,
                   'description': variant['description'] ?? "",
+                  'is_active': variant['is_active'] ?? true,
                 });
               }
             }
 
             String mainImage = "";
-            if (item['image'] != null && item['image'].isNotEmpty) {
+
+            if (item['image'] != null && item['image'].toString().isNotEmpty) {
               String imagePath = item['image'];
+
               if (imagePath.startsWith('http://') ||
                   imagePath.startsWith('https://')) {
                 mainImage = imagePath;
@@ -322,7 +355,7 @@ class _ApproveproductState extends State<Approveproduct> {
               'user': item['user']?.toString() ?? "",
               'variants': processedVariants,
               'created_at': item['created_at'] ?? "",
-              'approval_status': item['approval_status'] ?? "pending",
+              'approval_status': item['approval_status'] ?? status,
             };
           }
         }
@@ -338,19 +371,94 @@ class _ApproveproductState extends State<Approveproduct> {
       setState(() {
         isLoading = false;
         isRefreshing = false;
+        isPageLoading = false;
       });
     } catch (e) {
-      print(e);
+      print("Error fetching products: $e");
+
       setState(() {
         isLoading = false;
         isRefreshing = false;
+        isPageLoading = false;
       });
     }
   }
 
   Future<void> _refreshData() async {
     setState(() => isRefreshing = true);
-    await getproduct("pending");
+    await getproduct("pending", page: 1);
+  }
+
+  Widget _buildPaginationControls(String status) {
+    final int totalPages = totalCount == 0 ? 1 : (totalCount / pageSize).ceil();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12, bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.10)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          ElevatedButton.icon(
+            onPressed: previousPageUrl == null || isPageLoading
+                ? null
+                : () {
+                    getproduct(status, page: currentPage - 1);
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white.withOpacity(0.10),
+              disabledBackgroundColor: Colors.white.withOpacity(0.04),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: const Icon(Icons.chevron_left_rounded, size: 18,color: Colors.white,),
+            label: const Text("Prev",style: TextStyle(color: Colors.white)),
+          ),
+
+          isPageLoading
+              ? const SizedBox(
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Color(0xFF00CFC5),
+                  ),
+                )
+              : Text(
+                  "Page $currentPage of $totalPages",
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+          ElevatedButton.icon(
+            onPressed: nextPageUrl == null || isPageLoading
+                ? null
+                : () {
+                    getproduct(status, page: currentPage + 1);
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00CFC5),
+              disabledBackgroundColor: Colors.white.withOpacity(0.04),
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: const Icon(Icons.chevron_right_rounded, size: 18,color: Colors.white,),
+            label: const Text("Next",style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showProductDetailDialog(Map<String, dynamic> product) {
@@ -1456,8 +1564,12 @@ class _ApproveproductState extends State<Approveproduct> {
                   : ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(10),
-                      itemCount: coach.length,
+                      itemCount: coach.length + 1,
                       itemBuilder: (context, index) {
+                        if (index == coach.length) {
+                          return _buildPaginationControls("pending");
+                        }
+
                         final product = coach[index];
                         return _buildGlassProductCard(product);
                       },
