@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/add_address.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
+import 'package:my_skates/ADMIN/view_address.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/add_student_achievements.dart';
 import 'package:my_skates/STUDENTS/products.dart';
@@ -335,6 +336,19 @@ class _UserSettingsState extends State<UserSettings> {
                           );
                         },
                       ),
+
+                       if (_match("Add Address"))
+                      _menuTile(
+                        icon: Icons.location_on_outlined,
+                        text: "Add Address",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            slideRightToLeftRoute(const ViewAddress()),
+                          );
+                        },
+                      ),
+
 
                     if (_match("Follow Requests"))
                       _menuTile(

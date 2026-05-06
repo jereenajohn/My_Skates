@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_skates/ADMIN/invoice_webview_page.dart';
 import 'package:my_skates/COACH/my_sold_order_detail_page.dart';
 import 'package:my_skates/COACH/product_review_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -551,6 +552,13 @@ class _Admin_order_pageState extends State<Admin_order_page> {
     await fetchOrders();
   }
 
+  void _openInvoice(int orderId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => InvoiceWebViewPage(orderId: orderId)),
+    );
+  }
+
   /// Returns the correct API URL based on selected view
   String get _apiUrl {
     switch (_selectedView) {
@@ -584,7 +592,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
         });
         return;
       }
-                                                         
+
       if (_selectedView == OrderViewType.allOrders && !_isAdmin) {
         setState(() {
           _selectedView = OrderViewType.myOrders;
@@ -1976,19 +1984,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
 
                   GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ProductReviewPage(
-                            productId: item.product,
-                            productTitle: item.productTitle,
-                            productImage: item.productImage,
-                            variantId: item.variantId,
-                            variantLabel: item.variantLabel,
-                            variantImage: item.variantImage,
-                          ),
-                        ),
-                      );
+                      _openInvoice(item.orderId);
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -2006,13 +2002,13 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.rate_review_outlined,
+                            Icons.receipt_long_rounded,
                             color: Colors.tealAccent,
                             size: 15,
                           ),
                           SizedBox(width: 6),
                           Text(
-                            'Review',
+                            'Invoice',
                             style: TextStyle(
                               color: Colors.tealAccent,
                               fontSize: 12,
@@ -2105,7 +2101,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
 // ==================== ORDER DETAIL PAGE ====================
 
 class OrderDetailPage extends StatefulWidget {
-  final Order order; 
+  final Order order;
   final bool isCoachProductOrder;
 
   const OrderDetailPage({
@@ -2211,6 +2207,16 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     setState(() {}); // Refresh to show/hide the review icon
   }
 
+  Future<void> _refreshReviews() async {
+    _reviewCheckedStatus.clear();
+    _existingReviews.clear();
+    await _checkAllReviews();
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   // Get existing review for a product
   Future<ReviewModel?> _getExistingReview(int productId) async {
     try {
@@ -2296,7 +2302,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
   // Show review dialog
   void _showReviewDialog(OrderItem item) {
-    
     // Add a small delay to ensure the page is fully loaded
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
@@ -2314,10 +2319,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
               hasReview: false,
             );
           },
-        ).then((_) {
-          // Refresh reviews after dialog closes (in case user wrote a review)
-          _checkAllReviews();
-          setState(() {});
+        ).then((_) async {
+          await _refreshReviews();
         });
       }
     });
@@ -2337,10 +2340,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           variantImage: item.variantImage,
         ),
       ),
-    ).then((_) {
-      // Refresh reviews after returning
-      _checkAllReviews();
-      setState(() {});
+    ).then((_) async {
+      await _refreshReviews();
     });
   }
 
@@ -2593,6 +2594,50 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                         color: Colors.greenAccent,
                         backgroundColor: Colors.greenAccent.withOpacity(0.10),
                         borderColor: Colors.greenAccent.withOpacity(0.25),
+                      ),
+                    ],
+                    if (_existingReviews.containsKey(item.product) &&
+                        _existingReviews[item.product] != null) ...[
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () {
+                          _navigateToReviewScreen(
+                            item,
+                            existingReview: _existingReviews[item.product],
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.greenAccent.withOpacity(0.10),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.greenAccent.withOpacity(0.25),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.rate_review_rounded,
+                                color: Colors.greenAccent,
+                                size: 15,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                'View Review ${_existingReviews[item.product]!.rating}★',
+                                style: const TextStyle(
+                                  color: Colors.greenAccent,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ],
@@ -3039,6 +3084,25 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             ),
                           ),
                         ),
+                        // if (_hasAnyReview)
+                        //   IconButton(
+                        //     tooltip: "View Review",
+                        //     icon: const Icon(
+                        //       Icons.rate_review_rounded,
+                        //       color: Colors.tealAccent,
+                        //     ),
+                        //     onPressed: () {
+                        //       final reviewedItem = _getFirstReviewedProduct();
+
+                        //       if (reviewedItem != null) {
+                        //         _navigateToReviewScreen(
+                        //           reviewedItem,
+                        //           existingReview:
+                        //               _existingReviews[reviewedItem.product],
+                        //         );
+                        //       }
+                        //     },
+                        //   ),
                         // Review Icon - shows only if order is delivered and has review
                         if (_order.status.toLowerCase() == 'delivered' &&
                             hasReview &&
