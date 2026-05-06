@@ -20,8 +20,8 @@ class ProductsByUser extends StatefulWidget {
 
 class _ProductsByUserState extends State<ProductsByUser> {
   List<Map<String, dynamic>> products = [];
-  bool pageLoading = true; // initial screen load
-  bool productsLoading = false; // status switch loading
+  bool pageLoading = true;
+  bool productsLoading = false;
   String selectedStatus = "approved";
 
   final List<Map<String, String>> statusTabs = [
@@ -133,10 +133,19 @@ class _ProductsByUserState extends State<ProductsByUser> {
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
 
-      // SAFETY CHECK
+      // IMPORTANT: The response has a 'data' field containing the products list
       final List list = decoded['data'] ?? [];
 
+      print("PRODUCTS COUNT: ${list.length}");
+
       products = list.map<Map<String, dynamic>>((c) {
+        // Extract variants - make sure we're getting them correctly
+        final variants = (c['variants'] as List? ?? [])
+            .where((v) => v['approval_status'] == status)
+            .toList();
+
+        print("Product: ${c['title']}, Variants count: ${variants.length}");
+
         return {
           'id': c['id'],
           'title': c['title'] ?? "",
@@ -144,8 +153,37 @@ class _ProductsByUserState extends State<ProductsByUser> {
           'category_name': c['category_name'] ?? "",
           'discount': c['discount']?.toString() ?? "0",
           'price': c['base_price']?.toString() ?? "0",
+          'variants': variants.map((v) {
+            // Extract attribute values names if available
+            List<String> attributeNames = [];
+            if (v['attribute_values'] != null &&
+                v['attribute_values'] is List) {
+              // You might need to fetch attribute names from another API
+              // For now, just use the IDs
+              attributeNames = (v['attribute_values'] as List)
+                  .map((attr) => attr.toString())
+                  .toList();
+            }
+
+            return {
+              'id': v['id'],
+              'sku': v['sku'] ?? "",
+              'price': v['price']?.toString() ?? "0",
+              'discount': v['discount']?.toString() ?? "0",
+              'stock': v['stock'] ?? 0,
+              'approval_status': v['approval_status'] ?? "pending",
+              'attribute_values': attributeNames,
+              'images': v['images'] ?? [],
+            };
+          }).toList(),
+          'variants_count': variants.length,
         };
       }).toList();
+
+      print("MAPPED PRODUCTS: ${products.length}");
+      products.forEach((p) {
+        print("Product: ${p['title']}, Variants: ${p['variants_count']}");
+      });
     } else {
       products = [];
     }
@@ -164,17 +202,10 @@ class _ProductsByUserState extends State<ProductsByUser> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF00312D), // green at top-left
-              Color(0xFF000000), // fades to black
-            ],
-            stops: [
-              0.0, // start green
-              0.35, // slope fade into black
-            ],
+            colors: [Color(0xFF00312D), Color(0xFF000000)],
+            stops: [0.0, 0.35],
           ),
         ),
-
         child: SafeArea(
           child: pageLoading
               ? SingleChildScrollView(
@@ -184,18 +215,10 @@ class _ProductsByUserState extends State<ProductsByUser> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 20),
-
-                        // SEARCH + ADD PRODUCT SKELETON
                         searchBarSkeleton(),
-
                         const SizedBox(height: 20),
-
-                        // STATUS TABS SKELETON
                         statusTabsSkeleton(),
-
                         const SizedBox(height: 20),
-
-                        // PRODUCT GRID SKELETON
                         productGridSkeleton(),
                       ],
                     ),
@@ -208,10 +231,6 @@ class _ProductsByUserState extends State<ProductsByUser> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 10),
-
-                        // ---------------------------------------------
-                        // TOP LEFT LOGO
-                        // ---------------------------------------------
                         Align(
                           alignment: Alignment.topLeft,
                           child: Container(
@@ -219,15 +238,12 @@ class _ProductsByUserState extends State<ProductsByUser> {
                             width: 68,
                             decoration: BoxDecoration(),
                             child: Image.asset(
-                              "lib/assets/myskates.png", 
+                              "lib/assets/myskates.png",
                               fit: BoxFit.cover,
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 18),
-
-                        // SEARCH + ADD PRODUCT
                         Row(
                           children: [
                             Expanded(
@@ -243,7 +259,6 @@ class _ProductsByUserState extends State<ProductsByUser> {
                                     mainAxisAlignment: MainAxisAlignment.start,
                                     children: [
                                       SizedBox(width: 10),
-
                                       Text(
                                         "Search",
                                         style: TextStyle(
@@ -281,9 +296,7 @@ class _ProductsByUserState extends State<ProductsByUser> {
                                     style: TextStyle(
                                       fontFamily: 'Poppins',
                                       fontWeight: FontWeight.w400,
-
                                       letterSpacing: 0.2,
-
                                       color: Colors.white,
                                       fontSize: 13,
                                     ),
@@ -293,23 +306,7 @@ class _ProductsByUserState extends State<ProductsByUser> {
                             ),
                           ],
                         ),
-
-                        //                         const SizedBox(height: 15),
-                        // Text(
-                        //   selectedStatus == "approved"
-                        //       ? "Approved Products"
-                        //       : selectedStatus == "pending"
-                        //           ? "Pending Products"
-                        //           : "Disapproved Products",
-                        //   style: const TextStyle(
-                        //     fontFamily: 'Poppins',
-                        //     color: Colors.white,
-                        //     fontSize: 15,
-                        //     fontWeight: FontWeight.w400,
-                        //   ),
-                        // ),
                         const SizedBox(height: 18),
-
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: Row(
@@ -354,9 +351,6 @@ class _ProductsByUserState extends State<ProductsByUser> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        // ------------------------------------------------------------
-                        // PRODUCTS GRID SECTION (NO FULL PAGE REFRESH)
-                        // ------------------------------------------------------------
                         if (productsLoading)
                           Padding(
                             padding: const EdgeInsets.only(top: 20),
@@ -384,39 +378,29 @@ class _ProductsByUserState extends State<ProductsByUser> {
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 2,
-                                  mainAxisExtent: 250,
+                                  // Remove fixed mainAxisExtent or make it larger
+                                  childAspectRatio:
+                                      0.65, // Use aspect ratio instead
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 12,
                                 ),
                             itemBuilder: (context, index) {
                               final p = products[index];
+                              final hasVariants =
+                                  (p['variants_count'] ?? 0) > 0;
 
                               return Dismissible(
                                 key: ValueKey(p['id']),
                                 direction: DismissDirection.horizontal,
-
                                 confirmDismiss: (direction) async {
-                                  // SWIPE RIGHT → UPDATE (NO UI)
-                                  // if (direction ==
-                                  //     DismissDirection.startToEnd) {
-                                  //   _handleUpdateProduct(p);
-                                  //   return false; // do NOT dismiss
-                                  // }
-
-                                  //  SWIPE LEFT → DELETE (RED UI SAME AS BEFORE)
                                   if (direction ==
                                       DismissDirection.endToStart) {
                                     addvariant(p);
-                                    return false; // do NOT dismiss
+                                    return false;
                                   }
-
                                   return false;
                                 },
-
-                                // REMOVE BLUE UPDATE BACKGROUND
                                 background: const SizedBox.shrink(),
-
-                                //  KEEP DELETE BACKGROUND EXACTLY SAME
                                 secondaryBackground: Container(
                                   alignment: Alignment.centerRight,
                                   padding: const EdgeInsets.only(right: 20),
@@ -429,31 +413,30 @@ class _ProductsByUserState extends State<ProductsByUser> {
                                     ).withOpacity(0.9),
                                     borderRadius: BorderRadius.circular(18),
                                   ),
-                                  child: const Row(
-                                    mainAxisAlignment: MainAxisAlignment.end,
+                                  child: const Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
+                                      Icon(
+                                        Icons.chevron_left,
+                                        color: Colors.white,
+                                        size: 24,
+                                      ),
                                       Text(
                                         "Add Variant",
                                         style: TextStyle(
                                           color: Colors.white,
-                                          fontSize: 14,
+                                          fontSize: 12,
                                           fontWeight: FontWeight.w600,
                                           fontFamily: 'Poppins',
                                         ),
                                       ),
-                                      SizedBox(width: 8),
-                                      Icon(Icons.edit, color: Colors.white),
                                     ],
                                   ),
                                 ),
-
-                                child: _productCard(p),
+                                child: _productCard(p, hasVariants),
                               );
                             },
                           ),
-
-                        const SizedBox(height: 40),
-
                         const SizedBox(height: 40),
                       ],
                     ),
@@ -465,7 +448,14 @@ class _ProductsByUserState extends State<ProductsByUser> {
     );
   }
 
-  Widget _productCard(Map<String, dynamic> p) {
+  Widget _productCard(Map<String, dynamic> p, bool hasVariants) {
+    final variants = p['variants'] as List? ?? [];
+    final variantsCount = p['variants_count'] ?? 0;
+
+    print(
+      "Building card for: ${p['title']}, Has variants: $hasVariants, Variants count: ${variants.length}",
+    );
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.20),
@@ -474,27 +464,109 @@ class _ProductsByUserState extends State<ProductsByUser> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            height: 150,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: Image.network(
-                p['image'],
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    const Icon(Icons.broken_image, color: Colors.grey),
+          // Product Image
+          Stack(
+            children: [
+              Container(
+                height: 150,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: p['image'] != null && p['image'].toString().isNotEmpty
+                      ? Image.network(
+                          p['image'],
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.broken_image,
+                            color: Colors.grey,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.image_not_supported,
+                          color: Colors.grey,
+                        ),
+                ),
               ),
-            ),
+              // Variant count badge on image (optional)
+              if (hasVariants)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.tealAccent.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.color_lens,
+                          size: 10,
+                          color: Colors.black,
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          "$variantsCount",
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              // Slide left hint
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.chevron_left,
+                        size: 14,
+                        color: Colors.tealAccent,
+                      ),
+                      Text(
+                        "Slide left",
+                        style: TextStyle(
+                          color: Colors.tealAccent,
+                          fontSize: 10,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
+          // Product Title
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
             child: Text(
@@ -512,13 +584,14 @@ class _ProductsByUserState extends State<ProductsByUser> {
 
           const SizedBox(height: 4),
 
+          // Category
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
             child: Text(
               p['category_name'],
               style: const TextStyle(
                 color: Colors.grey,
-                fontSize: 12,
+                fontSize: 11,
                 fontFamily: 'Poppins',
               ),
             ),
@@ -526,75 +599,166 @@ class _ProductsByUserState extends State<ProductsByUser> {
 
           const SizedBox(height: 4),
 
+          // Price and Variants Count in same row
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: Text(
-              "₹${p['price']}",
-              style: const TextStyle(
-                color: Colors.tealAccent,
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Poppins',
-              ),
+            child: Row(
+              children: [
+                Text(
+                  "₹${p['price']}",
+                  style: const TextStyle(
+                    color: Colors.tealAccent,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+                if (hasVariants) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.tealAccent.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      "$variantsCount variant${variantsCount > 1 ? 's' : ''}",
+                      style: const TextStyle(
+                        color: Colors.tealAccent,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
+
+          // Variants Section - Only show if there are variants
+          if (hasVariants && variants.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.color_lens,
+                          size: 12,
+                          color: Colors.tealAccent,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          "${variants.length} Variant${variants.length > 1 ? 's' : ''}",
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    // Show variant preview (max 2)
+                    ...variants.take(2).map((variant) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: _getStatusColor(
+                                  variant['approval_status'],
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                variant['sku'] ?? "Variant",
+                                style: const TextStyle(
+                                  color: Colors.white60,
+                                  fontSize: 10,
+                                  fontFamily: 'Poppins',
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(
+                              "₹${variant['price']}",
+                              style: const TextStyle(
+                                color: Colors.tealAccent,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                    if (variants.length > 2)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          "+${variants.length - 2} more",
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 9,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
 
-  // void _handleUpdateProduct(Map<String, dynamic> product) {
-  //   print("UPDATE ${product['id']}");
-  //   Navigator.push(
-  //     context,
-  //     slideRightToLeftRoute(UpdateProduct(productId: product['id'])),
-  //   );
-  // }
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return Colors.green;
+      case 'disapproved':
+        return Colors.red;
+      case 'pending':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
 
   void addvariant(Map<String, dynamic> product) {
-    print("ad dvariant ${product['id']}");
+    print("Add variant ${product['id']}");
     Navigator.push(
       context,
       slideRightToLeftRoute(variant(productId: product['id'])),
     );
-  }
-
-  Future<bool> _confirmDelete(
-    BuildContext context,
-    Map<String, dynamic> product,
-  ) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (_) => AlertDialog(
-            backgroundColor: const Color(0xFF1C1C1C),
-            title: const Text(
-              "Add Variant Product",
-              style: TextStyle(color: Colors.white),
-            ),
-            content: Text(
-              "Are you sure you want to delete \"${product['title']}\"?",
-              style: const TextStyle(color: Colors.white70),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text("Cancel"),
-              ),
-              TextButton(
-                onPressed: () {
-                  print("DELETED ${product['id']}");
-                  delete(product['id']);
-                  Navigator.pop(context, true);
-                },
-                child: const Text(
-                  "Delete",
-                  style: TextStyle(color: Colors.redAccent),
-                ),
-              ),
-            ],
-          ),
-        ) ??
-        false;
   }
 
   Widget bannerSkeleton() {
@@ -633,7 +797,7 @@ class _ProductsByUserState extends State<ProductsByUser> {
       itemCount: 6,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        mainAxisExtent: 250,
+        mainAxisExtent: 320,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
@@ -662,6 +826,11 @@ class _ProductsByUserState extends State<ProductsByUser> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: Skeleton(height: 14, width: 60),
+              ),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Skeleton(height: 40, width: double.infinity),
               ),
             ],
           ),

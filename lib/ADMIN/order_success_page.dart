@@ -9,7 +9,7 @@ class OrderSuccessPage extends StatefulWidget {
   final String paymentId;
   final String amount;
 
-  const OrderSuccessPage({
+  const   OrderSuccessPage({
     super.key,
     required this.orderId,
     required this.paymentId,

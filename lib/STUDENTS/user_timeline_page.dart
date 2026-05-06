@@ -836,7 +836,7 @@ class _FeedCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        
+
                         PopupMenuButton(
                           icon: const Icon(
                             Icons.more_vert,
@@ -1029,6 +1029,8 @@ class _FeedCard extends StatelessWidget {
                     const SizedBox(height: 12),
 
                     // 🔹 ACTIONS
+                    // 🔹 ACTIONS
+                    // 🔹 ACTIONS
                     Row(
                       children: [
                         _ActionButton(
@@ -1038,10 +1040,7 @@ class _FeedCard extends StatelessWidget {
                           label: "${displayFeed["likes_count"] ?? 0}",
                           onTap: () async {
                             final provider = context.read<CoachFeedProvider>();
-
                             await provider.toggleLike(actualFeedId);
-
-                            //  THIS IS THE FIX
                             await provider.fetchFeeds();
                           },
                         ),
@@ -1051,61 +1050,65 @@ class _FeedCard extends StatelessWidget {
                         _ActionButton(
                           icon: repostLoading
                               ? Icons.hourglass_top
-                              : (isMyRepost
-                                    ? Icons
-                                          .repeat // meaningful: this is YOUR repost
-                                    : (isReposted
-                                          ? Icons.repeat
-                                          : Icons.repeat_outlined)),
-
+                              : (isMyRepost || isReposted
+                                    ? Icons.repeat
+                                    : Icons.repeat_outlined),
                           label: isMyRepost ? "Reposted" : "$repostCount",
-
                           isActive: isMyRepost || isReposted,
-
                           onTap: repostLoading
                               ? () {}
-                              : () async {
+                              : () {
                                   final provider = context
                                       .read<CoachFeedProvider>();
-                                  final myId = await _myUserId();
+                                  _myUserId().then((myId) {
+                                    // ─────────────────────────────
+                                    // CASE 1: THIS IS A REPOST FEED (YOUR OWN REPOST)
+                                    // ─────────────────────────────
+                                    if (isRepostFeed) {
+                                      final repostedById =
+                                          feed["reposted_by"]?["id"];
+                                      final originalFeedId = displayFeed["id"];
 
-                                  // ─────────────────────────────
-                                  // CASE 1: THIS IS A REPOST FEED
-                                  // ─────────────────────────────
-                                  if (isRepostFeed) {
-                                    final repostedById =
-                                        feed["reposted_by"]?["id"];
-                                    final originalFeedId = displayFeed["id"];
+                                      if (repostedById == myId) {
+                                        // REMOVE REPOST DIRECTLY - NO CONFIRMATION
+                                        _removeRepostDirectly(
+                                          context,
+                                          originalFeedId,
+                                          provider,
+                                        );
+                                        return;
+                                      }
 
-                                    if (repostedById == myId) {
-                                      await provider.toggleRepost(
-                                        originalFeedId,
+                                      provider.toggleRepost(originalFeedId);
+                                      return;
+                                    }
+
+                                    // ─────────────────────────────
+                                    // CASE 2: ALREADY REPOSTED - REMOVE DIRECTLY
+                                    // ─────────────────────────────
+                                    if (isReposted) {
+                                      _removeRepostDirectly(
+                                        context,
+                                        actualFeedId,
+                                        provider,
                                       );
                                       return;
                                     }
 
-                                    await provider.toggleRepost(originalFeedId);
-                                    return;
-                                  }
-
-                                  // ─────────────────────────────
-                                  // CASE 2: ORIGINAL FEED
-                                  // ─────────────────────────────
-                                  if (isReposted) {
-                                    await provider.toggleRepost(actualFeedId);
-                                    return;
-                                  }
-
-                                  showModalBottomSheet(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    backgroundColor: Colors.transparent,
-                                    builder: (_) => RepostComposerSheet(
-                                      feedId: actualFeedId,
-                                      feed: displayFeed,
-                                      feedProvider: provider,
-                                    ),
-                                  );
+                                    // ─────────────────────────────
+                                    // CASE 3: NEW REPOST - SHOW BOTTOM SHEET
+                                    // ─────────────────────────────
+                                    showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (_) => RepostComposerSheet(
+                                        feedId: actualFeedId,
+                                        feed: displayFeed,
+                                        feedProvider: provider,
+                                      ),
+                                    );
+                                  });
                                 },
                         ),
 
@@ -1142,6 +1145,92 @@ class _FeedCard extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _removeRepostDirectly(
+    BuildContext context,
+    int feedId,
+    CoachFeedProvider provider,
+  ) async {
+    // Find the feed index to update UI optimistically
+    final feedIndex = provider.feeds.indexWhere((f) {
+      final bool isRepostFeed = f["feed"] != null;
+      final actualFeed = isRepostFeed ? f["feed"] : f;
+      return actualFeed["id"] == feedId;
+    });
+
+    if (feedIndex == -1) return;
+
+    final bool isRepostFeed = provider.feeds[feedIndex]["feed"] != null;
+    final Map<String, dynamic> displayFeed = isRepostFeed
+        ? Map<String, dynamic>.from(provider.feeds[feedIndex]["feed"])
+        : Map<String, dynamic>.from(provider.feeds[feedIndex]);
+
+    final int oldRepostCount = displayFeed["shares_count"] ?? 0;
+    final bool wasReposted = displayFeed["is_reposted"] == true;
+
+    // Optimistic UI update
+    if (isRepostFeed) {
+      provider.feeds[feedIndex]["feed"]["is_reposted"] = false;
+      provider.feeds[feedIndex]["feed"]["shares_count"] = oldRepostCount - 1;
+    } else {
+      provider.feeds[feedIndex]["is_reposted"] = false;
+      provider.feeds[feedIndex]["shares_count"] = oldRepostCount - 1;
+    }
+    provider.notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) throw Exception("No token");
+
+      final response = await http.delete(
+        Uri.parse("$api/api/myskates/feeds/repost/$feedId/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      print("REMOVE REPOST STATUS: ${response.statusCode}");
+      print("REMOVE REPOST RESPONSE: ${response.body}");
+
+      if (response.statusCode != 200 &&
+          response.statusCode != 201 &&
+          response.statusCode != 204) {
+        throw Exception("Failed to remove repost");
+      }
+
+      // Refresh to get accurate counts
+      await provider.fetchFeeds();
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Repost removed"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print("REMOVE REPOST ERROR: $e");
+      // Rollback on error
+      if (isRepostFeed) {
+        provider.feeds[feedIndex]["feed"]["is_reposted"] = wasReposted;
+        provider.feeds[feedIndex]["feed"]["shares_count"] = oldRepostCount;
+      } else {
+        provider.feeds[feedIndex]["is_reposted"] = wasReposted;
+        provider.feeds[feedIndex]["shares_count"] = oldRepostCount;
+      }
+      provider.notifyListeners();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Failed to remove repost"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _openEditSheet(BuildContext context) {

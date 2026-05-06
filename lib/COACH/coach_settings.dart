@@ -8,6 +8,7 @@ import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/view_address.dart';
 import 'package:my_skates/COACH/add_bank_details.dart';
 import 'package:my_skates/COACH/add_club.dart';
+import 'package:my_skates/COACH/add_couch_company.dart';
 import 'package:my_skates/COACH/bank_details_page.dart';
 import 'package:my_skates/COACH/coach_add_events.dart';
 import 'package:my_skates/COACH/coach_change_phone_number.dart';
@@ -292,6 +293,12 @@ class _CoachSettingsState extends State<CoachSettings> {
                         text: "Add address",
                         onTap: () => pushWithSlide(ViewAddress()),
                       ),
+                    if ("Add company".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.home,
+                        text: "Add company",
+                        onTap: () => pushWithSlide(AdminCoachCompaniesPage()),
+                      ),
 
                     if ("Attributes".toLowerCase().contains(_searchQuery))
                       _menuTile(
@@ -305,8 +312,7 @@ class _CoachSettingsState extends State<CoachSettings> {
                         icon: Icons.home,
                         text: "Values",
                         onTap: () => pushWithSlide(AddValues()),
-                      ),  
-
+                      ),
 
                     if ("View Club".toLowerCase().contains(_searchQuery))
                       _menuTile(
