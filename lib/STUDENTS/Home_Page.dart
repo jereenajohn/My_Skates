@@ -532,45 +532,36 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> toggleHomeFeedRepost(int feedId) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("access");
+    // Find the current feed to get its current repost state
+    final index = homeFeeds.indexWhere((feed) {
+      final bool isRepostFeed = feed["feed"] != null;
+      final actualFeed = isRepostFeed ? feed["feed"] : feed;
+      return actualFeed["id"] == feedId;
+    });
 
-      if (token == null) return;
+    if (index == -1) return;
 
-      final response = await http.post(
-        Uri.parse("$api/api/myskates/feeds/repost/$feedId/"),
-        headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json",
+    final bool isRepostFeed = homeFeeds[index]["feed"] != null;
+    final Map<String, dynamic> displayFeed = isRepostFeed
+        ? Map<String, dynamic>.from(homeFeeds[index]["feed"])
+        : Map<String, dynamic>.from(homeFeeds[index]);
+
+    final bool isAlreadyReposted = displayFeed["is_reposted"] == true;
+
+    // Show bottom sheet for repost with comment
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => RepostCommentSheet(
+        feedId: feedId,
+        isAlreadyReposted: isAlreadyReposted,
+        onRepostSuccess: () {
+          // Refresh feeds after successful repost
+          fetchHomeFeeds();
         },
-      );
-
-      print("HOME FEED REPOST STATUS: ${response.statusCode}");
-      print("HOME FEED REPOST BODY: ${response.body}");
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        await fetchHomeFeeds();
-
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Reposted successfully"),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Failed to repost"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      print("HOME FEED REPOST ERROR: $e");
-    }
+      ),
+    );
   }
 
   void shareHomeFeed(Map<String, dynamic> displayFeed, int feedId) {
@@ -588,580 +579,579 @@ class _HomePageState extends State<HomePage> {
     Share.share(shareText, subject: "MySkates Feed");
   }
 
-void showHomeFeedImagePopup(BuildContext context, String imageUrl) {
-  showDialog(
-    context: context,
-    barrierColor: Colors.black.withOpacity(0.88),
-    builder: (_) {
-      return Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(12),
-        child: Stack(
-          children: [
-            Center(
-              child: InteractiveViewer(
-                minScale: 0.8,
-                maxScale: 4.0,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) {
-                      return Container(
-                        height: 260,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.broken_image,
-                            color: Colors.white54,
-                            size: 42,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-
-            Positioned(
-              top: 10,
-              right: 10,
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  height: 38,
-                  width: 38,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.65),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: const Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: 22,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
-Widget buildHomeFeedsSection() {
-  if (homeFeedsLoading) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 20),
-      child: Center(
-        child: CircularProgressIndicator(color: Color(0xFF2EE6A6)),
-      ),
-    );
-  }
-
-  if (homeFeedsNoData || homeFeeds.isEmpty) {
-    return const SizedBox.shrink();
-  }
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Row(
-        children: [
-          Container(
-            width: 4,
-            height: 22,
-            decoration: BoxDecoration(
-              color: const Color(0xFF2EE6A6),
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-          const SizedBox(width: 10),
-          const Text(
-            "Latest Posts",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 19,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.2,
-            ),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2EE6A6).withOpacity(0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: const Color(0xFF2EE6A6).withOpacity(0.35),
-              ),
-            ),
-            child: Text(
-              "${homeFeeds.length} posts",
-              style: const TextStyle(
-                color: Color(0xFF2EE6A6),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-
-      const SizedBox(height: 12),
-
-      ...homeFeeds.map((feed) {
-        return buildHomeFeedCard(feed);
-      }).toList(),
-    ],
-  );
-}
-  Widget buildHomeFeedCard(Map<String, dynamic> feed) {
-  final bool isRepostFeed = feed["feed"] != null && feed["feed"] is Map;
-
-  final Map<String, dynamic> displayFeed = isRepostFeed
-      ? Map<String, dynamic>.from(feed["feed"])
-      : Map<String, dynamic>.from(feed);
-
-  final int actualFeedId = safeInt(displayFeed["id"]);
-
-  final List images = displayFeed["feed_image"] is List
-      ? displayFeed["feed_image"]
-      : [];
-
-  final int likeCount = safeInt(displayFeed["likes_count"]);
-  final int repostCount = safeInt(displayFeed["shares_count"]);
-  final int commentCount = safeInt(displayFeed["comments_count"]);
-
-  final bool isLiked = displayFeed["is_liked"] == true;
-  final bool isReposted =
-      feed["is_reposted"] == true || displayFeed["is_reposted"] == true;
-
-  final Map<String, dynamic> user = safeMap(displayFeed["user"]).isNotEmpty
-      ? safeMap(displayFeed["user"])
-      : safeMap(displayFeed["created_by"]).isNotEmpty
-          ? safeMap(displayFeed["created_by"])
-          : safeMap(displayFeed["author"]);
-
-  final String apiUserName = (displayFeed["user_name"] ?? "").toString();
-
-  final String firstName = (user["first_name"] ?? "").toString();
-  final String lastName = (user["last_name"] ?? "").toString();
-
-  final String fullName = "$firstName $lastName".trim();
-
-  final String userName = apiUserName.isNotEmpty
-      ? apiUserName
-      : fullName.isNotEmpty
-          ? fullName
-          : "MySkates User";
-
-  final String profile =
-      (displayFeed["profile"] ??
-              user["profile"] ??
-              user["profile_image"] ??
-              "")
-          .toString();
-
-  final String description =
-      (displayFeed["description"] ?? "").toString().trim();
-
-  return Container(
-    margin: const EdgeInsets.only(bottom: 16),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(24),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.35),
-          blurRadius: 18,
-          offset: const Offset(0, 8),
-        ),
-      ],
-    ),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white.withOpacity(0.13),
-                Colors.white.withOpacity(0.055),
-                const Color(0xFF003E38).withOpacity(0.30),
-              ],
-            ),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.13),
-              width: 1,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  void showHomeFeedImagePopup(BuildContext context, String imageUrl) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.88),
+      builder: (_) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(12),
+          child: Stack(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (isRepostFeed)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2EE6A6).withOpacity(0.10),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: const Color(0xFF2EE6A6).withOpacity(0.25),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.repeat,
-                              size: 15,
-                              color: Color(0xFF2EE6A6),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              "${feed["reposted_by"]?["first_name"] ?? "Someone"} reposted this",
-                              style: const TextStyle(
-                                color: Color(0xFFBFFFEF),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFF2EE6A6),
-                                Color(0xFF00AFA5),
-                              ],
-                            ),
-                          ),
-                          child: CircleAvatar(
-                            radius: 23,
-                            backgroundColor: Colors.black,
-                            backgroundImage: profile.isNotEmpty
-                                ? NetworkImage(
-                                    profile.startsWith("http")
-                                        ? profile
-                                        : "$api$profile",
-                                  )
-                                : const AssetImage("lib/assets/img.jpg")
-                                    as ImageProvider,
-                          ),
-                        ),
-                        const SizedBox(width: 11),
-
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                userName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.public,
-                                    size: 12,
-                                    color: Colors.white.withOpacity(0.48),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    "Shared on MySkates",
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.48),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        Container(
-                          height: 34,
-                          width: 34,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.08),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.10),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.more_horiz,
-                            color: Colors.white70,
-                            size: 20,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    if (description.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      Text(
-                        description,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.82),
-                          fontSize: 13.5,
-                          height: 1.45,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              if (images.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                SizedBox(
-                  height: 235,
-                  child: PageView.builder(
-                    itemCount: images.length,
-                    itemBuilder: (context, imgIndex) {
-                      final imgData = images[imgIndex];
-
-                      final String img = imgData is Map
-                          ? (imgData["image"] ?? "").toString()
-                          : imgData.toString();
-
-                      final String imageUrl =
-                          img.startsWith("http") ? img : "$api$img";
-
-                    return Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 14),
-  child: ClipRRect(
-    borderRadius: BorderRadius.circular(18),
-    child: GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        debugPrint("POST IMAGE CLICKED: $imageUrl");
-        showHomeFeedImagePopup(context, imageUrl);
-      },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.network(
-            imageUrl,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) {
-              return Container(
-                color: Colors.white10,
-                child: const Center(
-                  child: Icon(
-                    Icons.broken_image,
-                    color: Colors.white54,
-                    size: 34,
-                  ),
-                ),
-              );
-            },
-          ),
-
-          Positioned.fill(
-            child: IgnorePointer(
-              ignoring: true,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.18),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  ),
-);
-                    },
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 12),
-
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.22),
+              Center(
+                child: InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 4.0,
+                  child: ClipRRect(
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.08),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () => toggleHomeFeedLike(actualFeedId),
-                        child: _feedActionButton(
-                          icon: isLiked
-                              ? Icons.thumb_up
-                              : Icons.thumb_up_alt_outlined,
-                          count: likeCount,
-                          active: isLiked,
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () => toggleHomeFeedRepost(actualFeedId),
-                        child: _feedActionButton(
-                          icon: isReposted
-                              ? Icons.repeat
-                              : Icons.repeat_outlined,
-                          count: repostCount,
-                          active: isReposted,
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () async {
-                          await showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) =>
-                                FeedCommentsSheet(feedId: actualFeedId),
-                          );
-
-                          fetchHomeFeeds();
-                        },
-                        child: _feedActionButton(
-                          icon: Icons.chat_bubble_outline,
-                          count: commentCount,
-                          active: false,
-                        ),
-                      ),
-
-                      const Spacer(),
-
-                      InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () => shareHomeFeed(displayFeed, actualFeedId),
-                        child: Container(
-                          height: 36,
-                          width: 36,
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) {
+                        return Container(
+                          height: 260,
+                          width: double.infinity,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.08),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.10),
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.broken_image,
+                              color: Colors.white54,
+                              size: 42,
                             ),
                           ),
-                          child: const Icon(
-                            Icons.share_outlined,
-                            color: Colors.white70,
-                            size: 19,
-                          ),
-                        ),
-                      ),
-                    ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+
+              Positioned(
+                top: 10,
+                right: 10,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    height: 38,
+                    width: 38,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.65),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-        ),
-      ),
-    ),
-  );
-}
+        );
+      },
+    );
+  }
 
-Widget _feedActionButton({
-  required IconData icon,
-  required int count,
-  required bool active,
-}) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-    decoration: BoxDecoration(
-      color: active
-          ? const Color(0xFF2EE6A6).withOpacity(0.13)
-          : Colors.white.withOpacity(0.055),
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(
-        color: active
-            ? const Color(0xFF2EE6A6).withOpacity(0.35)
-            : Colors.white.withOpacity(0.08),
-      ),
-    ),
-    child: Row(
+  Widget buildHomeFeedsSection() {
+    if (homeFeedsLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: CircularProgressIndicator(color: Color(0xFF2EE6A6)),
+        ),
+      );
+    }
+
+    if (homeFeedsNoData || homeFeeds.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          color: active ? const Color(0xFF2EE6A6) : Colors.white70,
-          size: 19,
+        Row(
+          children: [
+            Container(
+              width: 4,
+              height: 22,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2EE6A6),
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              "Latest Posts",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2EE6A6).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: const Color(0xFF2EE6A6).withOpacity(0.35),
+                ),
+              ),
+              child: Text(
+                "${homeFeeds.length} posts",
+                style: const TextStyle(
+                  color: Color(0xFF2EE6A6),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 5),
-        Text(
-          "$count",
-          style: TextStyle(
-            color: active ? const Color(0xFF2EE6A6) : Colors.white70,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
+
+        const SizedBox(height: 12),
+
+        ...homeFeeds.map((feed) {
+          return buildHomeFeedCard(feed);
+        }).toList(),
+      ],
+    );
+  }
+
+  Widget buildHomeFeedCard(Map<String, dynamic> feed) {
+    final bool isRepostFeed = feed["feed"] != null && feed["feed"] is Map;
+
+    final Map<String, dynamic> displayFeed = isRepostFeed
+        ? Map<String, dynamic>.from(feed["feed"])
+        : Map<String, dynamic>.from(feed);
+
+    final int actualFeedId = safeInt(displayFeed["id"]);
+
+    final List images = displayFeed["feed_image"] is List
+        ? displayFeed["feed_image"]
+        : [];
+
+    final int likeCount = safeInt(displayFeed["likes_count"]);
+    final int repostCount = safeInt(displayFeed["shares_count"]);
+    final int commentCount = safeInt(displayFeed["comments_count"]);
+
+    final bool isLiked = displayFeed["is_liked"] == true;
+    final bool isReposted =
+        feed["is_reposted"] == true || displayFeed["is_reposted"] == true;
+
+    final Map<String, dynamic> user = safeMap(displayFeed["user"]).isNotEmpty
+        ? safeMap(displayFeed["user"])
+        : safeMap(displayFeed["created_by"]).isNotEmpty
+        ? safeMap(displayFeed["created_by"])
+        : safeMap(displayFeed["author"]);
+
+    final String apiUserName = (displayFeed["user_name"] ?? "").toString();
+
+    final String firstName = (user["first_name"] ?? "").toString();
+    final String lastName = (user["last_name"] ?? "").toString();
+
+    final String fullName = "$firstName $lastName".trim();
+
+    final String userName = apiUserName.isNotEmpty
+        ? apiUserName
+        : fullName.isNotEmpty
+        ? fullName
+        : "MySkates User";
+
+    final String profile =
+        (displayFeed["profile"] ??
+                user["profile"] ??
+                user["profile_image"] ??
+                "")
+            .toString();
+
+    final String description = (displayFeed["description"] ?? "")
+        .toString()
+        .trim();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withOpacity(0.13),
+                  Colors.white.withOpacity(0.055),
+                  const Color(0xFF003E38).withOpacity(0.30),
+                ],
+              ),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.13),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (isRepostFeed)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2EE6A6).withOpacity(0.10),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: const Color(0xFF2EE6A6).withOpacity(0.25),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.repeat,
+                                size: 15,
+                                color: Color(0xFF2EE6A6),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                "${feed["reposted_by"]?["first_name"] ?? "Someone"} reposted this",
+                                style: const TextStyle(
+                                  color: Color(0xFFBFFFEF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF2EE6A6), Color(0xFF00AFA5)],
+                              ),
+                            ),
+                            child: CircleAvatar(
+                              radius: 23,
+                              backgroundColor: Colors.black,
+                              backgroundImage: profile.isNotEmpty
+                                  ? NetworkImage(
+                                      profile.startsWith("http")
+                                          ? profile
+                                          : "$api$profile",
+                                    )
+                                  : const AssetImage("lib/assets/img.jpg")
+                                        as ImageProvider,
+                            ),
+                          ),
+                          const SizedBox(width: 11),
+
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  userName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.public,
+                                      size: 12,
+                                      color: Colors.white.withOpacity(0.48),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      "Shared on MySkates",
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.48),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          Container(
+                            height: 34,
+                            width: 34,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.10),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.more_horiz,
+                              color: Colors.white70,
+                              size: 20,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      if (description.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          description,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.82),
+                            fontSize: 13.5,
+                            height: 1.45,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                if (images.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    height: 235,
+                    child: PageView.builder(
+                      itemCount: images.length,
+                      itemBuilder: (context, imgIndex) {
+                        final imgData = images[imgIndex];
+
+                        final String img = imgData is Map
+                            ? (imgData["image"] ?? "").toString()
+                            : imgData.toString();
+
+                        final String imageUrl = img.startsWith("http")
+                            ? img
+                            : "$api$img";
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                debugPrint("POST IMAGE CLICKED: $imageUrl");
+                                showHomeFeedImagePopup(context, imageUrl);
+                              },
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Image.network(
+                                    imageUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) {
+                                      return Container(
+                                        color: Colors.white10,
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.broken_image,
+                                            color: Colors.white54,
+                                            size: 34,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+
+                                  Positioned.fill(
+                                    child: IgnorePointer(
+                                      ignoring: true,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Colors.transparent,
+                                              Colors.black.withOpacity(0.18),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 12),
+
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.22),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: Colors.white.withOpacity(0.08)),
+                    ),
+                    child: Row(
+                      children: [
+                        InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => toggleHomeFeedLike(actualFeedId),
+                          child: _feedActionButton(
+                            icon: isLiked
+                                ? Icons.thumb_up
+                                : Icons.thumb_up_alt_outlined,
+                            count: likeCount,
+                            active: isLiked,
+                          ),
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => toggleHomeFeedRepost(actualFeedId),
+                          child: _feedActionButton(
+                            icon: isReposted
+                                ? Icons.repeat
+                                : Icons.repeat_outlined,
+                            count: repostCount,
+                            active: isReposted,
+                          ),
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () async {
+                            await showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) =>
+                                  FeedCommentsSheet(feedId: actualFeedId),
+                            );
+
+                            fetchHomeFeeds();
+                          },
+                          child: _feedActionButton(
+                            icon: Icons.chat_bubble_outline,
+                            count: commentCount,
+                            active: false,
+                          ),
+                        ),
+
+                        const Spacer(),
+
+                        InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => shareHomeFeed(displayFeed, actualFeedId),
+                          child: Container(
+                            height: 36,
+                            width: 36,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.10),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.share_outlined,
+                              color: Colors.white70,
+                              size: 19,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ],
-    ),
-  );
-}
+      ),
+    );
+  }
+
+  Widget _feedActionButton({
+    required IconData icon,
+    required int count,
+    required bool active,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: active
+            ? const Color(0xFF2EE6A6).withOpacity(0.13)
+            : Colors.white.withOpacity(0.055),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: active
+              ? const Color(0xFF2EE6A6).withOpacity(0.35)
+              : Colors.white.withOpacity(0.08),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: active ? const Color(0xFF2EE6A6) : Colors.white70,
+            size: 19,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            "$count",
+            style: TextStyle(
+              color: active ? const Color(0xFF2EE6A6) : Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> toggleEventLike(int eventId) async {
     final token = await getToken();
@@ -2149,78 +2139,86 @@ Widget _feedActionButton({
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      if (banner.isNotEmpty) ...[
-  Container(
-    height: 160,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(14),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.25),
-          blurRadius: 8,
-          offset: const Offset(0, 4),
-        ),
-      ],
-    ),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: FlutterCarousel(
-        options: CarouselOptions(
-          height: 160,
-          autoPlay: true,
-          autoPlayInterval: const Duration(seconds: 3),
-          viewportFraction: 1,
-          showIndicator: true,
-          slideIndicator: CircularSlideIndicator(),
-        ),
-        items: banner.map((item) {
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: Image.network(
-                  item["image"] ?? "",
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, progress) {
-                    if (progress == null) return child;
-                    return Container(
-                      color: Colors.grey.shade900,
-                      alignment: Alignment.center,
-                      child: const CircularProgressIndicator(),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: Colors.black,
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.broken_image,
-                      color: Colors.white54,
-                      size: 40,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.6),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        }).toList(),
-      ),
-    ),
-  ),
-  const SizedBox(height: 22),
-],
+                          if (banner.isNotEmpty) ...[
+                            Container(
+                              height: 160,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.25),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: FlutterCarousel(
+                                  options: CarouselOptions(
+                                    height: 160,
+                                    autoPlay: true,
+                                    autoPlayInterval: const Duration(
+                                      seconds: 3,
+                                    ),
+                                    viewportFraction: 1,
+                                    showIndicator: true,
+                                    slideIndicator: CircularSlideIndicator(),
+                                  ),
+                                  items: banner.map((item) {
+                                    return Stack(
+                                      children: [
+                                        Positioned.fill(
+                                          child: Image.network(
+                                            item["image"] ?? "",
+                                            fit: BoxFit.cover,
+                                            loadingBuilder:
+                                                (context, child, progress) {
+                                                  if (progress == null)
+                                                    return child;
+                                                  return Container(
+                                                    color: Colors.grey.shade900,
+                                                    alignment: Alignment.center,
+                                                    child:
+                                                        const CircularProgressIndicator(),
+                                                  );
+                                                },
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    Container(
+                                                      color: Colors.black,
+                                                      alignment:
+                                                          Alignment.center,
+                                                      child: const Icon(
+                                                        Icons.broken_image,
+                                                        color: Colors.white54,
+                                                        size: 40,
+                                                      ),
+                                                    ),
+                                          ),
+                                        ),
+                                        Positioned.fill(
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  Colors.transparent,
+                                                  Colors.black.withOpacity(0.6),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 22),
+                          ],
                           const SizedBox(height: 22),
 
                           const Text(
@@ -2242,232 +2240,239 @@ Widget _feedActionButton({
 
                           const SizedBox(height: 25),
 
-                         if (clubs.isEmpty && !noData) ...[
-  const Text(
-    "Recommended Clubs near you",
-    style: TextStyle(
-      color: Colors.white,
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
-    ),
-  ),
-  const SizedBox(height: 10),
-  _buildClubShimmer(),
-  const SizedBox(height: 25),
-] else if (clubs.isNotEmpty) ...[
-  const Text(
-    "Recommended Clubs near you",
-    style: TextStyle(
-      color: Colors.white,
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
-    ),
-  ),
-  const SizedBox(height: 10),
-  SizedBox(
-    height: MediaQuery.of(context).size.height * 0.22,
-    child: ListView.builder(
-      scrollDirection: Axis.horizontal,
-      itemCount: clubs.length,
-      itemBuilder: (_, i) => Padding(
-        padding: const EdgeInsets.only(right: 12),
-        child: buildClubCardFromApi(
-          clubs[i],
-          onJoinClub: sendClubJoinRequest,
-          onLeaveClub: leaveClub,
-          context: context,
-        ),
-      ),
-    ),
-  ),
-  const SizedBox(height: 25),
-],
+                          if (clubs.isEmpty && !noData) ...[
+                            const Text(
+                              "Recommended Clubs near you",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            _buildClubShimmer(),
+                            const SizedBox(height: 25),
+                          ] else if (clubs.isNotEmpty) ...[
+                            const Text(
+                              "Recommended Clubs near you",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.22,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: clubs.length,
+                                itemBuilder: (_, i) => Padding(
+                                  padding: const EdgeInsets.only(right: 12),
+                                  child: buildClubCardFromApi(
+                                    clubs[i],
+                                    onJoinClub: sendClubJoinRequest,
+                                    onLeaveClub: leaveClub,
+                                    context: context,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 25),
+                          ],
 
-                      if (trainingLoading) ...[
-  const Text(
-    "Upcoming Training Sessions",
-    style: TextStyle(color: Colors.white, fontSize: 14),
-  ),
-  const SizedBox(height: 15),
-  _buildTrainingShimmer(),
-  const SizedBox(height: 25),
-] else if (!trainingNoData && trainingSessions.isNotEmpty) ...[
-  const Text(
-    "Upcoming Training Sessions",
-    style: TextStyle(color: Colors.white, fontSize: 14),
-  ),
-  const SizedBox(height: 15),
-  Column(
-    children: trainingSessions.map((session) {
-      final images = session['images'] as List? ?? [];
-      String imageUrl = images.isNotEmpty ? "$api${images[0]['image']}" : "";
+                          if (trainingLoading) ...[
+                            const Text(
+                              "Upcoming Training Sessions",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            _buildTrainingShimmer(),
+                            const SizedBox(height: 25),
+                          ] else if (!trainingNoData &&
+                              trainingSessions.isNotEmpty) ...[
+                            const Text(
+                              "Upcoming Training Sessions",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            Column(
+                              children: trainingSessions.map((session) {
+                                final images = session['images'] as List? ?? [];
+                                String imageUrl = images.isNotEmpty
+                                    ? "$api${images[0]['image']}"
+                                    : "";
 
-      return buildTrainingSessionRow(
-        trainingId: session['id'],
-        title: session['title'] ?? "",
-        note: session['note'] ?? "",
-        location: session['location'] ?? "",
-        startDate: session['start_date'] ?? "",
-        endDate: session['end_date'] ?? "",
-        startTime: session['start_time'] ?? "",
-        endTime: session['end_time'] ?? "",
-        imageUrl: imageUrl,
-        isRegistered: registeredTrainingIds.contains(session['id']),
-        onRegister: () {
-          confirmRegister(session['id']);
-        },
-      );
-    }).toList(),
-  ),
-  const SizedBox(height: 25),
-],
-if (!homeFeedsNoData || homeFeedsLoading) ...[
-  buildHomeFeedsSection(),
-  const SizedBox(height: 25),
-],
-                     if (eventsLoading) ...[
-  const Text(
-    "Upcoming Events",
-    style: TextStyle(
-      color: Colors.white,
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
-    ),
-  ),
-  const SizedBox(height: 12),
-  _buildEventShimmer(),
-  const SizedBox(height: 12),
-] else if (!eventsNoData && events.isNotEmpty) ...[
-  const Text(
-    "Upcoming Events",
-    style: TextStyle(
-      color: Colors.white,
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
-    ),
-  ),
-  const SizedBox(height: 12),
-  Column(
-    children: events.map((event) {
-      final images = event["images"] as List? ?? [];
+                                return buildTrainingSessionRow(
+                                  trainingId: session['id'],
+                                  title: session['title'] ?? "",
+                                  note: session['note'] ?? "",
+                                  location: session['location'] ?? "",
+                                  startDate: session['start_date'] ?? "",
+                                  endDate: session['end_date'] ?? "",
+                                  startTime: session['start_time'] ?? "",
+                                  endTime: session['end_time'] ?? "",
+                                  imageUrl: imageUrl,
+                                  isRegistered: registeredTrainingIds.contains(
+                                    session['id'],
+                                  ),
+                                  onRegister: () {
+                                    confirmRegister(session['id']);
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 25),
+                          ],
+                          if (!homeFeedsNoData || homeFeedsLoading) ...[
+                            buildHomeFeedsSection(),
+                            const SizedBox(height: 25),
+                          ],
+                          if (eventsLoading) ...[
+                            const Text(
+                              "Upcoming Events",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _buildEventShimmer(),
+                            const SizedBox(height: 12),
+                          ] else if (!eventsNoData && events.isNotEmpty) ...[
+                            const Text(
+                              "Upcoming Events",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Column(
+                              children: events.map((event) {
+                                final images = event["images"] as List? ?? [];
 
-      String image1 = images.isNotEmpty
-          ? "$api${images[0]['image']}"
-          : "lib/assets/skating1.jpg";
+                                String image1 = images.isNotEmpty
+                                    ? "$api${images[0]['image']}"
+                                    : "lib/assets/skating1.jpg";
 
-      String image2 = images.length > 1
-          ? "$api${images[1]['image']}"
-          : image1;
+                                String image2 = images.length > 1
+                                    ? "$api${images[1]['image']}"
+                                    : image1;
 
-      return buildEventCardWithImages(
-        clubName: event["club_name"] ?? "Skating Club",
-        clubImage: event["club_image"] ?? "",
-        location: event["note"] ?? "",
-        title: event["title"] ?? "",
-        image1: image1,
-        image2: image2,
-        description: event["description"] ?? "",
-        fromDate: event["from_date"] ?? "",
-        toDate: event["to_date"] ?? "",
-        icon: Icons.thumb_up_alt_outlined,
-        eventId: event["id"],
-        likesCount: event["likes_count"] ?? 0,
-        isLiked: event["is_liked"] ?? false,
-        onLike: toggleEventLike,
-      );
-    }).toList(),
-  ),
-  const SizedBox(height: 12),
-],
+                                return buildEventCardWithImages(
+                                  clubName:
+                                      event["club_name"] ?? "Skating Club",
+                                  clubImage: event["club_image"] ?? "",
+                                  location: event["note"] ?? "",
+                                  title: event["title"] ?? "",
+                                  image1: image1,
+                                  image2: image2,
+                                  description: event["description"] ?? "",
+                                  fromDate: event["from_date"] ?? "",
+                                  toDate: event["to_date"] ?? "",
+                                  icon: Icons.thumb_up_alt_outlined,
+                                  eventId: event["id"],
+                                  likesCount: event["likes_count"] ?? 0,
+                                  isLiked: event["is_liked"] ?? false,
+                                  onLike: toggleEventLike,
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
 
-                         if (!followLoaded || coachesLoading) ...[
-  const Text(
-    "Suggested Coaches",
-    style: TextStyle(
-      color: Colors.white,
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
-    ),
-  ),
-  const SizedBox(height: 15),
-  SizedBox(
-    height: 210,
-    child: _buildCoachShimmer(),
-  ),
-  const SizedBox(height: 20),
-] else if (!coachesNoData && coaches.isNotEmpty) ...[
-  const Text(
-    "Suggested Coaches",
-    style: TextStyle(
-      color: Colors.white,
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
-    ),
-  ),
-  const SizedBox(height: 15),
-  SizedBox(
-    height: 210,
-    child: ListView.builder(
-      scrollDirection: Axis.horizontal,
-      itemCount: coaches.length,
-      itemBuilder: (_, i) => CoachFollowCard(
-        coach: coaches[i],
-        onFollow: sendFollowRequest,
-        onCancelPending: cancelPendingRequest,
-        onUnfollow: unfollowCoach,
-        myFollowing: myFollowing,
-        myRequests: myRequests,
-        myApprovedSent: myApprovedSent,
-        refreshParent: () => setState(() {}),
-      ),
-    ),
-  ),
-  const SizedBox(height: 20),
-],
+                          if (!followLoaded || coachesLoading) ...[
+                            const Text(
+                              "Suggested Coaches",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            SizedBox(height: 210, child: _buildCoachShimmer()),
+                            const SizedBox(height: 20),
+                          ] else if (!coachesNoData && coaches.isNotEmpty) ...[
+                            const Text(
+                              "Suggested Coaches",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            SizedBox(
+                              height: 210,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: coaches.length,
+                                itemBuilder: (_, i) => CoachFollowCard(
+                                  coach: coaches[i],
+                                  onFollow: sendFollowRequest,
+                                  onCancelPending: cancelPendingRequest,
+                                  onUnfollow: unfollowCoach,
+                                  myFollowing: myFollowing,
+                                  myRequests: myRequests,
+                                  myApprovedSent: myApprovedSent,
+                                  refreshParent: () => setState(() {}),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
 
-                  if (studentsLoading) ...[
-  const Text(
-    "Suggested Students",
-    style: TextStyle(
-      color: Colors.white,
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
-    ),
-  ),
-  const SizedBox(height: 15),
-  SizedBox(
-    height: 210,
-    child: _buildCoachShimmer(),
-  ),
-] else if (!studentsNoData && students.isNotEmpty) ...[
-  const Text(
-    "Suggested Studentsss",
-    style: TextStyle(
-      color: Colors.white,
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
-    ),
-  ),
-  const SizedBox(height: 15),
-  SizedBox(
-    height: 210,
-    child: ListView.builder(
-      scrollDirection: Axis.horizontal,
-      itemCount: students.length,
-      itemBuilder: (_, i) => StudentFollowCard(
-        student: students[i],
-        myFollowing: myFollowing,
-        myRequests: myRequests,
-        myApprovedSent: myApprovedSent,
-        onFollow: sendFollowRequest,
-        onCancelPending: cancelPendingRequest,
-        onUnfollow: unfollowCoach,
-        refreshParent: () => setState(() {}),
-      ),
-    ),
-  ),
-],
-                      ],
+                          if (studentsLoading) ...[
+                            const Text(
+                              "Suggested Students",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            SizedBox(height: 210, child: _buildCoachShimmer()),
+                          ] else if (!studentsNoData &&
+                              students.isNotEmpty) ...[
+                            const Text(
+                              "Suggested Studentsss",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            SizedBox(
+                              height: 210,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: students.length,
+                                itemBuilder: (_, i) => StudentFollowCard(
+                                  student: students[i],
+                                  myFollowing: myFollowing,
+                                  myRequests: myRequests,
+                                  myApprovedSent: myApprovedSent,
+                                  onFollow: sendFollowRequest,
+                                  onCancelPending: cancelPendingRequest,
+                                  onUnfollow: unfollowCoach,
+                                  refreshParent: () => setState(() {}),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ),
@@ -3670,4 +3675,321 @@ Widget _imagePlaceholder() {
     alignment: Alignment.center,
     child: const Icon(Icons.image, color: Colors.white38, size: 28),
   );
+}
+
+class RepostCommentSheet extends StatefulWidget {
+  final int feedId;
+  final bool isAlreadyReposted;
+  final Function onRepostSuccess;
+
+  const RepostCommentSheet({
+    super.key,
+    required this.feedId,
+    required this.isAlreadyReposted,
+    required this.onRepostSuccess,
+  });
+
+  @override
+  State<RepostCommentSheet> createState() => _RepostCommentSheetState();
+}
+
+class _RepostCommentSheetState extends State<RepostCommentSheet> {
+  final TextEditingController _commentController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitRepost() async {
+    final comment = _commentController.text.trim();
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Authentication token missing"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      http.Response response;
+
+      if (widget.isAlreadyReposted) {
+        // Delete the repost
+        // First get the repost ID (you might need to fetch it from somewhere)
+        // For now, we'll assume your API supports DELETE without repost ID
+        response = await http.delete(
+          Uri.parse("$api/api/myskates/feeds/repost/${widget.feedId}/"),
+          headers: {
+            "Authorization": "Bearer $token",
+            "Content-Type": "application/json",
+          },
+        );
+      } else {
+        // Create new repost with optional comment
+        final body = <String, dynamic>{};
+        if (comment.isNotEmpty) {
+          body['text'] = comment;
+        }
+
+        response = await http.post(
+          Uri.parse("$api/api/myskates/feeds/repost/${widget.feedId}/"),
+          headers: {
+            "Authorization": "Bearer $token",
+            "Content-Type": "application/json",
+          },
+          body: comment.isNotEmpty ? jsonEncode(body) : null,
+        );
+      }
+
+      print("REPOST STATUS: ${response.statusCode}");
+      print("REPOST RESPONSE: ${response.body}");
+
+      if (response.statusCode == 200 ||
+          response.statusCode == 201 ||
+          response.statusCode == 204) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                widget.isAlreadyReposted
+                    ? "Repost removed"
+                    : "Reposted successfully",
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context);
+          widget.onRepostSuccess();
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "Failed to ${widget.isAlreadyReposted ? 'remove repost' : 'repost'}: ${response.statusCode}",
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print("REPOST ERROR: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Title
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Icon(
+                  widget.isAlreadyReposted ? Icons.repeat : Icons.repeat,
+                  color: const Color(0xFF2EE6A6),
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  widget.isAlreadyReposted
+                      ? "Remove Repost"
+                      : "Repost with Comment",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Comment input (only show for new repost)
+          if (!widget.isAlreadyReposted) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                ),
+                child: TextField(
+                  controller: _commentController,
+                  maxLines: 3,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: "Add a comment to your repost...",
+                    hintStyle: TextStyle(
+                      color: Colors.white.withOpacity(0.4),
+                      fontSize: 14,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.all(16),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                "You can add a comment to share your thoughts. This will appear along with your repost.",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.4),
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ] else ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                "Are you sure you want to remove this repost?",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 24),
+
+          // Action buttons
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+            child: Row(
+              children: [
+                // Cancel button
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            Navigator.pop(context);
+                          },
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.white.withOpacity(0.3)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      "Cancel",
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Submit button
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _submitRepost,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: widget.isAlreadyReposted
+                          ? Colors.redAccent
+                          : const Color(0xFF2EE6A6),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      elevation: 0,
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.black,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                widget.isAlreadyReposted
+                                    ? Icons.delete
+                                    : Icons.repeat,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                widget.isAlreadyReposted ? "Remove" : "Repost",
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

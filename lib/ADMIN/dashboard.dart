@@ -5,6 +5,7 @@ import 'package:my_skates/ADMIN/add_attributes.dart';
 import 'package:my_skates/ADMIN/add_banner.dart';
 import 'package:my_skates/ADMIN/add_category.dart';
 import 'package:my_skates/ADMIN/add_chat_support_questions.dart';
+import 'package:my_skates/ADMIN/add_company.dart';
 import 'package:my_skates/ADMIN/add_country.dart';
 import 'package:my_skates/ADMIN/add_coupon.dart';
 import 'package:my_skates/ADMIN/add_district.dart';
@@ -599,6 +600,13 @@ class _DashboardPageState extends State<DashboardPage> {
           title: "Payment\nMethod",
           onTap: () {
             pushWithSlide(const AdminPaymentMethodsPage());
+          },
+        ),
+        adminCard(
+          icon: Icons.chat,
+          title: "Company\nManagemnent",
+          onTap: () {
+            pushWithSlide(const AdminCompaniesPage());
           },
         ),
       ],
