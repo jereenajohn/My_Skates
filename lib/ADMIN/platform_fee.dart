@@ -36,6 +36,17 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
   String? _percentageError;
   bool _isPercentageEditing = false;
 
+  // ── Used Product Percentage ────────────────────────────────────────────────────
+  final TextEditingController _usedProductPercentageController =
+      TextEditingController();
+  final FocusNode _usedProductPercentageFocusNode = FocusNode();
+  String? _currentUsedProductPercentage;
+  int? _currentUsedProductPercentageId;
+  bool _isUsedProductPercentageLoading = true;
+  bool _isUsedProductPercentageSaving = false;
+  String? _usedProductPercentageError;
+  bool _isUsedProductPercentageEditing = false;
+
   // ── Convenience Fee ────────────────────────────────────────────────────────────
   final TextEditingController _convenienceController = TextEditingController();
   final FocusNode _convenienceFocusNode = FocusNode();
@@ -81,6 +92,7 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
 
     _fetchPlatformFee();
     _fetchProductPercentage();
+    _fetchUsedProductPercentage();
     _fetchConvenienceFee();
     _fetchShipmentCharge();
   }
@@ -91,6 +103,8 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
     _feeFocusNode.dispose();
     _percentageController.dispose();
     _percentageFocusNode.dispose();
+    _usedProductPercentageController.dispose();
+    _usedProductPercentageFocusNode.dispose();
     _convenienceController.dispose();
     _convenienceFocusNode.dispose();
     _lowChargeController.dispose();
@@ -217,6 +231,64 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
       setState(() {
         _percentageError = e.toString();
         _isPercentageLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchUsedProductPercentage() async {
+    setState(() {
+      _isUsedProductPercentageLoading = true;
+      _usedProductPercentageError = null;
+    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      if (token == null) {
+        setState(() {
+          _usedProductPercentageError = 'Authentication token missing';
+          _isUsedProductPercentageLoading = false;
+        });
+        return;
+      }
+      final response = await http.get(
+        Uri.parse('$api/api/myskates/used/product/percentage/view/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      print("USED PRODUCT PERCENTAGE GET STATUS: ${response.statusCode}");
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(response.body);
+        final dynamic rawData = jsonData['data'];
+        final Map<String, dynamic> payload =
+            rawData is List && rawData.isNotEmpty
+            ? Map<String, dynamic>.from(rawData[0])
+            : rawData is Map
+            ? Map<String, dynamic>.from(rawData)
+            : {};
+        _currentUsedProductPercentageId = payload['id'] as int?;
+        final dynamic rawPct = payload['used_product_percentage'];
+        final double pct = rawPct is num
+            ? rawPct.toDouble()
+            : double.tryParse(rawPct?.toString() ?? '0') ?? 0.0;
+        setState(() {
+          _currentUsedProductPercentage = pct.toStringAsFixed(2);
+          _usedProductPercentageController.text =
+              _currentUsedProductPercentage!;
+          _isUsedProductPercentageLoading = false;
+        });
+      } else {
+        setState(() {
+          _usedProductPercentageError =
+              'Failed to load used product percentage: ${response.statusCode}';
+          _isUsedProductPercentageLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _usedProductPercentageError = e.toString();
+        _isUsedProductPercentageLoading = false;
       });
     }
   }
@@ -470,6 +542,69 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
     }
   }
 
+  Future<void> _updateUsedProductPercentage() async {
+    final input = _usedProductPercentageController.text.trim();
+    if (input.isEmpty) {
+      _showSnackBar('Please enter a used product percentage', isError: true);
+      return;
+    }
+    final parsed = double.tryParse(input);
+    if (parsed == null || parsed < 0) {
+      _showSnackBar('Enter a valid non-negative number', isError: true);
+      return;
+    }
+    if (parsed > 100) {
+      _showSnackBar('Percentage cannot exceed 100%', isError: true);
+      return;
+    }
+    if (_currentUsedProductPercentageId == null) {
+      _showSnackBar(
+        'Unable to update: Used product percentage record ID not found',
+        isError: true,
+      );
+      return;
+    }
+    setState(() => _isUsedProductPercentageSaving = true);
+    _usedProductPercentageFocusNode.unfocus();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+      if (token == null) {
+        _showSnackBar('Authentication token missing', isError: true);
+        setState(() => _isUsedProductPercentageSaving = false);
+        return;
+      }
+      final response = await http.put(
+        Uri.parse(
+          '$api/api/myskates/used/product/percentage/detail/view/${_currentUsedProductPercentageId}/',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'used_product_percentage': parsed}),
+      );
+      print("USED PRODUCT PERCENTAGE PUT STATUS: ${response.statusCode}");
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        setState(() {
+          _isUsedProductPercentageSaving = false;
+          _isUsedProductPercentageEditing = false;
+        });
+        await _fetchUsedProductPercentage();
+        _showSnackBar('Used product percentage updated successfully');
+      } else {
+        setState(() => _isUsedProductPercentageSaving = false);
+        _showSnackBar(
+          _extractError(response.body, response.statusCode),
+          isError: true,
+        );
+      }
+    } catch (e) {
+      setState(() => _isUsedProductPercentageSaving = false);
+      _showSnackBar('Error: $e', isError: true);
+    }
+  }
+
   Future<void> _updateConvenienceFee() async {
     final input = _convenienceController.text.trim();
     if (input.isEmpty) {
@@ -544,7 +679,7 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
     final parsedLow = double.tryParse(lowInput);
     final parsedHigh = double.tryParse(highInput);
     final parsedThreshold = double.tryParse(thresholdInput);
-    
+
     if (parsedLow == null || parsedLow < 0) {
       _showSnackBar(
         'Enter a valid non-negative number for low charge',
@@ -601,9 +736,9 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
-          'low_charge': parsedLow, 
+          'low_charge': parsedLow,
           'high_charge': parsedHigh,
-          'threshold_amount': parsedThreshold
+          'threshold_amount': parsedThreshold,
         }),
       );
       print("SHIPMENT CHARGE PUT STATUS: ${response.statusCode}");
@@ -885,6 +1020,8 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
       highlightColor: const Color(0xFF2F4F4D),
       child: Column(
         children: [
+          _buildShimmerBlock(),
+          const SizedBox(height: 32),
           _buildShimmerBlock(),
           const SizedBox(height: 32),
           _buildShimmerBlock(),
@@ -1385,10 +1522,7 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
                 decoration: BoxDecoration(
                   color: accent.withOpacity(0.07),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: accent.withOpacity(0.22),
-                    width: 1,
-                  ),
+                  border: Border.all(color: accent.withOpacity(0.22), width: 1),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1461,10 +1595,7 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
                 decoration: BoxDecoration(
                   color: accent.withOpacity(0.07),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: accent.withOpacity(0.22),
-                    width: 1,
-                  ),
+                  border: Border.all(color: accent.withOpacity(0.22), width: 1),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1537,10 +1668,7 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
                 decoration: BoxDecoration(
                   color: accent.withOpacity(0.07),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: accent.withOpacity(0.22),
-                    width: 1,
-                  ),
+                  border: Border.all(color: accent.withOpacity(0.22), width: 1),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1717,8 +1845,7 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
                             RegExp(r'^\d*\.?\d{0,2}'),
                           ),
                         ],
-                        onTap: () =>
-                            setState(() => _isShipmentEditing = true),
+                        onTap: () => setState(() => _isShipmentEditing = true),
                         onChanged: (_) =>
                             setState(() => _isShipmentEditing = true),
                         style: const TextStyle(
@@ -1824,8 +1951,7 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
                             RegExp(r'^\d*\.?\d{0,2}'),
                           ),
                         ],
-                        onTap: () =>
-                            setState(() => _isShipmentEditing = true),
+                        onTap: () => setState(() => _isShipmentEditing = true),
                         onChanged: (_) =>
                             setState(() => _isShipmentEditing = true),
                         style: const TextStyle(
@@ -1931,8 +2057,7 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
                             RegExp(r'^\d*\.?\d{0,2}'),
                           ),
                         ],
-                        onTap: () =>
-                            setState(() => _isShipmentEditing = true),
+                        onTap: () => setState(() => _isShipmentEditing = true),
                         onChanged: (_) =>
                             setState(() => _isShipmentEditing = true),
                         style: const TextStyle(
@@ -2081,6 +2206,7 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
     final bool anyLoading =
         _isFeeLoading ||
         _isPercentageLoading ||
+        _isUsedProductPercentageLoading ||
         $_isConvenienceLoading ||
         _isShipmentLoading;
 
@@ -2127,6 +2253,7 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
                         onPressed: () {
                           _fetchPlatformFee();
                           _fetchProductPercentage();
+                          _fetchUsedProductPercentage();
                           _fetchConvenienceFee();
                           _fetchShipmentCharge();
                         },
@@ -2241,6 +2368,63 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
                                   const SizedBox(height: 12),
                                   _buildInfoNote(
                                     'The product percentage is applied to product pricing calculations. Must be between 0% and 100%. Changes take effect immediately.',
+                                    Colors.tealAccent,
+                                  ),
+                                ],
+
+                                const SizedBox(height: 32),
+
+                                // ── Used Product Percentage ────────────────────
+                                _buildDivider('USED PRODUCT PERCENTAGE'),
+                                const SizedBox(height: 12),
+                                if (_usedProductPercentageError != null)
+                                  _buildSectionError(
+                                    _usedProductPercentageError!,
+                                    _fetchUsedProductPercentage,
+                                  )
+                                else ...[
+                                  _buildCurrentCard(
+                                    label: 'Current Used Product Percentage',
+                                    value: _currentUsedProductPercentage,
+                                    accent: Colors.tealAccent,
+                                    icon: Icons.recycling_rounded,
+                                    subLabel:
+                                        'Applied as a percentage on used product pricing',
+                                    isPercentage: true,
+                                  ),
+                                  const SizedBox(height: 20),
+                                  _buildEditCard(
+                                    title: 'Update Used Product Percentage',
+                                    inputHint:
+                                        'Enter the new percentage value (0–100)',
+                                    accent: Colors.tealAccent,
+                                    controller:
+                                        _usedProductPercentageController,
+                                    focusNode: _usedProductPercentageFocusNode,
+                                    isSaving: _isUsedProductPercentageSaving,
+                                    isEditing: _isUsedProductPercentageEditing,
+                                    currentValue: _currentUsedProductPercentage,
+                                    onSave: _updateUsedProductPercentage,
+                                    onReset: () {
+                                      _usedProductPercentageController.text =
+                                          _currentUsedProductPercentage!;
+                                      _usedProductPercentageFocusNode.unfocus();
+                                      setState(
+                                        () => _isUsedProductPercentageEditing =
+                                            false,
+                                      );
+                                    },
+                                    onTapOrChange: () => setState(
+                                      () => _isUsedProductPercentageEditing =
+                                          true,
+                                    ),
+                                    buttonLabel:
+                                        'Update Used Product Percentage',
+                                    isPercentage: true,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildInfoNote(
+                                    'The used product percentage is applied to used product pricing calculations. Must be between 0% and 100%. Changes take effect immediately.',
                                     Colors.tealAccent,
                                   ),
                                 ],
