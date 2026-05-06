@@ -14,6 +14,7 @@ import 'package:my_skates/ADMIN/add_product.dart';
 import 'package:my_skates/ADMIN/add_state.dart';
 import 'package:my_skates/ADMIN/admin_notificationpage.dart';
 import 'package:my_skates/ADMIN/admin_orders_page.dart';
+import 'package:my_skates/ADMIN/admin_usedproducts.dart';
 import 'package:my_skates/ADMIN/approved_products.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/menu.dart';
@@ -920,6 +921,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       buildButton("Approve Products"),
                       buildButton("Orders"),
                       buildButton("Buy and Sell products"),
+                      buildButton("Used Products"),
 
                       const SizedBox(height: 20),
 
@@ -1039,6 +1041,9 @@ class _DashboardPageState extends State<DashboardPage> {
           }
           if (title == "Orders") {
             pushWithSlide(const Admin_order_page());
+          }
+          if (title == "Used Products") {
+            pushWithSlide(const UsedProductOrdersPage());
           }
         },
         child: Text(
