@@ -76,6 +76,7 @@ dev_dependencies:
   custom_refresh_indicator: ^4.0.1
   # dropdown_search: ^6.0.2
   dropdown_button2: ^3.0.0
+  webview_flutter: ^4.7.0
   
   
 
