@@ -538,7 +538,7 @@ class CoachFeedProvider extends ChangeNotifier {
         );
 
         return {
-          "id": "repost_${item["id"]}", // unique UI-safe ID
+          "id": "repost_${item["id"]}", 
           "is_repost": true,
           "repost_id": item["id"],
           "created_at": item["created_at"],

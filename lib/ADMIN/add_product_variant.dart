@@ -110,6 +110,7 @@ class _variantState extends State<variant> {
             'discount': v['discount'],
             'stock': v['stock'],
             'attribute_values': v['attribute_values'],
+            'approval_status': v['approval_status'],
             'image':
                 (v['images'] != null &&
                     v['images'] is List &&
@@ -157,6 +158,7 @@ class _variantState extends State<variant> {
             'name': item['name'],
             'attribute_id': item['attributes'].toString(),
             'attribute_name': item['attribute_name'],
+            'approval_status': item['approval_status'],
           };
 
           values.add(valueMap);
@@ -198,7 +200,11 @@ class _variantState extends State<variant> {
 
         for (var productData in productsData) {
           String imageUrl = "${productData['image']}";
-          statelist.add({'id': productData['id'], 'name': productData['name']});
+          statelist.add({
+            'id': productData['id'],
+            'name': productData['name'],
+            'approval_status': productData['approval_status'],
+          });
         }
         setState(() {
           attributes = statelist;
@@ -669,9 +675,26 @@ class _variantState extends State<variant> {
             ),
           ),
 
-          Text(
-            "Stock: ${v['stock']}",
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Stock: ${v['stock']}",
+                style: const TextStyle(color: Colors.white60, fontSize: 12),
+              ),
+              Text(
+                "${v['approval_status']}",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: v['approval_status'] == 'approved'
+                      ? Colors.green
+                      : (v['approval_status'] == 'disapproved'
+                            ? Colors.red
+                            : Colors.tealAccent),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
         ],
       ),
