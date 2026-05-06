@@ -879,6 +879,8 @@ class _UsedProductDetailPageState extends State<UsedProductDetailPage> {
 List<Map<String, dynamic>> addresses = [];
 bool addressLoading = false;
 bool checkoutLoading = false;
+bool priceDetailsLoading = false;
+Map<String, dynamic>? usedProductPriceDetails;
 
 Map<String, dynamic>? selectedCheckoutAddress;
 String selectedPaymentMethod = "COD";
@@ -1110,6 +1112,69 @@ Future<void> fetchAddresses() async {
 
     setState(() {
       addressLoading = false;
+    });
+  }
+}
+
+
+Future<void> fetchUsedProductPriceDetails() async {
+  if (productDetail == null) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+
+  if (!mounted) return;
+
+  setState(() {
+    priceDetailsLoading = true;
+  });
+
+  try {
+    final productId = productDetail!["id"];
+
+    final response = await http.get(
+      Uri.parse("$api/api/myskates/used/product/price/details/$productId/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
+
+    print("USED PRODUCT PRICE DETAILS STATUS: ${response.statusCode}");
+    print("USED PRODUCT PRICE DETAILS BODY: ${response.body}");
+
+    if (!mounted) return;
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+
+      if (decoded is Map &&
+          decoded["success"] == true &&
+          decoded["data"] != null) {
+        setState(() {
+          usedProductPriceDetails = Map<String, dynamic>.from(decoded["data"]);
+          priceDetailsLoading = false;
+        });
+      } else {
+        setState(() {
+          usedProductPriceDetails = null;
+          priceDetailsLoading = false;
+        });
+      }
+    } else {
+      setState(() {
+        usedProductPriceDetails = null;
+        priceDetailsLoading = false;
+      });
+    }
+  } catch (e) {
+    debugPrint("Used product price details error: $e");
+
+    if (!mounted) return;
+
+    setState(() {
+      usedProductPriceDetails = null;
+      priceDetailsLoading = false;
     });
   }
 }
@@ -1398,10 +1463,12 @@ void _handleUsedProductExternalWallet(ExternalWalletResponse response) {
 }
 
 Future<void> _openCheckoutBottomSheet() async {
-  await fetchAddresses();
+  await Future.wait([
+    fetchAddresses(),
+    fetchUsedProductPriceDetails(),
+  ]);
 
   if (!mounted) return;
-
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -1534,7 +1601,9 @@ Future<void> _openCheckoutBottomSheet() async {
                           ),
 
                         const SizedBox(height: 18),
+_checkoutPriceDetailsCard(),
 
+const SizedBox(height: 18),
                         Row(
                           children: [
                             const Expanded(
@@ -2741,6 +2810,218 @@ Future<void> _openCheckoutBottomSheet() async {
       child: Divider(height: 1, color: Colors.white.withOpacity(0.08)),
     );
   }
+
+  Widget _checkoutPriceDetailsCard() {
+  if (priceDetailsLoading) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.055),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 14,
+            width: 130,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            height: 12,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            height: 12,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            height: 12,
+            width: 180,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  if (usedProductPriceDetails == null) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.045),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+        ),
+      ),
+      child: const Text(
+        "Price details unavailable",
+        style: TextStyle(
+          color: Colors.white60,
+          fontSize: 13,
+          fontFamily: 'Poppins',
+        ),
+      ),
+    );
+  }
+
+  final data = usedProductPriceDetails!;
+
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.055),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(
+        color: Colors.white.withOpacity(0.1),
+      ),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Price Details",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 15.5,
+            fontWeight: FontWeight.w800,
+            fontFamily: 'Poppins',
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        _checkoutPriceRow(
+          label: "Product Price",
+          value: "₹${data["price"]?.toString() ?? "0.00"}",
+        ),
+
+        _checkoutPriceRow(
+          label: "Discount (${data["discount_percentage"]?.toString() ?? "0"}%)",
+          value: "- ₹${data["discount_amount"]?.toString() ?? "0.00"}",
+          valueColor: Colors.greenAccent,
+        ),
+
+        _checkoutPriceRow(
+          label: "Subtotal",
+          value: "₹${data["total"]?.toString() ?? "0.00"}",
+        ),
+
+        // _checkoutPriceRow(
+        //   label: "Product Fee",
+        //   value: "₹${data["product_percentage"]?.toString() ?? "0.00"}",
+        // ),
+
+        _checkoutPriceRow(
+          label: "Platform Fee",
+          value: "₹${data["platform_fee"]?.toString() ?? "0.00"}",
+        ),
+
+        _checkoutPriceRow(
+          label: "Convenience Fee",
+          value: "₹${data["convenience_fee"]?.toString() ?? "0.00"}",
+        ),
+
+        _checkoutPriceRow(
+          label: "Shipment Charge",
+          value: "₹${data["shipment_charge"]?.toString() ?? "0.00"}",
+        ),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Divider(
+            height: 1,
+            color: Colors.white.withOpacity(0.12),
+          ),
+        ),
+
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                "Final Payable",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ),
+            Text(
+              "₹${data["final_payable"]?.toString() ?? "0.00"}",
+              style: const TextStyle(
+                color: Colors.tealAccent,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _checkoutPriceRow({
+  required String label,
+  required String value,
+  Color? valueColor,
+}) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white60,
+              fontSize: 13,
+              fontFamily: 'Poppins',
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          value,
+          textAlign: TextAlign.right,
+          style: TextStyle(
+            color: valueColor ?? Colors.white,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            fontFamily: 'Poppins',
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buyerSafetyCard() {
     return Container(
