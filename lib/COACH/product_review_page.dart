@@ -214,6 +214,8 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
           _isSubmitted = true;
           _hasExistingReview = true;
         });
+
+        Navigator.pop(context, true);
       } else {
         setState(() {
           _isLoading = false;
@@ -325,6 +327,8 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
           backgroundColor: Colors.green,
         ),
       );
+
+      Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -363,6 +367,8 @@ class _ProductReviewPageState extends State<ProductReviewPage> {
           backgroundColor: Colors.orange,
         ),
       );
+
+      Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
