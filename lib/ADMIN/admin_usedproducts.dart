@@ -349,7 +349,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
     );
   }
 
-  //───────────────────  Order Card 
+  //───────────────────  Order Card
 
   Widget _orderCard(UsedOrder order) {
     final statusColor = _statusColor(order.status);
@@ -607,7 +607,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
     );
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
+  // ── Build ────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -676,7 +676,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
 
                   const SizedBox(height: 12),
 
-                  // ── Body ─────────────────────────────────────────────────
+                  // ── Body ────────────────────────────────────────────────
                   Expanded(
                     child: _isLoading
                         ? ListView.builder(
@@ -721,7 +721,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
                 style: const TextStyle(color: Colors.redAccent, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
-              
+
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _fetchOrders,
@@ -750,7 +750,6 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
           padding: const EdgeInsets.all(36),
           child: const Column(
             children: [
-
               Icon(Icons.inventory_2_outlined, color: Colors.white24, size: 64),
               SizedBox(height: 16),
               Text(
