@@ -14,6 +14,9 @@ import 'package:my_skates/api.dart';
 import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:my_skates/ADMIN/order_failure_page.dart';
+import 'package:my_skates/ADMIN/order_success_page.dart';
 
 class UsedProducts extends StatefulWidget {
   const UsedProducts({super.key});
@@ -876,6 +879,8 @@ class _UsedProductDetailPageState extends State<UsedProductDetailPage> {
 List<Map<String, dynamic>> addresses = [];
 bool addressLoading = false;
 bool checkoutLoading = false;
+bool priceDetailsLoading = false;
+Map<String, dynamic>? usedProductPriceDetails;
 
 Map<String, dynamic>? selectedCheckoutAddress;
 String selectedPaymentMethod = "COD";
@@ -887,16 +892,42 @@ final List<String> paymentMethods = [
   "ONLINE",
 ];
 
+late Razorpay _razorpay;
+String? usedRazorpayOrderId;
+String? usedRazorpayPaymentId;
+String? usedRazorpaySignature;
+String? usedRazorpayAmount;
+String? usedBackendOrderId;
+String? usedOrderNo;
+
   @override
   void initState() {
     super.initState();
     fetchUsedProductDetail();
+
+    _razorpay = Razorpay();
+
+    _razorpay.on(
+      Razorpay.EVENT_PAYMENT_SUCCESS,
+      _handleUsedProductPaymentSuccess,
+    );
+
+    _razorpay.on(
+      Razorpay.EVENT_PAYMENT_ERROR,
+      _handleUsedProductPaymentError,
+    );
+
+    _razorpay.on(
+      Razorpay.EVENT_EXTERNAL_WALLET,
+      _handleUsedProductExternalWallet,
+    );
   }
 
 @override
 void dispose() {
   _imagePageController.dispose();
   checkoutNoteController.dispose();
+  _razorpay.clear();
   super.dispose();
 }
 
@@ -1085,8 +1116,73 @@ Future<void> fetchAddresses() async {
   }
 }
 
-Future<void> checkoutUsedProduct() async {
+
+Future<void> fetchUsedProductPriceDetails() async {
   if (productDetail == null) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
+
+  if (!mounted) return;
+
+  setState(() {
+    priceDetailsLoading = true;
+  });
+
+  try {
+    final productId = productDetail!["id"];
+
+    final response = await http.get(
+      Uri.parse("$api/api/myskates/used/product/price/details/$productId/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
+
+    print("USED PRODUCT PRICE DETAILS STATUS: ${response.statusCode}");
+    print("USED PRODUCT PRICE DETAILS BODY: ${response.body}");
+
+    if (!mounted) return;
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+
+      if (decoded is Map &&
+          decoded["success"] == true &&
+          decoded["data"] != null) {
+        setState(() {
+          usedProductPriceDetails = Map<String, dynamic>.from(decoded["data"]);
+          priceDetailsLoading = false;
+        });
+      } else {
+        setState(() {
+          usedProductPriceDetails = null;
+          priceDetailsLoading = false;
+        });
+      }
+    } else {
+      setState(() {
+        usedProductPriceDetails = null;
+        priceDetailsLoading = false;
+      });
+    }
+  } catch (e) {
+    debugPrint("Used product price details error: $e");
+
+    if (!mounted) return;
+
+    setState(() {
+      usedProductPriceDetails = null;
+      priceDetailsLoading = false;
+    });
+  }
+}
+
+Map<String, dynamic>? _buildUsedProductCheckoutBody({
+  required String paymentMethod,
+}) {
+  if (productDetail == null) return null;
 
   if (selectedCheckoutAddress == null) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1095,7 +1191,7 @@ Future<void> checkoutUsedProduct() async {
         backgroundColor: Colors.redAccent,
       ),
     );
-    return;
+    return null;
   }
 
   final address = selectedCheckoutAddress!;
@@ -1105,46 +1201,44 @@ Future<void> checkoutUsedProduct() async {
   final addressLine1 = _readAddressValue(address, ["address_line1", "address", "line1"]);
   final addressLine2 = _readAddressValue(address, ["address_line2", "landmark", "line2"]);
   final city = _readAddressValue(address, ["city"]);
-  final state = _readAddressValue(address, ["state"]);
+  final state = _readAddressValue(address, ["state", "state_name"]);
   final pincode = _readAddressValue(address, ["pincode", "pin_code", "zipcode"]);
-  final country = _readAddressValue(address, ["country"]);
+  final country = _readAddressValue(address, ["country", "country_name"]);
 
-  if (fullName.isEmpty ||
-      phone.isEmpty ||
-      addressLine1.isEmpty ||
-      city.isEmpty ||
-      state.isEmpty ||
-      pincode.isEmpty) {
+  if (fullName.isEmpty || phone.isEmpty || addressLine1.isEmpty || city.isEmpty || state.isEmpty || pincode.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("Selected address is incomplete"),
         backgroundColor: Colors.redAccent,
       ),
     );
-    return;
+    return null;
   }
 
-  setState(() {
-    checkoutLoading = true;
-  });
+  return {
+    "payment_method": paymentMethod,
+    "full_name": fullName,
+    "phone": phone,
+    "address_line1": addressLine1,
+    "address_line2": addressLine2,
+    "city": city,
+    "state": state,
+    "pincode": pincode,
+    "country": country.isNotEmpty ? country : "India",
+    "note": checkoutNoteController.text.trim(),
+    "product_id": productDetail!["id"],
+  };
+}
+
+Future<void> checkoutUsedProduct() async {
+  final body = _buildUsedProductCheckoutBody(paymentMethod: "COD");
+  if (body == null) return;
+
+  setState(() => checkoutLoading = true);
 
   try {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
-
-    final body = {
-      "product_id": productDetail!["id"],
-      "payment_method": selectedPaymentMethod,
-      "full_name": fullName,
-      "phone": phone,
-      "address_line1": addressLine1,
-      "address_line2": addressLine2,
-      "city": city,
-      "state": state,
-      "pincode": pincode,
-      "country": country.isNotEmpty ? country : "India",
-      "note": checkoutNoteController.text.trim(),
-    };
 
     final response = await http.post(
       Uri.parse("$api/api/myskates/used/product/checkout/"),
@@ -1155,68 +1249,226 @@ Future<void> checkoutUsedProduct() async {
       body: jsonEncode(body),
     );
 
-    print("USED PRODUCT CHECKOUT STATUS: ${response.statusCode}");
-    print("USED PRODUCT CHECKOUT BODY: ${response.body}");
+    print("USED PRODUCT COD CHECKOUT STATUS: ${response.statusCode}");
+    print("USED PRODUCT COD CHECKOUT BODY: ${response.body}");
 
     if (!mounted) return;
-
-    setState(() {
-      checkoutLoading = false;
-    });
+    setState(() => checkoutLoading = false);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       Navigator.pop(context);
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Order placed successfully"),
-          backgroundColor: Colors.teal,
-        ),
+        const SnackBar(content: Text("Order placed successfully"), backgroundColor: Colors.teal),
       );
-
       await fetchUsedProductDetail();
     } else {
       String message = "Checkout failed. Please try again.";
-
       try {
         final decoded = jsonDecode(response.body);
-        if (decoded is Map && decoded["message"] != null) {
-          message = decoded["message"].toString();
-        } else if (decoded is Map && decoded["error"] != null) {
-          message = decoded["error"].toString();
-        }
+        if (decoded is Map && decoded["message"] != null) message = decoded["message"].toString();
+        else if (decoded is Map && decoded["error"] != null) message = decoded["error"].toString();
+        else if (decoded is Map && decoded["detail"] != null) message = decoded["detail"].toString();
       } catch (_) {}
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.redAccent));
     }
   } catch (e) {
-    debugPrint("Used product checkout error: $e");
+    debugPrint("Used product COD checkout error: $e");
+    if (!mounted) return;
+    setState(() => checkoutLoading = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Something went wrong while placing order"), backgroundColor: Colors.redAccent),
+    );
+  }
+}
+
+Future<void> createUsedProductRazorpayOrder() async {
+  final body = _buildUsedProductCheckoutBody(paymentMethod: "ONLINE");
+  if (body == null) return;
+
+  setState(() => checkoutLoading = true);
+
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    final response = await http.post(
+      Uri.parse("$api/api/myskates/used/product/razorpay/create/order/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode(body),
+    );
+
+    print("USED PRODUCT RAZORPAY CREATE STATUS: ${response.statusCode}");
+    print("USED PRODUCT RAZORPAY CREATE BODY: ${response.body}");
 
     if (!mounted) return;
+    setState(() => checkoutLoading = false);
 
-    setState(() {
-      checkoutLoading = false;
-    });
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map && decoded["success"] == true && decoded["data"] != null) {
+        final data = decoded["data"];
+        usedBackendOrderId = data["order_id"]?.toString();
+        usedOrderNo = data["order_no"]?.toString();
+        usedRazorpayOrderId = data["razorpay_order_id"]?.toString();
+        usedRazorpayAmount = data["final_payable"]?.toString();
+        final int amount = int.tryParse(data["amount"]?.toString() ?? "0") ?? 0;
+        final String key = data["key"]?.toString() ?? "";
 
+        if (usedRazorpayOrderId == null || usedRazorpayOrderId!.isEmpty || amount <= 0 || key.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Invalid Razorpay order response"), backgroundColor: Colors.redAccent),
+          );
+          return;
+        }
+
+        Navigator.pop(context);
+        openUsedProductRazorpayCheckout(key: key, amount: amount, razorpayOrderId: usedRazorpayOrderId!);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Unable to create Razorpay order"), backgroundColor: Colors.redAccent),
+        );
+      }
+    } else {
+      String message = "Unable to create Razorpay order.";
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map && decoded["message"] != null) message = decoded["message"].toString();
+        else if (decoded is Map && decoded["error"] != null) message = decoded["error"].toString();
+        else if (decoded is Map && decoded["detail"] != null) message = decoded["detail"].toString();
+      } catch (_) {}
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.redAccent));
+    }
+  } catch (e) {
+    debugPrint("Used product Razorpay create error: $e");
+    if (!mounted) return;
+    setState(() => checkoutLoading = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Something went wrong while placing order"),
-        backgroundColor: Colors.redAccent,
+      const SnackBar(content: Text("Something went wrong while creating payment"), backgroundColor: Colors.redAccent),
+    );
+  }
+}
+
+void openUsedProductRazorpayCheckout({required String key, required int amount, required String razorpayOrderId}) {
+  final address = selectedCheckoutAddress;
+
+  final options = {
+    "key": key,
+    "amount": amount,
+    "name": "My Skates",
+    "description": productDetail?["title"]?.toString() ?? "Used Product Payment",
+    "order_id": razorpayOrderId,
+    "currency": "INR",
+    "timeout": 300,
+    "prefill": {
+      "contact": _readAddressValue(address ?? {}, ["phone", "mobile", "phone_number"]),
+      "email": _readAddressValue(address ?? {}, ["email"]),
+    },
+    "theme": {"color": "#00C2A8"},
+  };
+
+  try {
+    _razorpay.open(options);
+  } catch (e) {
+    debugPrint("Used product Razorpay open error: $e");
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Unable to open Razorpay: $e"), backgroundColor: Colors.redAccent));
+  }
+}
+
+Future<bool> verifyUsedProductRazorpayPayment({required String razorpayOrderId, required String razorpayPaymentId, required String razorpaySignature}) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    final response = await http.post(
+      Uri.parse("$api/api/myskates/used/product/razorpay/verify/payment/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "order_id": usedBackendOrderId,
+        "razorpay_order_id": razorpayOrderId,
+        "razorpay_payment_id": razorpayPaymentId,
+        "razorpay_signature": razorpaySignature,
+      }),
+    );
+
+    print("USED PRODUCT RAZORPAY VERIFY STATUS: ${response.statusCode}");
+    print("USED PRODUCT RAZORPAY VERIFY BODY: ${response.body}");
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map && (decoded["success"] == true || decoded["verified"] == true || decoded["status"] == "success")) return true;
+    }
+    return false;
+  } catch (e) {
+    debugPrint("Used product Razorpay verify error: $e");
+    return false;
+  }
+}
+
+void _handleUsedProductPaymentSuccess(PaymentSuccessResponse response) async {
+  usedRazorpayPaymentId = response.paymentId;
+  usedRazorpaySignature = response.signature;
+  setState(() => checkoutLoading = true);
+
+  final bool verified = await verifyUsedProductRazorpayPayment(
+    razorpayOrderId: response.orderId ?? usedRazorpayOrderId ?? "",
+    razorpayPaymentId: response.paymentId ?? "",
+    razorpaySignature: response.signature ?? "",
+  );
+
+  if (!mounted) return;
+  setState(() => checkoutLoading = false);
+
+  if (verified) {
+    await fetchUsedProductDetail();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OrderSuccessPage(
+          orderId: usedOrderNo ?? usedBackendOrderId ?? response.orderId ?? "",
+          paymentId: response.paymentId ?? "",
+          amount: usedRazorpayAmount ?? "",
+        ),
+      ),
+    );
+  } else {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentFailedPage(reason: "Payment verification failed", amount: usedRazorpayAmount ?? ""),
       ),
     );
   }
 }
 
+void _handleUsedProductPaymentError(PaymentFailureResponse response) {
+  setState(() => checkoutLoading = false);
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (_) => PaymentFailedPage(reason: response.message ?? "Payment cancelled or failed", amount: usedRazorpayAmount ?? ""),
+    ),
+  );
+}
+
+void _handleUsedProductExternalWallet(ExternalWalletResponse response) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text("Wallet selected: ${response.walletName}"), backgroundColor: Colors.teal),
+  );
+}
+
 Future<void> _openCheckoutBottomSheet() async {
-  await fetchAddresses();
+  await Future.wait([
+    fetchAddresses(),
+    fetchUsedProductPriceDetails(),
+  ]);
 
   if (!mounted) return;
-
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -1349,7 +1601,9 @@ Future<void> _openCheckoutBottomSheet() async {
                           ),
 
                         const SizedBox(height: 18),
+_checkoutPriceDetailsCard(),
 
+const SizedBox(height: 18),
                         Row(
                           children: [
                             const Expanded(
@@ -1650,7 +1904,12 @@ Future<void> _openCheckoutBottomSheet() async {
                     onPressed: checkoutLoading
                         ? null
                         : () async {
-                            await checkoutUsedProduct();
+                            if (selectedPaymentMethod == "COD") {
+                              await checkoutUsedProduct();
+                            } else {
+                              await createUsedProductRazorpayOrder();
+                            }
+
                             sheetSetState(() {});
                           },
                     style: ElevatedButton.styleFrom(
@@ -1672,9 +1931,11 @@ Future<void> _openCheckoutBottomSheet() async {
                               color: Colors.white,
                             ),
                           )
-                        : const Text(
-                            "Place Order",
-                            style: TextStyle(
+                        : Text(
+                            selectedPaymentMethod == "COD"
+                                ? "Place Order"
+                                : "Pay Now",
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
                               fontFamily: 'Poppins',
@@ -2549,6 +2810,218 @@ Future<void> _openCheckoutBottomSheet() async {
       child: Divider(height: 1, color: Colors.white.withOpacity(0.08)),
     );
   }
+
+  Widget _checkoutPriceDetailsCard() {
+  if (priceDetailsLoading) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.055),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 14,
+            width: 130,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            height: 12,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            height: 12,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            height: 12,
+            width: 180,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  if (usedProductPriceDetails == null) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.045),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+        ),
+      ),
+      child: const Text(
+        "Price details unavailable",
+        style: TextStyle(
+          color: Colors.white60,
+          fontSize: 13,
+          fontFamily: 'Poppins',
+        ),
+      ),
+    );
+  }
+
+  final data = usedProductPriceDetails!;
+
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.055),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(
+        color: Colors.white.withOpacity(0.1),
+      ),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Price Details",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 15.5,
+            fontWeight: FontWeight.w800,
+            fontFamily: 'Poppins',
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        _checkoutPriceRow(
+          label: "Product Price",
+          value: "₹${data["price"]?.toString() ?? "0.00"}",
+        ),
+
+        _checkoutPriceRow(
+          label: "Discount (${data["discount_percentage"]?.toString() ?? "0"}%)",
+          value: "- ₹${data["discount_amount"]?.toString() ?? "0.00"}",
+          valueColor: Colors.greenAccent,
+        ),
+
+        _checkoutPriceRow(
+          label: "Subtotal",
+          value: "₹${data["total"]?.toString() ?? "0.00"}",
+        ),
+
+        // _checkoutPriceRow(
+        //   label: "Product Fee",
+        //   value: "₹${data["product_percentage"]?.toString() ?? "0.00"}",
+        // ),
+
+        _checkoutPriceRow(
+          label: "Platform Fee",
+          value: "₹${data["platform_fee"]?.toString() ?? "0.00"}",
+        ),
+
+        _checkoutPriceRow(
+          label: "Convenience Fee",
+          value: "₹${data["convenience_fee"]?.toString() ?? "0.00"}",
+        ),
+
+        _checkoutPriceRow(
+          label: "Shipment Charge",
+          value: "₹${data["shipment_charge"]?.toString() ?? "0.00"}",
+        ),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Divider(
+            height: 1,
+            color: Colors.white.withOpacity(0.12),
+          ),
+        ),
+
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                "Final Payable",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ),
+            Text(
+              "₹${data["final_payable"]?.toString() ?? "0.00"}",
+              style: const TextStyle(
+                color: Colors.tealAccent,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _checkoutPriceRow({
+  required String label,
+  required String value,
+  Color? valueColor,
+}) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white60,
+              fontSize: 13,
+              fontFamily: 'Poppins',
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          value,
+          textAlign: TextAlign.right,
+          style: TextStyle(
+            color: valueColor ?? Colors.white,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            fontFamily: 'Poppins',
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buyerSafetyCard() {
     return Container(
