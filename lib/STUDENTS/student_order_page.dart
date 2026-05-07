@@ -1807,6 +1807,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   OrderItem? _selectedCancelItem;
   String? _selectedRefundRemark;
   String? _selectedReasonType;
+  String? _returnExchangeErrorMessage;
 
   final List<Map<String, String>> _refundRemarkOptions = [
     {'value': 'return', 'label': 'Return'},
@@ -2431,130 +2432,151 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     );
   }
 
-  void _resetReturnExchangeForm() {
-    _selectedReturnItem = widget.order.items.isNotEmpty
-        ? widget.order.items.first
-        : null;
-    _selectedRefundRemark = null;
-    _selectedReasonType = null;
-    _customReasonController.clear();
-    _isSubmittingReturnExchange = false;
+void _resetReturnExchangeForm() {
+  _selectedReturnItem = widget.order.items.isNotEmpty
+      ? widget.order.items.first
+      : null;
+  _selectedRefundRemark = null;
+  _selectedReasonType = null;
+  _customReasonController.clear();
+  _isSubmittingReturnExchange = false;
+  _returnExchangeErrorMessage = null;
+}
+
+Future<void> _submitReturnExchangeRequest(
+  StateSetter bottomSheetSetState,
+) async {
+  if (_selectedReturnItem == null) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Please select a product')));
+    return;
   }
 
-  Future<void> _submitReturnExchangeRequest(
-    StateSetter bottomSheetSetState,
-  ) async {
-    if (_selectedReturnItem == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please select a product')));
-      return;
-    }
+  if (_selectedRefundRemark == null || _selectedRefundRemark!.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please select return/exchange type')),
+    );
+    return;
+  }
 
-    if (_selectedRefundRemark == null || _selectedRefundRemark!.isEmpty) {
+  if (_selectedReasonType == null || _selectedReasonType!.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please select reason type')),
+    );
+    return;
+  }
+
+  final customReason = _customReasonController.text.trim();
+
+  if (_selectedReasonType == 'other' && customReason.isEmpty) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Please enter reason')));
+    return;
+  }
+
+bottomSheetSetState(() {
+  _isSubmittingReturnExchange = true;
+  _returnExchangeErrorMessage = null;
+});
+
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    if (token == null) {
+      bottomSheetSetState(() {
+        _isSubmittingReturnExchange = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select return/exchange type')),
+        const SnackBar(content: Text('Authentication token missing')),
       );
       return;
     }
 
-    if (_selectedReasonType == null || _selectedReasonType!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select reason type')),
-      );
-      return;
-    }
+    final Map<String, dynamic> requestBody = {
+      'item': _selectedReturnItem!.id,
+      'product': _selectedReturnItem!.product,
+      'remark': _selectedRefundRemark,
+      'reason_type': _selectedReasonType,
+      'reason': _selectedReasonType == 'other'
+          ? customReason
+          : _getRefundLabel(_selectedReasonType!, _refundReasonTypeOptions),
+    };
 
-    final customReason = _customReasonController.text.trim();
+    final response = await http.post(
+      Uri.parse('$api/api/myskates/msk/refund/'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(requestBody),
+    );
 
-    if (_selectedReasonType == 'other' && customReason.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please enter reason')));
-      return;
-    }
+    print("RETURN EXCHANGE API STATUS: ${response.statusCode}");
+    print("RETURN EXCHANGE REQUEST BODY: ${jsonEncode(requestBody)}");
+    print("RETURN EXCHANGE RESPONSE: ${response.body}");
 
-    bottomSheetSetState(() {
-      _isSubmittingReturnExchange = true;
-    });
+    Map<String, dynamic>? decoded;
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("access");
-
-      if (token == null) {
-        bottomSheetSetState(() {
-          _isSubmittingReturnExchange = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Authentication token missing')),
-        );
-        return;
+      final dynamic parsed = jsonDecode(response.body);
+      if (parsed is Map<String, dynamic>) {
+        decoded = parsed;
       }
+    } catch (_) {
+      decoded = null;
+    }
 
-      final Map<String, dynamic> requestBody = {
-        'item': _selectedReturnItem!.id,
-        'product': _selectedReturnItem!.product,
-        'remark': _selectedRefundRemark,
-        'reason_type': _selectedReasonType,
-        'reason': _selectedReasonType == 'other'
-            ? customReason
-            : _getRefundLabel(_selectedReasonType!, _refundReasonTypeOptions),
-      };
+    final bool apiStatus = decoded?['status'] == true;
 
-      final response = await http.post(
-        Uri.parse('$api/api/myskates/msk/refund/'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(requestBody),
+    final String responseMessage =
+        decoded?['message']?.toString() ??
+        decoded?['error']?.toString() ??
+        decoded?['detail']?.toString() ??
+        'Something went wrong';
+
+    if ((response.statusCode == 200 || response.statusCode == 201) &&
+        apiStatus) {
+      if (!mounted) return;
+
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(responseMessage.isNotEmpty
+              ? responseMessage
+              : 'Return/Exchange request submitted successfully'),
+          backgroundColor: Colors.green,
+        ),
       );
+    } else {
+      if (!mounted) return;
 
-      print("RETURN EXCHANGE API STATUS: ${response.statusCode}");
-      print("RETURN EXCHANGE REQUEST BODY: ${jsonEncode(requestBody)}");
-      print("RETURN EXCHANGE RESPONSE: ${response.body}");
+    bottomSheetSetState(() {
+  _returnExchangeErrorMessage = responseMessage;
+});
+    }
+  } catch (e) {
+    print("ERROR SUBMITTING RETURN EXCHANGE REQUEST: $e");
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (!mounted) return;
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Return/Exchange request submitted successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        String errorMessage = 'Failed to submit request';
+    if (!mounted) return;
 
-        try {
-          final decoded = jsonDecode(response.body);
-          if (decoded is Map) {
-            errorMessage =
-                decoded['message']?.toString() ??
-                decoded['error']?.toString() ??
-                decoded['detail']?.toString() ??
-                errorMessage;
-          }
-        } catch (_) {}
-
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(errorMessage)));
-      }
-    } catch (e) {
-      print("ERROR SUBMITTING RETURN EXCHANGE REQUEST: $e");
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
-    } finally {
-      if (mounted) {
-        bottomSheetSetState(() {
-          _isSubmittingReturnExchange = false;
-        });
-      }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error: $e'),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+  } finally {
+    if (mounted) {
+      bottomSheetSetState(() {
+        _isSubmittingReturnExchange = false;
+      });
     }
   }
+}
 
   Future<void> _showReturnExchangeBottomSheet() async {
     if (widget.order.items.isEmpty) {
@@ -2845,10 +2867,49 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                         ),
                       ],
                       const SizedBox(height: 22),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
+                    if (_returnExchangeErrorMessage != null &&
+    _returnExchangeErrorMessage!.trim().isNotEmpty) ...[
+  const SizedBox(height: 18),
+  Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.redAccent.withOpacity(0.12),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(
+        color: Colors.redAccent.withOpacity(0.35),
+      ),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(
+          Icons.error_outline,
+          color: Colors.redAccent,
+          size: 18,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            _returnExchangeErrorMessage!,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              height: 1.35,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    ),
+  ),
+],
+
+const SizedBox(height: 22),
+SizedBox(
+  width: double.infinity,
+  height: 52,
+  child: ElevatedButton(
                           onPressed: _isSubmittingReturnExchange
                               ? null
                               : () => _submitReturnExchangeRequest(
