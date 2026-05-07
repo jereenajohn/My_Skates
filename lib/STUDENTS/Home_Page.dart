@@ -136,10 +136,16 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // Future<void> loadEverything() async {
+  //   await fetchFollowStatus();
+  //   await fetchCoaches();
+  //   await fetchStudents();
+  //   setState(() {});
+  // }
+
   Future<void> loadEverything() async {
     await fetchFollowStatus();
-    await fetchCoaches();
-    await fetchStudents();
+    await Future.wait([fetchCoaches(), fetchStudents()]);
     setState(() {});
   }
 
@@ -1230,43 +1236,133 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // Future<void> fetchFollowStatus() async {
+  //   try {
+  //     final prefs = await SharedPreferences.getInstance();
+  //     final token = prefs.getString("access");
+
+  //     print("================ FETCH FOLLOW STATUS START ================");
+
+  //     var rPending = await http.get(
+  //       Uri.parse("$api/api/myskates/user/follow/sent/"),
+  //       headers: {"Authorization": "Bearer $token"},
+  //     );
+  //     print("PENDINGGG: ${rPending.body}");
+
+  //     if (rPending.statusCode == 200) {
+  //       final dataPending = jsonDecode(rPending.body);
+  //       myRequests = List<int>.from(
+  //         (dataPending as List).map((e) => e["following"]),
+  //       );
+  //     }
+
+  //     var rApproved = await http.get(
+  //       Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
+  //       headers: {"Authorization": "Bearer $token"},
+  //     );
+  //     print("APPROVED SENT: ${rApproved.body}");
+
+  //     if (rApproved.statusCode == 200) {
+  //       final dataApproved = jsonDecode(rApproved.body);
+  //       myApprovedSent = List<int>.from(
+  //         (dataApproved as List).map((e) => e["following"]),
+  //       );
+  //     }
+
+  //     followLoaded = true;
+  //     setState(() {});
+  //   } catch (e) {
+  //     print("ERROR IN FOLLOW STATUS: $e");
+  //   }
+  // }
+
   Future<void> fetchFollowStatus() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
 
+      if (token == null) {
+        print("No token found");
+        followLoaded = true;
+        myRequests = [];
+        myApprovedSent = [];
+        myFollowing = [];
+        setState(() {});
+        return;
+      }
+
       print("================ FETCH FOLLOW STATUS START ================");
 
+      // Initialize empty lists
+      myRequests = [];
+      myApprovedSent = [];
+      myFollowing = [];
+
+      // Fetch pending requests
       var rPending = await http.get(
         Uri.parse("$api/api/myskates/user/follow/sent/"),
         headers: {"Authorization": "Bearer $token"},
       );
-      print("PENDINGGG: ${rPending.body}");
+      print("PENDING STATUS: ${rPending.statusCode}");
+      print("PENDING RESPONSE: ${rPending.body}");
 
       if (rPending.statusCode == 200) {
         final dataPending = jsonDecode(rPending.body);
-        myRequests = List<int>.from(
-          (dataPending as List).map((e) => e["following"]),
-        );
+        if (dataPending is List) {
+          myRequests = List<int>.from(
+            dataPending.map((e) => e["following"]).where((id) => id != null),
+          );
+        }
       }
 
+      // Fetch approved sent requests
       var rApproved = await http.get(
         Uri.parse("$api/api/myskates/user/follow/sent/approved/"),
         headers: {"Authorization": "Bearer $token"},
       );
-      print("APPROVED SENT: ${rApproved.body}");
+      print("APPROVED STATUS: ${rApproved.statusCode}");
+      print("APPROVED RESPONSE: ${rApproved.body}");
 
       if (rApproved.statusCode == 200) {
         final dataApproved = jsonDecode(rApproved.body);
-        myApprovedSent = List<int>.from(
-          (dataApproved as List).map((e) => e["following"]),
-        );
+        if (dataApproved is List) {
+          myApprovedSent = List<int>.from(
+            dataApproved.map((e) => e["following"]).where((id) => id != null),
+          );
+        }
+      }
+
+      // Fetch following list
+      var rFollowing = await http.get(
+        Uri.parse("$api/api/myskates/user/following/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+      print("FOLLOWING STATUS: ${rFollowing.statusCode}");
+      print("FOLLOWING RESPONSE: ${rFollowing.body}");
+
+      if (rFollowing.statusCode == 200) {
+        final dataFollowing = jsonDecode(rFollowing.body);
+        if (dataFollowing is List) {
+          myFollowing = List<int>.from(
+            dataFollowing.map((e) => e["following"]).where((id) => id != null),
+          );
+        }
       }
 
       followLoaded = true;
+      print("myRequests: $myRequests");
+      print("myApprovedSent: $myApprovedSent");
+      print("myFollowing: $myFollowing");
+
       setState(() {});
     } catch (e) {
       print("ERROR IN FOLLOW STATUS: $e");
+      // Even on error, set followLoaded to true to show coaches section
+      followLoaded = true;
+      myRequests = [];
+      myApprovedSent = [];
+      myFollowing = [];
+      setState(() {});
     }
   }
 
@@ -1284,6 +1380,7 @@ class _HomePageState extends State<HomePage> {
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       myRequests.add(coachId);
+      await fetchCoaches();
       setState(() {});
     }
   }
@@ -1409,6 +1506,42 @@ class _HomePageState extends State<HomePage> {
   }
 
   // FETCH COACHES
+  // Future<void> fetchCoaches() async {
+  //   String? token = await getToken();
+
+  //   try {
+  //     final response = await http.get(
+  //       Uri.parse("$api/api/myskates/coaches/approved/"),
+  //       headers: {"Authorization": "Bearer $token"},
+  //     );
+
+  //     print("COACHES STATUS: ${response.statusCode}");
+  //     print("COACHES BODY: ${response.body}");
+
+  //     if (response.statusCode == 200) {
+  //       final decoded = jsonDecode(response.body);
+  //       if (decoded is List) {
+  //         setState(() {
+  //           coaches = decoded;
+  //           coachesNoData = decoded.isEmpty;
+  //           coachesLoading = false;
+  //         });
+  //       }
+  //     } else {
+  //       setState(() {
+  //         coachesNoData = true;
+  //         coachesLoading = false;
+  //       });
+  //     }
+  //   } catch (e) {
+  //     setState(() {
+  //       coachesNoData = true;
+  //       coachesLoading = false;
+  //     });
+  //   }
+  // }
+
+  // FETCH COACHES
   Future<void> fetchCoaches() async {
     String? token = await getToken();
 
@@ -1424,11 +1557,23 @@ class _HomePageState extends State<HomePage> {
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         if (decoded is List) {
+          // Filter out coaches that are already followed or have pending requests
+          final filteredCoaches = decoded.where((coach) {
+            final coachId = coach["id"];
+            // Exclude if already following OR has pending request OR approved sent
+            return !myFollowing.contains(coachId) &&
+                !myRequests.contains(coachId) &&
+                !myApprovedSent.contains(coachId);
+          }).toList();
+
           setState(() {
-            coaches = decoded;
-            coachesNoData = decoded.isEmpty;
+            coaches = filteredCoaches;
+            coachesNoData = filteredCoaches.isEmpty;
             coachesLoading = false;
           });
+
+          print("Original coaches count: ${decoded.length}");
+          print("Filtered coaches count: ${filteredCoaches.length}");
         }
       } else {
         setState(() {
@@ -1575,6 +1720,7 @@ class _HomePageState extends State<HomePage> {
       myApprovedSent.remove(coachId);
       myRequests.remove(coachId);
     });
+    await fetchCoaches();
   }
 
   Future<void> cancelPendingRequest(int coachId) async {
@@ -1592,6 +1738,7 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       myRequests.remove(coachId);
     });
+    await fetchCoaches();
   }
 
   Set<int> registeredTrainingIds = {};
@@ -2294,39 +2441,97 @@ class _HomePageState extends State<HomePage> {
                             const SizedBox(height: 25),
                           ] else if (!trainingNoData &&
                               trainingSessions.isNotEmpty) ...[
-                            const Text(
-                              "Upcoming Training Sessions",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  "Upcoming Training Sessions",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                // Container(
+                                //   padding: const EdgeInsets.symmetric(
+                                //     horizontal: 10,
+                                //     vertical: 5,
+                                //   ),
+                                //   decoration: BoxDecoration(
+                                //     color: Colors.white.withOpacity(0.08),
+                                //     borderRadius: BorderRadius.circular(20),
+                                //     border: Border.all(
+                                //       color: Colors.white.withOpacity(0.15),
+                                //     ),
+                                //   ),
+                                //   child: Row(
+                                //     mainAxisSize: MainAxisSize.min,
+                                //     children: [
+                                //       const Icon(
+                                //         Icons.swipe,
+                                //         size: 14,
+                                //         color: Colors.tealAccent,
+                                //       ),
+                                //       const SizedBox(width: 4),
+                                //       Text(
+                                //         "Swipe to see more",
+                                //         style: TextStyle(
+                                //           color: Colors.tealAccent.withOpacity(
+                                //             0.9,
+                                //           ),
+                                //           fontSize: 11,
+                                //           fontWeight: FontWeight.w500,
+                                //         ),
+                                //       ),
+                                //       const Icon(
+                                //         Icons.arrow_forward_ios,
+                                //         size: 10,
+                                //         color: Colors.tealAccent,
+                                //       ),
+                                //     ],
+                                //   ),
+                                // ),
+                              ],
                             ),
                             const SizedBox(height: 15),
-                            Column(
-                              children: trainingSessions.map((session) {
-                                final images = session['images'] as List? ?? [];
-                                String imageUrl = images.isNotEmpty
-                                    ? "$api${images[0]['image']}"
-                                    : "";
+                            SizedBox(
+                              height: 340,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: trainingSessions.length,
+                                itemBuilder: (context, index) {
+                                  final session = trainingSessions[index];
+                                  final images =
+                                      session['images'] as List? ?? [];
+                                  String imageUrl = images.isNotEmpty
+                                      ? "$api${images[0]['image']}"
+                                      : "";
 
-                                return buildTrainingSessionRow(
-                                  trainingId: session['id'],
-                                  title: session['title'] ?? "",
-                                  note: session['note'] ?? "",
-                                  location: session['location'] ?? "",
-                                  startDate: session['start_date'] ?? "",
-                                  endDate: session['end_date'] ?? "",
-                                  startTime: session['start_time'] ?? "",
-                                  endTime: session['end_time'] ?? "",
-                                  imageUrl: imageUrl,
-                                  isRegistered: registeredTrainingIds.contains(
-                                    session['id'],
-                                  ),
-                                  onRegister: () {
-                                    confirmRegister(session['id']);
-                                  },
-                                );
-                              }).toList(),
+                                  return Container(
+                                    width: 280,
+                                    margin: EdgeInsets.only(
+                                      right: 12,
+                                      left: index == 0 ? 0 : 0,
+                                    ),
+                                    child: buildTrainingSessionRow(
+                                      trainingId: session['id'],
+                                      title: session['title'] ?? "",
+                                      note: session['note'] ?? "",
+                                      location: session['location'] ?? "",
+                                      startDate: session['start_date'] ?? "",
+                                      endDate: session['end_date'] ?? "",
+                                      startTime: session['start_time'] ?? "",
+                                      endTime: session['end_time'] ?? "",
+                                      imageUrl: imageUrl,
+                                      isRegistered: registeredTrainingIds
+                                          .contains(session['id']),
+                                      onRegister: () {
+                                        confirmRegister(session['id']);
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                             const SizedBox(height: 25),
                           ],
@@ -3528,139 +3733,259 @@ Widget buildTrainingSessionRow({
   required trainingId,
 }) {
   return Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(10),
+    width: 280,
     decoration: BoxDecoration(
-      color: Colors.white10,
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: imageUrl.isNotEmpty
-              ? Image.network(
-                  imageUrl,
-                  width: 90,
-                  height: 90,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _imagePlaceholder(),
-                )
-              : _imagePlaceholder(),
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Colors.white.withOpacity(0.12),
+          Colors.white.withOpacity(0.06),
+          const Color(0xFF003E38).withOpacity(0.25),
+        ],
+      ),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: Colors.white.withOpacity(0.15), width: 1),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.3),
+          blurRadius: 12,
+          offset: const Offset(0, 6),
         ),
-
-        const SizedBox(width: 12),
-
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-
-              const SizedBox(height: 4),
-
-              Text(
-                note,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-
-              const SizedBox(height: 6),
-
-              Row(
-                children: [
-                  const Icon(
-                    Icons.location_on,
-                    size: 13,
-                    color: Colors.tealAccent,
+      ],
+    ),
+    child: Stack(
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Image Section with overlay gradient
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
                   ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      location,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 11,
+                  child: imageUrl.isNotEmpty
+                      ? Image.network(
+                          imageUrl,
+                          width: double.infinity,
+                          height: 140,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                        )
+                      : _imagePlaceholder(),
+                ),
+                // Gradient overlay on image
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.5),
+                        ],
                       ),
                     ),
                   ),
-                ],
-              ),
-
-              const SizedBox(height: 6),
-
-              Row(
+                ),
+                // Date badge on image
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF2EE6A6), Color(0xFF00AFA5)],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.calendar_today,
+                          size: 12,
+                          color: Colors.black,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          formatDisplayDate(startDate),
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.calendar_today,
-                    size: 12,
-                    color: Colors.tealAccent,
-                  ),
-                  const SizedBox(width: 6),
+                  // Title
                   Text(
-                    "${formatDisplayDate(startDate)} - ${formatDisplayDate(endDate)}",
-                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
                   ),
-                ],
-              ),
-
-              const SizedBox(height: 4),
-
-              const SizedBox(height: 10),
-
-              Align(
-                alignment: Alignment.centerRight,
-                child: SizedBox(
-                  height: 34,
-                  child: isRegistered
-                      ? OutlinedButton(
-                          onPressed: null,
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.green),
-                          ),
-                          child: const Text(
-                            "Registered",
+                  const SizedBox(height: 6),
+                  // Note/Description
+                  Text(
+                    note,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Location row
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          size: 14,
+                          color: Colors.tealAccent.withOpacity(0.9),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            location,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: Colors.green,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        )
-                      : ElevatedButton(
-                          onPressed: onRegister,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00AFA5),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            "Register",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 11,
                             ),
                           ),
                         ),
-                ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Time row
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 13,
+                        color: Colors.tealAccent.withOpacity(0.9),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        "$startTime - $endTime",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Register button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 38,
+                    child: isRegistered
+                        ? Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.green.withOpacity(0.2),
+                                  Colors.green.withOpacity(0.1),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.green.withOpacity(0.5),
+                              ),
+                            ),
+                            child: const Center(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.check_circle,
+                                    size: 16,
+                                    color: Colors.green,
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    "Registered",
+                                    style: TextStyle(
+                                      color: Colors.green,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ElevatedButton(
+                            onPressed: onRegister,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF00AFA5),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              "Register Now",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
     ),

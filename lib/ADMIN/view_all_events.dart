@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
+import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
@@ -853,10 +854,25 @@ class _EventsState extends State<Events> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CoachHomepage()),
-        );
+        final prefs = await SharedPreferences.getInstance();
+        final role =
+            (prefs.getString('role') ?? prefs.getString('user_type') ?? '')
+                .toLowerCase();
+
+        if (role == 'coach') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const CoachHomepage()),
+          );
+        } else {
+          // Student or default
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const HomePage(),
+            ), // Make sure StudentHomepage exists
+          );
+        }
         return false;
       },
       child: Scaffold(
@@ -869,11 +885,25 @@ class _EventsState extends State<Events> {
           automaticallyImplyLeading: false,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const CoachHomepage()),
-              );
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              final role =
+                  (prefs.getString('role') ??
+                          prefs.getString('user_type') ??
+                          '')
+                      .toLowerCase();
+
+              if (role == 'coach') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CoachHomepage()),
+                );
+              } else {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HomePage()),
+                );
+              }
             },
           ),
           title: Text(
