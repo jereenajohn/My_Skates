@@ -37,26 +37,27 @@ class OrderItem {
     required this.lineTotal,
     required this.createdAt,
   });
-factory OrderItem.fromJson(Map<String, dynamic> json) {
-  return OrderItem(
-    id: json['id'] ?? 0,
-    product: json['product'] ?? 0,
-    productTitle: json['product_title']?.toString() ?? '',
-    productImage: json['product_image']?.toString(),
-    variantId: json['variant_id'] ?? 0,
-    sku: json['sku']?.toString(),
-    variantLabel: json['variant_label']?.toString() ?? '',
-    variantImage: json['variant_image']?.toString(),
-    unitPrice: json['unit_price']?.toString() ?? '0',
-    unitDiscount: json['unit_discount']?.toString() ?? '0',
-    quantity: json['quantity'] ?? 0,
-    lineTotal: json['line_total']?.toString() ?? '0',
-    createdAt: DateTime.tryParse(
-          json['created_at']?.toString() ?? '',
-        ) ??
-        DateTime.now(),
-  );
-}
+
+  factory OrderItem.fromJson(Map<String, dynamic> json) {
+    return OrderItem(
+      id: json['id'] ?? 0,
+      product: json['product'] ?? 0,
+      productTitle: json['product_title']?.toString() ?? '',
+      productImage: json['product_image']?.toString(),
+      variantId: json['variant_id'] ?? 0,
+      sku: json['sku']?.toString(),
+      variantLabel: json['variant_label']?.toString() ?? '',
+      variantImage: json['variant_image']?.toString(),
+      unitPrice: json['unit_price']?.toString() ?? '0',
+      unitDiscount: json['unit_discount']?.toString() ?? '0',
+      quantity: json['quantity'] ?? 0,
+      lineTotal: json['line_total']?.toString() ?? '0',
+      createdAt: DateTime.tryParse(
+            json['created_at']?.toString() ?? '',
+          ) ??
+          DateTime.now(),
+    );
+  }
 }
 
 class Order {
@@ -108,45 +109,45 @@ class Order {
     required this.user,
   });
 
-factory Order.fromJson(Map<String, dynamic> json) {
-  final itemsList = json['items'] as List? ?? [];
+  factory Order.fromJson(Map<String, dynamic> json) {
+    final itemsList = json['items'] as List? ?? [];
 
-  final List<OrderItem> orderItems = itemsList
-      .whereType<Map<String, dynamic>>()
-      .map((i) => OrderItem.fromJson(i))
-      .toList();
+    final List<OrderItem> orderItems = itemsList
+        .whereType<Map<String, dynamic>>()
+        .map((i) => OrderItem.fromJson(i))
+        .toList();
 
-  return Order(
-    id: json['id'] ?? 0,
-    items: orderItems,
-    orderNo: json['order_no']?.toString() ?? '',
-    status: json['status']?.toString() ?? '',
-    paymentMethod: json['payment_method']?.toString() ?? '',
-    paymentRef: json['payment_ref']?.toString(),
-    fullName: json['full_name']?.toString() ?? '',
-    phone: json['phone']?.toString() ?? '',
-    addressLine1: json['address_line1']?.toString() ?? '',
-    addressLine2: json['address_line2']?.toString(),
-    city: json['city']?.toString() ?? '',
-    state: json['state']?.toString() ?? '',
-    pincode: json['pincode']?.toString() ?? '',
-    country: json['country']?.toString() ?? '',
-    note: json['note']?.toString(),
-    subtotal: json['subtotal']?.toString() ?? '0',
-    discountTotal: json['discount_total']?.toString() ?? '0',
-    total: json['total']?.toString() ?? '0',
-    createdAt: DateTime.tryParse(
-          json['created_at']?.toString() ?? '',
-        )?.toLocal() ??
-        DateTime.now(),
-    updatedAt: DateTime.tryParse(
-          json['updated_at']?.toString() ?? '',
-        )?.toLocal() ??
-        DateTime.now(),
-    address: json['address']?.toString(),
-    user: json['user'] ?? 0,
-  );
-}
+    return Order(
+      id: json['id'] ?? 0,
+      items: orderItems,
+      orderNo: json['order_no']?.toString() ?? '',
+      status: json['status']?.toString() ?? '',
+      paymentMethod: json['payment_method']?.toString() ?? '',
+      paymentRef: json['payment_ref']?.toString(),
+      fullName: json['full_name']?.toString() ?? '',
+      phone: json['phone']?.toString() ?? '',
+      addressLine1: json['address_line1']?.toString() ?? '',
+      addressLine2: json['address_line2']?.toString(),
+      city: json['city']?.toString() ?? '',
+      state: json['state']?.toString() ?? '',
+      pincode: json['pincode']?.toString() ?? '',
+      country: json['country']?.toString() ?? '',
+      note: json['note']?.toString(),
+      subtotal: json['subtotal']?.toString() ?? '0',
+      discountTotal: json['discount_total']?.toString() ?? '0',
+      total: json['total']?.toString() ?? '0',
+      createdAt: DateTime.tryParse(
+            json['created_at']?.toString() ?? '',
+          )?.toLocal() ??
+          DateTime.now(),
+      updatedAt: DateTime.tryParse(
+            json['updated_at']?.toString() ?? '',
+          )?.toLocal() ??
+          DateTime.now(),
+      address: json['address']?.toString(),
+      user: json['user'] ?? 0,
+    );
+  }
 }
 
 class OrderResponse {
@@ -183,10 +184,10 @@ class _Student_order_pageState extends State<Student_order_page> {
   List<Order> orders = [];
   bool isLoading = true;
   String? error;
-    double _toDouble(String value) {
+
+  double _toDouble(String value) {
     return double.tryParse(value) ?? 0.0;
   }
-
 
   String _selectedStatusFilter = 'ALL';
 
@@ -814,7 +815,28 @@ class OrderDetailPage extends StatefulWidget {
 
 class _OrderDetailPageState extends State<OrderDetailPage> {
   final Map<int, List<dynamic>> _reviewsCacheByProduct = {};
+  final TextEditingController _customReasonController = TextEditingController();
   bool _reviewPopupCheckedOnce = false;
+  bool _isSubmittingReturnExchange = false;
+  bool _isCancellingOrderItem = false;
+  OrderItem? _selectedReturnItem;
+  OrderItem? _selectedCancelItem;
+  String? _selectedRefundRemark;
+  String? _selectedReasonType;
+
+  final List<Map<String, String>> _refundRemarkOptions = [
+    {'value': 'return', 'label': 'Return'},
+    {'value': 'refund', 'label': 'Refund'},
+    {'value': 'exchange', 'label': 'Exchange'},
+    {'value': 'cod_return', 'label': 'COD Return'},
+  ];
+
+  final List<Map<String, String>> _refundReasonTypeOptions = [
+    {'value': 'defective', 'label': 'Defective Product'},
+    {'value': 'wrong_item', 'label': 'Wrong Item Delivered'},
+    {'value': 'no_longer_needed', 'label': 'No Longer Needed'},
+    {'value': 'other', 'label': 'Other'},
+  ];
 
   @override
   void initState() {
@@ -823,6 +845,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeShowReviewPopup();
     });
+  }
+
+  @override
+  void dispose() {
+    _customReasonController.dispose();
+    super.dispose();
   }
 
   Future<void> _maybeShowReviewPopup() async {
@@ -1005,6 +1033,823 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       default:
         return Colors.grey;
     }
+  }
+
+  String _getRefundLabel(String value, List<Map<String, String>> options) {
+    final match = options.where((option) => option['value'] == value).toList();
+    if (match.isEmpty) return value;
+    return match.first['label'] ?? value;
+  }
+
+  bool get _canRequestReturnExchange {
+    return widget.order.status.toUpperCase() == 'DELIVERED';
+  }
+
+  bool get _canCancelOrderItem {
+    return widget.order.status.toUpperCase() == 'PLACED';
+  }
+
+  void _resetCancelOrderForm() {
+    _selectedCancelItem = widget.order.items.isNotEmpty ? widget.order.items.first : null;
+    _isCancellingOrderItem = false;
+  }
+
+  Future<void> _submitCancelOrderItem(StateSetter bottomSheetSetState) async {
+    if (_selectedCancelItem == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a product to cancel')),
+      );
+      return;
+    }
+
+    bottomSheetSetState(() {
+      _isCancellingOrderItem = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        bottomSheetSetState(() {
+          _isCancellingOrderItem = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authentication token missing')),
+        );
+        return;
+      }
+
+      final Map<String, dynamic> requestBody = {
+        'order': widget.order.id,
+        'order_id': widget.order.id,
+        'product': _selectedCancelItem!.product,
+        'product_id': _selectedCancelItem!.product,
+      };
+
+      final response = await http.post(
+        Uri.parse(
+          '$api/api/myskates/orders/${widget.order.id}/cancel/${_selectedCancelItem!.product}/',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print("CANCEL ORDER ITEM API STATUS: ${response.statusCode}");
+      print("CANCEL ORDER ITEM REQUEST BODY: ${jsonEncode(requestBody)}");
+      print("CANCEL ORDER ITEM RESPONSE: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (!mounted) return;
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Product cancelled successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        String errorMessage = 'Failed to cancel product';
+
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map) {
+            errorMessage = decoded['message']?.toString() ??
+                decoded['error']?.toString() ??
+                decoded['detail']?.toString() ??
+                errorMessage;
+          }
+        } catch (_) {}
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
+    } catch (e) {
+      print("ERROR CANCELLING ORDER ITEM: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      if (mounted) {
+        bottomSheetSetState(() {
+          _isCancellingOrderItem = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _showCancelOrderBottomSheet() async {
+    if (widget.order.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No products available in this order')),
+      );
+      return;
+    }
+
+    _resetCancelOrderForm();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) {
+        return StatefulBuilder(
+          builder: (context, bottomSheetSetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF0E0E0E),
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(28),
+                  ),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 42,
+                            height: 4,
+                            margin: const EdgeInsets.only(bottom: 18),
+                            decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent.withOpacity(0.14),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(
+                                Icons.cancel_outlined,
+                                color: Colors.redAccent,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Cancel Product',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(height: 3),
+                                  Text(
+                                    'Select the product you want to cancel',
+                                    style: TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: _isCancellingOrderItem
+                                  ? null
+                                  : () => Navigator.pop(context),
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Product',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.07),
+                            borderRadius: BorderRadius.circular(15),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.12),
+                            ),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<OrderItem>(
+                              value: _selectedCancelItem,
+                              isExpanded: true,
+                              dropdownColor: const Color(0xFF161616),
+                              icon: const Icon(
+                                Icons.keyboard_arrow_down,
+                                color: Colors.white70,
+                              ),
+                              style: const TextStyle(color: Colors.white),
+                              onChanged: _isCancellingOrderItem
+                                  ? null
+                                  : (OrderItem? value) {
+                                      bottomSheetSetState(() {
+                                        _selectedCancelItem = value;
+                                      });
+                                    },
+                              items: widget.order.items.map((item) {
+                                return DropdownMenuItem<OrderItem>(
+                                  value: item,
+                                  child: Text(
+                                    '${item.productTitle}${item.variantLabel.isNotEmpty ? ' - ${item.variantLabel}' : ''}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.redAccent.withOpacity(0.22),
+                            ),
+                          ),
+                          child: const Text(
+                            'Cancellation is allowed only while the order is in Placed status.',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed: _isCancellingOrderItem
+                                ? null
+                                : () => _submitCancelOrderItem(bottomSheetSetState),
+                            icon: _isCancellingOrderItem
+                                ? const SizedBox.shrink()
+                                : const Icon(Icons.cancel_outlined),
+                            label: _isCancellingOrderItem
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2.2,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Cancel Selected Product',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.redAccent,
+                              disabledBackgroundColor: Colors.redAccent.withOpacity(0.35),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _resetReturnExchangeForm() {
+    _selectedReturnItem = widget.order.items.isNotEmpty ? widget.order.items.first : null;
+    _selectedRefundRemark = null;
+    _selectedReasonType = null;
+    _customReasonController.clear();
+    _isSubmittingReturnExchange = false;
+  }
+
+  Future<void> _submitReturnExchangeRequest(StateSetter bottomSheetSetState) async {
+    if (_selectedReturnItem == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a product')),
+      );
+      return;
+    }
+
+    if (_selectedRefundRemark == null || _selectedRefundRemark!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select return/exchange type')),
+      );
+      return;
+    }
+
+    if (_selectedReasonType == null || _selectedReasonType!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select reason type')),
+      );
+      return;
+    }
+
+    final customReason = _customReasonController.text.trim();
+
+    if (_selectedReasonType == 'other' && customReason.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter reason')),
+      );
+      return;
+    }
+
+    bottomSheetSetState(() {
+      _isSubmittingReturnExchange = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        bottomSheetSetState(() {
+          _isSubmittingReturnExchange = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authentication token missing')),
+        );
+        return;
+      }
+
+      final Map<String, dynamic> requestBody = {
+        'item': _selectedReturnItem!.id,
+        'product': _selectedReturnItem!.product,
+        'remark': _selectedRefundRemark,
+        'reason_type': _selectedReasonType,
+        'reason': _selectedReasonType == 'other'
+            ? customReason
+            : _getRefundLabel(_selectedReasonType!, _refundReasonTypeOptions),
+      };
+
+      final response = await http.post(
+        Uri.parse('$api/api/myskates/msk/refund/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print("RETURN EXCHANGE API STATUS: ${response.statusCode}");
+      print("RETURN EXCHANGE REQUEST BODY: ${jsonEncode(requestBody)}");
+      print("RETURN EXCHANGE RESPONSE: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (!mounted) return;
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Return/Exchange request submitted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        String errorMessage = 'Failed to submit request';
+
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map) {
+            errorMessage = decoded['message']?.toString() ??
+                decoded['error']?.toString() ??
+                decoded['detail']?.toString() ??
+                errorMessage;
+          }
+        } catch (_) {}
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
+    } catch (e) {
+      print("ERROR SUBMITTING RETURN EXCHANGE REQUEST: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      if (mounted) {
+        bottomSheetSetState(() {
+          _isSubmittingReturnExchange = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _showReturnExchangeBottomSheet() async {
+    if (widget.order.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No products available in this order')),
+      );
+      return;
+    }
+
+    _resetReturnExchangeForm();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) {
+        return StatefulBuilder(
+          builder: (context, bottomSheetSetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.88,
+                ),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF101010),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(26),
+                    topRight: Radius.circular(26),
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 42,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: Colors.tealAccent.withOpacity(0.14),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(
+                              Icons.assignment_return_outlined,
+                              color: Colors.tealAccent,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Return / Exchange Request',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(height: 3),
+                                Text(
+                                  'Select product and reason to submit request',
+                                  style: TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 22),
+                      const Text(
+                        'Choose Product',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: Colors.white.withOpacity(0.12)),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<OrderItem>(
+                            value: _selectedReturnItem,
+                            isExpanded: true,
+                            dropdownColor: const Color(0xFF161616),
+                            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white70),
+                            style: const TextStyle(color: Colors.white),
+                            onChanged: _isSubmittingReturnExchange
+                                ? null
+                                : (OrderItem? value) {
+                                    bottomSheetSetState(() {
+                                      _selectedReturnItem = value;
+                                    });
+                                  },
+                            items: widget.order.items.map((item) {
+                              return DropdownMenuItem<OrderItem>(
+                                value: item,
+                                child: Text(
+                                  '${item.productTitle}${item.variantLabel.isNotEmpty ? ' - ${item.variantLabel}' : ''}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Request Type',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: Colors.white.withOpacity(0.12)),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedRefundRemark,
+                            isExpanded: true,
+                            dropdownColor: const Color(0xFF161616),
+                            hint: const Text(
+                              'Select return, refund or exchange',
+                              style: TextStyle(color: Colors.white54),
+                            ),
+                            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white70),
+                            style: const TextStyle(color: Colors.white),
+                            onChanged: _isSubmittingReturnExchange
+                                ? null
+                                : (String? value) {
+                                    bottomSheetSetState(() {
+                                      _selectedRefundRemark = value;
+                                    });
+                                  },
+                            items: _refundRemarkOptions.map((option) {
+                              return DropdownMenuItem<String>(
+                                value: option['value'],
+                                child: Text(
+                                  option['label'] ?? '',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Reason Type',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: Colors.white.withOpacity(0.12)),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedReasonType,
+                            isExpanded: true,
+                            dropdownColor: const Color(0xFF161616),
+                            hint: const Text(
+                              'Select reason type',
+                              style: TextStyle(color: Colors.white54),
+                            ),
+                            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white70),
+                            style: const TextStyle(color: Colors.white),
+                            onChanged: _isSubmittingReturnExchange
+                                ? null
+                                : (String? value) {
+                                    bottomSheetSetState(() {
+                                      _selectedReasonType = value;
+                                      if (value != 'other') {
+                                        _customReasonController.clear();
+                                      }
+                                    });
+                                  },
+                            items: _refundReasonTypeOptions.map((option) {
+                              return DropdownMenuItem<String>(
+                                value: option['value'],
+                                child: Text(
+                                  option['label'] ?? '',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      if (_selectedReasonType == 'other') ...[
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Reason',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _customReasonController,
+                          enabled: !_isSubmittingReturnExchange,
+                          maxLines: 4,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Type your reason',
+                            hintStyle: const TextStyle(color: Colors.white38),
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.07),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide(color: Colors.white.withOpacity(0.12)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide(color: Colors.white.withOpacity(0.12)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: const BorderSide(color: Colors.tealAccent),
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 22),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _isSubmittingReturnExchange
+                              ? null
+                              : () => _submitReturnExchangeRequest(bottomSheetSetState),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.tealAccent,
+                            disabledBackgroundColor: Colors.tealAccent.withOpacity(0.35),
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: _isSubmittingReturnExchange
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.black,
+                                    strokeWidth: 2.2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Submit Request',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCancelOrderButton() {
+    if (!_canCancelOrderItem) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 2),
+      child: ElevatedButton.icon(
+        onPressed: _showCancelOrderBottomSheet,
+        icon: const Icon(Icons.cancel_outlined, size: 20),
+        label: const Text(
+          'Cancel Product',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.redAccent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          minimumSize: const Size(double.infinity, 54),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReturnExchangeButton() {
+    if (!_canRequestReturnExchange) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 2),
+      child: ElevatedButton.icon(
+        onPressed: _showReturnExchangeBottomSheet,
+        icon: const Icon(Icons.assignment_return_outlined, size: 20),
+        label: const Text(
+          'Return / Exchange',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.tealAccent,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          minimumSize: const Size(double.infinity, 54),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildProductImage(OrderItem item) {
@@ -1504,6 +2349,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+              _buildCancelOrderButton(),
+              if (_canCancelOrderItem) const SizedBox(height: 12),
+              _buildReturnExchangeButton(),
               const SizedBox(height: 20),
             ],
           ),
