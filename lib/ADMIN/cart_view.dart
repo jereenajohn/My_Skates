@@ -42,6 +42,10 @@ class _cartState extends State<cart> {
   String amountPayable = "0.00";
   String shipmentfee = "0.00";
 
+  List<Map<String, dynamic>> restrictedProducts =
+      []; // Products causing restrictions
+  String? globalRestrictionReason;
+
   // ================= ADDRESS =================
   Map<String, dynamic>? selectedAddress;
   List addresses = [];
@@ -668,6 +672,9 @@ class _cartState extends State<cart> {
           cartItems.removeWhere((cartItem) => cartItem["id"] == item["id"]);
         });
 
+        // Recalculate payment methods with remaining items
+        calculateDynamicPaymentMethods(cartItems);
+
         fetchCartSummary();
         await CartCountNotifier.refreshCartCount();
       }
@@ -692,8 +699,9 @@ class _cartState extends State<cart> {
       );
 
       if (response.statusCode == 200) {
-        fetchCart();
+        await fetchCart();
         fetchCartSummary();
+        // Payment methods will be recalculated in fetchCart() via calculateDynamicPaymentMethods
         await CartCountNotifier.refreshCartCount();
       }
     } catch (e) {
@@ -1293,6 +1301,8 @@ class _cartState extends State<cart> {
 
   void calculateDynamicPaymentMethods(List items) {
     final Map<String, Map<String, dynamic>> allMethods = {};
+    restrictedProducts.clear();
+    globalRestrictionReason = null;
 
     // Step 1: Collect all payment methods from all cart items
     for (final item in items) {
@@ -1302,43 +1312,84 @@ class _cartState extends State<cart> {
         final code = method["code"]?.toString().toUpperCase() ?? "";
 
         if (code.isNotEmpty) {
-          allMethods[code] = {
-            "id": method["id"],
-            "name": method["name"],
-            "code": code,
-            "is_available": true,
-            "reason": "",
-          };
+          if (!allMethods.containsKey(code)) {
+            allMethods[code] = {
+              "id": method["id"],
+              "name": method["name"],
+              "code": code,
+              "is_available": true,
+              "restricted_by":
+                  <String>[], // Track which products restrict this method
+            };
+          }
         }
       }
     }
 
     // Step 2: Check each method is available in every cart item
     for (final code in allMethods.keys) {
+      final List<String> restrictedBy = [];
+
       for (final item in items) {
         final variant = item["variant"];
         final productName =
             variant?["product_title"]?.toString() ?? "One product";
+        final productId = variant?["id"]?.toString() ?? item["id"].toString();
 
         final List methods = item["payment_methods"] ?? [];
-
         final List<String> itemCodes = methods
             .map((m) => m["code"].toString().toUpperCase())
             .toList();
 
         if (!itemCodes.contains(code)) {
           allMethods[code]!["is_available"] = false;
-          allMethods[code]!["reason"] =
-              "$productName does not have ${allMethods[code]!["name"]} option";
-          break;
+          restrictedBy.add(productName);
+
+          // Add to restricted products list if not already there
+          final existingProductIndex = restrictedProducts.indexWhere(
+            (p) => p["id"] == productId,
+          );
+
+          if (existingProductIndex == -1) {
+            restrictedProducts.add({
+              "id": productId,
+              "name": productName,
+              "missing_methods": [allMethods[code]!["name"]],
+            });
+          } else {
+            final existingProduct = restrictedProducts[existingProductIndex];
+            final missingMethods = existingProduct["missing_methods"] as List;
+            if (!missingMethods.contains(allMethods[code]!["name"])) {
+              missingMethods.add(allMethods[code]!["name"]);
+            }
+          }
         }
+      }
+
+      if (restrictedBy.isNotEmpty) {
+        allMethods[code]!["restricted_by"] = restrictedBy;
       }
     }
 
     final List<Map<String, dynamic>> methodsList = allMethods.values.toList();
 
-    Map<String, dynamic>? firstAvailable;
+    // Set global restriction reason
+    if (methodsList.any((m) => m["is_available"] == false)) {
+      if (restrictedProducts.length == 1) {
+        final product = restrictedProducts.first;
+        final missingMethods = (product["missing_methods"] as List).join(", ");
+        globalRestrictionReason =
+            "${product["name"]} does not support $missingMethods";
+      } else if (restrictedProducts.length > 1) {
+        final productNames = restrictedProducts
+            .map((p) => p["name"])
+            .join(", ");
+        globalRestrictionReason =
+            "$productNames do not support some payment methods";
+      }
+    }
 
+    Map<String, dynamic>? firstAvailable;
     for (final method in methodsList) {
       if (method["is_available"] == true) {
         firstAvailable = method;
@@ -1388,7 +1439,6 @@ class _cartState extends State<cart> {
               fontFamily: 'Poppins',
             ),
           ),
-
           const SizedBox(height: 13),
 
           if (dynamicPaymentMethods.isEmpty)
@@ -1408,7 +1458,11 @@ class _cartState extends State<cart> {
               final bool isAvailable = method["is_available"] == true;
               final String code = method["code"]?.toString() ?? "";
               final String name = method["name"]?.toString() ?? "";
-              final String reason = method["reason"]?.toString() ?? "";
+              final List<String> restrictedBy =
+                  (method["restricted_by"] as List?)
+                      ?.map((e) => e.toString())
+                      .toList() ??
+                  [];
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
@@ -1416,18 +1470,19 @@ class _cartState extends State<cart> {
                   id: method["id"],
                   code: code,
                   title: name,
-
                   icon: Icons.credit_card,
                   isEnabled: isAvailable,
+                  restrictedBy: restrictedBy,
                 ),
               );
             }).toList(),
 
-          if (dynamicPaymentMethods.any((e) => e["is_available"] == false))
+          // Show detailed restriction message with product names
+          if (restrictedProducts.isNotEmpty)
             Container(
               width: double.infinity,
-              margin: const EdgeInsets.only(top: 4),
-              padding: const EdgeInsets.all(10),
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.orangeAccent.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(12),
@@ -1435,17 +1490,66 @@ class _cartState extends State<cart> {
                   color: Colors.orangeAccent.withOpacity(0.35),
                 ),
               ),
-              child: const Text(
-                "Some payment methods are disabled because all cart products do not support them.",
-                style: TextStyle(
-                  color: Colors.orangeAccent,
-                  fontSize: 11,
-                  height: 1.4,
-                  fontFamily: "Poppins",
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.orangeAccent,
+                        size: 16,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        "Payment Methods Restricted",
+                        style: TextStyle(
+                          color: Colors.orangeAccent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ...restrictedProducts.map(
+                    (product) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "• ",
+                            style: TextStyle(
+                              color: Colors.orangeAccent,
+                              fontSize: 12,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              "${product["name"]} - ${(product["missing_methods"] as List).join(", ")} not available",
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    "Remove these items to enable all payment options",
+                    style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: 10,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
               ),
             ),
-
           const SizedBox(height: 2),
         ],
       ),
@@ -1456,9 +1560,9 @@ class _cartState extends State<cart> {
     required int id,
     required String code,
     required String title,
-
     required IconData icon,
     required bool isEnabled,
+    List<String> restrictedBy = const [],
   }) {
     final bool selected = selectedPaymentCode == code;
 
@@ -1471,7 +1575,6 @@ class _cartState extends State<cart> {
                 selectedPaymentCode = code;
                 selectedPaymentName = title;
               });
-
               debugPrint("SELECTED PAYMENT ID: $selectedPaymentId");
               debugPrint("SELECTED PAYMENT CODE: $selectedPaymentCode");
               debugPrint("SELECTED PAYMENT NAME: $selectedPaymentName");
@@ -1490,61 +1593,76 @@ class _cartState extends State<cart> {
               color: selected ? Colors.tealAccent : Colors.white24,
             ),
           ),
-          child: Row(
+          child: Column(
             children: [
-              Icon(icon, color: isEnabled ? Colors.tealAccent : Colors.white38),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              Row(
+                children: [
+                  Icon(
+                    icon,
+                    color: isEnabled ? Colors.tealAccent : Colors.white38,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: TextStyle(
-                              color: isEnabled ? Colors.white : Colors.white54,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: TextStyle(
+                                  color: isEnabled
+                                      ? Colors.white
+                                      : Colors.white54,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
-                          ),
+                            if (!isEnabled)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent.withOpacity(0.18),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Text(
+                                  "Unavailable",
+                                  style: TextStyle(
+                                    color: Colors.redAccent,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-
-                        if (!isEnabled)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.redAccent.withOpacity(0.18),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              "Unavailable",
-                              style: TextStyle(
-                                color: Colors.redAccent,
+                        if (!isEnabled && restrictedBy.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              "Not supported by: ${restrictedBy.take(2).join(", ")}${restrictedBy.length > 2 ? " +${restrictedBy.length - 2} more" : ""}",
+                              style: const TextStyle(
+                                color: Colors.white38,
                                 fontSize: 10,
-                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
                       ],
                     ),
-
-                    const SizedBox(height: 2),
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
-              Icon(
-                selected ? Icons.radio_button_checked : Icons.radio_button_off,
-                color: isEnabled ? Colors.tealAccent : Colors.white24,
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    selected
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_off,
+                    color: isEnabled ? Colors.tealAccent : Colors.white24,
+                  ),
+                ],
               ),
             ],
           ),
@@ -1929,7 +2047,6 @@ class _cartState extends State<cart> {
                             fontFamily: 'Poppins',
                           ),
                         ),
-
                       ],
                     ),
                   ],
