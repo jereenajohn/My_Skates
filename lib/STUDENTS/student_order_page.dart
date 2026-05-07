@@ -19,6 +19,7 @@ class OrderItem {
   final int variantId;
   final String? sku;
   final String variantLabel;
+  final String? coachName;
   final String? variantImage;
   final String unitPrice;
   final String unitDiscount;
@@ -31,6 +32,7 @@ class OrderItem {
     required this.product,
     required this.productTitle,
     this.productImage,
+    this.coachName,
     required this.variantId,
     this.sku,
     required this.variantLabel,
@@ -49,6 +51,7 @@ class OrderItem {
       productTitle: json['product_title']?.toString() ?? '',
       productImage: json['product_image']?.toString(),
       variantId: json['variant_id'] ?? 0,
+      coachName: json['coach_name']?.toString(),
       sku: json['sku']?.toString(),
       variantLabel: json['variant_label']?.toString() ?? '',
       variantImage: json['variant_image']?.toString(),
@@ -82,6 +85,10 @@ class Order {
   final String subtotal;
   final String discountTotal;
   final String total;
+  final String platformFee;
+  final String convenienceFee;
+  final String shipmentCharge;
+  final String finalPayable;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? address;
@@ -106,6 +113,10 @@ class Order {
     required this.subtotal,
     required this.discountTotal,
     required this.total,
+    required this.platformFee,
+    required this.convenienceFee,
+    required this.shipmentCharge,
+    required this.finalPayable,
     required this.createdAt,
     required this.updatedAt,
     this.address,
@@ -139,6 +150,11 @@ class Order {
       subtotal: json['subtotal']?.toString() ?? '0',
       discountTotal: json['discount_total']?.toString() ?? '0',
       total: json['total']?.toString() ?? '0',
+      platformFee: json['platform_fee']?.toString() ?? '0',
+      convenienceFee: json['convenience_fee']?.toString() ?? '0',
+      shipmentCharge: json['shipment_charge']?.toString() ?? '0',
+      finalPayable:
+          json['final_payable']?.toString() ?? json['total']?.toString() ?? '0',
       createdAt:
           DateTime.tryParse(json['created_at']?.toString() ?? '')?.toLocal() ??
           DateTime.now(),
@@ -1487,41 +1503,41 @@ class _Student_order_pageState extends State<Student_order_page> {
                     ],
                   ),
                 ),
-                Text(
-                  '₹${_toDouble(item.lineTotal).toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    color: Colors.tealAccent,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                // Text(
+                //   '₹${_toDouble(item.lineTotal).toStringAsFixed(2)}',
+                //   style: const TextStyle(
+                //     color: Colors.tealAccent,
+                //     fontSize: 14,
+                //     fontWeight: FontWeight.w700,
+                //   ),
+                // ),
               ],
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
-              child: Divider(color: Colors.white24, height: 1),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Total',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  '₹${_toDouble(order.total).toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    color: Colors.tealAccent,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
+            // const Padding(
+            //   padding: EdgeInsets.symmetric(vertical: 10),
+            //   child: Divider(color: Colors.white24, height: 1),
+            // ),
+            // Row(
+            //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            //   children: [
+            //     const Text(
+            //       'Total',
+            //       style: TextStyle(
+            //         color: Colors.white,
+            //         fontSize: 15,
+            //         fontWeight: FontWeight.bold,
+            //       ),
+            //     ),
+            //     Text(
+            //       '₹${_toDouble(order.finalPayable).toStringAsFixed(2)}',
+            //       style: const TextStyle(
+            //         color: Colors.tealAccent,
+            //         fontSize: 18,
+            //         fontWeight: FontWeight.bold,
+            //       ),
+            //     ),
+            //   ],
+            // ),
           ],
         ),
       ),
@@ -1750,7 +1766,7 @@ class _Student_order_pageState extends State<Student_order_page> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: Column(
                       children: [
-                        _buildTopInfo(),
+                        // _buildTopInfo(),
                         _buildFilterBox(),
                         ..._filteredOrders
                             .map((order) => _buildOrderCard(order))
@@ -1805,6 +1821,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     {'value': 'no_longer_needed', 'label': 'No Longer Needed'},
     {'value': 'other', 'label': 'Other'},
   ];
+
+  double _toDouble(String? value) {
+    return double.tryParse(value ?? '0') ?? 0.0;
+  }
 
   @override
   void initState() {
@@ -2022,6 +2042,87 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         ? widget.order.items.first
         : null;
     _isCancellingOrderItem = false;
+  }
+
+  Future<void> _confirmAndSubmitCancelOrderItem(
+    StateSetter bottomSheetSetState,
+  ) async {
+    if (_selectedCancelItem == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a product to cancel')),
+      );
+      return;
+    }
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF111111),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.redAccent,
+                size: 24,
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Confirm Cancellation',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Are you sure you want to cancel this product?\n\n${_selectedCancelItem!.productTitle}${_selectedCancelItem!.variantLabel.isNotEmpty ? '\n${_selectedCancelItem!.variantLabel}' : ''}\n\nThis action cannot be undone.',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              height: 1.45,
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text(
+                'No, Go Back',
+                style: TextStyle(color: Colors.white54),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Yes, Cancel',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _submitCancelOrderItem(bottomSheetSetState);
+    }
   }
 
   Future<void> _submitCancelOrderItem(StateSetter bottomSheetSetState) async {
@@ -2284,7 +2385,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                           child: ElevatedButton.icon(
                             onPressed: _isCancellingOrderItem
                                 ? null
-                                : () => _submitCancelOrderItem(
+                                : () => _confirmAndSubmitCancelOrderItem(
                                     bottomSheetSetState,
                                   ),
                             icon: _isCancellingOrderItem
@@ -3275,6 +3376,32 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                       ),
                                     ],
                                     const SizedBox(height: 10),
+                                    if (item.coachName != null &&
+                                        item.coachName!.trim().isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.storefront_outlined,
+                                            color: Colors.white54,
+                                            size: 14,
+                                          ),
+                                          const SizedBox(width: 5),
+                                          Expanded(
+                                            child: Text(
+                                              'Seller: ${item.coachName}',
+                                              style: const TextStyle(
+                                                color: Colors.white60,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                     Text(
                                       'Qty: ${item.quantity}',
                                       style: const TextStyle(
@@ -3293,17 +3420,44 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     const Divider(color: Colors.white24, height: 26),
                     _priceRow(
                       'Subtotal',
-                      '₹${double.parse(order.subtotal).toStringAsFixed(2)}',
+                      '₹${_toDouble(order.subtotal).toStringAsFixed(2)}',
                     ),
-                    if (double.parse(order.discountTotal) > 0) ...[
+
+                    if (_toDouble(order.discountTotal) > 0) ...[
                       const SizedBox(height: 10),
                       _priceRow(
                         'Discount',
-                        '-₹${double.parse(order.discountTotal).toStringAsFixed(2)}',
+                        '-₹${_toDouble(order.discountTotal).toStringAsFixed(2)}',
                         valueColor: Colors.greenAccent,
                       ),
                     ],
+
+                    if (_toDouble(order.platformFee) > 0) ...[
+                      const SizedBox(height: 10),
+                      _priceRow(
+                        'Platform Fee',
+                        '₹${_toDouble(order.platformFee).toStringAsFixed(2)}',
+                      ),
+                    ],
+
+                    if (_toDouble(order.convenienceFee) > 0) ...[
+                      const SizedBox(height: 10),
+                      _priceRow(
+                        'Convenience Fee',
+                        '₹${_toDouble(order.convenienceFee).toStringAsFixed(2)}',
+                      ),
+                    ],
+
+                    if (_toDouble(order.shipmentCharge) > 0) ...[
+                      const SizedBox(height: 10),
+                      _priceRow(
+                        'Shipment Charge',
+                        '₹${_toDouble(order.shipmentCharge).toStringAsFixed(2)}',
+                      ),
+                    ],
+
                     const SizedBox(height: 14),
+
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
@@ -3328,7 +3482,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             ),
                           ),
                           Text(
-                            '₹${double.parse(order.total).toStringAsFixed(2)}',
+                            '₹${_toDouble(order.finalPayable).toStringAsFixed(2)}',
                             style: const TextStyle(
                               color: Colors.tealAccent,
                               fontSize: 22,
