@@ -28,7 +28,7 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
 
   String selectedStatus = "active";
 
-  File? selectedImage;
+  List<File> selectedImages = [];
   bool isSubmitting = false;
 
   Future<String?> getToken() async {
@@ -36,11 +36,14 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
     return prefs.getString("access");
   }
 
-  Future<void> pickImage() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked != null) {
+  Future<void> pickImages() async {
+    final pickedImages = await ImagePicker().pickMultiImage();
+
+    if (pickedImages.isNotEmpty) {
       setState(() {
-        selectedImage = File(picked.path);
+        selectedImages.addAll(
+          pickedImages.map((image) => File(image.path)).toList(),
+        );
       });
     }
   }
@@ -48,7 +51,7 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
   Future<void> submitUsedProduct() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (selectedImage == null) {
+    if (selectedImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Please select at least one image"),
@@ -94,9 +97,11 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
         request.fields["category"] = categoryController.text.trim();
       }
 
-      request.files.add(
-        await http.MultipartFile.fromPath("images", selectedImage!.path),
-      );
+      for (final image in selectedImages) {
+        request.files.add(
+          await http.MultipartFile.fromPath("images", image.path),
+        );
+      }
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
@@ -281,7 +286,7 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
               ),
               const SizedBox(height: 8),
               GestureDetector(
-                onTap: pickImage,
+                onTap: pickImages,
                 child: Container(
                   height: 150,
                   width: double.infinity,
@@ -290,16 +295,58 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: Colors.white24),
                   ),
-                  child: selectedImage != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Image.file(selectedImage!, fit: BoxFit.cover),
-                        )
-                      : const Center(
+                  child: selectedImages.isEmpty
+                      ? const Center(
                           child: Text(
-                            "Tap to select image",
+                            "Tap to select multiple images",
                             style: TextStyle(color: Colors.white70),
                           ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(10),
+                          scrollDirection: Axis.horizontal,
+                          itemCount: selectedImages.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 10),
+                          itemBuilder: (context, index) {
+                            return Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    selectedImages[index],
+                                    width: 120,
+                                    height: 130,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        selectedImages.removeAt(index);
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black54,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                 ),
               ),

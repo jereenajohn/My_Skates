@@ -26,11 +26,13 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
   bool isSubmitting = false;
   bool isStatusUpdating = false;
 
-  File? selectedImage;
+  List<File> selectedImages = [];
   int? selectedCategoryId;
 
   List<Map<String, dynamic>> categories = [];
-  String existingImage = "";
+  List<Map<String, dynamic>> existingImages = [];
+  List<int> deletedImageIds = [];
+
   String currentStatus = "active";
 
   @override
@@ -80,7 +82,9 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
 
     try {
       final res = await http.get(
-        Uri.parse("$api/api/myskates/used/products/update/${widget.productId}/"),
+        Uri.parse(
+          "$api/api/myskates/used/products/update/${widget.productId}/",
+        ),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -94,6 +98,8 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
         final decoded = jsonDecode(res.body);
         final data = decoded["data"];
 
+        final List imagesData = data["images"] ?? [];
+
         setState(() {
           titleController.text = data["title"]?.toString() ?? "";
           descriptionController.text = data["description"]?.toString() ?? "";
@@ -101,7 +107,11 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
           discountController.text = data["discount"]?.toString() ?? "";
           selectedCategoryId = data["category"];
           currentStatus = data["status"]?.toString() ?? "active";
-          existingImage = data["image"] != null ? "$api${data["image"]}" : "";
+
+          existingImages = imagesData.map<Map<String, dynamic>>((img) {
+            return {"id": img["id"], "image": img["image"]?.toString() ?? ""};
+          }).toList();
+
           isLoading = false;
         });
       } else {
@@ -117,12 +127,20 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
     }
   }
 
-  Future<void> pickImage() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.image);
+  Future<void> pickImages() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: true,
+    );
 
-    if (result != null && result.files.single.path != null) {
+    if (result != null && result.files.isNotEmpty) {
       setState(() {
-        selectedImage = File(result.files.single.path!);
+        selectedImages.addAll(
+          result.files
+              .where((file) => file.path != null)
+              .map((file) => File(file.path!))
+              .toList(),
+        );
       });
     }
   }
@@ -131,7 +149,9 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
     if (currentStatus.toLowerCase() == "sold") {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Sold product cannot be edited. Change status to Active first."),
+          content: Text(
+            "Sold product cannot be edited. Change status to Active first.",
+          ),
           backgroundColor: Colors.orange,
         ),
       );
@@ -150,7 +170,9 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
     try {
       final request = http.MultipartRequest(
         "PUT",
-        Uri.parse("$api/api/myskates/used/products/update/${widget.productId}/"),
+        Uri.parse(
+          "$api/api/myskates/used/products/update/${widget.productId}/",
+        ),
       );
 
       request.headers["Authorization"] = "Bearer $token";
@@ -158,16 +180,22 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
       request.fields["description"] = descriptionController.text.trim();
       request.fields["price"] = priceController.text.trim();
       request.fields["discount"] = discountController.text.trim();
+      if (deletedImageIds.isNotEmpty) {
+        request.fields["delete_images"] = deletedImageIds.join(",");
+      }
 
       if (selectedCategoryId != null) {
         request.fields["category"] = selectedCategoryId.toString();
       }
 
-      if (selectedImage != null) {
+      for (final image in selectedImages) {
         request.files.add(
-          await http.MultipartFile.fromPath("image", selectedImage!.path),
+          await http.MultipartFile.fromPath("images", image.path),
         );
       }
+
+      print("DELETE IMAGES FIELD: ${deletedImageIds.join(",")}");
+      print("NEW IMAGES COUNT: ${selectedImages.length}");
 
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);
@@ -197,10 +225,7 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
       print("UPDATE ERROR: $e");
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error: $e"),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
       );
     }
 
@@ -222,7 +247,9 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
     try {
       final request = http.MultipartRequest(
         "PATCH",
-        Uri.parse("$api/api/myskates/used/products/update/${widget.productId}/"),
+        Uri.parse(
+          "$api/api/myskates/used/products/update/${widget.productId}/",
+        ),
       );
 
       request.headers["Authorization"] = "Bearer $token";
@@ -266,10 +293,7 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
       print("STATUS PATCH ERROR: $e");
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error: $e"),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
       );
     }
 
@@ -422,6 +446,243 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
     );
   }
 
+  Widget _imageSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Product Images",
+            style: TextStyle(
+              color: Colors.white70,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          if (existingImages.isEmpty && selectedImages.isEmpty)
+            Container(
+              height: 160,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white10,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: const Center(
+                child: Text(
+                  "No images selected",
+                  style: TextStyle(color: Colors.white54),
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              height: 160,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: existingImages.length + selectedImages.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final bool isExisting = index < existingImages.length;
+
+                  if (isExisting) {
+                    final imageUrl =
+                        existingImages[index]["image"]?.toString() ?? "";
+
+                    return Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.network(
+                            imageUrl,
+                            height: 160,
+                            width: 145,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              height: 160,
+                              width: 145,
+                              color: Colors.white10,
+                              child: const Icon(
+                                Icons.broken_image,
+                                color: Colors.white54,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        Positioned(
+                          left: 6,
+                          bottom: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.65),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              "Existing",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // ✅ Delete existing image from update request
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: GestureDetector(
+                            onTap: () {
+                              final imageId = existingImages[index]["id"];
+
+                              if (imageId != null) {
+                                final id = int.parse(imageId.toString());
+
+                                setState(() {
+                                  if (!deletedImageIds.contains(id)) {
+                                    deletedImageIds.add(id);
+                                  }
+
+                                  existingImages.removeAt(index);
+                                });
+
+                                print("DELETE IMAGE ID ADDED: $id");
+                                print(
+                                  "DELETE IMAGE IDS LIST: $deletedImageIds",
+                                );
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.65),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  final newImageIndex = index - existingImages.length;
+                  final file = selectedImages[newImageIndex];
+
+                  return Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Image.file(
+                          file,
+                          height: 160,
+                          width: 145,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+
+                      Positioned(
+                        left: 6,
+                        bottom: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.tealAccent.withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            "New",
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              selectedImages.removeAt(newImageIndex);
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.65),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+
+          const SizedBox(height: 12),
+
+          GestureDetector(
+            onTap: pickImages,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: Row(
+                children: const [
+                  Icon(
+                    Icons.add_photo_alternate_outlined,
+                    color: Colors.white70,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    "Choose images to update",
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     titleController.dispose();
@@ -438,7 +699,16 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text("Update Used Product"),
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+        ),
+        title: const Text(
+          "Update Used Product",
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.black,
       ),
       body: isLoading
@@ -459,57 +729,60 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      if (selectedImage != null)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Image.file(
-                            selectedImage!,
-                            height: 180,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
-                        )
-                      else if (existingImage.isNotEmpty)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Image.network(
-                            existingImage,
-                            height: 180,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              height: 180,
-                              width: double.infinity,
-                              color: Colors.white10,
-                              child: const Icon(
-                                Icons.broken_image,
-                                color: Colors.white54,
-                              ),
-                            ),
-                          ),
-                        ),
+                      // if (selectedImage != null)
+                      //   ClipRRect(
+                      //     borderRadius: BorderRadius.circular(14),
+                      //     child: Image.file(
+                      //       selectedImage!,
+                      //       height: 180,
+                      //       width: double.infinity,
+                      //       fit: BoxFit.cover,
+                      //     ),
+                      //   )
+                      // else if (existingImage.isNotEmpty)
+                      //   ClipRRect(
+                      //     borderRadius: BorderRadius.circular(14),
+                      //     child: Image.network(
+                      //       existingImage,
+                      //       height: 180,
+                      //       width: double.infinity,
+                      //       fit: BoxFit.cover,
+                      //       errorBuilder: (_, __, ___) => Container(
+                      //         height: 180,
+                      //         width: double.infinity,
+                      //         color: Colors.white10,
+                      //         child: const Icon(
+                      //           Icons.broken_image,
+                      //           color: Colors.white54,
+                      //         ),
+                      //       ),
+                      //     ),
+                      //   ),
 
-                      const SizedBox(height: 12),
+                      // const SizedBox(height: 12),
 
-                      GestureDetector(
-                        onTap: pickImage,
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 16,
-                            horizontal: 14,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.06),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: Colors.white24),
-                          ),
-                          child: const Text(
-                            "Choose image",
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        ),
-                      ),
+                      // GestureDetector(
+                      //   onTap: pickImage,
+                      //   child: Container(
+                      //     width: double.infinity,
+                      //     padding: const EdgeInsets.symmetric(
+                      //       vertical: 16,
+                      //       horizontal: 14,
+                      //     ),
+                      //     decoration: BoxDecoration(
+                      //       color: Colors.white.withOpacity(0.06),
+                      //       borderRadius: BorderRadius.circular(14),
+                      //       border: Border.all(color: Colors.white24),
+                      //     ),
+                      //     child: const Text(
+                      //       "Choose image",
+                      //       style: TextStyle(color: Colors.white70),
+                      //     ),
+                      //   ),
+                      // ),
+
+                      // const SizedBox(height: 12),
+                      _imageSection(),
 
                       const SizedBox(height: 12),
 
@@ -517,35 +790,35 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
                         controller: titleController,
                         style: const TextStyle(color: Colors.white),
                         decoration: inputDecoration("Title"),
-                        validator: (v) =>
-                            v == null || v.trim().isEmpty ? "Enter title" : null,
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? "Enter title"
+                            : null,
                       ),
 
                       const SizedBox(height: 12),
 
-                      DropdownButtonFormField<int>(
-                        value: selectedCategoryId,
-                        dropdownColor: Colors.black,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: inputDecoration("Category"),
-                        items: categories.map((cat) {
-                          return DropdownMenuItem<int>(
-                            value: cat["id"],
-                            child: Text(
-                              cat["name"],
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedCategoryId = value;
-                          });
-                        },
-                      ),
+                      // DropdownButtonFormField<int>(
+                      //   value: selectedCategoryId,
+                      //   dropdownColor: Colors.black,
+                      //   style: const TextStyle(color: Colors.white),
+                      //   decoration: inputDecoration("Category"),
+                      //   items: categories.map((cat) {
+                      //     return DropdownMenuItem<int>(
+                      //       value: cat["id"],
+                      //       child: Text(
+                      //         cat["name"],
+                      //         style: const TextStyle(color: Colors.white),
+                      //       ),
+                      //     );
+                      //   }).toList(),
+                      //   onChanged: (value) {
+                      //     setState(() {
+                      //       selectedCategoryId = value;
+                      //     });
+                      //   },
+                      // ),
 
-                      const SizedBox(height: 12),
-
+                      // const SizedBox(height: 12),
                       TextFormField(
                         controller: descriptionController,
                         maxLines: 3,
@@ -560,8 +833,9 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
                         keyboardType: TextInputType.number,
                         style: const TextStyle(color: Colors.white),
                         decoration: inputDecoration("Price"),
-                        validator: (v) =>
-                            v == null || v.trim().isEmpty ? "Enter price" : null,
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? "Enter price"
+                            : null,
                       ),
 
                       const SizedBox(height: 12),
@@ -583,7 +857,9 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: isSubmitting || isSold ? null : updateUsedProduct,
+                          onPressed: isSubmitting || isSold
+                              ? null
+                              : updateUsedProduct,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF00AFA5),
                             disabledBackgroundColor: Colors.grey.shade800,
@@ -592,7 +868,9 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
                             ),
                           ),
                           child: isSubmitting
-                              ? const CircularProgressIndicator(color: Colors.white)
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
                               : Text(
                                   isSold
                                       ? "Change status to Active to edit"
@@ -611,4 +889,5 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
               ),
             ),
     );
-  }}
+  }
+}

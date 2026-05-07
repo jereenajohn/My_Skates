@@ -131,19 +131,32 @@ class _UsedProductsState extends State<UsedProducts> {
           final price = double.tryParse(item["price"]?.toString() ?? "0") ?? 0;
           final discount =
               double.tryParse(item["discount"]?.toString() ?? "0") ?? 0;
+                   final List images = item["images"] ?? [];
 
-          return {
-            "id": item["id"],
-            "title": item["title"] ?? "",
-            "category_name": item["category_name"] ?? "",
-            "description": item["description"] ?? "",
-            "image": item["image"] != null ? "$api${item["image"]}" : "",
-            "price": price,
-            "discount": discount,
-            "final_price": discount > 0 ? price - discount : price,
-            "status": (item["status"] ?? "").toString().toLowerCase(),
-            "created_at": item["created_at"] ?? "",
-          };
+        String productImage = "";
+
+        if (images.isNotEmpty) {
+          productImage = images.first["image"]?.toString() ?? "";
+        }
+
+          
+
+        return {
+          "id": item["id"],
+          "title": item["title"] ?? "",
+          "category_name": item["category_name"] ?? "",
+          "description": item["description"] ?? "",
+          "image": productImage,
+          "images": images,
+          "price": price,
+          "discount": discount,
+          "final_price": discount > 0 ? price - discount : price,
+          "status": (item["status"] ?? "").toString().toLowerCase(),
+          "created_at": item["created_at"] ?? "",
+          "return_policy_days": item["return_policy_days"] ?? 0,
+          "shipment_charge": item["shipment_charge"] ?? "0.00",
+          "user_name": item["user_name"] ?? "",
+        };
         }).toList();
 
         setState(() {

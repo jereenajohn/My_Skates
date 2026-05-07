@@ -69,6 +69,22 @@ class _MyUsedProductsPageState extends State<MyUsedProductsPage> {
           final discount =
               double.tryParse(item["discount"]?.toString() ?? "0") ?? 0;
 
+          // ✅ Correct image handling
+          // API response gives images as a list:
+          // "images": [
+          //   {
+          //     "id": 4,
+          //     "image": "http://.../media/used_products/image.jpg"
+          //   }
+          // ]
+          final List images = item["images"] ?? [];
+
+          String firstImage = "";
+
+          if (images.isNotEmpty) {
+            firstImage = images.first["image"]?.toString() ?? "";
+          }
+
           return {
             "id": item["id"],
             "title": item["title"] ?? "",
@@ -76,12 +92,25 @@ class _MyUsedProductsPageState extends State<MyUsedProductsPage> {
             "category_name": item["category_name"] ?? "",
             "user_name": item["user_name"] ?? "",
             "description": item["description"] ?? "",
-            "image": item["image"] != null ? "$api${item["image"]}" : "",
+
+            // ✅ First image for grid card
+            // Do not add $api because API already gives full image URL
+            "image": firstImage,
+
+            // ✅ All images saved for big view / slider if needed
+            "images": images,
+
             "price": price,
             "discount": discount,
             "final_price": discount > 0 ? price - discount : price,
             "status": (item["status"] ?? "").toString().toLowerCase(),
             "created_at": item["created_at"] ?? "",
+            "return_policy_days": item["return_policy_days"] ?? 0,
+            "shipment_charge": item["shipment_charge"] ?? "0.00",
+            "payment_methods": item["payment_methods"] ?? [],
+            "attribute": item["attribute"],
+            "attribute_value": item["attribute_value"],
+            "user": item["user"],
           };
         }).toList();
 
@@ -146,9 +175,7 @@ class _MyUsedProductsPageState extends State<MyUsedProductsPage> {
   Future<void> _handleUpdateUsedProduct(Map<String, dynamic> product) async {
     final result = await Navigator.push(
       context,
-      slideRightToLeftRoute(
-        UpdateUsedProductPage(productId: product['id']),
-      ),
+      slideRightToLeftRoute(UpdateUsedProductPage(productId: product['id'])),
     );
 
     if (result == true) {
@@ -404,17 +431,18 @@ class _MyUsedProductsPageState extends State<MyUsedProductsPage> {
                             itemCount: myProducts.length,
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisExtent: 285,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                            ),
+                                  crossAxisCount: 2,
+                                  mainAxisExtent: 285,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 12,
+                                ),
                             itemBuilder: (context, index) {
                               final p = myProducts[index];
 
                               return TweenAnimationBuilder<double>(
-                                duration:
-                                    Duration(milliseconds: 400 + (index * 80)),
+                                duration: Duration(
+                                  milliseconds: 400 + (index * 80),
+                                ),
                                 tween: Tween<double>(begin: 0, end: 1),
                                 curve: Curves.easeOut,
                                 builder: (context, value, child) {
@@ -440,9 +468,9 @@ class _MyUsedProductsPageState extends State<MyUsedProductsPage> {
                                         DismissDirection.endToStart) {
                                       final shouldDelete =
                                           await _confirmDeleteUsedProduct(
-                                        context,
-                                        p,
-                                      );
+                                            context,
+                                            p,
+                                          );
                                       if (shouldDelete) {
                                         await deleteUsedProduct(p['id']);
                                       }
@@ -482,8 +510,7 @@ class _MyUsedProductsPageState extends State<MyUsedProductsPage> {
                                       borderRadius: BorderRadius.circular(18),
                                     ),
                                     child: const Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.end,
+                                      mainAxisAlignment: MainAxisAlignment.end,
                                       children: [
                                         Text(
                                           "Delete",
@@ -495,8 +522,7 @@ class _MyUsedProductsPageState extends State<MyUsedProductsPage> {
                                           ),
                                         ),
                                         SizedBox(width: 8),
-                                        Icon(Icons.delete,
-                                            color: Colors.white),
+                                        Icon(Icons.delete, color: Colors.white),
                                       ],
                                     ),
                                   ),
@@ -522,6 +548,9 @@ class _MyUsedProductsPageState extends State<MyUsedProductsPage> {
   Widget _productCard(Map<String, dynamic> p) {
     final bool isSold = p['status'] == "sold";
     final bool hasDiscount = (p['discount'] ?? 0) > 0;
+
+    // ✅ Safe image URL
+    final String imageUrl = p['image']?.toString() ?? "";
 
     return GestureDetector(
       onTap: () {
@@ -555,16 +584,42 @@ class _MyUsedProductsPageState extends State<MyUsedProductsPage> {
                   child: SizedBox(
                     height: 150,
                     width: double.infinity,
-                    child: Image.network(
-                      p['image'],
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const ColoredBox(
-                        color: Colors.white10,
-                        child: Center(
-                          child: Icon(Icons.broken_image, color: Colors.grey),
-                        ),
-                      ),
-                    ),
+                    child: imageUrl.isNotEmpty
+                        ? Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+
+                              return const ColoredBox(
+                                color: Colors.white10,
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: Colors.tealAccent,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              );
+                            },
+                            errorBuilder: (_, __, ___) => const ColoredBox(
+                              color: Colors.white10,
+                              child: Center(
+                                child: Icon(
+                                  Icons.broken_image,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
+                          )
+                        : const ColoredBox(
+                            color: Colors.white10,
+                            child: Center(
+                              child: Icon(
+                                Icons.image_not_supported,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ),
                   ),
                 ),
                 Positioned(
