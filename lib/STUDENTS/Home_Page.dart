@@ -2496,7 +2496,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                             const SizedBox(height: 15),
                             SizedBox(
-                              height: 170,
+                              height: 185,
                               child: ListView.builder(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: trainingSessions.length,
@@ -2504,18 +2504,19 @@ class _HomePageState extends State<HomePage> {
                                   final session = trainingSessions[index];
                                   final images =
                                       session['images'] as List? ?? [];
+
                                   String imageUrl = images.isNotEmpty
                                       ? "$api${images[0]['image']}"
                                       : "";
 
                                   return Container(
-                                    width: 280,
+                                    width: 310,
                                     margin: EdgeInsets.only(
                                       right: 12,
                                       left: index == 0 ? 0 : 0,
                                     ),
                                     child: buildTrainingSessionRow(
-                                      // context: context,
+                                      context: context,
                                       trainingId: session['id'],
                                       title: session['title'] ?? "",
                                       note: session['note'] ?? "",
@@ -3722,6 +3723,7 @@ String formatEventDate(String date) {
 }
 
 Widget buildTrainingSessionRow({
+  required BuildContext context,
   required String title,
   required String note,
   required String location,
@@ -3744,17 +3746,24 @@ Widget buildTrainingSessionRow({
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: imageUrl.isNotEmpty
-              ? Image.network(
-                  imageUrl,
-                  width: 90,
-                  height: 90,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _imagePlaceholder(),
-                )
-              : _imagePlaceholder(),
+        GestureDetector(
+          onTap: imageUrl.isNotEmpty
+              ? () {
+                  showImagePopup(context, imageUrl);
+                }
+              : null,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: imageUrl.isNotEmpty
+                ? Image.network(
+                    imageUrl,
+                    width: 90,
+                    height: 90,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                  )
+                : _imagePlaceholder(),
+          ),
         ),
 
         const SizedBox(width: 12),
@@ -3817,14 +3826,20 @@ Widget buildTrainingSessionRow({
                     color: Colors.tealAccent,
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    "${formatDisplayDate(startDate)} - ${formatDisplayDate(endDate)}",
-                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  Expanded(
+                    child: Text(
+                      "${formatDisplayDate(startDate)} - ${formatDisplayDate(endDate)}",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                      ),
+                    ),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 4),
 
               const SizedBox(height: 10),
 
@@ -3837,6 +3852,9 @@ Widget buildTrainingSessionRow({
                           onPressed: null,
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Colors.green),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                           child: const Text(
                             "Registered",
