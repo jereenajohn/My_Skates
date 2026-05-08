@@ -225,10 +225,10 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
   }//gg
 
   Future<void> submitUsedProduct() async {
-    FocusScope.of(context).unfocus();
-    if (!_formKey.currentState!.validate()) return;
+     FocusScope.of(context).unfocus();
+     if (!_formKey.currentState!.validate()) return;
 
-    if (selectedAttributeGroups.isEmpty) {
+     if (selectedAttributeGroups.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Please select at least one attribute"),
