@@ -20,6 +20,7 @@ import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_profile_page.dart';
 import 'package:my_skates/COACH/myorders.dart';
 import 'package:my_skates/COACH/product_review_approval_page.dart';
+import 'package:my_skates/COACH/used_product_orders_page.dart';
 import 'package:my_skates/COACH/view_clubs.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/products.dart';
@@ -241,6 +242,13 @@ class _CoachSettingsState extends State<CoachSettings> {
                         icon: Icons.shopping_bag,
                         text: "My Orders",
                         onTap: () => pushWithSlide(Admin_order_page()),
+                      ),
+
+                      if ("Used product Orders".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.shopping_bag,
+                        text: "Used product Orders",
+                        onTap: () => pushWithSlide(UsedProductOrdersPage()),
                       ),
 
                     if ("Product Review Approval".toLowerCase().contains(

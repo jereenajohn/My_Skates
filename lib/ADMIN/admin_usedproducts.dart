@@ -180,13 +180,58 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
       print('USED ORDERS BODY: ${response.body}');
 
       if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
-        final List<dynamic> data =
-            json['data'] ?? json['results'] ?? json ?? [];
+        final decoded = jsonDecode(response.body);
+
+        List<dynamic> orderList = [];
+
+        if (decoded is Map<String, dynamic>) {
+          // New paginated response:
+          // {
+          //   count,
+          //   next,
+          //   previous,
+          //   results: {
+          //     success,
+          //     count,
+          //     data: []
+          //   }
+          // }
+          if (decoded['results'] is Map<String, dynamic>) {
+            final results = decoded['results'] as Map<String, dynamic>;
+
+            if (results['data'] is List) {
+              orderList = results['data'] as List;
+            }
+          }
+          // Old response:
+          // {
+          //   success,
+          //   data: []
+          // }
+          else if (decoded['data'] is List) {
+            orderList = decoded['data'] as List;
+          }
+          // Fallback if results itself is a list
+          else if (decoded['results'] is List) {
+            orderList = decoded['results'] as List;
+          }
+        } else if (decoded is List) {
+          orderList = decoded;
+        }
+
         setState(() {
-          _orders = data.map((e) => UsedOrder.fromJson(e)).toList();
+          _orders = orderList
+              .map((e) => UsedOrder.fromJson(e as Map<String, dynamic>))
+              .toList();
+
           _isLoading = false;
         });
+
+        for (final order in _orders) {
+          print(
+            'USED ALL ORDER ${order.id} FINAL PAYABLE => ${order.finalPayable}',
+          );
+        }
       } else {
         setState(() {
           _error = 'Failed to load orders (${response.statusCode})';

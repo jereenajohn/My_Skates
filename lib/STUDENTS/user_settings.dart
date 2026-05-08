@@ -1,8 +1,11 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/add_address.dart';
+import 'package:my_skates/ADMIN/admin_usedproducts.dart' hide UsedProductOrdersPage;
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/view_address.dart';
+import 'package:my_skates/COACH/used_product_orders_page.dart'; // ← ADD THIS
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/add_student_achievements.dart';
 import 'package:my_skates/STUDENTS/products.dart';
@@ -294,6 +297,20 @@ class _UserSettingsState extends State<UserSettings> {
                             context,
                             slideRightToLeftRoute(
                               const Student_order_page(),
+                            ), // ✅ same animation + no white
+                          );
+                        },
+                      ),
+
+                      if (_match("Used Product Orders"))
+                      _menuTile(
+                        icon: Icons.shopping_bag,
+                        text: "Used Product Orders",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            slideRightToLeftRoute(
+                              const UsedProductOrdersPage(),
                             ), // ✅ same animation + no white
                           );
                         },
