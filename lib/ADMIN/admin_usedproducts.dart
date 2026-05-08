@@ -583,6 +583,12 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
           _orders = newOrders;
           _isLoading = false;
         });
+
+        for (final order in _orders) {
+          print(
+            'USED ALL ORDER ${order.id} FINAL PAYABLE => ${order.finalPayable}',
+          );
+        }
       } else {
         setState(() {
           _error = 'Failed to load orders (${response.statusCode})';

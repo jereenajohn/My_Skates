@@ -18,8 +18,10 @@ import 'package:my_skates/COACH/coach_followers_list.dart';
 import 'package:my_skates/COACH/coach_following_list.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_profile_page.dart';
+import 'package:my_skates/COACH/coach_return_products.dart';
 import 'package:my_skates/COACH/myorders.dart';
 import 'package:my_skates/COACH/product_review_approval_page.dart';
+import 'package:my_skates/COACH/used_product_orders_page.dart';
 import 'package:my_skates/COACH/view_clubs.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/products.dart';
@@ -243,6 +245,13 @@ class _CoachSettingsState extends State<CoachSettings> {
                         onTap: () => pushWithSlide(Admin_order_page()),
                       ),
 
+                      if ("Used product Orders".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.shopping_bag,
+                        text: "Used product Orders",
+                        onTap: () => pushWithSlide(UsedProductOrdersPage()),
+                      ),
+
                     if ("Product Review Approval".toLowerCase().contains(
                       _searchQuery,
                     ))
@@ -298,6 +307,12 @@ class _CoachSettingsState extends State<CoachSettings> {
                         icon: Icons.home,
                         text: "Add company",
                         onTap: () => pushWithSlide(AdminCoachCompaniesPage()),
+                      ),
+                       if ("Return/Refund Products".toLowerCase().contains(_searchQuery))
+                      _menuTile(
+                        icon: Icons.production_quantity_limits_rounded,
+                        text: "Return/Refund Products",
+                        onTap: () => pushWithSlide(ReturnRefundProductsScreen()),
                       ),
 
                     if ("Attributes".toLowerCase().contains(_searchQuery))
