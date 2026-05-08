@@ -1861,6 +1861,24 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     {'value': 'other', 'label': 'Other'},
   ];
 
+bool get _isCashOnDeliveryOrder {
+  final method = widget.order.paymentMethod.trim().toUpperCase();
+  return method == 'COD' ||
+      method == 'CASH ON DELIVERY' ||
+      method == 'CASH_ON_DELIVERY';
+}
+
+List<Map<String, String>> get _availableRefundRemarkOptions {
+  if (_isCashOnDeliveryOrder) {
+    return _refundRemarkOptions
+        .where((option) => option['value'] != 'return')
+        .toList();
+  }
+
+  return _refundRemarkOptions
+      .where((option) => option['value'] != 'cod_return')
+      .toList();
+}
   double _toDouble(String? value) {
     return double.tryParse(value ?? '0') ?? 0.0;
   }
@@ -2761,14 +2779,14 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     );
   }
 
-  void _resetReturnExchangeForm() {
-    _selectedReturnItem = _canRequestReturnExchange ? _openedItem : null;
-    _selectedRefundRemark = null;
-    _selectedReasonType = null;
-    _customReasonController.clear();
-    _isSubmittingReturnExchange = false;
-    _returnExchangeErrorMessage = null;
-  }
+void _resetReturnExchangeForm() {
+  _selectedReturnItem = _canRequestReturnExchange ? _openedItem : null;
+  _selectedRefundRemark = null;
+  _selectedReasonType = null;
+  _customReasonController.clear();
+  _isSubmittingReturnExchange = false;
+  _returnExchangeErrorMessage = null;
+}
 
   Future<void> _submitReturnExchangeRequest(
     StateSetter bottomSheetSetState,
@@ -2786,7 +2804,15 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       );
       return;
     }
-
+if (_isCashOnDeliveryOrder && _selectedRefundRemark == 'return') {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Return option is not available for Cash on Delivery orders'),
+      backgroundColor: Colors.redAccent,
+    ),
+  );
+  return;
+}
     if (_selectedReasonType == null || _selectedReasonType!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select reason type')),
@@ -3073,10 +3099,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             value: _selectedRefundRemark,
                             isExpanded: true,
                             dropdownColor: const Color(0xFF161616),
-                            hint: const Text(
-                              'Select return, refund or exchange',
-                              style: TextStyle(color: Colors.white54),
-                            ),
+                           hint: Text(
+  _isCashOnDeliveryOrder
+      ? 'Select exchange or COD return'
+      : 'Select return or exchange',
+  style: const TextStyle(color: Colors.white54),
+),
                             icon: const Icon(
                               Icons.keyboard_arrow_down,
                               color: Colors.white70,
@@ -3089,15 +3117,15 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                       _selectedRefundRemark = value;
                                     });
                                   },
-                            items: _refundRemarkOptions.map((option) {
-                              return DropdownMenuItem<String>(
-                                value: option['value'],
-                                child: Text(
-                                  option['label'] ?? '',
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              );
-                            }).toList(),
+                           items: _availableRefundRemarkOptions.map((option) {
+  return DropdownMenuItem<String>(
+    value: option['value'],
+    child: Text(
+      option['label'] ?? '',
+      style: const TextStyle(color: Colors.white),
+    ),
+  );
+}).toList(),
                           ),
                         ),
                       ),
