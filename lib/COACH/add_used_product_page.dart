@@ -222,7 +222,7 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
         );
       });
     }
-  }
+  }//gg
 
   Future<void> submitUsedProduct() async {
     FocusScope.of(context).unfocus();
