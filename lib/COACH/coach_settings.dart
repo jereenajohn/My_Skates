@@ -18,6 +18,7 @@ import 'package:my_skates/COACH/coach_followers_list.dart';
 import 'package:my_skates/COACH/coach_following_list.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_profile_page.dart';
+import 'package:my_skates/COACH/coach_return_products.dart';
 import 'package:my_skates/COACH/myorders.dart';
 import 'package:my_skates/COACH/product_review_approval_page.dart';
 import 'package:my_skates/COACH/used_product_orders_page.dart';
@@ -239,14 +240,16 @@ class _CoachSettingsState extends State<CoachSettings> {
 
                     if ("My Orders".toLowerCase().contains(_searchQuery))
                       _menuTile(
-                        icon: Icons.shopping_bag,
+                        icon: Icons.shopping_bag_outlined,
                         text: "My Orders",
                         onTap: () => pushWithSlide(Admin_order_page()),
                       ),
 
-                      if ("Used product Orders".toLowerCase().contains(_searchQuery))
+                    if ("Used product Orders".toLowerCase().contains(
+                      _searchQuery,
+                    ))
                       _menuTile(
-                        icon: Icons.shopping_bag,
+                        icon: Icons.inventory_2_outlined,
                         text: "Used product Orders",
                         onTap: () => pushWithSlide(UsedProductOrdersPage()),
                       ),
@@ -255,7 +258,7 @@ class _CoachSettingsState extends State<CoachSettings> {
                       _searchQuery,
                     ))
                       _menuTile(
-                        icon: Icons.read_more,
+                        icon: Icons.approval,
                         text: "Product Review Approval",
                         onTap: () => pushWithSlide(
                           const ProductReviewApprovalPage(
@@ -267,7 +270,7 @@ class _CoachSettingsState extends State<CoachSettings> {
 
                     if ("Add Bank Details".toLowerCase().contains(_searchQuery))
                       _menuTile(
-                        icon: Icons.read_more,
+                        icon: Icons.account_balance_wallet_outlined,
                         text: "Add Bank Details",
                         onTap: () => pushWithSlide(AddBankDetailsPage()),
                       ),
@@ -276,76 +279,85 @@ class _CoachSettingsState extends State<CoachSettings> {
                       _searchQuery,
                     ))
                       _menuTile(
-                        icon: Icons.read_more,
+                        icon: Icons.account_balance_wallet_outlined,
                         text: "View Bank Details",
                         onTap: () => pushWithSlide(BankDetailsPage()),
                       ),
 
                     if ("Add Achievements".toLowerCase().contains(_searchQuery))
                       _menuTile(
-                        icon: Icons.home,
+                        icon: Icons.emoji_events_outlined,
                         text: "Add Achievements",
                         onTap: () => pushWithSlide(AddCoachAchievements()),
                       ),
 
                     if ("Add Club".toLowerCase().contains(_searchQuery))
                       _menuTile(
-                        icon: Icons.home,
+                        icon: Icons.groups_outlined,
                         text: "Add Club",
                         onTap: () => pushWithSlide(AddClub()),
                       ),
 
                     if ("Add address".toLowerCase().contains(_searchQuery))
                       _menuTile(
-                        icon: Icons.home,
+                        icon: Icons.home_outlined,
                         text: "Add address",
                         onTap: () => pushWithSlide(ViewAddress()),
                       ),
                     if ("Add company".toLowerCase().contains(_searchQuery))
                       _menuTile(
-                        icon: Icons.home,
+                        icon: Icons.business_outlined,
                         text: "Add company",
                         onTap: () => pushWithSlide(AdminCoachCompaniesPage()),
+                      ),
+                    if ("Return/Refund Products".toLowerCase().contains(
+                      _searchQuery,
+                    ))
+                      _menuTile(
+                        icon: Icons.production_quantity_limits_rounded,
+                        text: "Return/Refund Products",
+                        onTap: () =>
+                            pushWithSlide(ReturnRefundProductsScreen()),
                       ),
 
                     if ("Attributes".toLowerCase().contains(_searchQuery))
                       _menuTile(
-                        icon: Icons.home,
+                        icon: Icons.category_outlined,
                         text: "Attributes",
                         onTap: () => pushWithSlide(attributes()),
                       ),
 
                     if ("Values".toLowerCase().contains(_searchQuery))
                       _menuTile(
-                        icon: Icons.home,
+                        icon: Icons.category_outlined,
                         text: "Values",
                         onTap: () => pushWithSlide(AddValues()),
                       ),
 
                     if ("View Club".toLowerCase().contains(_searchQuery))
                       _menuTile(
-                        icon: Icons.home,
+                        icon: Icons.groups_outlined,
                         text: "View Club",
                         onTap: () => pushWithSlide(ViewClubs()),
                       ),
 
                     if ("Follow Requests".toLowerCase().contains(_searchQuery))
                       _menuTile(
-                        icon: Icons.home,
+                        icon: Icons.person_add_alt_1_outlined,
                         text: "Follow Requests",
                         onTap: () => pushWithSlide(const CoachFollowRequest()),
                       ),
 
                     if ("Followers".toLowerCase().contains(_searchQuery))
                       _menuTile(
-                        icon: Icons.home,
+                        icon: Icons.person_outline,
                         text: "Followers",
                         onTap: () => pushWithSlide(const CoachFollowersList()),
                       ),
 
                     if ("Following".toLowerCase().contains(_searchQuery))
                       _menuTile(
-                        icon: Icons.home,
+                        icon: Icons.person_pin_outlined,
                         text: "Following",
                         onTap: () => pushWithSlide(const CoachFollowingList()),
                       ),

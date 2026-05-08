@@ -22,6 +22,14 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
   String? error;
   SellerOrderDetail? order;
 
+  final List<Map<String, String>> statusOptions = [
+    {"value": "PLACED", "label": "Placed"},
+    {"value": "PAID", "label": "Paid"},
+    {"value": "SHIPPED", "label": "Shipped"},
+    {"value": "DELIVERED", "label": "Delivered"},
+    {"value": "CANCELLED", "label": "Cancelled"},
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +85,218 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
         isLoading = false;
       });
     }
+  }
+
+  Future<void> updateOrderItemStatus(
+    int itemId,
+    String newStatus,
+    int index,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authentication token missing')),
+        );
+        return;
+      }
+
+      final response = await http.patch(
+        Uri.parse('$api/api/myskates/order/item/status/update/$itemId/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({'status': newStatus}),
+      );
+
+      print("UPDATE ITEM STATUS API STATUS: ${response.statusCode}");
+      print("UPDATE ITEM STATUS RESPONSE: ${response.body}");
+
+      if (response.statusCode == 200) {
+        setState(() {
+          order?.items[index].status = newStatus;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.black, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Item status updated to $newStatus',
+                  style: const TextStyle(color: Colors.black),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.tealAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update status: ${response.statusCode}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print("Error updating status: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _showStatusBottomSheet(SellerOrderItem item, int itemIndex) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF0D2B28).withOpacity(0.95),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+                border: Border.all(color: Colors.white.withOpacity(0.10)),
+              ),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Update Order Item Status',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Product: ${item.productTitle}',
+                    style: const TextStyle(color: Colors.white38, fontSize: 12),
+                  ),
+                  const SizedBox(height: 20),
+                  ...statusOptions.map((option) {
+                    final isSelected = item.status == option['value'];
+                    final statusColor = _getStatusColor(option['value']!);
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        if (!isSelected) {
+                          updateOrderItemStatus(
+                            item.id,
+                            option['value']!,
+                            itemIndex,
+                          );
+                        }
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? statusColor.withOpacity(0.18)
+                              : Colors.white.withOpacity(0.04),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isSelected
+                                ? statusColor.withOpacity(0.6)
+                                : Colors.white.withOpacity(0.08),
+                            width: isSelected ? 1.5 : 0.5,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: statusColor,
+                                shape: BoxShape.circle,
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: statusColor.withOpacity(0.5),
+                                          blurRadius: 6,
+                                        ),
+                                      ]
+                                    : [],
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Text(
+                                option['label']!,
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? statusColor
+                                      : Colors.white70,
+                                  fontSize: 15,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                            if (isSelected)
+                              Icon(
+                                Icons.check_circle_rounded,
+                                color: statusColor,
+                                size: 20,
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Color _getStatusColor(String status) {
@@ -136,27 +356,6 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
     );
   }
 
-  Widget _statusBadge(String status) {
-    final color = _getStatusColor(status);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.18),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.45)),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-
   Widget _priceRow(
     String title,
     dynamic value, {
@@ -178,7 +377,7 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
             ),
           ),
           Text(
-            _money(value),
+            value,
             style: TextStyle(
               color: valueColor ?? Colors.white,
               fontSize: isBold ? 15 : 13,
@@ -264,7 +463,7 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
     );
   }
 
-  Widget _buildOrderItemCard(SellerOrderItem item) {
+  Widget _buildOrderItemCard(SellerOrderItem item, int index) {
     return _glassWrap(
       padding: const EdgeInsets.all(13),
       child: Column(
@@ -314,35 +513,57 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
                   ],
                 ),
               ),
-              Text(
-                _money(item.itemTotal),
-                style: const TextStyle(
-                  color: Colors.tealAccent,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _money(item.itemTotal),
+                    style: const TextStyle(
+                      color: Colors.tealAccent,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  GestureDetector(
+                    onTap: () => _showStatusBottomSheet(item, index),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getStatusColor(item.status).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: _getStatusColor(item.status).withOpacity(0.5),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            item.status,
+                            style: TextStyle(
+                              color: _getStatusColor(item.status),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.edit,
+                            color: _getStatusColor(item.status),
+                            size: 12,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-
-          // const SizedBox(height: 14),
-          // Divider(color: Colors.white.withOpacity(0.10), height: 1),
-          // const SizedBox(height: 10),
-
-          // _priceRow('Product Price', item.variantPrice),
-          // _priceRow('Discount', item.variantDiscount, valueColor: Colors.redAccent),
-          // _priceRow('Discounted Total', item.itemTotal, valueColor: Colors.tealAccent),
-          // _priceRow('Percentage Amount', item.percentageAmount),
-          // _priceRow('Shipping Charge', item.productShippingCharge),
-
-          // const Divider(color: Colors.white24, height: 22),
-
-          // _priceRow(
-          //   'Seller Payable',
-          //   item.sellerPayable,
-          //   valueColor: Colors.greenAccent,
-          //   isBold: true,
-          // ),
         ],
       ),
     );
@@ -383,7 +604,7 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
             children: [
               const Expanded(
                 child: Text(
-                  'Seller Order Detail',
+                  'Order Details',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -391,7 +612,27 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
                   ),
                 ),
               ),
-              _statusBadge(order.status),
+              // Container(
+              //   padding: const EdgeInsets.symmetric(
+              //     horizontal: 12,
+              //     vertical: 7,
+              //   ),
+              //   decoration: BoxDecoration(
+              //     color: _getStatusColor(order.status).withOpacity(0.18),
+              //     borderRadius: BorderRadius.circular(20),
+              //     border: Border.all(
+              //       color: _getStatusColor(order.status).withOpacity(0.45),
+              //     ),
+              //   ),
+              //   child: Text(
+              //     order.status,
+              //     style: TextStyle(
+              //       color: _getStatusColor(order.status),
+              //       fontSize: 12,
+              //       fontWeight: FontWeight.w700,
+              //     ),
+              //   ),
+              // ),
             ],
           ),
           const SizedBox(height: 12),
@@ -458,24 +699,17 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
             Icons.account_balance_wallet_outlined,
           ),
           const SizedBox(height: 14),
-
-          _priceRow('Product Total', summary.sellerDiscountedTotal),
-          // _priceRow(
-          //   'Discounted Product Total',
-          //   summary.sellerDiscountedTotal,
-          //   valueColor: Colors.tealAccent,
-          // ),
+          _priceRow('Product Total', "₹${summary.sellerDiscountedTotal}"),
           _priceRow(
             'Percentage (${summary.productPercentage}%)',
-            summary.sellerPercentageTotal,
+            "-₹${summary.sellerPercentageTotal}",
+            valueColor: Colors.redAccent,
           ),
-          _priceRow('Shipping Total', summary.sellerShippingTotal),
-
+          _priceRow('Shipping Total', "₹${summary.sellerShippingTotal}"),
           const Divider(color: Colors.white24, height: 24),
-
           _priceRow(
             'Seller Payable Total',
-            summary.sellerPayableTotal,
+            "₹${summary.sellerPayableTotal}",
             valueColor: Colors.greenAccent,
             isBold: true,
           ),
@@ -568,7 +802,6 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
                   ],
                 ),
               ),
-
               Expanded(
                 child: isLoading
                     ? _buildLoadingView()
@@ -588,22 +821,21 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
                             const SizedBox(height: 14),
                             _buildHeader(data),
                             const SizedBox(height: 14),
-
                             _sectionTitle(
                               'Sold Products',
                               Icons.inventory_2_outlined,
                             ),
                             const SizedBox(height: 12),
-
-                            ...data.items.map(
-                              (item) => Padding(
+                            ...data.items.asMap().entries.map(
+                              (entry) => Padding(
                                 padding: const EdgeInsets.only(bottom: 12),
-                                child: _buildOrderItemCard(item),
+                                child: _buildOrderItemCard(
+                                  entry.value,
+                                  entry.key,
+                                ),
                               ),
                             ),
-
                             const SizedBox(height: 20),
-
                             if (data.summary != null) ...[
                               _buildSellerSummaryCard(data.summary!),
                               const SizedBox(height: 14),
@@ -706,6 +938,7 @@ class SellerOrderItem {
   final String itemTotal;
   final String percentageAmount;
   final String sellerPayable;
+  String status; // Made mutable
 
   SellerOrderItem({
     required this.id,
@@ -725,6 +958,7 @@ class SellerOrderItem {
     required this.itemTotal,
     required this.percentageAmount,
     required this.sellerPayable,
+    required this.status,
   });
 
   factory SellerOrderItem.fromJson(Map<String, dynamic> json) {
@@ -746,6 +980,7 @@ class SellerOrderItem {
       itemTotal: json['item_total']?.toString() ?? '0',
       percentageAmount: json['percentage_amount']?.toString() ?? '0',
       sellerPayable: json['seller_payable']?.toString() ?? '0',
+      status: json['status']?.toString() ?? 'PLACED',
     );
   }
 }
