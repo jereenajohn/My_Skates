@@ -7,6 +7,7 @@ import 'package:my_skates/ADMIN/view_all_events.dart';
 import 'package:my_skates/COACH/club_detailed_view.dart';
 import 'package:my_skates/COACH/club_list.dart';
 import 'package:my_skates/COACH/coach_details_page.dart';
+import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/COACH/used_products.dart';
 // import 'package:my_skates/STUDENTS/bottomnavigation_student.dart';
 import 'package:my_skates/STUDENTS/products.dart';
@@ -2495,7 +2496,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                             const SizedBox(height: 15),
                             SizedBox(
-                              height: 340,
+                              height: 170,
                               child: ListView.builder(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: trainingSessions.length,
@@ -2514,6 +2515,7 @@ class _HomePageState extends State<HomePage> {
                                       left: index == 0 ? 0 : 0,
                                     ),
                                     child: buildTrainingSessionRow(
+                                      // context: context,
                                       trainingId: session['id'],
                                       title: session['title'] ?? "",
                                       note: session['note'] ?? "",
@@ -3733,264 +3735,416 @@ Widget buildTrainingSessionRow({
   required trainingId,
 }) {
   return Container(
-    width: 280,
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(10),
     decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Colors.white.withOpacity(0.12),
-          Colors.white.withOpacity(0.06),
-          const Color(0xFF003E38).withOpacity(0.25),
-        ],
-      ),
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: Colors.white.withOpacity(0.15), width: 1),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.3),
-          blurRadius: 12,
-          offset: const Offset(0, 6),
-        ),
-      ],
+      color: Colors.white10,
+      borderRadius: BorderRadius.circular(14),
     ),
-    child: Stack(
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Image Section with overlay gradient
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                  child: imageUrl.isNotEmpty
-                      ? Image.network(
-                          imageUrl,
-                          width: double.infinity,
-                          height: 140,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _imagePlaceholder(),
-                        )
-                      : _imagePlaceholder(),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: imageUrl.isNotEmpty
+              ? Image.network(
+                  imageUrl,
+                  width: 90,
+                  height: 90,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                )
+              : _imagePlaceholder(),
+        ),
+
+        const SizedBox(width: 12),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
                 ),
-                // Gradient overlay on image
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.5),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                // Date badge on image
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF2EE6A6), Color(0xFF00AFA5)],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.calendar_today,
-                          size: 12,
-                          color: Colors.black,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          formatDisplayDate(startDate),
-                          style: const TextStyle(
-                            color: Colors.black,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+
+              const SizedBox(height: 4),
+
+              Text(
+                note,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+
+              const SizedBox(height: 6),
+
+              Row(
                 children: [
-                  // Title
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
-                    ),
+                  const Icon(
+                    Icons.location_on,
+                    size: 13,
+                    color: Colors.tealAccent,
                   ),
-                  const SizedBox(height: 6),
-                  // Note/Description
-                  Text(
-                    note,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 12,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  // Location row
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          size: 14,
-                          color: Colors.tealAccent.withOpacity(0.9),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            location,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Time row
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.access_time,
-                        size: 13,
-                        color: Colors.tealAccent.withOpacity(0.9),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      location,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 11,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        "$startTime - $endTime",
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // Register button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 38,
-                    child: isRegistered
-                        ? Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.green.withOpacity(0.2),
-                                  Colors.green.withOpacity(0.1),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.green.withOpacity(0.5),
-                              ),
-                            ),
-                            child: const Center(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.check_circle,
-                                    size: 16,
-                                    color: Colors.green,
-                                  ),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    "Registered",
-                                    style: TextStyle(
-                                      color: Colors.green,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )
-                        : ElevatedButton(
-                            onPressed: onRegister,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF00AFA5),
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text(
-                              "Register Now",
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+
+              const SizedBox(height: 6),
+
+              Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 12,
+                    color: Colors.tealAccent,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    "${formatDisplayDate(startDate)} - ${formatDisplayDate(endDate)}",
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 4),
+
+              const SizedBox(height: 10),
+
+              Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  height: 34,
+                  child: isRegistered
+                      ? OutlinedButton(
+                          onPressed: null,
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.green),
+                          ),
+                          child: const Text(
+                            "Registered",
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                      : ElevatedButton(
+                          onPressed: onRegister,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00AFA5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            "Register",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     ),
   );
 }
+// Widget buildTrainingSessionRow({
+//   required String title,
+//   required String note,
+//   required String location,
+//   required String startDate,
+//   required String endDate,
+//   required String startTime,
+//   required String endTime,
+//   required String imageUrl,
+//   VoidCallback? onRegister,
+//   required bool isRegistered,
+//   required trainingId,
+// }) {
+//   return Container(
+//     width: 280,
+//     decoration: BoxDecoration(
+//       gradient: LinearGradient(
+//         begin: Alignment.topLeft,
+//         end: Alignment.bottomRight,
+//         colors: [
+//           Colors.white.withOpacity(0.12),
+//           Colors.white.withOpacity(0.06),
+//           const Color(0xFF003E38).withOpacity(0.25),
+//         ],
+//       ),
+//       borderRadius: BorderRadius.circular(20),
+//       border: Border.all(color: Colors.white.withOpacity(0.15), width: 1),
+//       boxShadow: [
+//         BoxShadow(
+//           color: Colors.black.withOpacity(0.3),
+//           blurRadius: 12,
+//           offset: const Offset(0, 6),
+//         ),
+//       ],
+//     ),
+//     child: Stack(
+//       children: [
+//         Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           mainAxisSize: MainAxisSize.min,
+//           children: [
+//             // Image Section with overlay gradient
+//             Stack(
+//               children: [
+//                 ClipRRect(
+//                   borderRadius: const BorderRadius.only(
+//                     topLeft: Radius.circular(20),
+//                     topRight: Radius.circular(20),
+//                   ),
+//                   child: imageUrl.isNotEmpty
+//                       ? Image.network(
+//                           imageUrl,
+//                           width: double.infinity,
+//                           height: 140,
+//                           fit: BoxFit.cover,
+//                           errorBuilder: (_, __, ___) => _imagePlaceholder(),
+//                         )
+//                       : _imagePlaceholder(),
+//                 ),
+//                 // Gradient overlay on image
+//                 Positioned.fill(
+//                   child: Container(
+//                     decoration: BoxDecoration(
+//                       borderRadius: const BorderRadius.only(
+//                         topLeft: Radius.circular(20),
+//                         topRight: Radius.circular(20),
+//                       ),
+//                       gradient: LinearGradient(
+//                         begin: Alignment.topCenter,
+//                         end: Alignment.bottomCenter,
+//                         colors: [
+//                           Colors.transparent,
+//                           Colors.black.withOpacity(0.5),
+//                         ],
+//                       ),
+//                     ),
+//                   ),
+//                 ),
+//                 // Date badge on image
+//                 Positioned(
+//                   top: 12,
+//                   right: 12,
+//                   child: Container(
+//                     padding: const EdgeInsets.symmetric(
+//                       horizontal: 10,
+//                       vertical: 5,
+//                     ),
+//                     decoration: BoxDecoration(
+//                       gradient: const LinearGradient(
+//                         colors: [Color(0xFF2EE6A6), Color(0xFF00AFA5)],
+//                       ),
+//                       borderRadius: BorderRadius.circular(20),
+//                       boxShadow: [
+//                         BoxShadow(
+//                           color: Colors.black.withOpacity(0.2),
+//                           blurRadius: 4,
+//                         ),
+//                       ],
+//                     ),
+//                     child: Row(
+//                       mainAxisSize: MainAxisSize.min,
+//                       children: [
+//                         const Icon(
+//                           Icons.calendar_today,
+//                           size: 12,
+//                           color: Colors.black,
+//                         ),
+//                         const SizedBox(width: 4),
+//                         Text(
+//                           formatDisplayDate(startDate),
+//                           style: const TextStyle(
+//                             color: Colors.black,
+//                             fontSize: 10,
+//                             fontWeight: FontWeight.bold,
+//                           ),
+//                         ),
+//                       ],
+//                     ),
+//                   ),
+//                 ),
+//               ],
+//             ),
+//             Padding(
+//               padding: const EdgeInsets.all(12),
+//               child: Column(
+//                 crossAxisAlignment: CrossAxisAlignment.start,
+//                 children: [
+//                   // Title
+//                   Text(
+//                     title,
+//                     maxLines: 1,
+//                     overflow: TextOverflow.ellipsis,
+//                     style: const TextStyle(
+//                       color: Colors.white,
+//                       fontSize: 16,
+//                       fontWeight: FontWeight.w700,
+//                       letterSpacing: 0.3,
+//                     ),
+//                   ),
+//                   const SizedBox(height: 6),
+//                   // Note/Description
+//                   Text(
+//                     note,
+//                     maxLines: 2,
+//                     overflow: TextOverflow.ellipsis,
+//                     style: TextStyle(
+//                       color: Colors.white.withOpacity(0.7),
+//                       fontSize: 12,
+//                       height: 1.4,
+//                     ),
+//                   ),
+//                   const SizedBox(height: 10),
+//                   // Location row
+//                   Container(
+//                     padding: const EdgeInsets.symmetric(
+//                       horizontal: 8,
+//                       vertical: 4,
+//                     ),
+//                     decoration: BoxDecoration(
+//                       color: Colors.white.withOpacity(0.08),
+//                       borderRadius: BorderRadius.circular(8),
+//                     ),
+//                     child: Row(
+//                       children: [
+//                         Icon(
+//                           Icons.location_on,
+//                           size: 14,
+//                           color: Colors.tealAccent.withOpacity(0.9),
+//                         ),
+//                         const SizedBox(width: 6),
+//                         Expanded(
+//                           child: Text(
+//                             location,
+//                             maxLines: 1,
+//                             overflow: TextOverflow.ellipsis,
+//                             style: TextStyle(
+//                               color: Colors.white.withOpacity(0.8),
+//                               fontSize: 11,
+//                             ),
+//                           ),
+//                         ),
+//                       ],
+//                     ),
+//                   ),
+//                   const SizedBox(height: 8),
+//                   // Time row
+//                   Row(
+//                     children: [
+//                       Icon(
+//                         Icons.access_time,
+//                         size: 13,
+//                         color: Colors.tealAccent.withOpacity(0.9),
+//                       ),
+//                       const SizedBox(width: 6),
+//                       Text(
+//                         "$startTime - $endTime",
+//                         style: TextStyle(
+//                           color: Colors.white.withOpacity(0.7),
+//                           fontSize: 11,
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                   const SizedBox(height: 12),
+//                   // Register button
+//                   SizedBox(
+//                     width: double.infinity,
+//                     height: 38,
+//                     child: isRegistered
+//                         ? Container(
+//                             decoration: BoxDecoration(
+//                               gradient: LinearGradient(
+//                                 colors: [
+//                                   Colors.green.withOpacity(0.2),
+//                                   Colors.green.withOpacity(0.1),
+//                                 ],
+//                               ),
+//                               borderRadius: BorderRadius.circular(12),
+//                               border: Border.all(
+//                                 color: Colors.green.withOpacity(0.5),
+//                               ),
+//                             ),
+//                             child: const Center(
+//                               child: Row(
+//                                 mainAxisAlignment: MainAxisAlignment.center,
+//                                 children: [
+//                                   Icon(
+//                                     Icons.check_circle,
+//                                     size: 16,
+//                                     color: Colors.green,
+//                                   ),
+//                                   SizedBox(width: 6),
+//                                   Text(
+//                                     "Registered",
+//                                     style: TextStyle(
+//                                       color: Colors.green,
+//                                       fontSize: 13,
+//                                       fontWeight: FontWeight.w600,
+//                                     ),
+//                                   ),
+//                                 ],
+//                               ),
+//                             ),
+//                           )
+//                         : ElevatedButton(
+//                             onPressed: onRegister,
+//                             style: ElevatedButton.styleFrom(
+//                               backgroundColor: const Color(0xFF00AFA5),
+//                               foregroundColor: Colors.white,
+//                               elevation: 0,
+//                               shape: RoundedRectangleBorder(
+//                                 borderRadius: BorderRadius.circular(12),
+//                               ),
+//                             ),
+//                             child: const Text(
+//                               "Register Now",
+//                               style: TextStyle(
+//                                 fontSize: 13,
+//                                 fontWeight: FontWeight.bold,
+//                               ),
+//                             ),
+//                           ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//           ],
+//         ),
+//       ],
+//     ),
+//   );
+// }
 
 Widget _imagePlaceholder() {
   return Container(
