@@ -1641,46 +1641,46 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                 ),
                 const SizedBox(width: 8),
                 // Status badge — tappable in My Sold Orders only, read-only in All Orders & My Orders
-                GestureDetector(
-                  onTap: _selectedView == OrderViewType.mySoldOrders
-                      ? () => _showStatusBottomSheet(order)
-                      : null,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(order.status).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: _getStatusColor(order.status).withOpacity(0.5),
-                        width: 0.5,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          order.status,
-                          style: TextStyle(
-                            color: _getStatusColor(order.status),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        if (_selectedView == OrderViewType.mySoldOrders) ...[
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.expand_more_rounded,
-                            color: _getStatusColor(order.status),
-                            size: 14,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
+                // GestureDetector(
+                //   onTap: _selectedView == OrderViewType.mySoldOrders
+                //       ? () => _showStatusBottomSheet(order)
+                //       : null,
+                //   child: Container(
+                //     padding: const EdgeInsets.symmetric(
+                //       horizontal: 10,
+                //       vertical: 5,
+                //     ),
+                //     decoration: BoxDecoration(
+                //       color: _getStatusColor(order.status).withOpacity(0.2),
+                //       borderRadius: BorderRadius.circular(16),
+                //       border: Border.all(
+                //         color: _getStatusColor(order.status).withOpacity(0.5),
+                //         width: 0.5,
+                //       ),
+                //     ),
+                //     child: Row(
+                //       mainAxisSize: MainAxisSize.min,
+                //       children: [
+                //         Text(
+                //           order.status,
+                //           style: TextStyle(
+                //             color: _getStatusColor(order.status),
+                //             fontSize: 11,
+                //             fontWeight: FontWeight.w500,
+                //           ),
+                //         ),
+                //         if (_selectedView == OrderViewType.mySoldOrders) ...[
+                //           const SizedBox(width: 4),
+                //           Icon(
+                //             Icons.expand_more_rounded,
+                //             color: _getStatusColor(order.status),
+                //             size: 14,
+                //           ),
+                //         ],
+                //       ],
+                //     ),
+                //   ),
+                // ),
               ],
             ),
 
@@ -1813,32 +1813,32 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                 ),
               ),
 
-            const Divider(color: Colors.white24, height: 24),
+            // const Divider(color: Colors.white24, height: 24),
 
-            GestureDetector(
-              onTap: () => _navigateToOrderDetail(order),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Total:',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    '₹${double.parse(order.finalPayable).toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      color: Colors.tealAccent,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // GestureDetector(
+            //   onTap: () => _navigateToOrderDetail(order),
+            //   child: Row(
+            //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            //     children: [
+            //       const Text(
+            //         'Total:',
+            //         style: TextStyle(
+            //           color: Colors.white,
+            //           fontSize: 16,
+            //           fontWeight: FontWeight.bold,
+            //         ),
+            //       ),
+            //       Text(
+            //         '₹${double.parse(order.finalPayable).toStringAsFixed(2)}',
+            //         style: const TextStyle(
+            //           color: Colors.tealAccent,
+            //           fontSize: 18,
+            //           fontWeight: FontWeight.bold,
+            //         ),
+            //       ),
+            //     ],
+            //   ),
+            // ),
           ],
         ),
       ),
