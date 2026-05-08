@@ -422,6 +422,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
   }
 
   // FETCH COACHES
+  // FETCH COACHES
   Future<void> fetchCoaches() async {
     String? token = await getToken();
 
@@ -437,12 +438,26 @@ class _CoachHomepageState extends State<CoachHomepage> {
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         if (decoded is List) {
-          final filtered = decoded.where((c) => c["id"] != _myId).toList();
+          // Filter out self AND already followed coaches AND pending request coaches
+          final filtered = decoded.where((c) {
+            final int coachId = c["id"] ?? 0;
+            return coachId != _myId &&
+                !myFollowing.contains(coachId) &&
+                !myApprovedSent.contains(coachId) &&
+                !myRequests.contains(
+                  coachId,
+                ); // ← ADD THIS LINE to filter out pending requests
+          }).toList();
+
           setState(() {
             coaches = filtered;
             coachesNoData = filtered.isEmpty;
             coachesLoading = false;
           });
+
+          print("Original coaches count: ${decoded.length}");
+          print("Filtered coaches count: ${filtered.length}");
+          print("myRequests: $myRequests");
         }
       } else {
         setState(() {
@@ -551,7 +566,13 @@ class _CoachHomepageState extends State<CoachHomepage> {
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
 
-        final filtered = data.where((s) => s["id"] != _myId).toList();
+        // Filter out self AND already followed students
+        final filtered = data.where((s) {
+          final int studentId = s["id"] ?? 0;
+          return studentId != _myId &&
+              !myFollowing.contains(studentId) &&
+              !myApprovedSent.contains(studentId);
+        }).toList();
 
         setState(() {
           students = filtered
@@ -1904,12 +1925,16 @@ class _CoachHomepageState extends State<CoachHomepage> {
   Widget build(BuildContext context) {
     final filteredCoaches = coaches.where((coach) {
       final int id = coach["id"] ?? 0;
-      return !myFollowing.contains(id) && !myApprovedSent.contains(id);
+      return !myFollowing.contains(id) &&
+          !myApprovedSent.contains(id) &&
+          !myRequests.contains(id);
     }).toList();
 
     final filteredStudents = students.where((student) {
       final int id = student["id"] ?? 0;
-      return !myFollowing.contains(id) && !myApprovedSent.contains(id);
+      return !myFollowing.contains(id) &&
+          !myApprovedSent.contains(id) &&
+          !myRequests.contains(id);
     }).toList();
     return Scaffold(
       backgroundColor: Colors.black,
@@ -2182,6 +2207,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                       //     overflow: TextOverflow.ellipsis,
                                       //   ),
                                       // ),
+                                      //k
                                     ],
                                   );
                                 }).toList(),
@@ -2262,44 +2288,101 @@ class _CoachHomepageState extends State<CoachHomepage> {
                           // ---------------- UPCOMING TRAINING SESSIONS ----------------
                           // Show shimmer only while loading.
                           // After loading, show section only if data exists.
+                          // ---------------- UPCOMING TRAINING SESSIONS ----------------
                           if (trainingLoading) ...[
                             _buildTrainingShimmer(),
                             const SizedBox(height: 25),
                           ] else if (trainingSessions.isNotEmpty) ...[
-                            const Text(
-                              "Upcoming Training Sessions",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  "Upcoming Training Sessions",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                // Optional: "Swipe to see more" indicator
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.15),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.swipe,
+                                        size: 14,
+                                        color: Colors.tealAccent,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        "Swipe to see more",
+                                        style: TextStyle(
+                                          color: Colors.tealAccent.withOpacity(
+                                            0.9,
+                                          ),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const Icon(
+                                        Icons.arrow_forward_ios,
+                                        size: 10,
+                                        color: Colors.tealAccent,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 15),
+                            SizedBox(
+                              height: 140,                          
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: trainingSessions.length,
+                                itemBuilder: (context, index) {
+                                  final session = trainingSessions[index];
+                                  final images =
+                                      session['images'] as List? ?? [];
+                                  final imageUrl = images.isNotEmpty
+                                      ? "$api${images[0]['image']}"
+                                      : "";
 
-                            Column(
-                              children: trainingSessions.map((session) {
-                                final images = session['images'] as List? ?? [];
-                                final imageUrl = images.isNotEmpty
-                                    ? "$api${images[0]['image']}"
-                                    : "";
-
-                                return buildTrainingSessionRow(
-                                  context: context,
-                                  title: session['title'] ?? "",
-                                  note: session['note'] ?? "",
-                                  location: session['location'] ?? "",
-                                  startDate: session['start_date'] ?? "",
-                                  endDate: session['end_date'] ?? "",
-                                  startTime: session['start_time'] ?? "",
-                                  endTime: session['end_time'] ?? "",
-                                  imageUrl: imageUrl,
-                                );
-                              }).toList(),
+                                  return Container(
+                                    width: 260,
+                                    margin: EdgeInsets.only(
+                                      right: 12,
+                                      left: index == 0 ? 0 : 0,
+                                    ),
+                                    child: buildTrainingSessionRow(
+                                      context: context,
+                                      title: session['title'] ?? "",
+                                      note: session['note'] ?? "",
+                                      location: session['location'] ?? "",
+                                      startDate: session['start_date'] ?? "",
+                                      endDate: session['end_date'] ?? "",
+                                      startTime: session['start_time'] ?? "",
+                                      endTime: session['end_time'] ?? "",
+                                      imageUrl: imageUrl,
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
-
                             const SizedBox(height: 25),
                           ],
-
                           // ---------------- LATEST POSTS ----------------
                           // Important: this must be outside training section.
                           if (homeFeedsLoading) ...[
@@ -2451,6 +2534,157 @@ class _CoachHomepageState extends State<CoachHomepage> {
         ],
       ),
       bottomNavigationBar: const AppBottomNav(currentIndex: 0),
+    );
+  }
+
+  Widget buildTrainingSessionRow({
+    required BuildContext context,
+    required String title,
+    required String note,
+    required String location,
+    required String startDate,
+    required String endDate,
+    required String startTime,
+    required String endTime,
+    required String imageUrl,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // LEFT IMAGE
+          // LEFT IMAGE (CLICKABLE)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: GestureDetector(
+              onTap: () {
+                if (imageUrl.isNotEmpty) {
+                  showImagePopup(context, imageUrl);
+                }
+              },
+              child: imageUrl.isNotEmpty
+                  ? Image.network(
+                      imageUrl,
+                      width: 90,
+                      height: 90,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                    )
+                  : _imagePlaceholder(),
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+          // RIGHT CONTENT
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                const SizedBox(height: 4),
+
+                Text(
+                  note,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+
+                const SizedBox(height: 6),
+
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on,
+                      size: 13,
+                      color: Colors.tealAccent,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        location,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 6),
+
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 12,
+                      color: Colors.tealAccent,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      "${formatDisplayDate(startDate)} - ${formatDisplayDate(endDate)}",
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 4),
+
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.access_time,
+                      size: 12,
+                      color: Colors.tealAccent,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      "${formatDisplayTime(startTime)} - ${formatDisplayTime(endTime)}",
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _imagePlaceholderHorizontal() {
+    return Container(
+      height: 120,
+      width: double.infinity,
+      color: Colors.black26,
+      alignment: Alignment.center,
+      child: const Icon(Icons.image, color: Colors.white38, size: 40),
     );
   }
 

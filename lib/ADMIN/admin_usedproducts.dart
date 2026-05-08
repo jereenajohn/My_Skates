@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:my_skates/ADMIN/admin_orders_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -17,6 +20,7 @@ class UsedOrderItem {
   final String price;
   final String discount;
   final String shipmentCharge;
+
   final String? attributeName;
   final String? attributeValue;
   final int quantity;
@@ -29,6 +33,7 @@ class UsedOrderItem {
     required this.price,
     required this.discount,
     required this.shipmentCharge,
+
     this.attributeName,
     this.attributeValue,
     required this.quantity,
@@ -48,13 +53,186 @@ class UsedOrderItem {
       quantity: json['quantity'] ?? 1,
     );
   }
+}
 
-  double get discountedPrice {
-    final p = double.tryParse(price) ?? 0;
-    final d = double.tryParse(discount) ?? 0;
-    // discount field appears to be a percentage
-    if (d > 0 && d <= 100) return p - (p * d / 100);
-    return p - d;
+class UsedPricing {
+  final String subtotal;
+  final String discountTotal;
+  final String total;
+  final String platformFee;
+  final String convenienceFee;
+  final String shipmentCharge;
+  final String productPercentage;
+  final String finalPayable;
+
+  UsedPricing({
+    required this.subtotal,
+    required this.discountTotal,
+    required this.total,
+    required this.platformFee,
+    required this.convenienceFee,
+    required this.shipmentCharge,
+    required this.productPercentage,
+    required this.finalPayable,
+  });
+
+  factory UsedPricing.fromJson(Map<String, dynamic> json) {
+    return UsedPricing(
+      subtotal: json['subtotal']?.toString() ?? '0',
+      discountTotal: json['discount_total']?.toString() ?? '0',
+      total: json['total']?.toString() ?? '0',
+      platformFee: json['platform_fee']?.toString() ?? '0',
+      convenienceFee: json['convenience_fee']?.toString() ?? '0',
+      shipmentCharge: json['shipment_charge']?.toString() ?? '0',
+      productPercentage: json['product_percentage']?.toString() ?? '0',
+      finalPayable: json['final_payable']?.toString() ?? '0',
+    );
+  }
+}
+
+class UsedSellerItem {
+  final int productId;
+  final String title;
+  final int quantity;
+  final String price;
+  final String discountPercent;
+  final String? productpercentage;
+  final String discountAmount;
+  final String shipmentCharge;
+  final String productTotal;
+  final String percentageAmount;
+  final String sellerPayable;
+
+  UsedSellerItem({
+    required this.productId,
+    required this.title,
+    required this.quantity,
+    required this.price,
+    required this.discountPercent,
+    required this.productpercentage,
+    required this.discountAmount,
+    required this.shipmentCharge,
+    required this.productTotal,
+    required this.percentageAmount,
+    required this.sellerPayable,
+  });
+
+  factory UsedSellerItem.fromJson(Map<String, dynamic> json) {
+    return UsedSellerItem(
+      productId: json['product_id'] ?? 0,
+      title: json['title'] ?? '',
+      quantity: json['quantity'] ?? 1,
+      price: json['price']?.toString() ?? '0',
+      discountPercent: json['discount_percent']?.toString() ?? '0',
+      productpercentage: json['product_percentage']?.toString() ?? '0',
+      discountAmount: json['discount_amount']?.toString() ?? '0',
+      shipmentCharge: json['shipment_charge']?.toString() ?? '0',
+      productTotal: json['product_total']?.toString() ?? '0',
+      percentageAmount: json['percentage_amount']?.toString() ?? '0',
+      sellerPayable: json['seller_payable']?.toString() ?? '0',
+    );
+  }
+}
+
+class UsedSellerBankDetails {
+  final String accountHolderName;
+  final String bankName;
+  final String branchName;
+  final String accountNumber;
+  final String ifscCode;
+  final String upiId;
+
+  UsedSellerBankDetails({
+    required this.accountHolderName,
+    required this.bankName,
+    required this.branchName,
+    required this.accountNumber,
+    required this.ifscCode,
+    required this.upiId,
+  });
+
+  factory UsedSellerBankDetails.fromJson(Map<String, dynamic> json) {
+    return UsedSellerBankDetails(
+      accountHolderName: json['account_holder_name'] ?? '',
+      bankName: json['bank_name'] ?? '',
+      branchName: json['branch_name'] ?? '',
+      accountNumber: json['account_number'] ?? '',
+      ifscCode: json['ifsc_code'] ?? '',
+      upiId: json['upi_id'] ?? '',
+    );
+  }
+
+  bool get hasAny =>
+      accountHolderName.isNotEmpty ||
+      bankName.isNotEmpty ||
+      branchName.isNotEmpty ||
+      accountNumber.isNotEmpty ||
+      ifscCode.isNotEmpty ||
+      upiId.isNotEmpty;
+}
+
+class UsedSellerBreakdown {
+  final int sellerId;
+  final String sellerName;
+  final String sellerPhone;
+  final String userType;
+  final UsedSellerBankDetails? bankDetails;
+  final List<UsedSellerItem> items;
+  final String sellerTotal;
+  final String sellerPercentageTotal;
+  final String sellerPayableTotal;
+
+  UsedSellerBreakdown({
+    required this.sellerId,
+    required this.sellerName,
+    required this.sellerPhone,
+    required this.userType,
+    this.bankDetails,
+    required this.items,
+    required this.sellerTotal,
+    required this.sellerPercentageTotal,
+    required this.sellerPayableTotal,
+  });
+
+  factory UsedSellerBreakdown.fromJson(Map<String, dynamic> json) {
+    return UsedSellerBreakdown(
+      sellerId: json['seller_id'] ?? 0,
+      sellerName: json['seller_name'] ?? '',
+      sellerPhone: json['seller_phone'] ?? '',
+      userType: json['user_type'] ?? '',
+      bankDetails: json['bank_details'] != null
+          ? UsedSellerBankDetails.fromJson(json['bank_details'])
+          : null,
+      items: (json['items'] as List? ?? [])
+          .map((e) => UsedSellerItem.fromJson(e))
+          .toList(),
+      sellerTotal: json['seller_total']?.toString() ?? '0',
+      sellerPercentageTotal: json['seller_percentage_total']?.toString() ?? '0',
+      sellerPayableTotal: json['seller_payable_total']?.toString() ?? '0',
+    );
+  }
+}
+
+class UsedOrderSummary {
+  final String totalPercentageAmount;
+  final String totalSellerPayable;
+  final String finalPayable;
+  final String totalProfit;
+
+  UsedOrderSummary({
+    required this.totalPercentageAmount,
+    required this.totalSellerPayable,
+    required this.finalPayable,
+    required this.totalProfit,
+  });
+
+  factory UsedOrderSummary.fromJson(Map<String, dynamic> json) {
+    return UsedOrderSummary(
+      totalPercentageAmount: json['total_percentage_amount']?.toString() ?? '0',
+      totalSellerPayable: json['total_seller_payable']?.toString() ?? '0',
+      finalPayable: json['final_payable']?.toString() ?? '0',
+      totalProfit: json['total_profit']?.toString() ?? '0',
+    );
   }
 }
 
@@ -72,13 +250,13 @@ class UsedOrder {
   final String state;
   final String pincode;
   final String country;
-  final String subtotal;
-  final String discountTotal;
-  final String total;
-  final String shipmentCharge;
-  final String finalPayable;
+  final String? note;
   final DateTime createdAt;
   final List<UsedOrderItem> items;
+  // pricing is optional — list API returns flat fields, detail API nests them
+  final UsedPricing? pricing;
+  final List<UsedSellerBreakdown> sellerBreakdown;
+  final UsedOrderSummary? summary;
 
   UsedOrder({
     required this.id,
@@ -94,40 +272,109 @@ class UsedOrder {
     required this.state,
     required this.pincode,
     required this.country,
-    required this.subtotal,
-    required this.discountTotal,
-    required this.total,
-    required this.shipmentCharge,
-    required this.finalPayable,
+    this.note,
     required this.createdAt,
     required this.items,
+    this.pricing,
+    required this.sellerBreakdown,
+    this.summary,
   });
 
+  // Convenience getter — works for both list (flat) and detail (nested) responses.
+  String get finalPayable => pricing?.finalPayable ?? '0';
+
   factory UsedOrder.fromJson(Map<String, dynamic> json) {
-    final itemList = json['items'] as List? ?? [];
+    // The list API returns flat pricing fields at the root;
+    // the detail API wraps them inside a "pricing" key.
+    UsedPricing? pricing;
+    if (json['pricing'] != null) {
+      pricing = UsedPricing.fromJson(json['pricing']);
+    } else if (json['final_payable'] != null) {
+      // Build a UsedPricing from the flat fields present in the list response
+      pricing = UsedPricing(
+        subtotal: json['subtotal']?.toString() ?? '0',
+        discountTotal: json['discount_total']?.toString() ?? '0',
+        total: json['total']?.toString() ?? '0',
+        platformFee: json['platform_fee']?.toString() ?? '0',
+        convenienceFee: json['convenience_fee']?.toString() ?? '0',
+        shipmentCharge: json['shipment_charge']?.toString() ?? '0',
+        productPercentage: json['product_percentage']?.toString() ?? '0',
+        finalPayable: json['final_payable']?.toString() ?? '0',
+      );
+    }
+
     return UsedOrder(
       id: json['id'] ?? 0,
       orderNo: json['order_no'] ?? '',
       status: json['status'] ?? '',
       paymentMethod: json['payment_method'] ?? '',
-      razorpayPaymentRef: json['razorpay_payment_ref'],
+      razorpayPaymentRef: json['payment_ref'] ?? json['razorpay_payment_ref'],
       fullName: json['full_name'] ?? '',
       phone: json['phone']?.toString() ?? '',
       addressLine1: json['address_line1'] ?? '',
       addressLine2: json['address_line2'],
       city: json['city'] ?? '',
-      state: json['state'] ?? '',
+      state: json['state']?.toString() ?? '',
       pincode: json['pincode']?.toString() ?? '',
-      country: json['country'] ?? '',
-      subtotal: json['subtotal']?.toString() ?? '0',
-      discountTotal: json['discount_total']?.toString() ?? '0',
-      total: json['total']?.toString() ?? '0',
-      shipmentCharge: json['shipment_charge']?.toString() ?? '0',
-      finalPayable: json['final_payable']?.toString() ?? '0',
+      country: json['country']?.toString() ?? '',
+      note: json['note'],
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
-      items: itemList.map((e) => UsedOrderItem.fromJson(e)).toList(),
+      items: (json['items'] as List? ?? [])
+          .map((e) => UsedOrderItem.fromJson(e))
+          .toList(),
+      pricing: pricing,
+      sellerBreakdown: (json['seller_breakdown'] as List? ?? [])
+          .map((e) => UsedSellerBreakdown.fromJson(e))
+          .toList(),
+      summary: json['summary'] != null
+          ? UsedOrderSummary.fromJson(json['summary'])
+          : null,
     );
   }
+}
+
+// ─── Shared Helpers ───────────────────────────────────────────────────────────
+
+Color _usedOrderStatusColor(String status) {
+  switch (status.toUpperCase()) {
+    case 'PLACED':
+      return Colors.orange;
+    case 'PAID':
+      return Colors.blue;
+    case 'SHIPPED':
+      return Colors.purple;
+    case 'DELIVERED':
+      return Colors.green;
+    case 'CANCELLED':
+      return Colors.red;
+    default:
+      return Colors.grey;
+  }
+}
+
+Widget _usedOrderGlassWrap({required Widget child, EdgeInsets? padding}) {
+  return ClipRRect(
+    borderRadius: BorderRadius.circular(18),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+      child: Container(
+        padding: padding,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withOpacity(0.10)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.20),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: child,
+      ),
+    ),
+  );
 }
 
 // ─── List Page ────────────────────────────────────────────────────────────────
@@ -144,10 +391,110 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
   bool _isLoading = true;
   String? _error;
 
+  // Pagination variables
+  int _currentPage = 1;
+  int _totalCount = 0;
+  int _totalPages = 0;
+  String? _nextPageUrl;
+  String? _previousPageUrl;
+
+  // Search and date filter
+  final TextEditingController _searchController = TextEditingController();
+  DateTime? _startDate;
+  DateTime? _endDate;
+
+  // Debounce for search
+  Timer? _debounceTimer;
+
   @override
   void initState() {
     super.initState();
     _fetchOrders();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _currentPage = 1; // Reset to first page when searching
+      _fetchOrders();
+    });
+  }
+
+  void _goToPage(int page) {
+    if (page == _currentPage) return;
+    _currentPage = page;
+    _fetchOrders();
+  }
+
+  void _nextPage() {
+    if (_nextPageUrl != null) {
+      _currentPage++;
+      _fetchOrders();
+    }
+  }
+
+  void _previousPage() {
+    if (_previousPageUrl != null) {
+      _currentPage--;
+      _fetchOrders();
+    }
+  }
+
+  Future<void> _pickDateRange() async {
+    try {
+      final DateTimeRange? picked = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2020),
+        lastDate: DateTime.now(),
+        initialDateRange: _startDate != null && _endDate != null
+            ? DateTimeRange(start: _startDate!, end: _endDate!)
+            : null,
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.dark(
+                primary: Colors.tealAccent,
+                onPrimary: Colors.black,
+                surface: Color(0xFF001F1D),
+                onSurface: Colors.white,
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+
+      if (picked != null) {
+        setState(() {
+          _startDate = picked.start;
+          _endDate = picked.end;
+        });
+        _goToPage(1);
+      }
+    } catch (e) {
+      print('Error picking date range: $e');
+      // Show error snackbar if needed
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error selecting date range')),
+      );
+    }
+  }
+
+  void _clearDateFilter() {
+    setState(() {
+      _startDate = null;
+      _endDate = null;
+    });
+    _goToPage(1);
   }
 
   Future<void> _fetchOrders() async {
@@ -168,8 +515,43 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
         return;
       }
 
+      final queryParams = <String, String>{'page': _currentPage.toString()};
+
+      // Add search query
+      if (_searchController.text.trim().isNotEmpty) {
+        final searchTerm = _searchController.text.trim();
+
+        // Try these one by one to see which works with your API:
+        queryParams['search'] = searchTerm; // Common
+        // queryParams['q'] = searchTerm;             // Alternative
+        // queryParams['query'] = searchTerm;         // Alternative
+        // queryParams['order_no'] = searchTerm;      // Specific field
+        // queryParams['full_name'] = searchTerm;     // Specific field
+        // queryParams['phone'] = searchTerm;         // Specific field
+
+        print('Search term: $searchTerm'); // Debug print
+      }
+
+      // Add date filters
+      if (_startDate != null) {
+        queryParams['start_date'] = DateFormat(
+          'yyyy-MM-dd',
+        ).format(_startDate!);
+        print('Start Date: ${queryParams['start_date']}'); // Debug print
+      }
+      if (_endDate != null) {
+        queryParams['end_date'] = DateFormat('yyyy-MM-dd').format(_endDate!);
+        print('End Date: ${queryParams['end_date']}'); // Debug print
+      }
+
+      final uri = Uri.parse(
+        '$api/api/myskates/used/product/all/orders/',
+      ).replace(queryParameters: queryParams);
+
+      print('USED ORDERS URL: $uri');
+
       final response = await http.get(
-        Uri.parse('$api/api/myskates/used/product/all/orders/'),
+        uri,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -177,53 +559,28 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
       );
 
       print('USED ORDERS STATUS: ${response.statusCode}');
-      print('USED ORDERS BODY: ${response.body}');
 
       if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
+        final jsonResponse = jsonDecode(response.body);
 
-        List<dynamic> orderList = [];
+        _totalCount = jsonResponse['count'] ?? 0;
+        _nextPageUrl = jsonResponse['next'];
+        _previousPageUrl = jsonResponse['previous'];
 
-        if (decoded is Map<String, dynamic>) {
-          // New paginated response:
-          // {
-          //   count,
-          //   next,
-          //   previous,
-          //   results: {
-          //     success,
-          //     count,
-          //     data: []
-          //   }
-          // }
-          if (decoded['results'] is Map<String, dynamic>) {
-            final results = decoded['results'] as Map<String, dynamic>;
-
-            if (results['data'] is List) {
-              orderList = results['data'] as List;
-            }
-          }
-          // Old response:
-          // {
-          //   success,
-          //   data: []
-          // }
-          else if (decoded['data'] is List) {
-            orderList = decoded['data'] as List;
-          }
-          // Fallback if results itself is a list
-          else if (decoded['results'] is List) {
-            orderList = decoded['results'] as List;
-          }
-        } else if (decoded is List) {
-          orderList = decoded;
+        // Calculate total pages
+        final List<dynamic> data =
+            jsonResponse['results']?['data'] ?? jsonResponse['data'] ?? [];
+        final pageSize = data.length;
+        if (pageSize > 0) {
+          _totalPages = (_totalCount / pageSize).ceil();
+        } else {
+          _totalPages = 1;
         }
 
-        setState(() {
-          _orders = orderList
-              .map((e) => UsedOrder.fromJson(e as Map<String, dynamic>))
-              .toList();
+        final newOrders = data.map((e) => UsedOrder.fromJson(e)).toList();
 
+        setState(() {
+          _orders = newOrders;
           _isLoading = false;
         });
 
@@ -247,56 +604,422 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
     }
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
-
-  Color _statusColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'PLACED':
-        return Colors.orange;
-      case 'PAID':
-        return Colors.blue;
-      case 'SHIPPED':
-        return Colors.purple;
-      case 'DELIVERED':
-        return Colors.green;
-      case 'CANCELLED':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  Widget _glassWrap({required Widget child, EdgeInsets? padding}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.06),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withOpacity(0.10)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.20),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
+  Widget _buildFilterBar() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        children: [
+          // Search bar
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withOpacity(0.10)),
+            ),
+            child: TextField(
+              controller: _searchController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Search by order no., customer name, phone...',
+                hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: Colors.tealAccent,
+                  size: 20,
+                ),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(
+                          Icons.clear,
+                          color: Colors.white54,
+                          size: 18,
+                        ),
+                        onPressed: () {
+                          _searchController.clear();
+                          _currentPage = 1; // Reset to first page
+                          _fetchOrders();
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 12,
+                ),
               ),
-            ],
+            ),
           ),
-          child: child,
-        ),
+          const SizedBox(height: 8),
+
+          // Date filters row
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                // Start Date picker
+                GestureDetector(
+                  onTap: () => _pickStartDate(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: _startDate != null
+                          ? Colors.tealAccent.withOpacity(0.2)
+                          : Colors.white.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _startDate != null
+                            ? Colors.tealAccent.withOpacity(0.5)
+                            : Colors.white.withOpacity(0.15),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          color: _startDate != null
+                              ? Colors.tealAccent
+                              : Colors.white54,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _startDate != null
+                              ? 'Start: ${DateFormat('dd/MM/yy').format(_startDate!)}'
+                              : 'Start Date',
+                          style: TextStyle(
+                            color: _startDate != null
+                                ? Colors.tealAccent
+                                : Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (_startDate != null) ...[
+                          const SizedBox(width: 6),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _startDate = null;
+                              });
+                              _fetchOrders(); // Direct fetch
+                            },
+                            child: const Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Colors.white54,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
+                // End Date picker
+                GestureDetector(
+                  onTap: () => _pickEndDate(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: _endDate != null
+                          ? Colors.tealAccent.withOpacity(0.2)
+                          : Colors.white.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _endDate != null
+                            ? Colors.tealAccent.withOpacity(0.5)
+                            : Colors.white.withOpacity(0.15),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          color: _endDate != null
+                              ? Colors.tealAccent
+                              : Colors.white54,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _endDate != null
+                              ? 'End: ${DateFormat('dd/MM/yy').format(_endDate!)}'
+                              : 'End Date',
+                          style: TextStyle(
+                            color: _endDate != null
+                                ? Colors.tealAccent
+                                : Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (_endDate != null) ...[
+                          const SizedBox(width: 6),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _endDate = null;
+                              });
+                              _fetchOrders(); // Direct fetch
+                            },
+                            child: const Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Colors.white54,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Clear all filters button
+                if (_searchController.text.isNotEmpty ||
+                    _startDate != null ||
+                    _endDate != null)
+                  GestureDetector(
+                    onTap: _clearFilters,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.redAccent.withOpacity(0.3),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.clear, color: Colors.redAccent, size: 14),
+                          SizedBox(width: 4),
+                          Text(
+                            'Clear',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // ── Shimmer ──────────────────────────────────────────────────────────────
+  Future<void> _pickStartDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _startDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: _endDate ?? DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Colors.tealAccent,
+              onPrimary: Colors.black,
+              surface: Color(0xFF001F1D),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _startDate = picked;
+      });
+      // Small delay to ensure state is updated
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _fetchOrders(); // Call fetch directly instead of goToPage
+      });
+    }
+  }
+
+  Future<void> _pickEndDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate ?? DateTime.now(),
+      firstDate: _startDate ?? DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Colors.tealAccent,
+              onPrimary: Colors.black,
+              surface: Color(0xFF001F1D),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _endDate = picked;
+      });
+      // Small delay to ensure state is updated
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _fetchOrders(); // Call fetch directly instead of goToPage
+      });
+    }
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _searchController.clear();
+      _startDate = null;
+      _endDate = null;
+    });
+    _currentPage = 1; // Reset to first page
+    _fetchOrders(); // Fetch immediately
+  }
+
+  Widget _buildPaginationControls() {
+    if (_totalPages <= 1) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Previous button
+          GestureDetector(
+            onTap: _previousPageUrl != null ? _previousPage : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: _previousPageUrl != null
+                    ? Colors.tealAccent.withOpacity(0.2)
+                    : Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _previousPageUrl != null
+                      ? Colors.tealAccent.withOpacity(0.5)
+                      : Colors.white.withOpacity(0.1),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.chevron_left,
+                    color: _previousPageUrl != null
+                        ? Colors.tealAccent
+                        : Colors.white38,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Previous',
+                    style: TextStyle(
+                      color: _previousPageUrl != null
+                          ? Colors.tealAccent
+                          : Colors.white38,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 16),
+
+          // Page indicator
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.white.withOpacity(0.15)),
+            ),
+            child: Text(
+              'Page $_currentPage of $_totalPages',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 16),
+
+          // Next button
+          GestureDetector(
+            onTap: _nextPageUrl != null ? _nextPage : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: _nextPageUrl != null
+                    ? Colors.tealAccent.withOpacity(0.2)
+                    : Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _nextPageUrl != null
+                      ? Colors.tealAccent.withOpacity(0.5)
+                      : Colors.white.withOpacity(0.1),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Next',
+                    style: TextStyle(
+                      color: _nextPageUrl != null
+                          ? Colors.tealAccent
+                          : Colors.white38,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.chevron_right,
+                    color: _nextPageUrl != null
+                        ? Colors.tealAccent
+                        : Colors.white38,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _shimmerCard() {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      child: _glassWrap(
+      child: _usedOrderGlassWrap(
         padding: const EdgeInsets.all(14),
         child: Shimmer.fromColors(
           baseColor: const Color(0xFF1A2B2A),
@@ -394,11 +1117,8 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
     );
   }
 
-  //───────────────────  Order Card
-
   Widget _orderCard(UsedOrder order) {
-    final statusColor = _statusColor(order.status);
-    final firstItem = order.items.isNotEmpty ? order.items.first : null;
+    final statusColor = _usedOrderStatusColor(order.status);
 
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -409,12 +1129,11 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
       ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        child: _glassWrap(
+        child: _usedOrderGlassWrap(
           padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header row ────────────────────────────────────
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -455,10 +1174,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 6),
-
-              // Date + payment
               Row(
                 children: [
                   const Icon(
@@ -496,11 +1212,8 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 12),
-
-              // ── Items preview ────────────────────────────────────────────
-              if (firstItem != null) ...[
+              if (order.items.isNotEmpty) ...[
                 const Text(
                   'Items',
                   style: TextStyle(
@@ -524,10 +1237,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
                     ),
                   ),
               ],
-
               const Divider(color: Colors.white12, height: 24),
-
-              // ── Total row ──────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -556,45 +1266,12 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
     );
   }
 
-  Widget _buildListItemImage(UsedOrderItem item) {
-    if (item.image != null && item.image!.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: Image.network(
-          '$api${item.image}',
-          width: 46,
-          height: 46,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _listImageFallback(),
-        ),
-      );
-    }
-    return _listImageFallback();
-  }
-
-  Widget _listImageFallback() {
-    return Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withOpacity(0.08), width: 0.8),
-      ),
-      child: const Icon(
-        Icons.inventory_2_outlined,
-        color: Colors.white38,
-        size: 22,
-      ),
-    );
-  }
-
   Widget _itemRow(UsedOrderItem item) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          _buildListItemImage(item),
+          _listItemImage(item),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -639,20 +1316,46 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
               ],
             ),
           ),
-          Text(
-            '₹${(double.tryParse(item.price) ?? 0).toStringAsFixed(2)}',
-            style: const TextStyle(
-              color: Colors.tealAccent,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
         ],
       ),
     );
   }
 
-  // ── Build ────────────────
+  Widget _listItemImage(UsedOrderItem item) {
+    if (item.image == null || item.image!.isEmpty) return _listImageFallback();
+
+    final url = item.image!.startsWith('http')
+        ? item.image!
+        : '$api${item.image}';
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.network(
+        url,
+        width: 46,
+        height: 46,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _listImageFallback(),
+      ),
+    );
+  }
+
+  Widget _listImageFallback() {
+    return Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withOpacity(0.08), width: 0.8),
+      ),
+      child: const Icon(
+        Icons.inventory_2_outlined,
+        color: Colors.white38,
+        size: 22,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -668,14 +1371,13 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
         ),
         child: SafeArea(
           child: RefreshIndicator(
-            onRefresh: _fetchOrders,
+            onRefresh: () async => _fetchOrders(),
             color: Colors.tealAccent,
             backgroundColor: Colors.black,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // ── App bar ──────────────────────────────────────────────
                   Row(
                     children: [
                       IconButton(
@@ -708,7 +1410,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
                             ),
                           ),
                           child: Text(
-                            '${_orders.length}',
+                            '$_totalCount',
                             style: const TextStyle(
                               color: Colors.tealAccent,
                               fontSize: 12,
@@ -718,10 +1420,9 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
                         ),
                     ],
                   ),
-
                   const SizedBox(height: 12),
-
-                  // ── Body ────────────────────────────────────────────────
+                  _buildFilterBar(),
+                  const SizedBox(height: 8),
                   Expanded(
                     child: _isLoading
                         ? ListView.builder(
@@ -738,6 +1439,8 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
                             itemBuilder: (_, i) => _orderCard(_orders[i]),
                           ),
                   ),
+                  _buildPaginationControls(),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),
@@ -751,7 +1454,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
     return ListView(
       children: [
         const SizedBox(height: 60),
-        _glassWrap(
+        _usedOrderGlassWrap(
           padding: const EdgeInsets.all(28),
           child: Column(
             children: [
@@ -766,7 +1469,6 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
                 style: const TextStyle(color: Colors.redAccent, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
-
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _fetchOrders,
@@ -791,7 +1493,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         const SizedBox(height: 80),
-        _glassWrap(
+        _usedOrderGlassWrap(
           padding: const EdgeInsets.all(36),
           child: const Column(
             children: [
@@ -813,9 +1515,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
       ],
     );
   }
-}
-
-// ─── Detail Page ──────────────────────────────────────────────────────────────
+} // ─── Detail Page ──────────────────────────────────────────────────────────────
 
 class UsedProductOrderDetailPage extends StatefulWidget {
   final int orderId;
@@ -857,11 +1557,10 @@ class _UsedProductOrderDetailPageState
         return;
       }
 
-      final url =
-          '$api/api/myskates/used/product/all/orders/detail/view/${widget.orderId}/';
-
       final response = await http.get(
-        Uri.parse(url),
+        Uri.parse(
+          '$api/api/myskates/used/product/all/orders/detail/view/${widget.orderId}/',
+        ),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -873,7 +1572,6 @@ class _UsedProductOrderDetailPageState
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
-        // Support both flat and wrapped responses
         final orderJson = json['data'] ?? json;
         setState(() {
           _order = UsedOrder.fromJson(orderJson);
@@ -896,47 +1594,7 @@ class _UsedProductOrderDetailPageState
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
-  Color _statusColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'PLACED':
-        return Colors.orange;
-      case 'PAID':
-        return Colors.blue;
-      case 'SHIPPED':
-        return Colors.purple;
-      case 'DELIVERED':
-        return Colors.green;
-      case 'CANCELLED':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  Widget _glassWrap({required Widget child, EdgeInsets? padding}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.06),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withOpacity(0.10)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.20),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
+  double _amount(String value) => double.tryParse(value) ?? 0.0;
 
   Widget _infoRow(IconData icon, String label, String value) {
     return Row(
@@ -964,12 +1622,7 @@ class _UsedProductOrderDetailPageState
     );
   }
 
-  Widget _pricingRow(
-    String label,
-    String value, {
-    bool isDiscount = false,
-    bool isBold = false,
-  }) {
+  Widget _pricingRow(String label, String value, {bool isDiscount = false}) {
     final amount = double.tryParse(value) ?? 0;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -978,27 +1631,107 @@ class _UsedProductOrderDetailPageState
           Expanded(
             child: Text(
               label,
-              style: TextStyle(
-                color: isBold ? Colors.white : Colors.white70,
-                fontSize: isBold ? 15 : 13,
-                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              ),
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
             ),
           ),
           Text(
             '${isDiscount ? '- ' : ''}₹${amount.toStringAsFixed(2)}',
             style: TextStyle(
-              color: isDiscount
-                  ? Colors.redAccent
-                  : isBold
-                  ? Colors.tealAccent
-                  : Colors.white,
-              fontSize: isBold ? 18 : 13,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+              color: isDiscount ? Colors.redAccent : Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _receiptRow(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor ?? Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bankRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: const TextStyle(color: Colors.white38, fontSize: 12),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryRow({
+    required String label,
+    required String value,
+    required Color dotColor,
+    required Color valueColor,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ],
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: valueColor,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 
@@ -1027,7 +1760,7 @@ class _UsedProductOrderDetailPageState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── App bar ────────────────────────────────────────────
+                  // ── App bar ──────────────────────────────────────────────
                   Row(
                     children: [
                       IconButton(
@@ -1077,13 +1810,14 @@ class _UsedProductOrderDetailPageState
   }
 
   Widget _buildContent(UsedOrder order) {
-    final statusColor = _statusColor(order.status);
+    final statusColor = _usedOrderStatusColor(order.status);
+    final pricing = order.pricing;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Order header ────────────────────────────────────────────────
-        _glassWrap(
+        // ── Order header ─────────────────────────────────────────────────
+        _usedOrderGlassWrap(
           padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1188,7 +1922,7 @@ class _UsedProductOrderDetailPageState
         const SizedBox(height: 14),
 
         // ── Customer info ────────────────────────────────────────────────
-        _glassWrap(
+        _usedOrderGlassWrap(
           padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1211,19 +1945,25 @@ class _UsedProductOrderDetailPageState
                 'Delivery Address',
                 [
                   order.addressLine1,
-                  if (order.addressLine2 != null) order.addressLine2!,
+                  if (order.addressLine2 != null &&
+                      order.addressLine2!.isNotEmpty)
+                    order.addressLine2!,
                   '${order.city}, ${order.state} - ${order.pincode}',
                   order.country,
                 ].join('\n'),
               ),
+              if (order.note != null && order.note!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _infoRow(Icons.note_outlined, 'Order Note', order.note!),
+              ],
             ],
           ),
         ),
 
         const SizedBox(height: 14),
 
-        // ── Items ────────────────────────────────────────────────────────
-        _glassWrap(
+        // ── Items + Pricing ──────────────────────────────────────────────
+        _usedOrderGlassWrap(
           padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1246,10 +1986,19 @@ class _UsedProductOrderDetailPageState
                 ],
               ),
               const SizedBox(height: 14),
+
+              // Item rows
               ...order.items.asMap().entries.map((entry) {
                 final i = entry.key;
                 final item = entry.value;
                 final isLast = i == order.items.length - 1;
+
+                // Image URL — detail API sends full absolute URL
+                final imageUrl = (item.image != null && item.image!.isNotEmpty)
+                    ? (item.image!.startsWith('http')
+                          ? item.image!
+                          : '$api${item.image}')
+                    : null;
 
                 return Column(
                   children: [
@@ -1258,12 +2007,11 @@ class _UsedProductOrderDetailPageState
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Product image
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: item.image != null && item.image!.isNotEmpty
+                            child: imageUrl != null
                                 ? Image.network(
-                                    '$api${item.image}',
+                                    imageUrl,
                                     width: 58,
                                     height: 58,
                                     fit: BoxFit.cover,
@@ -1315,39 +2063,16 @@ class _UsedProductOrderDetailPageState
                                         '${item.attributeName}: ${item.attributeValue}',
                                         Colors.tealAccent,
                                       ),
-                                    if ((double.tryParse(item.discount) ?? 0) >
-                                        0)
-                                      _chip(
-                                        '${item.discount}% off',
-                                        Colors.greenAccent,
-                                      ),
+                                    // if ((double.tryParse(item.discount) ?? 0) >
+                                    //     0)
+                                    //   _chip(
+                                    //     '${item.discount}% off',
+                                    //     Colors.greenAccent,
+                                    //   ),
                                   ],
                                 ),
                               ],
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                '₹${(double.tryParse(item.price) ?? 0).toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  color: Colors.tealAccent,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              if ((double.tryParse(item.shipmentCharge) ?? 0) >
-                                  0)
-                                Text(
-                                  '+₹${(double.tryParse(item.shipmentCharge) ?? 0).toStringAsFixed(0)} ship',
-                                  style: const TextStyle(
-                                    color: Colors.white38,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                            ],
                           ),
                         ],
                       ),
@@ -1360,16 +2085,40 @@ class _UsedProductOrderDetailPageState
 
               const Divider(color: Colors.white24, height: 24),
 
-              // ── Pricing breakdown ──────────────────────────────────
-              _pricingRow('Subtotal', order.subtotal),
-              if ((double.tryParse(order.discountTotal) ?? 0) > 0)
-                _pricingRow('Discount', order.discountTotal, isDiscount: true),
-              if ((double.tryParse(order.shipmentCharge) ?? 0) > 0)
-                _pricingRow('Shipment Charge', order.shipmentCharge),
+              // ── Pricing breakdown ──────────────────────────────────────
+              if (pricing != null) ...[
+                _pricingRow('Subtotal', pricing.total),
+                if ((double.tryParse(pricing.discountTotal) ?? 0) > 0)
+                  // _pricingRow(
+                  //   'Discount',
+                  //   pricing.discountTotal,
+                  //   isDiscount: true,
+                  // ),
+                  if ((double.tryParse(pricing.platformFee) ?? 0) > 0) ...[
+                    const SizedBox(height: 2),
+                    _pricingRow('Platform Fee', pricing.platformFee),
+                  ],
+                if ((double.tryParse(pricing.convenienceFee) ?? 0) > 0) ...[
+                  const SizedBox(height: 2),
+                  _pricingRow('Convenience Fee', pricing.convenienceFee),
+                ],
+                if ((double.tryParse(pricing.shipmentCharge) ?? 0) > 0) ...[
+                  const SizedBox(height: 2),
+                  _pricingRow('Shipment Charge', pricing.shipmentCharge),
+                ],
+                if ((double.tryParse(pricing.productPercentage) ?? 0) > 0) ...[
+                  const SizedBox(height: 2),
+                  _pricingRow(
+                    'Product Charge',
+                    pricing.productPercentage,
+                    isDiscount: true,
+                  ),
+                ],
+              ],
 
               const Divider(color: Colors.white12, height: 16),
 
-              // Final payable highlight
+              // Final payable
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -1405,6 +2154,440 @@ class _UsedProductOrderDetailPageState
                   ],
                 ),
               ),
+
+              // ── Seller Breakdown ───────────────────────────────────────
+              if (order.sellerBreakdown.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.payments_outlined,
+                        color: Colors.amber,
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Seller payment summary',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                ...order.sellerBreakdown.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final seller = entry.value;
+                  final bank = seller.bankDetails;
+                  final initials = seller.sellerName.isNotEmpty
+                      ? seller.sellerName
+                            .trim()
+                            .split(' ')
+                            .take(2)
+                            .map((w) => w[0].toUpperCase())
+                            .join()
+                      : 'S${index + 1}';
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D1F1D),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.08)),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Seller header
+                        Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: Colors.tealAccent.withOpacity(
+                                  0.15,
+                                ),
+                                child: Text(
+                                  initials,
+                                  style: const TextStyle(
+                                    color: Colors.tealAccent,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      seller.sellerName.isEmpty
+                                          ? 'Seller ${index + 1}'
+                                          : seller.sellerName,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (seller.sellerPhone.isNotEmpty)
+                                      Text(
+                                        seller.sellerPhone,
+                                        style: const TextStyle(
+                                          color: Colors.white54,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    if (seller.userType.isNotEmpty) ...[
+                                      const SizedBox(height: 3),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 7,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.tealAccent.withOpacity(
+                                            0.12,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.tealAccent
+                                                .withOpacity(0.25),
+                                            width: 0.7,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          seller.userType,
+                                          style: const TextStyle(
+                                            color: Colors.tealAccent,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  const Text(
+                                    'net payable',
+                                    style: TextStyle(
+                                      color: Colors.white38,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                  Text(
+                                    '₹${_amount(seller.sellerPayableTotal).toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      color: Colors.greenAccent,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const Divider(color: Colors.white10, height: 1),
+
+                        // Items
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'ITEMS',
+                                style: TextStyle(
+                                  color: Colors.white38,
+                                  fontSize: 10,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              ...seller.items.asMap().entries.map((e) {
+                                final isLast = e.key == seller.items.length - 1;
+                                final si = e.value;
+                                return Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              si.title,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '₹${_amount(si.productTotal).toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    // if ((_amount(si.discountAmount)) > 0)
+                                    //   _receiptRow(
+                                    //     'Discount (${si.discountPercent}%)',
+                                    //     '− ₹${_amount(si.discountAmount).toStringAsFixed(2)}',
+                                    //     valueColor: Colors.orangeAccent,
+                                    //   ),
+                                    _receiptRow(
+                                      'Product Charge (${si.productpercentage}%)',
+                                      '− ₹${_amount(si.percentageAmount).toStringAsFixed(2)}',
+                                      valueColor: Colors.redAccent,
+                                    ),
+                                    if (_amount(si.shipmentCharge) > 0)
+                                      _receiptRow(
+                                        'Shipping Charge',
+                                        '+ ₹${_amount(si.shipmentCharge).toStringAsFixed(2)}',
+                                        valueColor: Colors.green,
+                                      ),
+                                    _receiptRow(
+                                      'Seller Payable',
+                                      '₹${_amount(si.sellerPayable).toStringAsFixed(2)}',
+                                      valueColor: Colors.tealAccent,
+                                    ),
+                                    const SizedBox(height: 5),
+                                    if (!isLast)
+                                      const Divider(
+                                        color: Colors.white10,
+                                        height: 1,
+                                      ),
+                                  ],
+                                );
+                              }).toList(),
+                            ],
+                          ),
+                        ),
+
+                        // Seller totals
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+                          child: Column(
+                            children: [
+                              // const Divider(color: Colors.white10, height: 20),
+                              // _receiptRow(
+                              //   'Subtotal',
+                              //   '₹${_amount(seller.sellerTotal).toStringAsFixed(2)}',
+                              // ),
+                              // _receiptRow(
+                              //   'Platform Commission',
+                              //   '− ₹${_amount(seller.sellerPercentageTotal).toStringAsFixed(2)}',
+                              //   valueColor: Colors.redAccent,
+                              // ),
+                              const Divider(color: Colors.white10, height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Net payable',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    '₹${_amount(seller.sellerPayableTotal).toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      color: Colors.greenAccent,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Bank details
+                        if (bank != null && bank.hasAny)
+                          Container(
+                            width: double.infinity,
+                            color: Colors.white.withOpacity(0.04),
+                            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'BANK DETAILS',
+                                  style: TextStyle(
+                                    color: Colors.white38,
+                                    fontSize: 10,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                if (bank.accountHolderName.isNotEmpty)
+                                  _bankRow(
+                                    'Account holder',
+                                    bank.accountHolderName,
+                                  ),
+                                if (bank.bankName.isNotEmpty)
+                                  _bankRow('Bank', bank.bankName),
+                                if (bank.branchName.isNotEmpty)
+                                  _bankRow('Branch', bank.branchName),
+                                if (bank.accountNumber.isNotEmpty)
+                                  _bankRow('Account no.', bank.accountNumber),
+                                if (bank.ifscCode.isNotEmpty)
+                                  _bankRow('IFSC', bank.ifscCode),
+                                if (bank.upiId.isNotEmpty)
+                                  _bankRow('UPI', bank.upiId),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+
+                // Order summary / profit card
+                if (order.summary != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D1F1D),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.08)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withOpacity(0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.bar_chart_rounded,
+                                color: Colors.amber,
+                                size: 15,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'ORDER TOTALS',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        const Divider(color: Colors.white10, height: 1),
+                        const SizedBox(height: 12),
+                        _summaryRow(
+                          label: 'Total collected',
+                          value:
+                              '+ ₹${_amount(order.summary!.finalPayable).toStringAsFixed(2)}',
+                          dotColor: Colors.green,
+                          valueColor: Colors.green,
+                        ),
+                        const SizedBox(height: 10),
+                        _summaryRow(
+                          label: 'Platform commission',
+                          value:
+                              '+ ₹${_amount(order.summary!.totalPercentageAmount).toStringAsFixed(2)}',
+                          dotColor: Colors.green,
+                          valueColor: Colors.green,
+                        ),
+                        const SizedBox(height: 10),
+                        _summaryRow(
+                          label: 'Total payout to sellers',
+                          value:
+                              '− ₹${_amount(order.summary!.totalSellerPayable).toStringAsFixed(2)}',
+                          dotColor: Colors.redAccent,
+                          valueColor: Colors.redAccent,
+                        ),
+                        const SizedBox(height: 12),
+                        const Divider(color: Colors.white10, height: 1),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.greenAccent.withOpacity(0.07),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: Colors.greenAccent.withOpacity(0.2),
+                              width: 0.5,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Total profit',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                '₹${_amount(order.summary!.totalProfit).toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  color: Colors.greenAccent,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ],
           ),
         ),
@@ -1449,7 +2632,7 @@ class _UsedProductOrderDetailPageState
   }
 
   Widget _buildError() {
-    return _glassWrap(
+    return _usedOrderGlassWrap(
       padding: const EdgeInsets.all(28),
       child: Column(
         children: [
@@ -1483,7 +2666,7 @@ class _UsedProductOrderDetailPageState
       highlightColor: const Color(0xFF2F4F4D),
       child: Column(
         children: [
-          _glassWrap(
+          _usedOrderGlassWrap(
             padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1508,7 +2691,7 @@ class _UsedProductOrderDetailPageState
             ),
           ),
           const SizedBox(height: 14),
-          _glassWrap(
+          _usedOrderGlassWrap(
             padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -1077,8 +1077,9 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                             children: [
                               Text(
                                 title,
-                                maxLines: 2,
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
+                                softWrap: false,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 13,
@@ -1706,6 +1707,11 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                     final displayDescription =
                         selectedVariant?["description"]?.toString().trim() ??
                         product!["description"]?.toString().trim() ??
+                        "";
+
+                    final seller =
+                        selectedVariant?["seller_name"]?.toString().trim() ??
+                        product!["seller_name"]?.toString().trim() ??
                         "";
 
                     print("imageeeeeeeeeee: $displayImage");
@@ -2398,6 +2404,74 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                 _buildProductDescription(displayDescription),
 
                                 const SizedBox(height: 20),
+                                // Divider(
+                                //   color: Colors.white24,
+                                //   height: 1,
+                                //   endIndent: 12,
+                                // ),
+                                Divider(
+                                  color: Colors.greenAccent.withOpacity(.2),
+                                ),
+                                SizedBox(height: 10),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.1),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.withOpacity(
+                                            0.15,
+                                          ),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.storefront_rounded,
+                                          color: Colors.orangeAccent,
+                                          size: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            "Seller",
+                                            style: TextStyle(
+                                              color: Colors.white.withOpacity(
+                                                0.5,
+                                              ),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          Text(
+                                            seller,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 0.3,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
                           ),

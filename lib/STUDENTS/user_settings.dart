@@ -2,10 +2,11 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/add_address.dart';
-import 'package:my_skates/ADMIN/admin_usedproducts.dart' hide UsedProductOrdersPage;
+import 'package:my_skates/ADMIN/admin_usedproducts.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/view_address.dart';
-import 'package:my_skates/COACH/used_product_orders_page.dart'; // ← ADD THIS
+import 'package:my_skates/COACH/add_bank_details.dart';
+import 'package:my_skates/COACH/bank_details_page.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/add_student_achievements.dart';
 import 'package:my_skates/STUDENTS/products.dart';
@@ -327,7 +328,6 @@ class _UserSettingsState extends State<UserSettings> {
                     //       );
                     //     },
                     //   ),
-
                     if (_match("Add Achievements"))
                       _menuTile(
                         icon: Icons.emoji_events_outlined,
@@ -338,6 +338,28 @@ class _UserSettingsState extends State<UserSettings> {
                             slideRightToLeftRoute(
                               const AddstudentAchievements(),
                             ),
+                          );
+                        },
+                      ),
+                    if (_match("Add Bank Details"))
+                      _menuTile(
+                        icon: Icons.account_balance_outlined,
+                        text: "Add Bank Details",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            slideRightToLeftRoute(const AddBankDetailsPage()),
+                          );
+                        },
+                      ),
+                      if (_match("View Bank Details"))
+                      _menuTile(
+                        icon: Icons.account_balance_outlined,
+                        text: "View Bank Details",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            slideRightToLeftRoute(const BankDetailsPage()),
                           );
                         },
                       ),
@@ -354,7 +376,7 @@ class _UserSettingsState extends State<UserSettings> {
                         },
                       ),
 
-                       if (_match("Add Address"))
+                    if (_match("Add Address"))
                       _menuTile(
                         icon: Icons.location_on_outlined,
                         text: "Add Address",
@@ -365,7 +387,6 @@ class _UserSettingsState extends State<UserSettings> {
                           );
                         },
                       ),
-
 
                     if (_match("Follow Requests"))
                       _menuTile(
@@ -523,9 +544,7 @@ class _UserSettingsState extends State<UserSettings> {
       //     ),
       //   ),
       // ),
-      bottomNavigationBar: const AppBottomNav(
-        currentIndex: 4,
-      ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 4),
     );
   }
 

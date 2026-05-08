@@ -1,4 +1,8 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:my_skates/ADMIN/admin_orders_page.dart';
+import 'package:my_skates/ADMIN/invoice_webview_page.dart';
 import 'package:my_skates/STUDENTS/student_product_review.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -14,7 +18,9 @@ class OrderItem {
   final String? productImage;
   final int variantId;
   final String? sku;
+  final String status;
   final String variantLabel;
+  final String? coachName;
   final String? variantImage;
   final String unitPrice;
   final String unitDiscount;
@@ -27,6 +33,7 @@ class OrderItem {
     required this.product,
     required this.productTitle,
     this.productImage,
+    this.coachName,
     required this.variantId,
     this.sku,
     required this.variantLabel,
@@ -36,27 +43,30 @@ class OrderItem {
     required this.quantity,
     required this.lineTotal,
     required this.createdAt,
+    required this.status,
   });
-factory OrderItem.fromJson(Map<String, dynamic> json) {
-  return OrderItem(
-    id: json['id'] ?? 0,
-    product: json['product'] ?? 0,
-    productTitle: json['product_title']?.toString() ?? '',
-    productImage: json['product_image']?.toString(),
-    variantId: json['variant_id'] ?? 0,
-    sku: json['sku']?.toString(),
-    variantLabel: json['variant_label']?.toString() ?? '',
-    variantImage: json['variant_image']?.toString(),
-    unitPrice: json['unit_price']?.toString() ?? '0',
-    unitDiscount: json['unit_discount']?.toString() ?? '0',
-    quantity: json['quantity'] ?? 0,
-    lineTotal: json['line_total']?.toString() ?? '0',
-    createdAt: DateTime.tryParse(
-          json['created_at']?.toString() ?? '',
-        ) ??
-        DateTime.now(),
-  );
-}
+
+  factory OrderItem.fromJson(Map<String, dynamic> json) {
+    return OrderItem(
+      id: json['id'] ?? 0,
+      product: json['product'] ?? 0,
+      productTitle: json['product_title']?.toString() ?? '',
+      productImage: json['product_image']?.toString(),
+      variantId: json['variant_id'] ?? 0,
+      coachName: json['coach_name']?.toString(),
+      sku: json['sku']?.toString(),
+      variantLabel: json['variant_label']?.toString() ?? '',
+      variantImage: json['variant_image']?.toString(),
+      unitPrice: json['unit_price']?.toString() ?? '0',
+      unitDiscount: json['unit_discount']?.toString() ?? '0',
+      quantity: json['quantity'] ?? 0,
+      lineTotal: json['line_total']?.toString() ?? '0',
+      status: json['status']?.toString() ?? '',
+      createdAt:
+          DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+    );
+  }
 }
 
 class Order {
@@ -78,6 +88,10 @@ class Order {
   final String subtotal;
   final String discountTotal;
   final String total;
+  final String platformFee;
+  final String convenienceFee;
+  final String shipmentCharge;
+  final String finalPayable;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? address;
@@ -102,51 +116,58 @@ class Order {
     required this.subtotal,
     required this.discountTotal,
     required this.total,
+    required this.platformFee,
+    required this.convenienceFee,
+    required this.shipmentCharge,
+    required this.finalPayable,
     required this.createdAt,
     required this.updatedAt,
     this.address,
     required this.user,
   });
 
-factory Order.fromJson(Map<String, dynamic> json) {
-  final itemsList = json['items'] as List? ?? [];
+  factory Order.fromJson(Map<String, dynamic> json) {
+    final itemsList = json['items'] as List? ?? [];
 
-  final List<OrderItem> orderItems = itemsList
-      .whereType<Map<String, dynamic>>()
-      .map((i) => OrderItem.fromJson(i))
-      .toList();
+    final List<OrderItem> orderItems = itemsList
+        .whereType<Map<String, dynamic>>()
+        .map((i) => OrderItem.fromJson(i))
+        .toList();
 
-  return Order(
-    id: json['id'] ?? 0,
-    items: orderItems,
-    orderNo: json['order_no']?.toString() ?? '',
-    status: json['status']?.toString() ?? '',
-    paymentMethod: json['payment_method']?.toString() ?? '',
-    paymentRef: json['payment_ref']?.toString(),
-    fullName: json['full_name']?.toString() ?? '',
-    phone: json['phone']?.toString() ?? '',
-    addressLine1: json['address_line1']?.toString() ?? '',
-    addressLine2: json['address_line2']?.toString(),
-    city: json['city']?.toString() ?? '',
-    state: json['state']?.toString() ?? '',
-    pincode: json['pincode']?.toString() ?? '',
-    country: json['country']?.toString() ?? '',
-    note: json['note']?.toString(),
-    subtotal: json['subtotal']?.toString() ?? '0',
-    discountTotal: json['discount_total']?.toString() ?? '0',
-    total: json['total']?.toString() ?? '0',
-    createdAt: DateTime.tryParse(
-          json['created_at']?.toString() ?? '',
-        )?.toLocal() ??
-        DateTime.now(),
-    updatedAt: DateTime.tryParse(
-          json['updated_at']?.toString() ?? '',
-        )?.toLocal() ??
-        DateTime.now(),
-    address: json['address']?.toString(),
-    user: json['user'] ?? 0,
-  );
-}
+    return Order(
+      id: json['id'] ?? 0,
+      items: orderItems,
+      orderNo: json['order_no']?.toString() ?? '',
+      status: json['status']?.toString() ?? '',
+      paymentMethod: json['payment_method']?.toString() ?? '',
+      paymentRef: json['payment_ref']?.toString(),
+      fullName: json['full_name']?.toString() ?? '',
+      phone: json['phone']?.toString() ?? '',
+      addressLine1: json['address_line1']?.toString() ?? '',
+      addressLine2: json['address_line2']?.toString(),
+      city: json['city']?.toString() ?? '',
+      state: json['state']?.toString() ?? '',
+      pincode: json['pincode']?.toString() ?? '',
+      country: json['country']?.toString() ?? '',
+      note: json['note']?.toString(),
+      subtotal: json['subtotal']?.toString() ?? '0',
+      discountTotal: json['discount_total']?.toString() ?? '0',
+      total: json['total']?.toString() ?? '0',
+      platformFee: json['platform_fee']?.toString() ?? '0',
+      convenienceFee: json['convenience_fee']?.toString() ?? '0',
+      shipmentCharge: json['shipment_charge']?.toString() ?? '0',
+      finalPayable:
+          json['final_payable']?.toString() ?? json['total']?.toString() ?? '0',
+      createdAt:
+          DateTime.tryParse(json['created_at']?.toString() ?? '')?.toLocal() ??
+          DateTime.now(),
+      updatedAt:
+          DateTime.tryParse(json['updated_at']?.toString() ?? '')?.toLocal() ??
+          DateTime.now(),
+      address: json['address']?.toString(),
+      user: json['user'] ?? 0,
+    );
+  }
 }
 
 class OrderResponse {
@@ -172,6 +193,836 @@ class OrderResponse {
   }
 }
 
+// class Student_order_page extends StatefulWidget {
+//   const Student_order_page({super.key});
+
+//   @override
+//   State<Student_order_page> createState() => _Student_order_pageState();
+// }
+
+// class _Student_order_pageState extends State<Student_order_page> {
+//   List<BoughtProductItem> boughtProducts = []; // Changed from List<Order>
+//   bool isLoading = true;
+//   String? error;
+
+//   String _selectedStatusFilter = 'ALL';
+
+//   final List<Map<String, String>> statusOptions = [
+//     {"value": "PLACED", "label": "Placed"},
+//     {"value": "PAID", "label": "Paid"},
+//     {"value": "SHIPPED", "label": "Shipped"},
+//     {"value": "DELIVERED", "label": "Delivered"},
+//     {"value": "CANCELLED", "label": "Cancelled"},
+//   ];
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     fetchOrders();
+//   }
+
+//   List<BoughtProductItem> get _filteredProducts {
+//     if (_selectedStatusFilter == 'ALL') {
+//       return boughtProducts;
+//     }
+//     return boughtProducts
+//         .where((product) => product.orderStatus == _selectedStatusFilter)
+//         .toList();
+//   }
+
+//   Future<void> fetchOrders() async {
+//     setState(() {
+//       isLoading = true;
+//       error = null;
+//     });
+
+//     try {
+//       final prefs = await SharedPreferences.getInstance();
+//       final token = prefs.getString("access");
+
+//       if (token == null) {
+//         setState(() {
+//           error = 'Authentication token missing';
+//           isLoading = false;
+//         });
+//         return;
+//       }
+
+//       // Changed API endpoint to get bought products
+//       final response = await http.get(
+//         Uri.parse('$api/api/myskates/orders/bought/products/'),
+//         headers: {
+//           'Content-Type': 'application/json',
+//           'Authorization': 'Bearer $token',
+//         },
+//       );
+
+//       print("PRODUCTS API STATUS: ${response.statusCode}");
+//       print("PRODUCTS RESPONSE: ${response.body}");
+
+//       if (response.statusCode == 200) {
+//         final jsonResponse = json.decode(response.body);
+//         final productList = jsonResponse['data'] as List? ?? [];
+
+//         setState(() {
+//           boughtProducts = productList
+//               .map((e) => BoughtProductItem.fromJson(e))
+//               .toList();
+//           isLoading = false;
+//         });
+
+//         print("Products fetched successfully: ${boughtProducts.length} products");
+//       } else {
+//         setState(() {
+//           error = 'Failed to load products: ${response.statusCode}';
+//           isLoading = false;
+//         });
+//       }
+//     } catch (e) {
+//       print("Error fetching products: $e");
+//       setState(() {
+//         error = e.toString();
+//         isLoading = false;
+//       });
+//     }
+//   }
+
+//   Future<void> _refreshOrders() async {
+//     await fetchOrders();
+//   }
+
+//   Color _getStatusColor(String status) {
+//     switch (status.toUpperCase()) {
+//       case 'PLACED':
+//         return Colors.orange;
+//       case 'PAID':
+//         return Colors.blue;
+//       case 'SHIPPED':
+//         return Colors.purple;
+//       case 'DELIVERED':
+//         return Colors.green;
+//       case 'CANCELLED':
+//         return Colors.red;
+//       default:
+//         return Colors.grey;
+//     }
+//   }
+
+//   void _openInvoice(int orderId) {
+//     Navigator.push(
+//       context,
+//       MaterialPageRoute(builder: (_) => InvoiceWebViewPage(orderId: orderId)),
+//     );
+//   }
+
+//   Future<void> _navigateToProductOrderDetail(BoughtProductItem item) async {
+//     try {
+//       final prefs = await SharedPreferences.getInstance();
+//       final token = prefs.getString("access");
+
+//       if (token == null) {
+//         ScaffoldMessenger.of(context).showSnackBar(
+//           const SnackBar(content: Text('Authentication token missing')),
+//         );
+//         return;
+//       }
+
+//       showDialog(
+//         context: context,
+//         barrierDismissible: false,
+//         builder: (_) => const Center(
+//           child: CircularProgressIndicator(color: Colors.tealAccent),
+//         ),
+//       );
+
+//       final response = await http.get(
+//         Uri.parse('$api/api/myskates/orders/${item.orderId}/'),
+//         headers: {
+//           'Content-Type': 'application/json',
+//           'Authorization': 'Bearer $token',
+//         },
+//       );
+
+//       if (Navigator.canPop(context)) {
+//         Navigator.pop(context);
+//       }
+
+//       if (response.statusCode == 200) {
+//         final jsonResponse = json.decode(response.body);
+//         final orderJson = jsonResponse['data'] ?? jsonResponse;
+//         final order = Order.fromJson(orderJson);
+
+//         Navigator.push(
+//           context,
+//           MaterialPageRoute(builder: (_) => OrderDetailPage(order: order)),
+//         );
+//       } else {
+//         ScaffoldMessenger.of(context).showSnackBar(
+//           SnackBar(
+//             content: Text('Failed to open order detail: ${response.statusCode}'),
+//             backgroundColor: Colors.red,
+//           ),
+//         );
+//       }
+//     } catch (e) {
+//       if (Navigator.canPop(context)) {
+//         Navigator.pop(context);
+//       }
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+//       );
+//     }
+//   }
+
+//   Widget _glassWrap({required Widget child, EdgeInsets? padding}) {
+//     return ClipRRect(
+//       borderRadius: BorderRadius.circular(18),
+//       child: BackdropFilter(
+//         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+//         child: Container(
+//           padding: padding,
+//           decoration: BoxDecoration(
+//             color: Colors.white.withOpacity(0.06),
+//             borderRadius: BorderRadius.circular(18),
+//             border: Border.all(color: Colors.white.withOpacity(0.10)),
+//             boxShadow: [
+//               BoxShadow(
+//                 color: Colors.black.withOpacity(0.20),
+//                 blurRadius: 14,
+//                 offset: const Offset(0, 6),
+//               ),
+//             ],
+//           ),
+//           child: child,
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildProductCard(BoughtProductItem item) {
+//     return GestureDetector(
+//       onTap: () => _navigateToProductOrderDetail(item),
+//       child: Container(
+//         margin: const EdgeInsets.only(bottom: 12),
+//         child: _glassWrap(
+//           padding: const EdgeInsets.all(12),
+//           child: Column(
+//             crossAxisAlignment: CrossAxisAlignment.start,
+//             children: [
+//               Row(
+//                 crossAxisAlignment: CrossAxisAlignment.start,
+//                 children: [
+//                   Expanded(
+//                     child: Text(
+//                       'Order #${item.orderNo}',
+//                       style: const TextStyle(
+//                         color: Colors.white,
+//                         fontSize: 14,
+//                         fontWeight: FontWeight.w600,
+//                       ),
+//                       maxLines: 2,
+//                       overflow: TextOverflow.ellipsis,
+//                     ),
+//                   ),
+//                   const SizedBox(width: 8),
+//                   Container(
+//                     padding: const EdgeInsets.symmetric(
+//                       horizontal: 10,
+//                       vertical: 5,
+//                     ),
+//                     decoration: BoxDecoration(
+//                       color: _getStatusColor(item.orderStatus).withOpacity(0.2),
+//                       borderRadius: BorderRadius.circular(16),
+//                       border: Border.all(
+//                         color: _getStatusColor(item.orderStatus).withOpacity(0.5),
+//                         width: 0.5,
+//                       ),
+//                     ),
+//                     child: Text(
+//                       item.orderStatus,
+//                       style: TextStyle(
+//                         color: _getStatusColor(item.orderStatus),
+//                         fontSize: 11,
+//                         fontWeight: FontWeight.w500,
+//                       ),
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//               const SizedBox(height: 12),
+//               Row(
+//                 children: [
+//                   SizedBox(
+//                     width: 58,
+//                     height: 58,
+//                     child: ClipRRect(
+//                       borderRadius: BorderRadius.circular(10),
+//                       child: _buildProductImage(item),
+//                     ),
+//                   ),
+//                   const SizedBox(width: 12),
+//                   Expanded(
+//                     child: Column(
+//                       crossAxisAlignment: CrossAxisAlignment.start,
+//                       children: [
+//                         Text(
+//                           item.productTitle,
+//                           style: const TextStyle(
+//                             color: Colors.white,
+//                             fontSize: 15,
+//                             fontWeight: FontWeight.w600,
+//                           ),
+//                           maxLines: 1,
+//                           overflow: TextOverflow.ellipsis,
+//                         ),
+//                         const SizedBox(height: 5),
+//                         Text(
+//                           'Qty: ${item.quantity}',
+//                           style: const TextStyle(
+//                             color: Colors.white70,
+//                             fontSize: 12,
+//                           ),
+//                         ),
+//                         if (item.productUserType != null &&
+//                             item.productUserType!.isNotEmpty) ...[
+//                           const SizedBox(height: 4),
+//                           Text(
+//                             item.productUserType == 'coach'
+//                                 ? 'Coach Product'
+//                                 : 'Product',
+//                             style: TextStyle(
+//                               color: item.productUserType == 'coach'
+//                                   ? Colors.tealAccent
+//                                   : Colors.orangeAccent,
+//                               fontSize: 11,
+//                               fontWeight: FontWeight.w500,
+//                             ),
+//                           ),
+//                         ],
+//                         const SizedBox(height: 4),
+//                         Text(
+//                           DateFormat('dd MMM yyyy, hh:mm a').format(item.orderCreatedAt),
+//                           style: const TextStyle(
+//                             color: Colors.white38,
+//                             fontSize: 11,
+//                           ),
+//                         ),
+//                       ],
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//               const Divider(color: Colors.white24, height: 24),
+//               Row(
+//                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                 children: [
+//                   const Text(
+//                     'Tap to view details',
+//                     style: TextStyle(color: Colors.white38, fontSize: 12),
+//                   ),
+//                   Row(
+//                     children: [
+//                       GestureDetector(
+//                         onTap: () {
+//                           _openInvoice(item.orderId);
+//                         },
+//                         child: Container(
+//                           padding: const EdgeInsets.symmetric(
+//                             horizontal: 12,
+//                             vertical: 7,
+//                           ),
+//                           decoration: BoxDecoration(
+//                             color: Colors.tealAccent.withOpacity(0.15),
+//                             borderRadius: BorderRadius.circular(12),
+//                             border: Border.all(
+//                               color: Colors.tealAccent.withOpacity(0.4),
+//                             ),
+//                           ),
+//                           child: const Row(
+//                             mainAxisSize: MainAxisSize.min,
+//                             children: [
+//                               Icon(
+//                                 Icons.receipt_long_rounded,
+//                                 color: Colors.tealAccent,
+//                                 size: 15,
+//                               ),
+//                               SizedBox(width: 6),
+//                               Text(
+//                                 'Invoice',
+//                                 style: TextStyle(
+//                                   color: Colors.tealAccent,
+//                                   fontSize: 12,
+//                                   fontWeight: FontWeight.w600,
+//                                 ),
+//                               ),
+//                             ],
+//                           ),
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ],
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildProductImage(BoughtProductItem item) {
+//     final imagePath = item.variantImage ?? item.productImage;
+
+//     if (imagePath != null && imagePath.isNotEmpty) {
+//       return Image.network(
+//         '$api$imagePath',
+//         fit: BoxFit.cover,
+//         gaplessPlayback: true,
+//         errorBuilder: (_, __, ___) => const Icon(
+//           Icons.image_not_supported,
+//           color: Colors.white38,
+//           size: 24,
+//         ),
+//       );
+//     }
+
+//     return const Icon(
+//       Icons.image_not_supported,
+//       color: Colors.white38,
+//       size: 24,
+//     );
+//   }
+
+//   Widget _buildFilterBox() {
+//     return Container(
+//       margin: const EdgeInsets.only(bottom: 16),
+//       padding: const EdgeInsets.symmetric(horizontal: 12),
+//       decoration: BoxDecoration(
+//         color: Colors.white.withOpacity(0.08),
+//         borderRadius: BorderRadius.circular(18),
+//         border: Border.all(color: Colors.white.withOpacity(0.12)),
+//       ),
+//       child: DropdownButtonHideUnderline(
+//         child: DropdownButton<String>(
+//           value: _selectedStatusFilter,
+//           isExpanded: true,
+//           icon: const Icon(Icons.filter_list_rounded, color: Colors.tealAccent),
+//           dropdownColor: const Color(0xFF161616),
+//           style: const TextStyle(color: Colors.white, fontSize: 14),
+//           hint: const Text(
+//             'Filter by Status',
+//             style: TextStyle(color: Colors.white54),
+//           ),
+//           onChanged: (String? newValue) {
+//             setState(() {
+//               _selectedStatusFilter = newValue!;
+//             });
+//           },
+//           items: [
+//             const DropdownMenuItem<String>(
+//               value: 'ALL',
+//               child: Row(
+//                 children: [
+//                   Icon(Icons.apps_rounded, color: Colors.white70, size: 18),
+//                   SizedBox(width: 8),
+//                   Text('All Products', style: TextStyle(color: Colors.white)),
+//                 ],
+//               ),
+//             ),
+//             ...statusOptions.map<DropdownMenuItem<String>>((
+//               Map<String, String> option,
+//             ) {
+//               return DropdownMenuItem<String>(
+//                 value: option['value'],
+//                 child: Row(
+//                   children: [
+//                     Container(
+//                       width: 12,
+//                       height: 12,
+//                       decoration: BoxDecoration(
+//                         color: _getStatusColor(option['value']!),
+//                         shape: BoxShape.circle,
+//                       ),
+//                     ),
+//                     const SizedBox(width: 8),
+//                     Text(
+//                       option['label']!,
+//                       style: TextStyle(
+//                         color: _getStatusColor(option['value']!),
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               );
+//             }).toList(),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildShimmerCard() {
+//     return Container(
+//       margin: const EdgeInsets.only(bottom: 12),
+//       child: _glassWrap(
+//         padding: const EdgeInsets.all(12),
+//         child:  Column(
+//             crossAxisAlignment: CrossAxisAlignment.start,
+//             children: [
+//               Row(
+//                 children: [
+//                   Expanded(
+//                     child: Container(
+//                       height: 16,
+//                       decoration: BoxDecoration(
+//                         color: Colors.white,
+//                         borderRadius: BorderRadius.circular(6),
+//                       ),
+//                     ),
+//                   ),
+//                   const SizedBox(width: 12),
+//                   Container(
+//                     width: 90,
+//                     height: 30,
+//                     decoration: BoxDecoration(
+//                       color: Colors.white,
+//                       borderRadius: BorderRadius.circular(16),
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//               const SizedBox(height: 14),
+//               Row(
+//                 children: [
+//                   Container(
+//                     width: 58,
+//                     height: 58,
+//                     decoration: BoxDecoration(
+//                       color: Colors.white,
+//                       borderRadius: BorderRadius.circular(10),
+//                     ),
+//                   ),
+//                   const SizedBox(width: 12),
+//                   Expanded(
+//                     child: Column(
+//                       children: [
+//                         Container(
+//                           height: 16,
+//                           decoration: BoxDecoration(
+//                             color: Colors.white,
+//                             borderRadius: BorderRadius.circular(6),
+//                           ),
+//                         ),
+//                         const SizedBox(height: 8),
+//                         Container(
+//                           width: 80,
+//                           height: 12,
+//                           decoration: BoxDecoration(
+//                             color: Colors.white,
+//                             borderRadius: BorderRadius.circular(6),
+//                           ),
+//                         ),
+//                       ],
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//               const SizedBox(height: 16),
+//               Container(height: 1, color: Colors.white),
+//               const SizedBox(height: 12),
+//               Row(
+//                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                 children: [
+//                   Container(
+//                     width: 100,
+//                     height: 16,
+//                     decoration: BoxDecoration(
+//                       color: Colors.white,
+//                       borderRadius: BorderRadius.circular(6),
+//                     ),
+//                   ),
+//                   Container(
+//                     width: 70,
+//                     height: 18,
+//                     decoration: BoxDecoration(
+//                       color: Colors.white,
+//                       borderRadius: BorderRadius.circular(6),
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ],
+//           ),
+
+//       ),
+//     );
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       backgroundColor: Colors.black,
+//       body: Container(
+//         decoration: const BoxDecoration(
+//           gradient: LinearGradient(
+//             colors: [Color(0xFF001F1D), Color(0xFF003A36), Colors.black],
+//             begin: Alignment.topLeft,
+//             end: Alignment.bottomCenter,
+//           ),
+//         ),
+//         child: SafeArea(
+//           child: RefreshIndicator(
+//             onRefresh: _refreshOrders,
+//             color: Colors.tealAccent,
+//             backgroundColor: Colors.black,
+//             child: Padding(
+//               padding: const EdgeInsets.all(16),
+//               child: isLoading
+//                   ? Column(
+//                       children: [
+//                         Padding(
+//                           padding: const EdgeInsets.symmetric(
+//                             horizontal: 4,
+//                             vertical: 4,
+//                           ),
+//                           child: Row(
+//                             children: [
+//                               IconButton(
+//                                 icon: const Icon(
+//                                   Icons.arrow_back,
+//                                   color: Colors.white,
+//                                 ),
+//                                 onPressed: () => Navigator.pop(context),
+//                               ),
+//                               const SizedBox(width: 6),
+//                               const Expanded(
+//                                 child: Text(
+//                                   'My Purchases',
+//                                   style: TextStyle(
+//                                     color: Colors.white,
+//                                     fontSize: 16,
+//                                     fontWeight: FontWeight.bold,
+//                                   ),
+//                                 ),
+//                               ),
+//                             ],
+//                           ),
+//                         ),
+//                         const SizedBox(height: 12),
+//                         _buildFilterBox(),
+//                         const SizedBox(height: 16),
+//                         Expanded(child: ListView.builder(
+//                           itemCount: 5,
+//                           itemBuilder: (context, index) => _buildShimmerCard(),
+//                         )),
+//                       ],
+//                     )
+//                   : error != null
+//                   ? Center(
+//                       child: _glassWrap(
+//                         padding: const EdgeInsets.all(20),
+//                         child: Column(
+//                           mainAxisSize: MainAxisSize.min,
+//                           children: [
+//                             Row(
+//                               children: [
+//                                 IconButton(
+//                                   icon: const Icon(
+//                                     Icons.arrow_back,
+//                                     color: Colors.white,
+//                                   ),
+//                                   onPressed: () => Navigator.pop(context),
+//                                 ),
+//                                 const SizedBox(width: 6),
+//                                 const Text(
+//                                   'My Purchases',
+//                                   style: TextStyle(
+//                                     color: Colors.white,
+//                                     fontSize: 20,
+//                                     fontWeight: FontWeight.bold,
+//                                   ),
+//                                 ),
+//                               ],
+//                             ),
+//                             const SizedBox(height: 16),
+//                             const Icon(
+//                               Icons.error_outline,
+//                               color: Colors.red,
+//                               size: 48,
+//                             ),
+//                             const SizedBox(height: 16),
+//                             Text(
+//                               error!,
+//                               style: const TextStyle(color: Colors.red),
+//                               textAlign: TextAlign.center,
+//                             ),
+//                             const SizedBox(height: 16),
+//                             ElevatedButton(
+//                               onPressed: fetchOrders,
+//                               style: ElevatedButton.styleFrom(
+//                                 backgroundColor: Colors.tealAccent,
+//                                 foregroundColor: Colors.black,
+//                               ),
+//                               child: const Text('Try Again'),
+//                             ),
+//                           ],
+//                         ),
+//                       ),
+//                     )
+//                   : boughtProducts.isEmpty
+//                   ? SingleChildScrollView(
+//                       physics: const AlwaysScrollableScrollPhysics(),
+//                       child: Column(
+//                         children: [
+//                           Padding(
+//                             padding: const EdgeInsets.symmetric(
+//                               horizontal: 4,
+//                               vertical: 4,
+//                             ),
+//                             child: Row(
+//                               children: [
+//                                 IconButton(
+//                                   icon: const Icon(
+//                                     Icons.arrow_back,
+//                                     color: Colors.white,
+//                                   ),
+//                                   onPressed: () => Navigator.pop(context),
+//                                 ),
+//                                 const SizedBox(width: 6),
+//                                 const Expanded(
+//                                   child: Text(
+//                                     'My Purchases',
+//                                     style: TextStyle(
+//                                       color: Colors.white,
+//                                       fontSize: 16,
+//                                       fontWeight: FontWeight.bold,
+//                                     ),
+//                                   ),
+//                                 ),
+//                               ],
+//                             ),
+//                           ),
+//                           const SizedBox(height: 12),
+//                           _buildFilterBox(),
+//                           const SizedBox(height: 40),
+//                           _glassWrap(
+//                             padding: const EdgeInsets.all(32),
+//                             child: Column(
+//                               mainAxisSize: MainAxisSize.min,
+//                               children: [
+//                                 const Icon(
+//                                   Icons.shopping_bag_outlined,
+//                                   color: Colors.white38,
+//                                   size: 64,
+//                                 ),
+//                                 const SizedBox(height: 16),
+//                                 const Text(
+//                                   'No purchases yet',
+//                                   style: TextStyle(
+//                                     color: Colors.white70,
+//                                     fontSize: 18,
+//                                   ),
+//                                 ),
+//                                 const SizedBox(height: 8),
+//                                 const Text(
+//                                   'Your purchased products will appear here',
+//                                   style: TextStyle(
+//                                     color: Colors.white38,
+//                                     fontSize: 14,
+//                                   ),
+//                                 ),
+//                               ],
+//                             ),
+//                           ),
+//                         ],
+//                       ),
+//                     )
+//                   : SingleChildScrollView(
+//                       physics: const AlwaysScrollableScrollPhysics(),
+//                       child: Column(
+//                         children: [
+//                           Padding(
+//                             padding: const EdgeInsets.symmetric(
+//                               horizontal: 4,
+//                               vertical: 4,
+//                             ),
+//                             child: Row(
+//                               children: [
+//                                 IconButton(
+//                                   icon: const Icon(
+//                                     Icons.arrow_back,
+//                                     color: Colors.white,
+//                                   ),
+//                                   onPressed: () => Navigator.pop(context),
+//                                 ),
+//                                 const SizedBox(width: 6),
+//                                 const Expanded(
+//                                   child: Text(
+//                                     'My Purchases',
+//                                     style: TextStyle(
+//                                       color: Colors.white,
+//                                       fontSize: 16,
+//                                       fontWeight: FontWeight.bold,
+//                                     ),
+//                                   ),
+//                                 ),
+//                               ],
+//                             ),
+//                           ),
+//                           const SizedBox(height: 16),
+//                           _buildFilterBox(),
+//                           const SizedBox(height: 10),
+//                           Padding(
+//                             padding: const EdgeInsets.only(bottom: 8),
+//                             child: Row(
+//                               children: [
+//                                 Text(
+//                                   '${_filteredProducts.length} product${_filteredProducts.length == 1 ? '' : 's'} found',
+//                                   style: const TextStyle(
+//                                     color: Colors.white54,
+//                                     fontSize: 12,
+//                                   ),
+//                                 ),
+//                                 const SizedBox(width: 8),
+//                                 Container(
+//                                   padding: const EdgeInsets.symmetric(
+//                                     horizontal: 8,
+//                                     vertical: 2,
+//                                   ),
+//                                   decoration: BoxDecoration(
+//                                     color: Colors.tealAccent.withOpacity(0.1),
+//                                     borderRadius: BorderRadius.circular(12),
+//                                     border: Border.all(
+//                                       color: Colors.tealAccent.withOpacity(0.3),
+//                                       width: 0.5,
+//                                     ),
+//                                   ),
+//                                   child: const Text(
+//                                     'My Purchases',
+//                                     style: TextStyle(
+//                                       color: Colors.tealAccent,
+//                                       fontSize: 10,
+//                                     ),
+//                                   ),
+//                                 ),
+//                               ],
+//                             ),
+//                           ),
+//                           ..._filteredProducts.map(
+//                             (product) => _buildProductCard(product),
+//                           ),
+//                           const SizedBox(height: 20),
+//                         ],
+//                       ),
+//                     ),
+//             ),
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
+
 class Student_order_page extends StatefulWidget {
   const Student_order_page({super.key});
 
@@ -183,10 +1034,10 @@ class _Student_order_pageState extends State<Student_order_page> {
   List<Order> orders = [];
   bool isLoading = true;
   String? error;
-    double _toDouble(String value) {
+
+  double _toDouble(String value) {
     return double.tryParse(value) ?? 0.0;
   }
-
 
   String _selectedStatusFilter = 'ALL';
 
@@ -209,8 +1060,13 @@ class _Student_order_pageState extends State<Student_order_page> {
     if (_selectedStatusFilter == 'ALL') {
       return orders;
     }
+
     return orders
-        .where((order) => order.status == _selectedStatusFilter)
+        .where(
+          (order) => order.items.any(
+            (item) => item.status.toUpperCase() == _selectedStatusFilter,
+          ),
+        )
         .toList();
   }
 
@@ -291,11 +1147,21 @@ class _Student_order_pageState extends State<Student_order_page> {
     }
   }
 
-  void _navigateToOrderDetail(Order order) {
-    Navigator.push(
+  Future<void> _navigateToOrderDetail(
+    Order order,
+    OrderItem selectedItem,
+  ) async {
+    final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => OrderDetailPage(order: order)),
+      MaterialPageRoute(
+        builder: (context) =>
+            OrderDetailPage(order: order, selectedItemId: selectedItem.id),
+      ),
     );
+
+    if (result == true) {
+      await fetchOrders();
+    }
   }
 
   Widget _buildProductImage(OrderItem item) {
@@ -344,193 +1210,354 @@ class _Student_order_pageState extends State<Student_order_page> {
     }
   }
 
+  // Widget _buildOrderCard(Order order) {
+  //   return Container(
+  //     margin: const EdgeInsets.only(bottom: 14),
+  //     padding: const EdgeInsets.all(14),
+  //     decoration: BoxDecoration(
+  //       color: Colors.white.withOpacity(0.08),
+  //       borderRadius: BorderRadius.circular(18),
+  //       border: Border.all(color: Colors.white.withOpacity(0.10)),
+  //       boxShadow: [
+  //         BoxShadow(
+  //           color: Colors.black.withOpacity(0.22),
+  //           blurRadius: 12,
+  //           offset: const Offset(0, 6),
+  //         ),
+  //       ],
+  //     ),
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         Row(
+  //           children: [
+  //             Expanded(
+  //               child: Text(
+  //                 'Order #${order.orderNo}',
+  //                 style: const TextStyle(
+  //                   color: Colors.white,
+  //                   fontSize: 14,
+  //                   fontWeight: FontWeight.w700,
+  //                 ),
+  //                 maxLines: 1,
+  //                 overflow: TextOverflow.ellipsis,
+  //               ),
+  //             ),
+  //             Container(
+  //               padding: const EdgeInsets.symmetric(
+  //                 horizontal: 10,
+  //                 vertical: 5,
+  //               ),
+  //               decoration: BoxDecoration(
+  //                 color: _getStatusColor(order.status).withOpacity(0.16),
+  //                 borderRadius: BorderRadius.circular(20),
+  //                 border: Border.all(
+  //                   color: _getStatusColor(order.status).withOpacity(0.35),
+  //                 ),
+  //               ),
+  //               child: Text(
+  //                 order.status,
+  //                 style: TextStyle(
+  //                   color: _getStatusColor(order.status),
+  //                   fontSize: 10,
+  //                   fontWeight: FontWeight.w700,
+  //                   letterSpacing: 0.4,
+  //                 ),
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //         const SizedBox(height: 14),
+  //         Container(
+  //           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+  //           decoration: BoxDecoration(
+  //             color: Colors.white.withOpacity(0.04),
+  //             borderRadius: BorderRadius.circular(12),
+  //           ),
+  //           child: Row(
+  //             children: const [
+  //               Icon(
+  //                 Icons.shopping_bag_outlined,
+  //                 color: Colors.tealAccent,
+  //                 size: 16,
+  //               ),
+  //               SizedBox(width: 8),
+  //               Text(
+  //                 'Items',
+  //                 style: TextStyle(
+  //                   color: Colors.white,
+  //                   fontSize: 13,
+  //                   fontWeight: FontWeight.w600,
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //         ),
+  //         const SizedBox(height: 12),
+  //         ...order.items
+  //             .take(2)
+  //             .map(
+  //               (item) => Padding(
+  //                 padding: const EdgeInsets.only(bottom: 12),
+  //                 child: Row(
+  //                   children: [
+  //                     Container(
+  //                       width: 58,
+  //                       height: 58,
+  //                       decoration: BoxDecoration(
+  //                         color: Colors.white.withOpacity(0.05),
+  //                         borderRadius: BorderRadius.circular(14),
+  //                       ),
+  //                       child: ClipRRect(
+  //                         borderRadius: BorderRadius.circular(14),
+  //                         child: _buildProductImage(item),
+  //                       ),
+  //                     ),
+  //                     const SizedBox(width: 12),
+  //                     Expanded(
+  //                       child: Column(
+  //                         crossAxisAlignment: CrossAxisAlignment.start,
+  //                         children: [
+  //                           Text(
+  //                             item.productTitle,
+  //                             style: const TextStyle(
+  //                               color: Colors.white,
+  //                               fontSize: 14,
+  //                               fontWeight: FontWeight.w500,
+  //                             ),
+  //                             maxLines: 1,
+  //                             overflow: TextOverflow.ellipsis,
+  //                           ),
+  //                           if (item.variantLabel.isNotEmpty) ...[
+  //                             const SizedBox(height: 4),
+  //                             Text(
+  //                               item.variantLabel,
+  //                               style: const TextStyle(
+  //                                 color: Colors.white54,
+  //                                 fontSize: 12,
+  //                               ),
+  //                             ),
+  //                           ],
+  //                           const SizedBox(height: 4),
+  //                           Text(
+  //                             'Qty: ${item.quantity}',
+  //                             style: const TextStyle(
+  //                               color: Colors.white70,
+  //                               fontSize: 12,
+  //                             ),
+  //                           ),
+  //                         ],
+  //                       ),
+  //                     ),
+  //                     Text(
+  //                       '₹${'₹${_toDouble(item.lineTotal).toStringAsFixed(2)}'}',
+  //                       style: const TextStyle(
+  //                         color: Colors.tealAccent,
+  //                         fontSize: 14,
+  //                         fontWeight: FontWeight.w700,
+  //                       ),
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ),
+  //             ),
+  //         if (order.items.length > 2)
+  //           Padding(
+  //             padding: const EdgeInsets.only(top: 2, left: 70),
+  //             child: Text(
+  //               '+${order.items.length - 2} more items',
+  //               style: const TextStyle(
+  //                 color: Colors.white54,
+  //                 fontSize: 12,
+  //                 fontStyle: FontStyle.italic,
+  //               ),
+  //             ),
+  //           ),
+  //         const Padding(
+  //           padding: EdgeInsets.symmetric(vertical: 10),
+  //           child: Divider(color: Colors.white24, height: 1),
+  //         ),
+  //         Row(
+  //           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //           children: [
+  //             const Text(
+  //               'Total',
+  //               style: TextStyle(
+  //                 color: Colors.white,
+  //                 fontSize: 15,
+  //                 fontWeight: FontWeight.bold,
+  //               ),
+  //             ),
+  //             Text(
+  //               '₹${_toDouble(order.total).toStringAsFixed(2)}',
+  //               style: const TextStyle(
+  //                 color: Colors.tealAccent,
+  //                 fontSize: 18,
+  //                 fontWeight: FontWeight.bold,
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
   Widget _buildOrderCard(Order order) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withOpacity(0.10)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.22),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Order #${order.orderNo}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(order.status).withOpacity(0.16),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: _getStatusColor(order.status).withOpacity(0.35),
-                  ),
-                ),
-                child: Text(
-                  order.status,
-                  style: TextStyle(
-                    color: _getStatusColor(order.status),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.04),
-              borderRadius: BorderRadius.circular(12),
+    // Return a list of widgets for each product in the order
+    return Column(
+      children: order.items
+          .map((item) => _buildProductItemCard(order, item))
+          .toList(),
+    );
+  }
+
+  Widget _buildProductItemCard(Order order, OrderItem item) {
+    return GestureDetector(
+      onTap: () => _navigateToOrderDetail(order, item),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withOpacity(0.10)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.22),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
-            child: Row(
-              children: const [
-                Icon(
-                  Icons.shopping_bag_outlined,
-                  color: Colors.tealAccent,
-                  size: 16,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Order #${order.orderNo}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                SizedBox(width: 8),
-                Text(
-                  'Items',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(item.status).withOpacity(0.16),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _getStatusColor(item.status).withOpacity(0.35),
+                    ),
+                  ),
+                  child: Text(
+                    item.status,
+                    style: TextStyle(
+                      color: _getStatusColor(item.status),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.4,
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 12),
-          ...order.items.take(2).map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 58,
-                    height: 58,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: _buildProductImage(item),
-                    ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.productTitle,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: _buildProductImage(item),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.productTitle,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
-                        if (item.variantLabel.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            item.variantLabel,
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (item.variantLabel.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
-                          'Qty: ${item.quantity}',
+                          item.variantLabel,
                           style: const TextStyle(
-                            color: Colors.white70,
+                            color: Colors.white54,
                             fontSize: 12,
                           ),
                         ),
                       ],
-                    ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Qty: ${item.quantity}',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    '₹${'₹${_toDouble(item.lineTotal).toStringAsFixed(2)}'}',
-                    style: const TextStyle(
-                      color: Colors.tealAccent,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                // Text(
+                //   '₹${_toDouble(item.lineTotal).toStringAsFixed(2)}',
+                //   style: const TextStyle(
+                //     color: Colors.tealAccent,
+                //     fontSize: 14,
+                //     fontWeight: FontWeight.w700,
+                //   ),
+                // ),
+              ],
             ),
-          ),
-          if (order.items.length > 2)
-            Padding(
-              padding: const EdgeInsets.only(top: 2, left: 70),
-              child: Text(
-                '+${order.items.length - 2} more items',
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
-            child: Divider(color: Colors.white24, height: 1),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Total',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                '₹${_toDouble(order.total).toStringAsFixed(2)}',
-                style: const TextStyle(
-                  color: Colors.tealAccent,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ],
+            // const Padding(
+            //   padding: EdgeInsets.symmetric(vertical: 10),
+            //   child: Divider(color: Colors.white24, height: 1),
+            // ),
+            // Row(
+            //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            //   children: [
+            //     const Text(
+            //       'Total',
+            //       style: TextStyle(
+            //         color: Colors.white,
+            //         fontSize: 15,
+            //         fontWeight: FontWeight.bold,
+            //       ),
+            //     ),
+            //     Text(
+            //       '₹${_toDouble(order.finalPayable).toStringAsFixed(2)}',
+            //       style: const TextStyle(
+            //         color: Colors.tealAccent,
+            //         fontSize: 18,
+            //         fontWeight: FontWeight.bold,
+            //       ),
+            //     ),
+            //   ],
+            // ),
+          ],
+        ),
       ),
     );
   }
@@ -548,15 +1575,9 @@ class _Student_order_pageState extends State<Student_order_page> {
         child: DropdownButton<String>(
           value: _selectedStatusFilter,
           isExpanded: true,
-          icon: const Icon(
-            Icons.filter_list_rounded,
-            color: Colors.tealAccent,
-          ),
+          icon: const Icon(Icons.filter_list_rounded, color: Colors.tealAccent),
           dropdownColor: const Color(0xFF161616),
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-          ),
+          style: const TextStyle(color: Colors.white, fontSize: 14),
           hint: const Text(
             'Filter by Status',
             style: TextStyle(color: Colors.white54),
@@ -571,45 +1592,38 @@ class _Student_order_pageState extends State<Student_order_page> {
               value: 'ALL',
               child: Row(
                 children: [
-                  Icon(
-                    Icons.apps_rounded,
-                    color: Colors.white70,
-                    size: 18,
-                  ),
+                  Icon(Icons.apps_rounded, color: Colors.white70, size: 18),
                   SizedBox(width: 8),
-                  Text(
-                    'All Orders',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  Text('All Orders', style: TextStyle(color: Colors.white)),
                 ],
               ),
             ),
-            ...statusOptions.map<DropdownMenuItem<String>>(
-              (Map<String, String> option) {
-                return DropdownMenuItem<String>(
-                  value: option['value'],
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(option['value']!),
-                          shape: BoxShape.circle,
-                        ),
+            ...statusOptions.map<DropdownMenuItem<String>>((
+              Map<String, String> option,
+            ) {
+              return DropdownMenuItem<String>(
+                value: option['value'],
+                child: Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: _getStatusColor(option['value']!),
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        option['label']!,
-                        style: TextStyle(
-                          color: _getStatusColor(option['value']!),
-                        ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      option['label']!,
+                      style: TextStyle(
+                        color: _getStatusColor(option['value']!),
                       ),
-                    ],
-                  ),
-                );
-              },
-            ).toList(),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
           ],
         ),
       ),
@@ -647,18 +1661,12 @@ class _Student_order_pageState extends State<Student_order_page> {
           const SizedBox(height: 6),
           Text(
             '${_filteredOrders.length} orders found',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-            ),
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
           if (_selectedStatusFilter != 'ALL') ...[
             const SizedBox(height: 8),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 5,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: _getStatusColor(_selectedStatusFilter).withOpacity(0.15),
                 borderRadius: BorderRadius.circular(20),
@@ -675,6 +1683,22 @@ class _Student_order_pageState extends State<Student_order_page> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildFilteredOrderCard(Order order) {
+    final visibleItems = _selectedStatusFilter == 'ALL'
+        ? order.items
+        : order.items
+              .where(
+                (item) => item.status.toUpperCase() == _selectedStatusFilter,
+              )
+              .toList();
+
+    return Column(
+      children: visibleItems
+          .map((item) => _buildProductItemCard(order, item))
+          .toList(),
     );
   }
 
@@ -713,87 +1737,82 @@ class _Student_order_pageState extends State<Student_order_page> {
                     child: CircularProgressIndicator(color: Colors.tealAccent),
                   )
                 : error != null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              color: Colors.red,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              error!,
-                              style: const TextStyle(color: Colors.red),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: fetchOrders,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.tealAccent,
-                                foregroundColor: Colors.black,
-                              ),
-                              child: const Text('Try Again'),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 48,
                         ),
-                      )
-                    : orders.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.shopping_bag_outlined,
-                                  color: Colors.white38,
-                                  size: 64,
-                                ),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'No orders found',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'Your orders will appear here',
-                                  style: TextStyle(
-                                    color: Colors.white38,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                ElevatedButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.tealAccent,
-                                    foregroundColor: Colors.black,
-                                  ),
-                                  child: const Text('Go Back'),
-                                ),
-                              ],
-                            ),
-                          )
-                        : SingleChildScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            child: Column(
-                              children: [
-                                _buildTopInfo(),
-                                _buildFilterBox(),
-                                ..._filteredOrders.map(
-                                  (order) => GestureDetector(
-                                    onTap: () => _navigateToOrderDetail(order),
-                                    child: _buildOrderCard(order),
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                              ],
-                            ),
+                        const SizedBox(height: 16),
+                        Text(
+                          error!,
+                          style: const TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: fetchOrders,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.tealAccent,
+                            foregroundColor: Colors.black,
                           ),
+                          child: const Text('Try Again'),
+                        ),
+                      ],
+                    ),
+                  )
+                : orders.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.shopping_bag_outlined,
+                          color: Colors.white38,
+                          size: 64,
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'No orders found',
+                          style: TextStyle(color: Colors.white70, fontSize: 18),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Your orders will appear here',
+                          style: TextStyle(color: Colors.white38, fontSize: 14),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.tealAccent,
+                            foregroundColor: Colors.black,
+                          ),
+                          child: const Text('Go Back'),
+                        ),
+                      ],
+                    ),
+                  )
+                : SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      children: [
+                        // _buildTopInfo(),
+                        _buildFilterBox(),
+                        ..._filteredOrders
+                            .map((order) => _buildFilteredOrderCard(order))
+                            .toList()
+                            .expand(
+                              (widget) => [widget, const SizedBox(height: 0)],
+                            )
+                            .toList(),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
           ),
         ),
       ),
@@ -805,8 +1824,9 @@ class _Student_order_pageState extends State<Student_order_page> {
 
 class OrderDetailPage extends StatefulWidget {
   final Order order;
+  final int? selectedItemId;
 
-  const OrderDetailPage({super.key, required this.order});
+  const OrderDetailPage({super.key, required this.order, this.selectedItemId});
 
   @override
   State<OrderDetailPage> createState() => _OrderDetailPageState();
@@ -814,15 +1834,77 @@ class OrderDetailPage extends StatefulWidget {
 
 class _OrderDetailPageState extends State<OrderDetailPage> {
   final Map<int, List<dynamic>> _reviewsCacheByProduct = {};
+  final TextEditingController _customReasonController = TextEditingController();
   bool _reviewPopupCheckedOnce = false;
+  bool _isSubmittingReturnExchange = false;
+  bool _isCancellingOrderItem = false;
+  OrderItem? _selectedReturnItem;
+  OrderItem? _selectedCancelItem;
+  String? _selectedRefundRemark;
+  String? _selectedReasonType;
+  String? _returnExchangeErrorMessage;
+  late String _liveOrderStatus;
+  bool _orderStatusChanged = false;
+  final Map<int, String> _liveItemStatuses = {};
+
+  final List<Map<String, String>> _refundRemarkOptions = [
+    {'value': 'return', 'label': 'Return'},
+    // {'value': 'refund', 'label': 'Refund'},
+    {'value': 'exchange', 'label': 'Exchange'},
+    {'value': 'cod_return', 'label': 'COD Return'},
+  ];
+
+  final List<Map<String, String>> _refundReasonTypeOptions = [
+    {'value': 'defective', 'label': 'Defective Product'},
+    {'value': 'wrong_item', 'label': 'Wrong Item Delivered'},
+    {'value': 'no_longer_needed', 'label': 'No Longer Needed'},
+    {'value': 'other', 'label': 'Other'},
+  ];
+
+  double _toDouble(String? value) {
+    return double.tryParse(value ?? '0') ?? 0.0;
+  }
 
   @override
   void initState() {
     super.initState();
 
+    _liveOrderStatus = widget.order.status;
+
+    for (final item in widget.order.items) {
+      _liveItemStatuses[item.id] = item.status;
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeShowReviewPopup();
     });
+  }
+
+  @override
+  void dispose() {
+    _customReasonController.dispose();
+    super.dispose();
+  }
+
+  String _getLiveItemStatus(OrderItem item) {
+    return _liveItemStatuses[item.id] ?? item.status;
+  }
+
+  OrderItem get _openedItem {
+    if (widget.selectedItemId == null) {
+      return widget.order.items.first;
+    }
+
+    return widget.order.items.firstWhere(
+      (item) => item.id == widget.selectedItemId,
+      orElse: () => widget.order.items.first,
+    );
+  }
+
+  List<OrderItem> get _otherItemsInOrder {
+    return widget.order.items
+        .where((item) => item.id != _openedItem.id)
+        .toList();
   }
 
   Future<void> _maybeShowReviewPopup() async {
@@ -830,7 +1912,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     if (_reviewPopupCheckedOnce) return;
     _reviewPopupCheckedOnce = true;
 
-    final status = widget.order.status.toUpperCase();
+    final status = _liveOrderStatus.toUpperCase();
     print("ORDER STATUS = $status");
 
     if (status != "DELIVERED") return;
@@ -988,6 +2070,154 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     );
   }
 
+  Widget _buildOrderDetailItemCard(OrderItem item) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => StudentProductReviewpage(
+              productId: item.product,
+              productTitle: item.productTitle,
+              productImage: item.productImage,
+              variantId: item.variantId,
+              variantLabel: item.variantLabel,
+              variantImage: item.variantImage,
+            ),
+          ),
+        );
+
+        if (result == true) {
+          _reviewsCacheByProduct.remove(item.product);
+          _reviewPopupCheckedOnce = false;
+          await Future.delayed(const Duration(milliseconds: 150));
+          await _maybeShowReviewPopup();
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.07)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 74,
+              height: 74,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: Colors.white.withOpacity(0.05),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: _buildProductImage(item),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.productTitle,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (item.variantLabel.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.tealAccent.withOpacity(0.14),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        item.variantLabel,
+                        style: const TextStyle(
+                          color: Colors.tealAccent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(
+                        _getLiveItemStatus(item),
+                      ).withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _getStatusColor(
+                          _getLiveItemStatus(item),
+                        ).withOpacity(0.35),
+                      ),
+                    ),
+                    child: Text(
+                      _getLiveItemStatus(item),
+                      style: TextStyle(
+                        color: _getStatusColor(_getLiveItemStatus(item)),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (item.coachName != null &&
+                      item.coachName!.trim().isNotEmpty) ...[
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.storefront_outlined,
+                          color: Colors.white54,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            'Seller: ${item.coachName}',
+                            style: const TextStyle(
+                              color: Colors.white60,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  Text(
+                    'Qty: ${item.quantity}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Color _getStatusColor(String status) {
     switch (status.toUpperCase()) {
       case 'PLACED':
@@ -1005,6 +2235,1104 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       default:
         return Colors.grey;
     }
+  }
+
+  String _getRefundLabel(String value, List<Map<String, String>> options) {
+    final match = options.where((option) => option['value'] == value).toList();
+    if (match.isEmpty) return value;
+    return match.first['label'] ?? value;
+  }
+
+  bool get _canRequestReturnExchange {
+    return _liveOrderStatus.toUpperCase() == 'DELIVERED';
+  }
+
+  bool get _canCancelOrderItem {
+    return _liveOrderStatus.toUpperCase() == 'PLACED';
+  }
+
+  void _resetCancelOrderForm() {
+    _selectedCancelItem = widget.order.items.isNotEmpty
+        ? widget.order.items.first
+        : null;
+    _isCancellingOrderItem = false;
+  }
+
+  Future<void> _confirmAndSubmitCancelOrderItem(
+    StateSetter bottomSheetSetState,
+  ) async {
+    if (_selectedCancelItem == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a product to cancel')),
+      );
+      return;
+    }
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF111111),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.redAccent,
+                size: 24,
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Confirm Cancellation',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Are you sure you want to cancel this product?\n\n${_selectedCancelItem!.productTitle}${_selectedCancelItem!.variantLabel.isNotEmpty ? '\n${_selectedCancelItem!.variantLabel}' : ''}\n\nThis action cannot be undone.',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              height: 1.45,
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text(
+                'No, Go Back',
+                style: TextStyle(color: Colors.white54),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Yes, Cancel',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _patchCancelOrderItemStatus(bottomSheetSetState);
+    }
+  }
+
+  Future<void> _patchCancelOrderItemStatus(
+    StateSetter bottomSheetSetState,
+  ) async {
+    if (_selectedCancelItem == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a product to cancel')),
+      );
+      return;
+    }
+
+    bottomSheetSetState(() {
+      _isCancellingOrderItem = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        bottomSheetSetState(() {
+          _isCancellingOrderItem = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authentication token missing')),
+        );
+        return;
+      }
+
+      final Map<String, dynamic> requestBody = {"status": "CANCELLED"};
+
+      final response = await http.patch(
+        Uri.parse(
+          '$api/api/myskates/order/item/status/update/${_selectedCancelItem!.id}/',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print("PATCH CANCEL ITEM STATUS API: ${response.statusCode}");
+      print("PATCH CANCEL ITEM ID: ${_selectedCancelItem!.id}");
+      print("PATCH CANCEL PRODUCT ID: ${_selectedCancelItem!.product}");
+      print("PATCH CANCEL REQUEST BODY: ${jsonEncode(requestBody)}");
+      print("PATCH CANCEL RESPONSE: ${response.body}");
+
+      Map<String, dynamic>? decoded;
+
+      try {
+        final dynamic parsed = jsonDecode(response.body);
+        if (parsed is Map<String, dynamic>) {
+          decoded = parsed;
+        }
+      } catch (_) {
+        decoded = null;
+      }
+
+      final String responseMessage =
+          decoded?['message']?.toString() ??
+          decoded?['error']?.toString() ??
+          decoded?['detail']?.toString() ??
+          '';
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (!mounted) return;
+
+        setState(() {
+          _liveItemStatuses[_selectedCancelItem!.id] = "CANCELLED";
+          _orderStatusChanged = true;
+        });
+
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Product cancelled successfully',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Failed to cancel product',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      print("PATCH CANCEL ERROR: $e");
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      if (mounted) {
+        bottomSheetSetState(() {
+          _isCancellingOrderItem = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _submitCancelOrderItem(StateSetter bottomSheetSetState) async {
+    if (_selectedCancelItem == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a product to cancel')),
+      );
+      return;
+    }
+
+    bottomSheetSetState(() {
+      _isCancellingOrderItem = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        bottomSheetSetState(() {
+          _isCancellingOrderItem = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authentication token missing')),
+        );
+        return;
+      }
+
+      final Map<String, dynamic> requestBody = {
+        'order': widget.order.id,
+        'order_id': widget.order.id,
+        'product': _selectedCancelItem!.product,
+        'product_id': _selectedCancelItem!.product,
+      };
+
+      final response = await http.post(
+        Uri.parse(
+          '$api/api/myskates/orders/${widget.order.id}/cancel/${_selectedCancelItem!.product}/',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print("CANCEL ORDER ITEM API STATUS: ${response.statusCode}");
+      print("CANCEL ORDER ITEM REQUEST BODY: ${jsonEncode(requestBody)}");
+      print("CANCEL ORDER ITEM RESPONSE: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (!mounted) return;
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Product cancelled successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        String errorMessage = 'Failed to cancel product';
+
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map) {
+            errorMessage =
+                decoded['message']?.toString() ??
+                decoded['error']?.toString() ??
+                decoded['detail']?.toString() ??
+                errorMessage;
+          }
+        } catch (_) {}
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(errorMessage)));
+      }
+    } catch (e) {
+      print("ERROR CANCELLING ORDER ITEM: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) {
+        bottomSheetSetState(() {
+          _isCancellingOrderItem = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _showCancelOrderBottomSheet() async {
+    if (widget.order.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No products available in this order')),
+      );
+      return;
+    }
+
+    _resetCancelOrderForm();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) {
+        return StatefulBuilder(
+          builder: (context, bottomSheetSetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF0E0E0E),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 42,
+                            height: 4,
+                            margin: const EdgeInsets.only(bottom: 18),
+                            decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent.withOpacity(0.14),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(
+                                Icons.cancel_outlined,
+                                color: Colors.redAccent,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Cancel Product',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(height: 3),
+                                  Text(
+                                    'Select the product you want to cancel',
+                                    style: TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: _isCancellingOrderItem
+                                  ? null
+                                  : () => Navigator.pop(context),
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Product',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.07),
+                            borderRadius: BorderRadius.circular(15),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.12),
+                            ),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<OrderItem>(
+                              value: _selectedCancelItem,
+                              isExpanded: true,
+                              dropdownColor: const Color(0xFF161616),
+                              icon: const Icon(
+                                Icons.keyboard_arrow_down,
+                                color: Colors.white70,
+                              ),
+                              style: const TextStyle(color: Colors.white),
+                              onChanged: _isCancellingOrderItem
+                                  ? null
+                                  : (OrderItem? value) {
+                                      bottomSheetSetState(() {
+                                        _selectedCancelItem = value;
+                                      });
+                                    },
+                              items: widget.order.items.map((item) {
+                                return DropdownMenuItem<OrderItem>(
+                                  value: item,
+                                  child: Text(
+                                    '${item.productTitle}${item.variantLabel.isNotEmpty ? ' - ${item.variantLabel}' : ''}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.redAccent.withOpacity(0.22),
+                            ),
+                          ),
+                          child: const Text(
+                            'Cancellation is allowed only while the order is in Placed status.',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed: _isCancellingOrderItem
+                                ? null
+                                : () => _confirmAndSubmitCancelOrderItem(
+                                    bottomSheetSetState,
+                                  ),
+                            icon: _isCancellingOrderItem
+                                ? const SizedBox.shrink()
+                                : const Icon(Icons.cancel_outlined),
+                            label: _isCancellingOrderItem
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2.2,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Cancel Selected Product',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.redAccent,
+                              disabledBackgroundColor: Colors.redAccent
+                                  .withOpacity(0.35),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _resetReturnExchangeForm() {
+    _selectedReturnItem = widget.order.items.isNotEmpty
+        ? widget.order.items.first
+        : null;
+    _selectedRefundRemark = null;
+    _selectedReasonType = null;
+    _customReasonController.clear();
+    _isSubmittingReturnExchange = false;
+    _returnExchangeErrorMessage = null;
+  }
+
+  Future<void> _submitReturnExchangeRequest(
+    StateSetter bottomSheetSetState,
+  ) async {
+    if (_selectedReturnItem == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a product')));
+      return;
+    }
+
+    if (_selectedRefundRemark == null || _selectedRefundRemark!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select return/exchange type')),
+      );
+      return;
+    }
+
+    if (_selectedReasonType == null || _selectedReasonType!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select reason type')),
+      );
+      return;
+    }
+
+    final customReason = _customReasonController.text.trim();
+
+    if (_selectedReasonType == 'other' && customReason.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter reason')));
+      return;
+    }
+
+    bottomSheetSetState(() {
+      _isSubmittingReturnExchange = true;
+      _returnExchangeErrorMessage = null;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        bottomSheetSetState(() {
+          _isSubmittingReturnExchange = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authentication token missing')),
+        );
+        return;
+      }
+
+      final Map<String, dynamic> requestBody = {
+        'item': _selectedReturnItem!.id,
+        'product': _selectedReturnItem!.product,
+        'remark': _selectedRefundRemark,
+        'reason_type': _selectedReasonType,
+        'reason': _selectedReasonType == 'other'
+            ? customReason
+            : _getRefundLabel(_selectedReasonType!, _refundReasonTypeOptions),
+      };
+
+      final response = await http.post(
+        Uri.parse('$api/api/myskates/msk/refund/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print("RETURN EXCHANGE API STATUS: ${response.statusCode}");
+      print("RETURN EXCHANGE REQUEST BODY: ${jsonEncode(requestBody)}");
+      print("RETURN EXCHANGE RESPONSE: ${response.body}");
+
+      Map<String, dynamic>? decoded;
+
+      try {
+        final dynamic parsed = jsonDecode(response.body);
+        if (parsed is Map<String, dynamic>) {
+          decoded = parsed;
+        }
+      } catch (_) {
+        decoded = null;
+      }
+
+      final bool apiStatus = decoded?['status'] == true;
+
+      final String responseMessage =
+          decoded?['message']?.toString() ??
+          decoded?['error']?.toString() ??
+          decoded?['detail']?.toString() ??
+          'Something went wrong';
+
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          apiStatus) {
+        if (!mounted) return;
+
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Return/Exchange request submitted successfully',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        if (!mounted) return;
+
+        bottomSheetSetState(() {
+          _returnExchangeErrorMessage = responseMessage;
+        });
+      }
+    } catch (e) {
+      print("ERROR SUBMITTING RETURN EXCHANGE REQUEST: $e");
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      if (mounted) {
+        bottomSheetSetState(() {
+          _isSubmittingReturnExchange = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _showReturnExchangeBottomSheet() async {
+    if (widget.order.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No products available in this order')),
+      );
+      return;
+    }
+
+    _resetReturnExchangeForm();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) {
+        return StatefulBuilder(
+          builder: (context, bottomSheetSetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.88,
+                ),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF101010),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(26),
+                    topRight: Radius.circular(26),
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 42,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: Colors.tealAccent.withOpacity(0.14),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(
+                              Icons.assignment_return_outlined,
+                              color: Colors.tealAccent,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Return / Exchange Request',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(height: 3),
+                                Text(
+                                  'Select product and reason to submit request',
+                                  style: TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 22),
+                      const Text(
+                        'Choose Product',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.12),
+                          ),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<OrderItem>(
+                            value: _selectedReturnItem,
+                            isExpanded: true,
+                            dropdownColor: const Color(0xFF161616),
+                            icon: const Icon(
+                              Icons.keyboard_arrow_down,
+                              color: Colors.white70,
+                            ),
+                            style: const TextStyle(color: Colors.white),
+                            onChanged: _isSubmittingReturnExchange
+                                ? null
+                                : (OrderItem? value) {
+                                    bottomSheetSetState(() {
+                                      _selectedReturnItem = value;
+                                    });
+                                  },
+                            items: widget.order.items.map((item) {
+                              return DropdownMenuItem<OrderItem>(
+                                value: item,
+                                child: Text(
+                                  '${item.productTitle}${item.variantLabel.isNotEmpty ? ' - ${item.variantLabel}' : ''}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Request Type',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.12),
+                          ),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedRefundRemark,
+                            isExpanded: true,
+                            dropdownColor: const Color(0xFF161616),
+                            hint: const Text(
+                              'Select return, refund or exchange',
+                              style: TextStyle(color: Colors.white54),
+                            ),
+                            icon: const Icon(
+                              Icons.keyboard_arrow_down,
+                              color: Colors.white70,
+                            ),
+                            style: const TextStyle(color: Colors.white),
+                            onChanged: _isSubmittingReturnExchange
+                                ? null
+                                : (String? value) {
+                                    bottomSheetSetState(() {
+                                      _selectedRefundRemark = value;
+                                    });
+                                  },
+                            items: _refundRemarkOptions.map((option) {
+                              return DropdownMenuItem<String>(
+                                value: option['value'],
+                                child: Text(
+                                  option['label'] ?? '',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Reason Type',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.12),
+                          ),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedReasonType,
+                            isExpanded: true,
+                            dropdownColor: const Color(0xFF161616),
+                            hint: const Text(
+                              'Select reason type',
+                              style: TextStyle(color: Colors.white54),
+                            ),
+                            icon: const Icon(
+                              Icons.keyboard_arrow_down,
+                              color: Colors.white70,
+                            ),
+                            style: const TextStyle(color: Colors.white),
+                            onChanged: _isSubmittingReturnExchange
+                                ? null
+                                : (String? value) {
+                                    bottomSheetSetState(() {
+                                      _selectedReasonType = value;
+                                      if (value != 'other') {
+                                        _customReasonController.clear();
+                                      }
+                                    });
+                                  },
+                            items: _refundReasonTypeOptions.map((option) {
+                              return DropdownMenuItem<String>(
+                                value: option['value'],
+                                child: Text(
+                                  option['label'] ?? '',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      if (_selectedReasonType == 'other') ...[
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Reason',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _customReasonController,
+                          enabled: !_isSubmittingReturnExchange,
+                          maxLines: 4,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Type your reason',
+                            hintStyle: const TextStyle(color: Colors.white38),
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.07),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.12),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.12),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: const BorderSide(
+                                color: Colors.tealAccent,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 22),
+                      if (_returnExchangeErrorMessage != null &&
+                          _returnExchangeErrorMessage!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 18),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.redAccent.withOpacity(0.35),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                color: Colors.redAccent,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _returnExchangeErrorMessage!,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    height: 1.35,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 22),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _isSubmittingReturnExchange
+                              ? null
+                              : () => _submitReturnExchangeRequest(
+                                  bottomSheetSetState,
+                                ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.tealAccent,
+                            disabledBackgroundColor: Colors.tealAccent
+                                .withOpacity(0.35),
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: _isSubmittingReturnExchange
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.black,
+                                    strokeWidth: 2.2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Submit Request',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCancelOrderButton() {
+    if (!_canCancelOrderItem) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 2),
+      child: ElevatedButton.icon(
+        onPressed: _showCancelOrderBottomSheet,
+        icon: const Icon(Icons.cancel_outlined, size: 20),
+        label: const Text(
+          'Cancel Product',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.redAccent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          minimumSize: const Size(double.infinity, 54),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReturnExchangeButton() {
+    if (!_canRequestReturnExchange) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 2),
+      child: ElevatedButton.icon(
+        onPressed: _showReturnExchangeBottomSheet,
+        icon: const Icon(Icons.assignment_return_outlined, size: 20),
+        label: const Text(
+          'Return / Exchange',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.tealAccent,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          minimumSize: const Size(double.infinity, 54),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildProductImage(OrderItem item) {
@@ -1107,10 +3435,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
               ),
               const SizedBox(height: 2),
               Text(
@@ -1138,10 +3463,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 14,
-          ),
+          style: const TextStyle(color: Colors.white70, fontSize: 14),
         ),
         Text(
           value,
@@ -1170,7 +3492,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context, _orderStatusChanged),
         ),
         actions: [
           if (order.items.isNotEmpty) ...[
@@ -1184,20 +3506,20 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   PageRouteBuilder(
                     pageBuilder: (_, animation, secondaryAnimation) =>
                         StudentProductReviewpage(
-                      productId: item.product,
-                      productTitle: item.productTitle,
-                      productImage: item.productImage,
-                      variantId: item.variantId,
-                      variantLabel: item.variantLabel,
-                      variantImage: item.variantImage,
-                    ),
+                          productId: item.product,
+                          productTitle: item.productTitle,
+                          productImage: item.productImage,
+                          variantId: item.variantId,
+                          variantLabel: item.variantLabel,
+                          variantImage: item.variantImage,
+                        ),
                     transitionsBuilder:
                         (_, animation, secondaryAnimation, child) {
-                      return FadeTransition(
-                        opacity: animation,
-                        child: child,
-                      );
-                    },
+                          return FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          );
+                        },
                     transitionDuration: const Duration(milliseconds: 250),
                     opaque: true,
                   ),
@@ -1244,30 +3566,32 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             ),
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(order.status)
-                                .withOpacity(0.18),
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(
-                              color: _getStatusColor(order.status)
-                                  .withOpacity(0.5),
-                            ),
-                          ),
-                          child: Text(
-                            order.status,
-                            style: TextStyle(
-                              color: _getStatusColor(order.status),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
+                        // Container(
+                        //   padding: const EdgeInsets.symmetric(
+                        //     horizontal: 12,
+                        //     vertical: 6,
+                        //   ),
+                        //   decoration: BoxDecoration(
+                        //     color: _getStatusColor(
+                        //       _liveOrderStatus,
+                        //     ).withOpacity(0.18),
+                        //     borderRadius: BorderRadius.circular(30),
+                        //     border: Border.all(
+                        //       color: _getStatusColor(
+                        //         _liveOrderStatus,
+                        //       ).withOpacity(0.5),
+                        //     ),
+                        //   ),
+                        //   child: Text(
+                        //     _liveOrderStatus,
+                        //     style: TextStyle(
+                        //       color: _getStatusColor(_liveOrderStatus),
+                        //       fontSize: 11,
+                        //       fontWeight: FontWeight.w700,
+                        //       letterSpacing: 0.5,
+                        //     ),
+                        //   ),
+                        // ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -1342,168 +3666,107 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              _buildGlassCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _sectionTitle('Order Items'),
-                    const SizedBox(height: 16),
-                    ...order.items.map(
-                      (item) => InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () async {
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => StudentProductReviewpage(
-                                productId: item.product,
-                                productTitle: item.productTitle,
-                                productImage: item.productImage,
-                                variantId: item.variantId,
-                                variantLabel: item.variantLabel,
-                                variantImage: item.variantImage,
-                              ),
-                            ),
-                          );
+           _buildGlassCard(
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _sectionTitle('Selected Item'),
+      const SizedBox(height: 16),
 
-                          if (result == true) {
-                            _reviewsCacheByProduct.remove(item.product);
-                            _reviewPopupCheckedOnce = false;
-                            await Future.delayed(
-                              const Duration(milliseconds: 150),
-                            );
-                            await _maybeShowReviewPopup();
-                          }
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 14),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.04),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.07),
-                            ),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 74,
-                                height: 74,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(14),
-                                  color: Colors.white.withOpacity(0.05),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: _buildProductImage(item),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.productTitle,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    if (item.variantLabel.isNotEmpty) ...[
-                                      const SizedBox(height: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.tealAccent.withOpacity(
-                                            0.14,
-                                          ),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          item.variantLabel,
-                                          style: const TextStyle(
-                                            color: Colors.tealAccent,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      'Qty: ${item.quantity}',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Divider(color: Colors.white24, height: 26),
-                    _priceRow(
-                      'Subtotal',
-                      '₹${double.parse(order.subtotal).toStringAsFixed(2)}',
-                    ),
-                    if (double.parse(order.discountTotal) > 0) ...[
-                      const SizedBox(height: 10),
-                      _priceRow(
-                        'Discount',
-                        '-₹${double.parse(order.discountTotal).toStringAsFixed(2)}',
-                        valueColor: Colors.greenAccent,
-                      ),
-                    ],
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.tealAccent.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: Colors.tealAccent.withOpacity(0.25),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Total',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            '₹${double.parse(order.total).toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              color: Colors.tealAccent,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+      _buildOrderDetailItemCard(_openedItem),
+
+      if (_otherItemsInOrder.isNotEmpty) ...[
+        const Divider(color: Colors.white24, height: 30),
+        _sectionTitle('Other items in this order'),
+        const SizedBox(height: 16),
+        ..._otherItemsInOrder.map(
+          (item) => _buildOrderDetailItemCard(item),
+        ),
+      ],
+
+      const Divider(color: Colors.white24, height: 26),
+
+      _priceRow(
+        'Subtotal',
+        '₹${_toDouble(order.subtotal).toStringAsFixed(2)}',
+      ),
+
+      if (_toDouble(order.discountTotal) > 0) ...[
+        const SizedBox(height: 10),
+        _priceRow(
+          'Discount',
+          '-₹${_toDouble(order.discountTotal).toStringAsFixed(2)}',
+          valueColor: Colors.greenAccent,
+        ),
+      ],
+
+      if (_toDouble(order.platformFee) > 0) ...[
+        const SizedBox(height: 10),
+        _priceRow(
+          'Platform Fee',
+          '₹${_toDouble(order.platformFee).toStringAsFixed(2)}',
+        ),
+      ],
+
+      if (_toDouble(order.convenienceFee) > 0) ...[
+        const SizedBox(height: 10),
+        _priceRow(
+          'Convenience Fee',
+          '₹${_toDouble(order.convenienceFee).toStringAsFixed(2)}',
+        ),
+      ],
+
+      if (_toDouble(order.shipmentCharge) > 0) ...[
+        const SizedBox(height: 10),
+        _priceRow(
+          'Shipment Charge',
+          '₹${_toDouble(order.shipmentCharge).toStringAsFixed(2)}',
+        ),
+      ],
+
+      const SizedBox(height: 14),
+
+      Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.tealAccent.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: Colors.tealAccent.withOpacity(0.25),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Total',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
               ),
+            ),
+            Text(
+              '₹${_toDouble(order.finalPayable).toStringAsFixed(2)}',
+              style: const TextStyle(
+                color: Colors.tealAccent,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  ),
+),
+              const SizedBox(height: 16),
+              _buildCancelOrderButton(),
+              if (_canCancelOrderItem) const SizedBox(height: 12),
+              _buildReturnExchangeButton(),
               const SizedBox(height: 20),
             ],
           ),
