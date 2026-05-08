@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:my_skates/api.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 
 // Order Model Classes with images
 class OrderItem {
@@ -173,855 +174,51 @@ class Order {
 class OrderResponse {
   final bool success;
   final int count;
+  final String? next;
+  final String? previous;
   final List<Order> data;
 
   OrderResponse({
     required this.success,
     required this.count,
+    required this.next,
+    required this.previous,
     required this.data,
   });
 
   factory OrderResponse.fromJson(Map<String, dynamic> json) {
-    var ordersList = json['data'] as List? ?? [];
-    List<Order> orders = ordersList.map((i) => Order.fromJson(i)).toList();
+    final dynamic resultsNode = json['results'];
+
+    bool success = true;
+    int count = 0;
+    String? next = json['next']?.toString();
+    String? previous = json['previous']?.toString();
+    List<dynamic> ordersList = [];
+
+    if (resultsNode is Map<String, dynamic>) {
+      success = resultsNode['success'] == true;
+      count = resultsNode['count'] ?? json['count'] ?? 0;
+      ordersList = resultsNode['data'] as List? ?? [];
+    } else {
+      success = json['success'] ?? true;
+      count = json['count'] ?? 0;
+      ordersList = json['data'] as List? ?? [];
+    }
+
+    final List<Order> orders = ordersList
+        .whereType<Map<String, dynamic>>()
+        .map((item) => Order.fromJson(item))
+        .toList();
 
     return OrderResponse(
-      success: json['success'] ?? false,
-      count: json['count'] ?? 0,
+      success: success,
+      count: count,
+      next: next,
+      previous: previous,
       data: orders,
     );
   }
 }
-
-// class Student_order_page extends StatefulWidget {
-//   const Student_order_page({super.key});
-
-//   @override
-//   State<Student_order_page> createState() => _Student_order_pageState();
-// }
-
-// class _Student_order_pageState extends State<Student_order_page> {
-//   List<BoughtProductItem> boughtProducts = []; // Changed from List<Order>
-//   bool isLoading = true;
-//   String? error;
-
-//   String _selectedStatusFilter = 'ALL';
-
-//   final List<Map<String, String>> statusOptions = [
-//     {"value": "PLACED", "label": "Placed"},
-//     {"value": "PAID", "label": "Paid"},
-//     {"value": "SHIPPED", "label": "Shipped"},
-//     {"value": "DELIVERED", "label": "Delivered"},
-//     {"value": "CANCELLED", "label": "Cancelled"},
-//   ];
-
-//   @override
-//   void initState() {
-//     super.initState();
-//     fetchOrders();
-//   }
-
-//   List<BoughtProductItem> get _filteredProducts {
-//     if (_selectedStatusFilter == 'ALL') {
-//       return boughtProducts;
-//     }
-//     return boughtProducts
-//         .where((product) => product.orderStatus == _selectedStatusFilter)
-//         .toList();
-//   }
-
-//   Future<void> fetchOrders() async {
-//     setState(() {
-//       isLoading = true;
-//       error = null;
-//     });
-
-//     try {
-//       final prefs = await SharedPreferences.getInstance();
-//       final token = prefs.getString("access");
-
-//       if (token == null) {
-//         setState(() {
-//           error = 'Authentication token missing';
-//           isLoading = false;
-//         });
-//         return;
-//       }
-
-//       // Changed API endpoint to get bought products
-//       final response = await http.get(
-//         Uri.parse('$api/api/myskates/orders/bought/products/'),
-//         headers: {
-//           'Content-Type': 'application/json',
-//           'Authorization': 'Bearer $token',
-//         },
-//       );
-
-//       print("PRODUCTS API STATUS: ${response.statusCode}");
-//       print("PRODUCTS RESPONSE: ${response.body}");
-
-//       if (response.statusCode == 200) {
-//         final jsonResponse = json.decode(response.body);
-//         final productList = jsonResponse['data'] as List? ?? [];
-
-//         setState(() {
-//           boughtProducts = productList
-//               .map((e) => BoughtProductItem.fromJson(e))
-//               .toList();
-//           isLoading = false;
-//         });
-
-//         print("Products fetched successfully: ${boughtProducts.length} products");
-//       } else {
-//         setState(() {
-//           error = 'Failed to load products: ${response.statusCode}';
-//           isLoading = false;
-//         });
-//       }
-//     } catch (e) {
-//       print("Error fetching products: $e");
-//       setState(() {
-//         error = e.toString();
-//         isLoading = false;
-//       });
-//     }
-//   }
-
-//   Future<void> _refreshOrders() async {
-//     await fetchOrders();
-//   }
-
-//   Color _getStatusColor(String status) {
-//     switch (status.toUpperCase()) {
-//       case 'PLACED':
-//         return Colors.orange;
-//       case 'PAID':
-//         return Colors.blue;
-//       case 'SHIPPED':
-//         return Colors.purple;
-//       case 'DELIVERED':
-//         return Colors.green;
-//       case 'CANCELLED':
-//         return Colors.red;
-//       default:
-//         return Colors.grey;
-//     }
-//   }
-
-//   void _openInvoice(int orderId) {
-//     Navigator.push(
-//       context,
-//       MaterialPageRoute(builder: (_) => InvoiceWebViewPage(orderId: orderId)),
-//     );
-//   }
-
-//   Future<void> _navigateToProductOrderDetail(BoughtProductItem item) async {
-//     try {
-//       final prefs = await SharedPreferences.getInstance();
-//       final token = prefs.getString("access");
-
-//       if (token == null) {
-//         ScaffoldMessenger.of(context).showSnackBar(
-//           const SnackBar(content: Text('Authentication token missing')),
-//         );
-//         return;
-//       }
-
-//       showDialog(
-//         context: context,
-//         barrierDismissible: false,
-//         builder: (_) => const Center(
-//           child: CircularProgressIndicator(color: Colors.tealAccent),
-//         ),
-//       );
-
-//       final response = await http.get(
-//         Uri.parse('$api/api/myskates/orders/${item.orderId}/'),
-//         headers: {
-//           'Content-Type': 'application/json',
-//           'Authorization': 'Bearer $token',
-//         },
-//       );
-
-//       if (Navigator.canPop(context)) {
-//         Navigator.pop(context);
-//       }
-
-//       if (response.statusCode == 200) {
-//         final jsonResponse = json.decode(response.body);
-//         final orderJson = jsonResponse['data'] ?? jsonResponse;
-//         final order = Order.fromJson(orderJson);
-
-//         Navigator.push(
-//           context,
-//           MaterialPageRoute(builder: (_) => OrderDetailPage(order: order)),
-//         );
-//       } else {
-//         ScaffoldMessenger.of(context).showSnackBar(
-//           SnackBar(
-//             content: Text('Failed to open order detail: ${response.statusCode}'),
-//             backgroundColor: Colors.red,
-//           ),
-//         );
-//       }
-//     } catch (e) {
-//       if (Navigator.canPop(context)) {
-//         Navigator.pop(context);
-//       }
-//       ScaffoldMessenger.of(context).showSnackBar(
-//         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-//       );
-//     }
-//   }
-
-//   Widget _glassWrap({required Widget child, EdgeInsets? padding}) {
-//     return ClipRRect(
-//       borderRadius: BorderRadius.circular(18),
-//       child: BackdropFilter(
-//         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-//         child: Container(
-//           padding: padding,
-//           decoration: BoxDecoration(
-//             color: Colors.white.withOpacity(0.06),
-//             borderRadius: BorderRadius.circular(18),
-//             border: Border.all(color: Colors.white.withOpacity(0.10)),
-//             boxShadow: [
-//               BoxShadow(
-//                 color: Colors.black.withOpacity(0.20),
-//                 blurRadius: 14,
-//                 offset: const Offset(0, 6),
-//               ),
-//             ],
-//           ),
-//           child: child,
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildProductCard(BoughtProductItem item) {
-//     return GestureDetector(
-//       onTap: () => _navigateToProductOrderDetail(item),
-//       child: Container(
-//         margin: const EdgeInsets.only(bottom: 12),
-//         child: _glassWrap(
-//           padding: const EdgeInsets.all(12),
-//           child: Column(
-//             crossAxisAlignment: CrossAxisAlignment.start,
-//             children: [
-//               Row(
-//                 crossAxisAlignment: CrossAxisAlignment.start,
-//                 children: [
-//                   Expanded(
-//                     child: Text(
-//                       'Order #${item.orderNo}',
-//                       style: const TextStyle(
-//                         color: Colors.white,
-//                         fontSize: 14,
-//                         fontWeight: FontWeight.w600,
-//                       ),
-//                       maxLines: 2,
-//                       overflow: TextOverflow.ellipsis,
-//                     ),
-//                   ),
-//                   const SizedBox(width: 8),
-//                   Container(
-//                     padding: const EdgeInsets.symmetric(
-//                       horizontal: 10,
-//                       vertical: 5,
-//                     ),
-//                     decoration: BoxDecoration(
-//                       color: _getStatusColor(item.orderStatus).withOpacity(0.2),
-//                       borderRadius: BorderRadius.circular(16),
-//                       border: Border.all(
-//                         color: _getStatusColor(item.orderStatus).withOpacity(0.5),
-//                         width: 0.5,
-//                       ),
-//                     ),
-//                     child: Text(
-//                       item.orderStatus,
-//                       style: TextStyle(
-//                         color: _getStatusColor(item.orderStatus),
-//                         fontSize: 11,
-//                         fontWeight: FontWeight.w500,
-//                       ),
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//               const SizedBox(height: 12),
-//               Row(
-//                 children: [
-//                   SizedBox(
-//                     width: 58,
-//                     height: 58,
-//                     child: ClipRRect(
-//                       borderRadius: BorderRadius.circular(10),
-//                       child: _buildProductImage(item),
-//                     ),
-//                   ),
-//                   const SizedBox(width: 12),
-//                   Expanded(
-//                     child: Column(
-//                       crossAxisAlignment: CrossAxisAlignment.start,
-//                       children: [
-//                         Text(
-//                           item.productTitle,
-//                           style: const TextStyle(
-//                             color: Colors.white,
-//                             fontSize: 15,
-//                             fontWeight: FontWeight.w600,
-//                           ),
-//                           maxLines: 1,
-//                           overflow: TextOverflow.ellipsis,
-//                         ),
-//                         const SizedBox(height: 5),
-//                         Text(
-//                           'Qty: ${item.quantity}',
-//                           style: const TextStyle(
-//                             color: Colors.white70,
-//                             fontSize: 12,
-//                           ),
-//                         ),
-//                         if (item.productUserType != null &&
-//                             item.productUserType!.isNotEmpty) ...[
-//                           const SizedBox(height: 4),
-//                           Text(
-//                             item.productUserType == 'coach'
-//                                 ? 'Coach Product'
-//                                 : 'Product',
-//                             style: TextStyle(
-//                               color: item.productUserType == 'coach'
-//                                   ? Colors.tealAccent
-//                                   : Colors.orangeAccent,
-//                               fontSize: 11,
-//                               fontWeight: FontWeight.w500,
-//                             ),
-//                           ),
-//                         ],
-//                         const SizedBox(height: 4),
-//                         Text(
-//                           DateFormat('dd MMM yyyy, hh:mm a').format(item.orderCreatedAt),
-//                           style: const TextStyle(
-//                             color: Colors.white38,
-//                             fontSize: 11,
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//               const Divider(color: Colors.white24, height: 24),
-//               Row(
-//                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                 children: [
-//                   const Text(
-//                     'Tap to view details',
-//                     style: TextStyle(color: Colors.white38, fontSize: 12),
-//                   ),
-//                   Row(
-//                     children: [
-//                       GestureDetector(
-//                         onTap: () {
-//                           _openInvoice(item.orderId);
-//                         },
-//                         child: Container(
-//                           padding: const EdgeInsets.symmetric(
-//                             horizontal: 12,
-//                             vertical: 7,
-//                           ),
-//                           decoration: BoxDecoration(
-//                             color: Colors.tealAccent.withOpacity(0.15),
-//                             borderRadius: BorderRadius.circular(12),
-//                             border: Border.all(
-//                               color: Colors.tealAccent.withOpacity(0.4),
-//                             ),
-//                           ),
-//                           child: const Row(
-//                             mainAxisSize: MainAxisSize.min,
-//                             children: [
-//                               Icon(
-//                                 Icons.receipt_long_rounded,
-//                                 color: Colors.tealAccent,
-//                                 size: 15,
-//                               ),
-//                               SizedBox(width: 6),
-//                               Text(
-//                                 'Invoice',
-//                                 style: TextStyle(
-//                                   color: Colors.tealAccent,
-//                                   fontSize: 12,
-//                                   fontWeight: FontWeight.w600,
-//                                 ),
-//                               ),
-//                             ],
-//                           ),
-//                         ),
-//                       ),
-//                     ],
-//                   ),
-//                 ],
-//               ),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildProductImage(BoughtProductItem item) {
-//     final imagePath = item.variantImage ?? item.productImage;
-
-//     if (imagePath != null && imagePath.isNotEmpty) {
-//       return Image.network(
-//         '$api$imagePath',
-//         fit: BoxFit.cover,
-//         gaplessPlayback: true,
-//         errorBuilder: (_, __, ___) => const Icon(
-//           Icons.image_not_supported,
-//           color: Colors.white38,
-//           size: 24,
-//         ),
-//       );
-//     }
-
-//     return const Icon(
-//       Icons.image_not_supported,
-//       color: Colors.white38,
-//       size: 24,
-//     );
-//   }
-
-//   Widget _buildFilterBox() {
-//     return Container(
-//       margin: const EdgeInsets.only(bottom: 16),
-//       padding: const EdgeInsets.symmetric(horizontal: 12),
-//       decoration: BoxDecoration(
-//         color: Colors.white.withOpacity(0.08),
-//         borderRadius: BorderRadius.circular(18),
-//         border: Border.all(color: Colors.white.withOpacity(0.12)),
-//       ),
-//       child: DropdownButtonHideUnderline(
-//         child: DropdownButton<String>(
-//           value: _selectedStatusFilter,
-//           isExpanded: true,
-//           icon: const Icon(Icons.filter_list_rounded, color: Colors.tealAccent),
-//           dropdownColor: const Color(0xFF161616),
-//           style: const TextStyle(color: Colors.white, fontSize: 14),
-//           hint: const Text(
-//             'Filter by Status',
-//             style: TextStyle(color: Colors.white54),
-//           ),
-//           onChanged: (String? newValue) {
-//             setState(() {
-//               _selectedStatusFilter = newValue!;
-//             });
-//           },
-//           items: [
-//             const DropdownMenuItem<String>(
-//               value: 'ALL',
-//               child: Row(
-//                 children: [
-//                   Icon(Icons.apps_rounded, color: Colors.white70, size: 18),
-//                   SizedBox(width: 8),
-//                   Text('All Products', style: TextStyle(color: Colors.white)),
-//                 ],
-//               ),
-//             ),
-//             ...statusOptions.map<DropdownMenuItem<String>>((
-//               Map<String, String> option,
-//             ) {
-//               return DropdownMenuItem<String>(
-//                 value: option['value'],
-//                 child: Row(
-//                   children: [
-//                     Container(
-//                       width: 12,
-//                       height: 12,
-//                       decoration: BoxDecoration(
-//                         color: _getStatusColor(option['value']!),
-//                         shape: BoxShape.circle,
-//                       ),
-//                     ),
-//                     const SizedBox(width: 8),
-//                     Text(
-//                       option['label']!,
-//                       style: TextStyle(
-//                         color: _getStatusColor(option['value']!),
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//               );
-//             }).toList(),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildShimmerCard() {
-//     return Container(
-//       margin: const EdgeInsets.only(bottom: 12),
-//       child: _glassWrap(
-//         padding: const EdgeInsets.all(12),
-//         child:  Column(
-//             crossAxisAlignment: CrossAxisAlignment.start,
-//             children: [
-//               Row(
-//                 children: [
-//                   Expanded(
-//                     child: Container(
-//                       height: 16,
-//                       decoration: BoxDecoration(
-//                         color: Colors.white,
-//                         borderRadius: BorderRadius.circular(6),
-//                       ),
-//                     ),
-//                   ),
-//                   const SizedBox(width: 12),
-//                   Container(
-//                     width: 90,
-//                     height: 30,
-//                     decoration: BoxDecoration(
-//                       color: Colors.white,
-//                       borderRadius: BorderRadius.circular(16),
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//               const SizedBox(height: 14),
-//               Row(
-//                 children: [
-//                   Container(
-//                     width: 58,
-//                     height: 58,
-//                     decoration: BoxDecoration(
-//                       color: Colors.white,
-//                       borderRadius: BorderRadius.circular(10),
-//                     ),
-//                   ),
-//                   const SizedBox(width: 12),
-//                   Expanded(
-//                     child: Column(
-//                       children: [
-//                         Container(
-//                           height: 16,
-//                           decoration: BoxDecoration(
-//                             color: Colors.white,
-//                             borderRadius: BorderRadius.circular(6),
-//                           ),
-//                         ),
-//                         const SizedBox(height: 8),
-//                         Container(
-//                           width: 80,
-//                           height: 12,
-//                           decoration: BoxDecoration(
-//                             color: Colors.white,
-//                             borderRadius: BorderRadius.circular(6),
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//               const SizedBox(height: 16),
-//               Container(height: 1, color: Colors.white),
-//               const SizedBox(height: 12),
-//               Row(
-//                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                 children: [
-//                   Container(
-//                     width: 100,
-//                     height: 16,
-//                     decoration: BoxDecoration(
-//                       color: Colors.white,
-//                       borderRadius: BorderRadius.circular(6),
-//                     ),
-//                   ),
-//                   Container(
-//                     width: 70,
-//                     height: 18,
-//                     decoration: BoxDecoration(
-//                       color: Colors.white,
-//                       borderRadius: BorderRadius.circular(6),
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             ],
-//           ),
-
-//       ),
-//     );
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       backgroundColor: Colors.black,
-//       body: Container(
-//         decoration: const BoxDecoration(
-//           gradient: LinearGradient(
-//             colors: [Color(0xFF001F1D), Color(0xFF003A36), Colors.black],
-//             begin: Alignment.topLeft,
-//             end: Alignment.bottomCenter,
-//           ),
-//         ),
-//         child: SafeArea(
-//           child: RefreshIndicator(
-//             onRefresh: _refreshOrders,
-//             color: Colors.tealAccent,
-//             backgroundColor: Colors.black,
-//             child: Padding(
-//               padding: const EdgeInsets.all(16),
-//               child: isLoading
-//                   ? Column(
-//                       children: [
-//                         Padding(
-//                           padding: const EdgeInsets.symmetric(
-//                             horizontal: 4,
-//                             vertical: 4,
-//                           ),
-//                           child: Row(
-//                             children: [
-//                               IconButton(
-//                                 icon: const Icon(
-//                                   Icons.arrow_back,
-//                                   color: Colors.white,
-//                                 ),
-//                                 onPressed: () => Navigator.pop(context),
-//                               ),
-//                               const SizedBox(width: 6),
-//                               const Expanded(
-//                                 child: Text(
-//                                   'My Purchases',
-//                                   style: TextStyle(
-//                                     color: Colors.white,
-//                                     fontSize: 16,
-//                                     fontWeight: FontWeight.bold,
-//                                   ),
-//                                 ),
-//                               ),
-//                             ],
-//                           ),
-//                         ),
-//                         const SizedBox(height: 12),
-//                         _buildFilterBox(),
-//                         const SizedBox(height: 16),
-//                         Expanded(child: ListView.builder(
-//                           itemCount: 5,
-//                           itemBuilder: (context, index) => _buildShimmerCard(),
-//                         )),
-//                       ],
-//                     )
-//                   : error != null
-//                   ? Center(
-//                       child: _glassWrap(
-//                         padding: const EdgeInsets.all(20),
-//                         child: Column(
-//                           mainAxisSize: MainAxisSize.min,
-//                           children: [
-//                             Row(
-//                               children: [
-//                                 IconButton(
-//                                   icon: const Icon(
-//                                     Icons.arrow_back,
-//                                     color: Colors.white,
-//                                   ),
-//                                   onPressed: () => Navigator.pop(context),
-//                                 ),
-//                                 const SizedBox(width: 6),
-//                                 const Text(
-//                                   'My Purchases',
-//                                   style: TextStyle(
-//                                     color: Colors.white,
-//                                     fontSize: 20,
-//                                     fontWeight: FontWeight.bold,
-//                                   ),
-//                                 ),
-//                               ],
-//                             ),
-//                             const SizedBox(height: 16),
-//                             const Icon(
-//                               Icons.error_outline,
-//                               color: Colors.red,
-//                               size: 48,
-//                             ),
-//                             const SizedBox(height: 16),
-//                             Text(
-//                               error!,
-//                               style: const TextStyle(color: Colors.red),
-//                               textAlign: TextAlign.center,
-//                             ),
-//                             const SizedBox(height: 16),
-//                             ElevatedButton(
-//                               onPressed: fetchOrders,
-//                               style: ElevatedButton.styleFrom(
-//                                 backgroundColor: Colors.tealAccent,
-//                                 foregroundColor: Colors.black,
-//                               ),
-//                               child: const Text('Try Again'),
-//                             ),
-//                           ],
-//                         ),
-//                       ),
-//                     )
-//                   : boughtProducts.isEmpty
-//                   ? SingleChildScrollView(
-//                       physics: const AlwaysScrollableScrollPhysics(),
-//                       child: Column(
-//                         children: [
-//                           Padding(
-//                             padding: const EdgeInsets.symmetric(
-//                               horizontal: 4,
-//                               vertical: 4,
-//                             ),
-//                             child: Row(
-//                               children: [
-//                                 IconButton(
-//                                   icon: const Icon(
-//                                     Icons.arrow_back,
-//                                     color: Colors.white,
-//                                   ),
-//                                   onPressed: () => Navigator.pop(context),
-//                                 ),
-//                                 const SizedBox(width: 6),
-//                                 const Expanded(
-//                                   child: Text(
-//                                     'My Purchases',
-//                                     style: TextStyle(
-//                                       color: Colors.white,
-//                                       fontSize: 16,
-//                                       fontWeight: FontWeight.bold,
-//                                     ),
-//                                   ),
-//                                 ),
-//                               ],
-//                             ),
-//                           ),
-//                           const SizedBox(height: 12),
-//                           _buildFilterBox(),
-//                           const SizedBox(height: 40),
-//                           _glassWrap(
-//                             padding: const EdgeInsets.all(32),
-//                             child: Column(
-//                               mainAxisSize: MainAxisSize.min,
-//                               children: [
-//                                 const Icon(
-//                                   Icons.shopping_bag_outlined,
-//                                   color: Colors.white38,
-//                                   size: 64,
-//                                 ),
-//                                 const SizedBox(height: 16),
-//                                 const Text(
-//                                   'No purchases yet',
-//                                   style: TextStyle(
-//                                     color: Colors.white70,
-//                                     fontSize: 18,
-//                                   ),
-//                                 ),
-//                                 const SizedBox(height: 8),
-//                                 const Text(
-//                                   'Your purchased products will appear here',
-//                                   style: TextStyle(
-//                                     color: Colors.white38,
-//                                     fontSize: 14,
-//                                   ),
-//                                 ),
-//                               ],
-//                             ),
-//                           ),
-//                         ],
-//                       ),
-//                     )
-//                   : SingleChildScrollView(
-//                       physics: const AlwaysScrollableScrollPhysics(),
-//                       child: Column(
-//                         children: [
-//                           Padding(
-//                             padding: const EdgeInsets.symmetric(
-//                               horizontal: 4,
-//                               vertical: 4,
-//                             ),
-//                             child: Row(
-//                               children: [
-//                                 IconButton(
-//                                   icon: const Icon(
-//                                     Icons.arrow_back,
-//                                     color: Colors.white,
-//                                   ),
-//                                   onPressed: () => Navigator.pop(context),
-//                                 ),
-//                                 const SizedBox(width: 6),
-//                                 const Expanded(
-//                                   child: Text(
-//                                     'My Purchases',
-//                                     style: TextStyle(
-//                                       color: Colors.white,
-//                                       fontSize: 16,
-//                                       fontWeight: FontWeight.bold,
-//                                     ),
-//                                   ),
-//                                 ),
-//                               ],
-//                             ),
-//                           ),
-//                           const SizedBox(height: 16),
-//                           _buildFilterBox(),
-//                           const SizedBox(height: 10),
-//                           Padding(
-//                             padding: const EdgeInsets.only(bottom: 8),
-//                             child: Row(
-//                               children: [
-//                                 Text(
-//                                   '${_filteredProducts.length} product${_filteredProducts.length == 1 ? '' : 's'} found',
-//                                   style: const TextStyle(
-//                                     color: Colors.white54,
-//                                     fontSize: 12,
-//                                   ),
-//                                 ),
-//                                 const SizedBox(width: 8),
-//                                 Container(
-//                                   padding: const EdgeInsets.symmetric(
-//                                     horizontal: 8,
-//                                     vertical: 2,
-//                                   ),
-//                                   decoration: BoxDecoration(
-//                                     color: Colors.tealAccent.withOpacity(0.1),
-//                                     borderRadius: BorderRadius.circular(12),
-//                                     border: Border.all(
-//                                       color: Colors.tealAccent.withOpacity(0.3),
-//                                       width: 0.5,
-//                                     ),
-//                                   ),
-//                                   child: const Text(
-//                                     'My Purchases',
-//                                     style: TextStyle(
-//                                       color: Colors.tealAccent,
-//                                       fontSize: 10,
-//                                     ),
-//                                   ),
-//                                 ),
-//                               ],
-//                             ),
-//                           ),
-//                           ..._filteredProducts.map(
-//                             (product) => _buildProductCard(product),
-//                           ),
-//                           const SizedBox(height: 20),
-//                         ],
-//                       ),
-//                     ),
-//             ),
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }
 
 class Student_order_page extends StatefulWidget {
   const Student_order_page({super.key});
@@ -1033,8 +230,20 @@ class Student_order_page extends StatefulWidget {
 class _Student_order_pageState extends State<Student_order_page> {
   List<Order> orders = [];
   bool isLoading = true;
+  bool isLoadingMore = false;
   String? error;
 
+  int _currentPage = 1;
+  int _totalOrdersCount = 0;
+  bool _hasNextPage = false;
+
+  final ScrollController _ordersScrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
+
+  String _searchText = '';
+  String _selectedSortFilter = 'latest';
+  DateTimeRange? _selectedDateRange;
   double _toDouble(String value) {
     return double.tryParse(value) ?? 0.0;
   }
@@ -1053,28 +262,76 @@ class _Student_order_pageState extends State<Student_order_page> {
   @override
   void initState() {
     super.initState();
-    fetchOrders();
+
+    _ordersScrollController.addListener(_onOrdersScroll);
+    fetchOrders(reset: true);
   }
+
+  @override
+  void dispose() {
+    _ordersScrollController.dispose();
+    _searchController.dispose();
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+
+    _searchDebounce = Timer(const Duration(milliseconds: 450), () {
+      _searchText = value.trim();
+      fetchOrders(reset: true);
+    });
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    _searchText = '';
+    fetchOrders(reset: true);
+  }
+
+  void _onOrdersScroll() {
+    if (!_ordersScrollController.hasClients) return;
+
+    final position = _ordersScrollController.position;
+
+    if (position.pixels >= position.maxScrollExtent - 250) {
+      if (_hasNextPage && !isLoadingMore && !isLoading) {
+        fetchOrders();
+      }
+    }
+  }
+
+  Future<void> _clearDateFilter() async {
+  setState(() {
+    _selectedDateRange = null;
+  });
+
+  await fetchOrders(reset: true);
+}
 
   List<Order> get _filteredOrders {
-    if (_selectedStatusFilter == 'ALL') {
-      return orders;
-    }
-
-    return orders
-        .where(
-          (order) => order.items.any(
-            (item) => item.status.toUpperCase() == _selectedStatusFilter,
-          ),
-        )
-        .toList();
+    return orders;
   }
 
-  Future<void> fetchOrders() async {
-    setState(() {
-      isLoading = true;
-      error = null;
-    });
+  Future<void> fetchOrders({bool reset = false}) async {
+    if (reset) {
+      setState(() {
+        isLoading = true;
+        isLoadingMore = false;
+        error = null;
+        _currentPage = 1;
+        _hasNextPage = false;
+        orders = [];
+      });
+    } else {
+      if (isLoadingMore || !_hasNextPage) return;
+
+      setState(() {
+        isLoadingMore = true;
+        error = null;
+      });
+    }
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -1084,48 +341,273 @@ class _Student_order_pageState extends State<Student_order_page> {
         setState(() {
           error = 'Authentication token missing';
           isLoading = false;
+          isLoadingMore = false;
         });
         return;
       }
 
+      final Map<String, String> queryParams = {'page': _currentPage.toString()};
+
+      if (_searchText.trim().isNotEmpty) {
+        queryParams['search'] = _searchText.trim();
+      }
+      if (_selectedDateRange != null) {
+        queryParams['start_date'] = DateFormat(
+          'yyyy-MM-dd',
+        ).format(_selectedDateRange!.start);
+
+        queryParams['end_date'] = DateFormat(
+          'yyyy-MM-dd',
+        ).format(_selectedDateRange!.end);
+      }
+      if (_selectedStatusFilter != 'ALL') {
+        queryParams['status'] = _selectedStatusFilter;
+      }
+
+      if (_selectedSortFilter == 'latest') {
+        queryParams['ordering'] = '-created_at';
+      } else if (_selectedSortFilter == 'earliest') {
+        queryParams['ordering'] = 'created_at';
+      }
+
+      final uri = Uri.parse(
+        '$api/api/myskates/orders/',
+      ).replace(queryParameters: queryParams);
+
       final response = await http.get(
-        Uri.parse('$api/api/myskates/orders/'),
+        uri,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
       );
 
+      print("ORDERS API URL: $uri");
       print("ORDERS API STATUS: ${response.statusCode}");
       print("ORDERS RESPONSE: ${response.body}");
 
       if (response.statusCode == 200) {
-        final jsonResponse = json.decode(response.body);
+        final Map<String, dynamic> jsonResponse = json.decode(response.body);
         final orderResponse = OrderResponse.fromJson(jsonResponse);
 
         setState(() {
-          orders = orderResponse.data;
+          if (reset) {
+            orders = orderResponse.data;
+          } else {
+            orders.addAll(orderResponse.data);
+          }
+
+          _totalOrdersCount = orderResponse.count;
+          _hasNextPage =
+              orderResponse.next != null && orderResponse.next!.isNotEmpty;
+
+          if (_hasNextPage) {
+            _currentPage++;
+          }
+
           isLoading = false;
+          isLoadingMore = false;
         });
 
-        print("Orders fetched successfully: ${orders.length} orders");
+        print("Orders loaded: ${orders.length} / $_totalOrdersCount");
       } else {
         setState(() {
           error = 'Failed to load orders: ${response.statusCode}';
           isLoading = false;
+          isLoadingMore = false;
         });
       }
     } catch (e) {
       print("Error fetching orders: $e");
+
       setState(() {
         error = e.toString();
         isLoading = false;
+        isLoadingMore = false;
       });
     }
   }
 
+ Future<void> _openDateRangePicker() async {
+  final now = DateTime.now();
+
+  final picked = await showDateRangePicker(
+    context: context,
+    firstDate: DateTime(2020),
+    lastDate: DateTime(now.year + 2),
+    initialDateRange: _selectedDateRange,
+    saveText: 'Apply',
+    cancelText: 'Cancel',
+    builder: (context, child) {
+      return Theme(
+        data: ThemeData(
+          useMaterial3: true,
+          brightness: Brightness.dark,
+          scaffoldBackgroundColor: const Color(0xFF001A18),
+          dialogBackgroundColor: const Color(0xFF071412),
+          canvasColor: const Color(0xFF071412),
+          cardColor: const Color(0xFF071412),
+
+          colorScheme: const ColorScheme(
+            brightness: Brightness.dark,
+            primary: Color(0xFF00F5D4),
+            onPrimary: Colors.black,
+            secondary: Color(0xFF00F5D4),
+            onSecondary: Colors.black,
+            error: Colors.redAccent,
+            onError: Colors.white,
+            surface: Color(0xFF071412),
+            onSurface: Colors.white,
+          ),
+
+          textTheme: const TextTheme(
+            displayLarge: TextStyle(color: Colors.white),
+            displayMedium: TextStyle(color: Colors.white),
+            displaySmall: TextStyle(color: Colors.white),
+            headlineLarge: TextStyle(color: Colors.white),
+            headlineMedium: TextStyle(color: Colors.white),
+            headlineSmall: TextStyle(color: Colors.white),
+            titleLarge: TextStyle(color: Colors.white),
+            titleMedium: TextStyle(color: Colors.white),
+            titleSmall: TextStyle(color: Colors.white),
+            bodyLarge: TextStyle(color: Colors.white),
+            bodyMedium: TextStyle(color: Colors.white),
+            bodySmall: TextStyle(color: Colors.white),
+            labelLarge: TextStyle(color: Colors.white),
+            labelMedium: TextStyle(color: Colors.white),
+            labelSmall: TextStyle(color: Colors.white),
+          ),
+
+          datePickerTheme: DatePickerThemeData(
+            backgroundColor: const Color(0xFF071412),
+            surfaceTintColor: Colors.transparent,
+
+            headerBackgroundColor: const Color(0xFF001A18),
+            headerForegroundColor: Colors.white,
+
+            rangePickerBackgroundColor: const Color(0xFF071412),
+            rangePickerHeaderBackgroundColor: const Color(0xFF001A18),
+            rangePickerHeaderForegroundColor: Colors.white,
+
+            dividerColor: Colors.white70,
+
+            weekdayStyle: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+
+            dayStyle: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+
+            yearStyle: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+
+            dayForegroundColor: WidgetStateProperty.resolveWith<Color?>(
+              (states) {
+                if (states.contains(WidgetState.disabled)) {
+                  return Colors.white54;
+                }
+
+                return Colors.white;
+              },
+            ),
+
+            dayBackgroundColor: WidgetStateProperty.resolveWith<Color?>(
+              (states) {
+                if (states.contains(WidgetState.selected)) {
+                  return const Color(0xFF00F5D4);
+                }
+
+                return Colors.transparent;
+              },
+            ),
+
+            todayForegroundColor: WidgetStateProperty.all<Color>(
+              Colors.white,
+            ),
+
+            todayBackgroundColor: WidgetStateProperty.resolveWith<Color?>(
+              (states) {
+                if (states.contains(WidgetState.selected)) {
+                  return const Color(0xFF00F5D4);
+                }
+
+                return Colors.transparent;
+              },
+            ),
+
+            todayBorder: const BorderSide(
+              color: Color(0xFF00F5D4),
+              width: 1.6,
+            ),
+
+            rangeSelectionBackgroundColor:
+                const Color(0xFF00F5D4).withOpacity(0.28),
+
+            rangeSelectionOverlayColor: WidgetStateProperty.all<Color?>(
+              const Color(0xFF00F5D4).withOpacity(0.16),
+            ),
+
+            yearForegroundColor: WidgetStateProperty.resolveWith<Color?>(
+              (states) {
+                if (states.contains(WidgetState.disabled)) {
+                  return Colors.white54;
+                }
+
+                return Colors.white;
+              },
+            ),
+
+            yearBackgroundColor: WidgetStateProperty.resolveWith<Color?>(
+              (states) {
+                if (states.contains(WidgetState.selected)) {
+                  return const Color(0xFF00F5D4);
+                }
+
+                return Colors.transparent;
+              },
+            ),
+
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+          ),
+
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF00F5D4),
+              textStyle: const TextStyle(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        child: child ?? const SizedBox.shrink(),
+      );
+    },
+  );
+
+  if (picked == null) return;
+
+  setState(() {
+    _selectedDateRange = picked;
+  });
+
+  await fetchOrders(reset: true);
+}
+
+
   Future<void> _refreshOrders() async {
-    await fetchOrders();
+    await fetchOrders(reset: true);
   }
 
   Color _getStatusColor(String status) {
@@ -1159,9 +641,9 @@ class _Student_order_pageState extends State<Student_order_page> {
       ),
     );
 
-    if (result == true) {
-      await fetchOrders();
-    }
+  if (result == true) {
+  await fetchOrders(reset: true);
+}
   }
 
   Widget _buildProductImage(OrderItem item) {
@@ -1210,198 +692,135 @@ class _Student_order_pageState extends State<Student_order_page> {
     }
   }
 
-  // Widget _buildOrderCard(Order order) {
-  //   return Container(
-  //     margin: const EdgeInsets.only(bottom: 14),
-  //     padding: const EdgeInsets.all(14),
-  //     decoration: BoxDecoration(
-  //       color: Colors.white.withOpacity(0.08),
-  //       borderRadius: BorderRadius.circular(18),
-  //       border: Border.all(color: Colors.white.withOpacity(0.10)),
-  //       boxShadow: [
-  //         BoxShadow(
-  //           color: Colors.black.withOpacity(0.22),
-  //           blurRadius: 12,
-  //           offset: const Offset(0, 6),
-  //         ),
-  //       ],
-  //     ),
-  //     child: Column(
-  //       crossAxisAlignment: CrossAxisAlignment.start,
-  //       children: [
-  //         Row(
-  //           children: [
-  //             Expanded(
-  //               child: Text(
-  //                 'Order #${order.orderNo}',
-  //                 style: const TextStyle(
-  //                   color: Colors.white,
-  //                   fontSize: 14,
-  //                   fontWeight: FontWeight.w700,
-  //                 ),
-  //                 maxLines: 1,
-  //                 overflow: TextOverflow.ellipsis,
-  //               ),
-  //             ),
-  //             Container(
-  //               padding: const EdgeInsets.symmetric(
-  //                 horizontal: 10,
-  //                 vertical: 5,
-  //               ),
-  //               decoration: BoxDecoration(
-  //                 color: _getStatusColor(order.status).withOpacity(0.16),
-  //                 borderRadius: BorderRadius.circular(20),
-  //                 border: Border.all(
-  //                   color: _getStatusColor(order.status).withOpacity(0.35),
-  //                 ),
-  //               ),
-  //               child: Text(
-  //                 order.status,
-  //                 style: TextStyle(
-  //                   color: _getStatusColor(order.status),
-  //                   fontSize: 10,
-  //                   fontWeight: FontWeight.w700,
-  //                   letterSpacing: 0.4,
-  //                 ),
-  //               ),
-  //             ),
-  //           ],
-  //         ),
-  //         const SizedBox(height: 14),
-  //         Container(
-  //           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-  //           decoration: BoxDecoration(
-  //             color: Colors.white.withOpacity(0.04),
-  //             borderRadius: BorderRadius.circular(12),
-  //           ),
-  //           child: Row(
-  //             children: const [
-  //               Icon(
-  //                 Icons.shopping_bag_outlined,
-  //                 color: Colors.tealAccent,
-  //                 size: 16,
-  //               ),
-  //               SizedBox(width: 8),
-  //               Text(
-  //                 'Items',
-  //                 style: TextStyle(
-  //                   color: Colors.white,
-  //                   fontSize: 13,
-  //                   fontWeight: FontWeight.w600,
-  //                 ),
-  //               ),
-  //             ],
-  //           ),
-  //         ),
-  //         const SizedBox(height: 12),
-  //         ...order.items
-  //             .take(2)
-  //             .map(
-  //               (item) => Padding(
-  //                 padding: const EdgeInsets.only(bottom: 12),
-  //                 child: Row(
-  //                   children: [
-  //                     Container(
-  //                       width: 58,
-  //                       height: 58,
-  //                       decoration: BoxDecoration(
-  //                         color: Colors.white.withOpacity(0.05),
-  //                         borderRadius: BorderRadius.circular(14),
-  //                       ),
-  //                       child: ClipRRect(
-  //                         borderRadius: BorderRadius.circular(14),
-  //                         child: _buildProductImage(item),
-  //                       ),
-  //                     ),
-  //                     const SizedBox(width: 12),
-  //                     Expanded(
-  //                       child: Column(
-  //                         crossAxisAlignment: CrossAxisAlignment.start,
-  //                         children: [
-  //                           Text(
-  //                             item.productTitle,
-  //                             style: const TextStyle(
-  //                               color: Colors.white,
-  //                               fontSize: 14,
-  //                               fontWeight: FontWeight.w500,
-  //                             ),
-  //                             maxLines: 1,
-  //                             overflow: TextOverflow.ellipsis,
-  //                           ),
-  //                           if (item.variantLabel.isNotEmpty) ...[
-  //                             const SizedBox(height: 4),
-  //                             Text(
-  //                               item.variantLabel,
-  //                               style: const TextStyle(
-  //                                 color: Colors.white54,
-  //                                 fontSize: 12,
-  //                               ),
-  //                             ),
-  //                           ],
-  //                           const SizedBox(height: 4),
-  //                           Text(
-  //                             'Qty: ${item.quantity}',
-  //                             style: const TextStyle(
-  //                               color: Colors.white70,
-  //                               fontSize: 12,
-  //                             ),
-  //                           ),
-  //                         ],
-  //                       ),
-  //                     ),
-  //                     Text(
-  //                       '₹${'₹${_toDouble(item.lineTotal).toStringAsFixed(2)}'}',
-  //                       style: const TextStyle(
-  //                         color: Colors.tealAccent,
-  //                         fontSize: 14,
-  //                         fontWeight: FontWeight.w700,
-  //                       ),
-  //                     ),
-  //                   ],
-  //                 ),
-  //               ),
-  //             ),
-  //         if (order.items.length > 2)
-  //           Padding(
-  //             padding: const EdgeInsets.only(top: 2, left: 70),
-  //             child: Text(
-  //               '+${order.items.length - 2} more items',
-  //               style: const TextStyle(
-  //                 color: Colors.white54,
-  //                 fontSize: 12,
-  //                 fontStyle: FontStyle.italic,
-  //               ),
-  //             ),
-  //           ),
-  //         const Padding(
-  //           padding: EdgeInsets.symmetric(vertical: 10),
-  //           child: Divider(color: Colors.white24, height: 1),
-  //         ),
-  //         Row(
-  //           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //           children: [
-  //             const Text(
-  //               'Total',
-  //               style: TextStyle(
-  //                 color: Colors.white,
-  //                 fontSize: 15,
-  //                 fontWeight: FontWeight.bold,
-  //               ),
-  //             ),
-  //             Text(
-  //               '₹${_toDouble(order.total).toStringAsFixed(2)}',
-  //               style: const TextStyle(
-  //                 color: Colors.tealAccent,
-  //                 fontSize: 18,
-  //                 fontWeight: FontWeight.bold,
-  //               ),
-  //             ),
-  //           ],
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
+  Widget _buildSearchBox() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.search_rounded, color: Colors.tealAccent, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: const InputDecoration(
+                hintText: 'Search by product name',
+                hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+          if (_searchController.text.trim().isNotEmpty)
+            IconButton(
+              onPressed: _clearSearch,
+              icon: const Icon(Icons.close_rounded, color: Colors.white54),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateFilterChip() {
+    if (_selectedDateRange == null) {
+      return const SizedBox.shrink();
+    }
+
+    final start = DateFormat('dd MMM yyyy').format(_selectedDateRange!.start);
+    final end = DateFormat('dd MMM yyyy').format(_selectedDateRange!.end);
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.tealAccent.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.tealAccent.withOpacity(0.22)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.date_range_rounded,
+            color: Colors.tealAccent,
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$start to $end',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          InkWell(
+            onTap: _clearDateFilter,
+            borderRadius: BorderRadius.circular(20),
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortBox() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedSortFilter,
+          isExpanded: true,
+          dropdownColor: const Color(0xFF161616),
+          icon: const Icon(Icons.sort_rounded, color: Colors.tealAccent),
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          onChanged: (String? value) {
+            if (value == null) return;
+
+            setState(() {
+              _selectedSortFilter = value;
+            });
+
+            fetchOrders(reset: true);
+          },
+          items: const [
+            DropdownMenuItem<String>(
+              value: 'latest',
+              child: Text(
+                'Latest first',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            DropdownMenuItem<String>(
+              value: 'earliest',
+              child: Text(
+                'Earliest first',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildOrderCard(Order order) {
     // Return a list of widgets for each product in the order
     return Column(
@@ -1521,41 +940,8 @@ class _Student_order_pageState extends State<Student_order_page> {
                     ],
                   ),
                 ),
-                // Text(
-                //   '₹${_toDouble(item.lineTotal).toStringAsFixed(2)}',
-                //   style: const TextStyle(
-                //     color: Colors.tealAccent,
-                //     fontSize: 14,
-                //     fontWeight: FontWeight.w700,
-                //   ),
-                // ),
               ],
             ),
-            // const Padding(
-            //   padding: EdgeInsets.symmetric(vertical: 10),
-            //   child: Divider(color: Colors.white24, height: 1),
-            // ),
-            // Row(
-            //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            //   children: [
-            //     const Text(
-            //       'Total',
-            //       style: TextStyle(
-            //         color: Colors.white,
-            //         fontSize: 15,
-            //         fontWeight: FontWeight.bold,
-            //       ),
-            //     ),
-            //     Text(
-            //       '₹${_toDouble(order.finalPayable).toStringAsFixed(2)}',
-            //       style: const TextStyle(
-            //         color: Colors.tealAccent,
-            //         fontSize: 18,
-            //         fontWeight: FontWeight.bold,
-            //       ),
-            //     ),
-            //   ],
-            // ),
           ],
         ),
       ),
@@ -1583,9 +969,13 @@ class _Student_order_pageState extends State<Student_order_page> {
             style: TextStyle(color: Colors.white54),
           ),
           onChanged: (String? newValue) {
+            if (newValue == null) return;
+
             setState(() {
-              _selectedStatusFilter = newValue!;
+              _selectedStatusFilter = newValue;
             });
+
+            fetchOrders(reset: true);
           },
           items: [
             const DropdownMenuItem<String>(
@@ -1660,7 +1050,7 @@ class _Student_order_pageState extends State<Student_order_page> {
           ),
           const SizedBox(height: 6),
           Text(
-            '${_filteredOrders.length} orders found',
+            '${orders.length} of $_totalOrdersCount orders loaded',
             style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
           if (_selectedStatusFilter != 'ALL') ...[
@@ -1717,105 +1107,237 @@ class _Student_order_pageState extends State<Student_order_page> {
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF001A18), Color(0xFF000000)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: RefreshIndicator(
-          onRefresh: _refreshOrders,
-          color: Colors.tealAccent,
-          backgroundColor: Colors.black,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: Colors.tealAccent),
-                  )
-                : error != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          color: Colors.red,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          error!,
-                          style: const TextStyle(color: Colors.red),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: fetchOrders,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.tealAccent,
-                            foregroundColor: Colors.black,
-                          ),
-                          child: const Text('Try Again'),
-                        ),
-                      ],
-                    ),
-                  )
-                : orders.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.shopping_bag_outlined,
-                          color: Colors.white38,
-                          size: 64,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'No orders found',
-                          style: TextStyle(color: Colors.white70, fontSize: 18),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Your orders will appear here',
-                          style: TextStyle(color: Colors.white38, fontSize: 14),
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.tealAccent,
-                            foregroundColor: Colors.black,
-                          ),
-                          child: const Text('Go Back'),
-                        ),
-                      ],
-                    ),
-                  )
-                : SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: Column(
-                      children: [
-                        // _buildTopInfo(),
-                        _buildFilterBox(),
-                        ..._filteredOrders
-                            .map((order) => _buildFilteredOrderCard(order))
-                            .toList()
-                            .expand(
-                              (widget) => [widget, const SizedBox(height: 0)],
-                            )
-                            .toList(),
-                        const SizedBox(height: 20),
-                      ],
+        actions: [
+          IconButton(
+            tooltip: 'Filter by date',
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+              Icon(
+  Icons.calendar_month_outlined,
+  color: _selectedDateRange == null
+      ? Colors.white
+      : const Color(0xFF00F5D4),
+),
+                if (_selectedDateRange != null)
+                  Positioned(
+                    right: -1,
+                    top: -1,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.tealAccent,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
+              ],
+            ),
+            onPressed: _openDateRangePicker,
           ),
-        ),
+          const SizedBox(width: 8),
+        ],
       ),
+body: Container(
+  decoration: const BoxDecoration(
+    gradient: LinearGradient(
+      colors: [Color(0xFF001A18), Color(0xFF000000)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ),
+  ),
+  child: RefreshIndicator(
+    onRefresh: _refreshOrders,
+    color: Colors.tealAccent,
+    backgroundColor: Colors.black,
+    child: isLoading
+        ? const Center(
+            child: CircularProgressIndicator(color: Colors.tealAccent),
+          )
+        : error != null
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                children: [
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.22),
+                  const Icon(
+                    Icons.error_outline,
+                    color: Colors.red,
+                    size: 48,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    error!,
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: () => fetchOrders(reset: true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.tealAccent,
+                        foregroundColor: Colors.black,
+                      ),
+                      child: const Text('Try Again'),
+                    ),
+                  ),
+                ],
+              )
+            : CustomScrollView(
+                controller: _ordersScrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.all(16),
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
+                        children: [
+                          _buildSearchBox(),
+                          _buildDateFilterChip(),
+                          _buildFilterBox(),
+                          // _buildSortBox(),
+                          // _buildTopInfo(),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  if (orders.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.shopping_bag_outlined,
+                                color: Colors.white38,
+                                size: 64,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No orders found',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 18,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _searchText.isNotEmpty ||
+                                        _selectedStatusFilter != 'ALL' ||
+                                        _selectedDateRange != null
+                                    ? 'Try changing your search or filters'
+                                    : 'Your orders will appear here',
+                                style: const TextStyle(
+                                  color: Colors.white38,
+                                  fontSize: 14,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            if (index == orders.length) {
+                              return isLoadingMore
+                                  ? const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 18,
+                                      ),
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          color: Colors.tealAccent,
+                                        ),
+                                      ),
+                                    )
+                                  : const SizedBox(height: 20);
+                            }
+
+                            return _buildFilteredOrderCard(orders[index]);
+                          },
+                          childCount: orders.length + 1,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+  ),
+),
+    );
+  }
+}
+
+class ExchangeVariant {
+  final int id;
+  final String label;
+  final String? image;
+  final String? productTitle;
+  final String? productImage;
+  final String? sku;
+  final String? variantPrice;
+  final String? discountedPrice;
+  final String? variantDiscount;
+  final String? shippingCharge;
+  final String? coachName;
+
+  ExchangeVariant({
+    required this.id,
+    required this.label,
+    this.image,
+    this.productTitle,
+    this.productImage,
+    this.sku,
+    this.variantPrice,
+    this.discountedPrice,
+    this.variantDiscount,
+    this.shippingCharge,
+    this.coachName,
+  });
+
+  factory ExchangeVariant.fromJson(Map<String, dynamic> json) {
+    final int parsedId =
+        json['id'] ?? json['variant_id'] ?? json['variant'] ?? 0;
+
+    final String parsedLabel =
+        json['variant_label']?.toString().trim().isNotEmpty == true
+        ? json['variant_label'].toString()
+        : json['label']?.toString().trim().isNotEmpty == true
+        ? json['label'].toString()
+        : json['name']?.toString().trim().isNotEmpty == true
+        ? json['name'].toString()
+        : json['variant_name']?.toString().trim().isNotEmpty == true
+        ? json['variant_name'].toString()
+        : 'Variant #$parsedId';
+
+    return ExchangeVariant(
+      id: parsedId,
+      label: parsedLabel,
+      image: json['variant_image']?.toString() ?? json['image']?.toString(),
+      productTitle: json['product_title']?.toString(),
+      productImage: json['product_image']?.toString(),
+      sku: json['sku']?.toString(),
+      variantPrice:
+          json['variant_price']?.toString() ??
+          json['price']?.toString() ??
+          json['product_price']?.toString(),
+      discountedPrice: json['discounted_price']?.toString(),
+      variantDiscount: json['variant_discount']?.toString(),
+      shippingCharge:
+          json['product_shipping_charge']?.toString() ??
+          json['shipping_charge']?.toString(),
+      coachName: json['coach_name']?.toString(),
     );
   }
 }
@@ -1839,6 +1361,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   bool _isSubmittingReturnExchange = false;
   bool _isCancellingOrderItem = false;
   OrderItem? _selectedReturnItem;
+  List<ExchangeVariant> _exchangeVariants = [];
+  ExchangeVariant? _selectedExchangeVariant;
+  bool _isLoadingExchangeVariants = false;
+  String? _exchangeVariantErrorMessage;
   OrderItem? _selectedCancelItem;
   String? _selectedRefundRemark;
   String? _selectedReasonType;
@@ -1861,24 +1387,25 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     {'value': 'other', 'label': 'Other'},
   ];
 
-bool get _isCashOnDeliveryOrder {
-  final method = widget.order.paymentMethod.trim().toUpperCase();
-  return method == 'COD' ||
-      method == 'CASH ON DELIVERY' ||
-      method == 'CASH_ON_DELIVERY';
-}
+  bool get _isCashOnDeliveryOrder {
+    final method = widget.order.paymentMethod.trim().toUpperCase();
+    return method == 'COD' ||
+        method == 'CASH ON DELIVERY' ||
+        method == 'CASH_ON_DELIVERY';
+  }
 
-List<Map<String, String>> get _availableRefundRemarkOptions {
-  if (_isCashOnDeliveryOrder) {
+  List<Map<String, String>> get _availableRefundRemarkOptions {
+    if (_isCashOnDeliveryOrder) {
+      return _refundRemarkOptions
+          .where((option) => option['value'] != 'return')
+          .toList();
+    }
+
     return _refundRemarkOptions
-        .where((option) => option['value'] != 'return')
+        .where((option) => option['value'] != 'cod_return')
         .toList();
   }
 
-  return _refundRemarkOptions
-      .where((option) => option['value'] != 'cod_return')
-      .toList();
-}
   double _toDouble(String? value) {
     return double.tryParse(value ?? '0') ?? 0.0;
   }
@@ -1896,12 +1423,6 @@ List<Map<String, String>> get _availableRefundRemarkOptions {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeShowReviewPopup();
     });
-  }
-
-  @override
-  void dispose() {
-    _customReasonController.dispose();
-    super.dispose();
   }
 
   String _getLiveItemStatus(OrderItem item) {
@@ -2779,14 +2300,117 @@ List<Map<String, String>> get _availableRefundRemarkOptions {
     );
   }
 
-void _resetReturnExchangeForm() {
-  _selectedReturnItem = _canRequestReturnExchange ? _openedItem : null;
-  _selectedRefundRemark = null;
-  _selectedReasonType = null;
-  _customReasonController.clear();
-  _isSubmittingReturnExchange = false;
-  _returnExchangeErrorMessage = null;
-}
+  void _resetReturnExchangeForm() {
+    _selectedReturnItem = _canRequestReturnExchange ? _openedItem : null;
+    _selectedRefundRemark = null;
+    _selectedReasonType = null;
+    _selectedExchangeVariant = null;
+    _exchangeVariants = [];
+    _exchangeVariantErrorMessage = null;
+    _customReasonController.clear();
+    _isSubmittingReturnExchange = false;
+    _isLoadingExchangeVariants = false;
+    _returnExchangeErrorMessage = null;
+  }
+
+  Future<void> _fetchExchangeVariants({
+    required OrderItem item,
+    required StateSetter bottomSheetSetState,
+  }) async {
+    bottomSheetSetState(() {
+      _isLoadingExchangeVariants = true;
+      _exchangeVariantErrorMessage = null;
+      _exchangeVariants = [];
+      _selectedExchangeVariant = null;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        bottomSheetSetState(() {
+          _isLoadingExchangeVariants = false;
+          _exchangeVariantErrorMessage = 'Authentication token missing';
+        });
+        return;
+      }
+
+      final response = await http.get(
+        Uri.parse(
+          '$api/api/myskates/products/exchange/variant/${item.product}/',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print("EXCHANGE VARIANT API STATUS: ${response.statusCode}");
+      print("EXCHANGE VARIANT PRODUCT ID: ${item.product}");
+      print("EXCHANGE VARIANT RESPONSE: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final dynamic decoded = jsonDecode(response.body);
+
+        List<dynamic> variantList = [];
+
+        if (decoded is List) {
+          variantList = decoded;
+        } else if (decoded is Map<String, dynamic>) {
+          if (decoded['data'] is List) {
+            variantList = decoded['data'];
+          } else if (decoded['results'] is List) {
+            variantList = decoded['results'];
+          } else if (decoded['variants'] is List) {
+            variantList = decoded['variants'];
+          }
+        }
+
+        final variants = variantList
+            .whereType<Map<String, dynamic>>()
+            .map((e) => ExchangeVariant.fromJson(e))
+            .where((variant) => variant.id != 0)
+            .toList();
+
+        bottomSheetSetState(() {
+          _exchangeVariants = variants;
+          _selectedExchangeVariant = variants.isNotEmpty
+              ? variants.first
+              : null;
+          _isLoadingExchangeVariants = false;
+          _exchangeVariantErrorMessage = variants.isEmpty
+              ? 'No exchange variants available for this product'
+              : null;
+        });
+      } else {
+        String errorMessage = 'Failed to load exchange variants';
+
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map<String, dynamic>) {
+            errorMessage =
+                decoded['message']?.toString() ??
+                decoded['error']?.toString() ??
+                decoded['detail']?.toString() ??
+                errorMessage;
+          }
+        } catch (_) {}
+
+        bottomSheetSetState(() {
+          _isLoadingExchangeVariants = false;
+          _exchangeVariantErrorMessage = errorMessage;
+        });
+      }
+    } catch (e) {
+      print("ERROR FETCHING EXCHANGE VARIANTS: $e");
+
+      bottomSheetSetState(() {
+        _isLoadingExchangeVariants = false;
+        _exchangeVariantErrorMessage = 'Error: $e';
+      });
+    }
+  }
 
   Future<void> _submitReturnExchangeRequest(
     StateSetter bottomSheetSetState,
@@ -2804,18 +2428,31 @@ void _resetReturnExchangeForm() {
       );
       return;
     }
-if (_isCashOnDeliveryOrder && _selectedRefundRemark == 'return') {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('Return option is not available for Cash on Delivery orders'),
-      backgroundColor: Colors.redAccent,
-    ),
-  );
-  return;
-}
+    if (_isCashOnDeliveryOrder && _selectedRefundRemark == 'return') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Return option is not available for Cash on Delivery orders',
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
     if (_selectedReasonType == null || _selectedReasonType!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select reason type')),
+      );
+      return;
+    }
+
+    if (_selectedRefundRemark == 'exchange' &&
+        _selectedExchangeVariant == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select exchange variant'),
+          backgroundColor: Colors.redAccent,
+        ),
       );
       return;
     }
@@ -2857,6 +2494,11 @@ if (_isCashOnDeliveryOrder && _selectedRefundRemark == 'return') {
             ? customReason
             : _getRefundLabel(_selectedReasonType!, _refundReasonTypeOptions),
       };
+
+      if (_selectedRefundRemark == 'exchange' &&
+          _selectedExchangeVariant != null) {
+        requestBody['exchange_variant'] = _selectedExchangeVariant!.id;
+      }
 
       final response = await http.post(
         Uri.parse('$api/api/myskates/msk/refund/'),
@@ -2928,6 +2570,157 @@ if (_isCashOnDeliveryOrder && _selectedRefundRemark == 'return') {
         });
       }
     }
+  }
+
+  String _resolveImageUrl(String? imagePath) {
+    if (imagePath == null || imagePath.trim().isEmpty) return '';
+
+    final trimmed = imagePath.trim();
+
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+
+    return '$api$trimmed';
+  }
+
+  Widget _buildExchangeVariantImage(
+    ExchangeVariant variant, {
+    OrderItem? fallbackItem,
+  }) {
+    final String imagePath =
+        variant.image ??
+        variant.productImage ??
+        fallbackItem?.variantImage ??
+        fallbackItem?.productImage ??
+        '';
+
+    final String imageUrl = _resolveImageUrl(imagePath);
+
+    if (imageUrl.isEmpty) {
+      return Container(
+        color: Colors.white.withOpacity(0.05),
+        child: const Icon(
+          Icons.image_not_supported_outlined,
+          color: Colors.white38,
+          size: 24,
+        ),
+      );
+    }
+
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      errorBuilder: (_, __, ___) {
+        return Container(
+          color: Colors.white.withOpacity(0.05),
+          child: const Icon(
+            Icons.image_not_supported_outlined,
+            color: Colors.white38,
+            size: 24,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildExchangeVariantDropdownItem(
+    ExchangeVariant variant, {
+    OrderItem? fallbackItem,
+    bool compact = false,
+  }) {
+    final String title = variant.productTitle?.trim().isNotEmpty == true
+        ? variant.productTitle!.trim()
+        : fallbackItem?.productTitle ?? 'Product';
+
+    final String priceText = variant.discountedPrice?.trim().isNotEmpty == true
+        ? '₹${_toDouble(variant.discountedPrice).toStringAsFixed(2)}'
+        : variant.variantPrice?.trim().isNotEmpty == true
+        ? '₹${_toDouble(variant.variantPrice).toStringAsFixed(2)}'
+        : '';
+
+    return Row(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(compact ? 8 : 12),
+          child: SizedBox(
+            width: compact ? 42 : 58,
+            height: compact ? 42 : 58,
+            child: _buildExchangeVariantImage(
+              variant,
+              fallbackItem: fallbackItem,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: compact ? 13 : 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                variant.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.tealAccent,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (!compact) ...[
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    if (variant.sku != null && variant.sku!.trim().isNotEmpty)
+                      Text(
+                        'SKU: ${variant.sku}',
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 11,
+                        ),
+                      ),
+                    if (priceText.isNotEmpty)
+                      Text(
+                        priceText,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    if (variant.variantDiscount != null &&
+                        variant.variantDiscount!.trim().isNotEmpty)
+                      Text(
+                        '${variant.variantDiscount}% off',
+                        style: const TextStyle(
+                          color: Colors.greenAccent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _showReturnExchangeBottomSheet() async {
@@ -3099,12 +2892,12 @@ if (_isCashOnDeliveryOrder && _selectedRefundRemark == 'return') {
                             value: _selectedRefundRemark,
                             isExpanded: true,
                             dropdownColor: const Color(0xFF161616),
-                           hint: Text(
-  _isCashOnDeliveryOrder
-      ? 'Select exchange or COD return'
-      : 'Select return or exchange',
-  style: const TextStyle(color: Colors.white54),
-),
+                            hint: Text(
+                              _isCashOnDeliveryOrder
+                                  ? 'Select exchange or COD return'
+                                  : 'Select return or exchange',
+                              style: const TextStyle(color: Colors.white54),
+                            ),
                             icon: const Icon(
                               Icons.keyboard_arrow_down,
                               color: Colors.white70,
@@ -3112,24 +2905,150 @@ if (_isCashOnDeliveryOrder && _selectedRefundRemark == 'return') {
                             style: const TextStyle(color: Colors.white),
                             onChanged: _isSubmittingReturnExchange
                                 ? null
-                                : (String? value) {
+                                : (String? value) async {
                                     bottomSheetSetState(() {
                                       _selectedRefundRemark = value;
+                                      _selectedExchangeVariant = null;
+                                      _exchangeVariants = [];
+                                      _exchangeVariantErrorMessage = null;
                                     });
+
+                                    if (value == 'exchange' &&
+                                        _selectedReturnItem != null) {
+                                      await _fetchExchangeVariants(
+                                        item: _selectedReturnItem!,
+                                        bottomSheetSetState:
+                                            bottomSheetSetState,
+                                      );
+                                    }
                                   },
-                           items: _availableRefundRemarkOptions.map((option) {
-  return DropdownMenuItem<String>(
-    value: option['value'],
-    child: Text(
-      option['label'] ?? '',
-      style: const TextStyle(color: Colors.white),
-    ),
-  );
-}).toList(),
+                            items: _availableRefundRemarkOptions.map((option) {
+                              return DropdownMenuItem<String>(
+                                value: option['value'],
+                                child: Text(
+                                  option['label'] ?? '',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              );
+                            }).toList(),
                           ),
                         ),
                       ),
                       const SizedBox(height: 16),
+
+                      if (_selectedRefundRemark == 'exchange') ...[
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Exchange Variant',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        if (_isLoadingExchangeVariants)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.07),
+                              borderRadius: BorderRadius.circular(15),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.12),
+                              ),
+                            ),
+                            child: const Row(
+                              children: [
+                                SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.tealAccent,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+                                Text(
+                                  'Loading variants...',
+                                  style: TextStyle(color: Colors.white70),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.07),
+                              borderRadius: BorderRadius.circular(15),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.12),
+                              ),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<ExchangeVariant>(
+                                value: _selectedExchangeVariant,
+                                isExpanded: true,
+                                dropdownColor: const Color(0xFF161616),
+                                hint: const Text(
+                                  'Select exchange variant',
+                                  style: TextStyle(color: Colors.white54),
+                                ),
+                                icon: const Icon(
+                                  Icons.keyboard_arrow_down,
+                                  color: Colors.white70,
+                                ),
+                                style: const TextStyle(color: Colors.white),
+                                onChanged:
+                                    _isSubmittingReturnExchange ||
+                                        _exchangeVariants.isEmpty
+                                    ? null
+                                    : (ExchangeVariant? value) {
+                                        bottomSheetSetState(() {
+                                          _selectedExchangeVariant = value;
+                                        });
+                                      },
+                                itemHeight: 92,
+                                selectedItemBuilder: (context) {
+                                  return _exchangeVariants.map((variant) {
+                                    return _buildExchangeVariantDropdownItem(
+                                      variant,
+                                      fallbackItem: _selectedReturnItem,
+                                      compact: true,
+                                    );
+                                  }).toList();
+                                },
+                                items: _exchangeVariants.map((variant) {
+                                  return DropdownMenuItem<ExchangeVariant>(
+                                    value: variant,
+                                    child: _buildExchangeVariantDropdownItem(
+                                      variant,
+                                      fallbackItem: _selectedReturnItem,
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ),
+
+                        if (_exchangeVariantErrorMessage != null &&
+                            _exchangeVariantErrorMessage!
+                                .trim()
+                                .isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            _exchangeVariantErrorMessage!,
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ],
+                      const SizedBox(height: 10),
                       const Text(
                         'Reason Type',
                         style: TextStyle(
@@ -3600,32 +3519,6 @@ if (_isCashOnDeliveryOrder && _selectedRefundRemark == 'return') {
                             ),
                           ),
                         ),
-                        // Container(
-                        //   padding: const EdgeInsets.symmetric(
-                        //     horizontal: 12,
-                        //     vertical: 6,
-                        //   ),
-                        //   decoration: BoxDecoration(
-                        //     color: _getStatusColor(
-                        //       _liveOrderStatus,
-                        //     ).withOpacity(0.18),
-                        //     borderRadius: BorderRadius.circular(30),
-                        //     border: Border.all(
-                        //       color: _getStatusColor(
-                        //         _liveOrderStatus,
-                        //       ).withOpacity(0.5),
-                        //     ),
-                        //   ),
-                        //   child: Text(
-                        //     _liveOrderStatus,
-                        //     style: TextStyle(
-                        //       color: _getStatusColor(_liveOrderStatus),
-                        //       fontSize: 11,
-                        //       fontWeight: FontWeight.w700,
-                        //       letterSpacing: 0.5,
-                        //     ),
-                        //   ),
-                        // ),
                       ],
                     ),
                     const SizedBox(height: 16),
