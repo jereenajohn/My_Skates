@@ -18,6 +18,7 @@ class OrderItem {
   final String? productImage;
   final int variantId;
   final String? sku;
+  final String status;
   final String variantLabel;
   final String? coachName;
   final String? variantImage;
@@ -42,6 +43,7 @@ class OrderItem {
     required this.quantity,
     required this.lineTotal,
     required this.createdAt,
+    required this.status,
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
@@ -59,6 +61,7 @@ class OrderItem {
       unitDiscount: json['unit_discount']?.toString() ?? '0',
       quantity: json['quantity'] ?? 0,
       lineTotal: json['line_total']?.toString() ?? '0',
+      status: json['status']?.toString() ?? '',
       createdAt:
           DateTime.tryParse(json['created_at']?.toString() ?? '') ??
           DateTime.now(),
@@ -1057,8 +1060,13 @@ class _Student_order_pageState extends State<Student_order_page> {
     if (_selectedStatusFilter == 'ALL') {
       return orders;
     }
+
     return orders
-        .where((order) => order.status == _selectedStatusFilter)
+        .where(
+          (order) => order.items.any(
+            (item) => item.status.toUpperCase() == _selectedStatusFilter,
+          ),
+        )
         .toList();
   }
 
@@ -1139,11 +1147,21 @@ class _Student_order_pageState extends State<Student_order_page> {
     }
   }
 
-  void _navigateToOrderDetail(Order order) {
-    Navigator.push(
+  Future<void> _navigateToOrderDetail(
+    Order order,
+    OrderItem selectedItem,
+  ) async {
+    final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => OrderDetailPage(order: order)),
+      MaterialPageRoute(
+        builder: (context) =>
+            OrderDetailPage(order: order, selectedItemId: selectedItem.id),
+      ),
     );
+
+    if (result == true) {
+      await fetchOrders();
+    }
   }
 
   Widget _buildProductImage(OrderItem item) {
@@ -1395,7 +1413,7 @@ class _Student_order_pageState extends State<Student_order_page> {
 
   Widget _buildProductItemCard(Order order, OrderItem item) {
     return GestureDetector(
-      onTap: () => _navigateToOrderDetail(order),
+      onTap: () => _navigateToOrderDetail(order, item),
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
         padding: const EdgeInsets.all(14),
@@ -1434,16 +1452,16 @@ class _Student_order_pageState extends State<Student_order_page> {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(order.status).withOpacity(0.16),
+                    color: _getStatusColor(item.status).withOpacity(0.16),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: _getStatusColor(order.status).withOpacity(0.35),
+                      color: _getStatusColor(item.status).withOpacity(0.35),
                     ),
                   ),
                   child: Text(
-                    order.status,
+                    item.status,
                     style: TextStyle(
-                      color: _getStatusColor(order.status),
+                      color: _getStatusColor(item.status),
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.4,
@@ -1668,6 +1686,22 @@ class _Student_order_pageState extends State<Student_order_page> {
     );
   }
 
+  Widget _buildFilteredOrderCard(Order order) {
+    final visibleItems = _selectedStatusFilter == 'ALL'
+        ? order.items
+        : order.items
+              .where(
+                (item) => item.status.toUpperCase() == _selectedStatusFilter,
+              )
+              .toList();
+
+    return Column(
+      children: visibleItems
+          .map((item) => _buildProductItemCard(order, item))
+          .toList(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1769,7 +1803,7 @@ class _Student_order_pageState extends State<Student_order_page> {
                         // _buildTopInfo(),
                         _buildFilterBox(),
                         ..._filteredOrders
-                            .map((order) => _buildOrderCard(order))
+                            .map((order) => _buildFilteredOrderCard(order))
                             .toList()
                             .expand(
                               (widget) => [widget, const SizedBox(height: 0)],
@@ -1790,8 +1824,9 @@ class _Student_order_pageState extends State<Student_order_page> {
 
 class OrderDetailPage extends StatefulWidget {
   final Order order;
+  final int? selectedItemId;
 
-  const OrderDetailPage({super.key, required this.order});
+  const OrderDetailPage({super.key, required this.order, this.selectedItemId});
 
   @override
   State<OrderDetailPage> createState() => _OrderDetailPageState();
@@ -1808,10 +1843,13 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   String? _selectedRefundRemark;
   String? _selectedReasonType;
   String? _returnExchangeErrorMessage;
+  late String _liveOrderStatus;
+  bool _orderStatusChanged = false;
+  final Map<int, String> _liveItemStatuses = {};
 
   final List<Map<String, String>> _refundRemarkOptions = [
     {'value': 'return', 'label': 'Return'},
-    {'value': 'refund', 'label': 'Refund'},
+    // {'value': 'refund', 'label': 'Refund'},
     {'value': 'exchange', 'label': 'Exchange'},
     {'value': 'cod_return', 'label': 'COD Return'},
   ];
@@ -1831,6 +1869,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   void initState() {
     super.initState();
 
+    _liveOrderStatus = widget.order.status;
+
+    for (final item in widget.order.items) {
+      _liveItemStatuses[item.id] = item.status;
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeShowReviewPopup();
     });
@@ -1842,12 +1886,33 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     super.dispose();
   }
 
+  String _getLiveItemStatus(OrderItem item) {
+    return _liveItemStatuses[item.id] ?? item.status;
+  }
+
+  OrderItem get _openedItem {
+    if (widget.selectedItemId == null) {
+      return widget.order.items.first;
+    }
+
+    return widget.order.items.firstWhere(
+      (item) => item.id == widget.selectedItemId,
+      orElse: () => widget.order.items.first,
+    );
+  }
+
+  List<OrderItem> get _otherItemsInOrder {
+    return widget.order.items
+        .where((item) => item.id != _openedItem.id)
+        .toList();
+  }
+
   Future<void> _maybeShowReviewPopup() async {
     if (!mounted) return;
     if (_reviewPopupCheckedOnce) return;
     _reviewPopupCheckedOnce = true;
 
-    final status = widget.order.status.toUpperCase();
+    final status = _liveOrderStatus.toUpperCase();
     print("ORDER STATUS = $status");
 
     if (status != "DELIVERED") return;
@@ -2005,6 +2070,154 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     );
   }
 
+  Widget _buildOrderDetailItemCard(OrderItem item) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => StudentProductReviewpage(
+              productId: item.product,
+              productTitle: item.productTitle,
+              productImage: item.productImage,
+              variantId: item.variantId,
+              variantLabel: item.variantLabel,
+              variantImage: item.variantImage,
+            ),
+          ),
+        );
+
+        if (result == true) {
+          _reviewsCacheByProduct.remove(item.product);
+          _reviewPopupCheckedOnce = false;
+          await Future.delayed(const Duration(milliseconds: 150));
+          await _maybeShowReviewPopup();
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.07)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 74,
+              height: 74,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: Colors.white.withOpacity(0.05),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: _buildProductImage(item),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.productTitle,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (item.variantLabel.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.tealAccent.withOpacity(0.14),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        item.variantLabel,
+                        style: const TextStyle(
+                          color: Colors.tealAccent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(
+                        _getLiveItemStatus(item),
+                      ).withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _getStatusColor(
+                          _getLiveItemStatus(item),
+                        ).withOpacity(0.35),
+                      ),
+                    ),
+                    child: Text(
+                      _getLiveItemStatus(item),
+                      style: TextStyle(
+                        color: _getStatusColor(_getLiveItemStatus(item)),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (item.coachName != null &&
+                      item.coachName!.trim().isNotEmpty) ...[
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.storefront_outlined,
+                          color: Colors.white54,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            'Seller: ${item.coachName}',
+                            style: const TextStyle(
+                              color: Colors.white60,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  Text(
+                    'Qty: ${item.quantity}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Color _getStatusColor(String status) {
     switch (status.toUpperCase()) {
       case 'PLACED':
@@ -2031,11 +2244,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   bool get _canRequestReturnExchange {
-    return widget.order.status.toUpperCase() == 'DELIVERED';
+    return _liveOrderStatus.toUpperCase() == 'DELIVERED';
   }
 
   bool get _canCancelOrderItem {
-    return widget.order.status.toUpperCase() == 'PLACED';
+    return _liveOrderStatus.toUpperCase() == 'PLACED';
   }
 
   void _resetCancelOrderForm() {
@@ -2122,7 +2335,121 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     );
 
     if (confirmed == true) {
-      await _submitCancelOrderItem(bottomSheetSetState);
+      await _patchCancelOrderItemStatus(bottomSheetSetState);
+    }
+  }
+
+  Future<void> _patchCancelOrderItemStatus(
+    StateSetter bottomSheetSetState,
+  ) async {
+    if (_selectedCancelItem == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a product to cancel')),
+      );
+      return;
+    }
+
+    bottomSheetSetState(() {
+      _isCancellingOrderItem = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        bottomSheetSetState(() {
+          _isCancellingOrderItem = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authentication token missing')),
+        );
+        return;
+      }
+
+      final Map<String, dynamic> requestBody = {"status": "CANCELLED"};
+
+      final response = await http.patch(
+        Uri.parse(
+          '$api/api/myskates/order/item/status/update/${_selectedCancelItem!.id}/',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print("PATCH CANCEL ITEM STATUS API: ${response.statusCode}");
+      print("PATCH CANCEL ITEM ID: ${_selectedCancelItem!.id}");
+      print("PATCH CANCEL PRODUCT ID: ${_selectedCancelItem!.product}");
+      print("PATCH CANCEL REQUEST BODY: ${jsonEncode(requestBody)}");
+      print("PATCH CANCEL RESPONSE: ${response.body}");
+
+      Map<String, dynamic>? decoded;
+
+      try {
+        final dynamic parsed = jsonDecode(response.body);
+        if (parsed is Map<String, dynamic>) {
+          decoded = parsed;
+        }
+      } catch (_) {
+        decoded = null;
+      }
+
+      final String responseMessage =
+          decoded?['message']?.toString() ??
+          decoded?['error']?.toString() ??
+          decoded?['detail']?.toString() ??
+          '';
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (!mounted) return;
+
+        setState(() {
+          _liveItemStatuses[_selectedCancelItem!.id] = "CANCELLED";
+          _orderStatusChanged = true;
+        });
+
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Product cancelled successfully',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Failed to cancel product',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      print("PATCH CANCEL ERROR: $e");
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      if (mounted) {
+        bottomSheetSetState(() {
+          _isCancellingOrderItem = false;
+        });
+      }
     }
   }
 
@@ -2432,151 +2759,150 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     );
   }
 
-void _resetReturnExchangeForm() {
-  _selectedReturnItem = widget.order.items.isNotEmpty
-      ? widget.order.items.first
-      : null;
-  _selectedRefundRemark = null;
-  _selectedReasonType = null;
-  _customReasonController.clear();
-  _isSubmittingReturnExchange = false;
-  _returnExchangeErrorMessage = null;
-}
-
-Future<void> _submitReturnExchangeRequest(
-  StateSetter bottomSheetSetState,
-) async {
-  if (_selectedReturnItem == null) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Please select a product')));
-    return;
+  void _resetReturnExchangeForm() {
+    _selectedReturnItem = widget.order.items.isNotEmpty
+        ? widget.order.items.first
+        : null;
+    _selectedRefundRemark = null;
+    _selectedReasonType = null;
+    _customReasonController.clear();
+    _isSubmittingReturnExchange = false;
+    _returnExchangeErrorMessage = null;
   }
 
-  if (_selectedRefundRemark == null || _selectedRefundRemark!.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please select return/exchange type')),
-    );
-    return;
-  }
+  Future<void> _submitReturnExchangeRequest(
+    StateSetter bottomSheetSetState,
+  ) async {
+    if (_selectedReturnItem == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a product')));
+      return;
+    }
 
-  if (_selectedReasonType == null || _selectedReasonType!.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please select reason type')),
-    );
-    return;
-  }
-
-  final customReason = _customReasonController.text.trim();
-
-  if (_selectedReasonType == 'other' && customReason.isEmpty) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Please enter reason')));
-    return;
-  }
-
-bottomSheetSetState(() {
-  _isSubmittingReturnExchange = true;
-  _returnExchangeErrorMessage = null;
-});
-
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-
-    if (token == null) {
-      bottomSheetSetState(() {
-        _isSubmittingReturnExchange = false;
-      });
+    if (_selectedRefundRemark == null || _selectedRefundRemark!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Authentication token missing')),
+        const SnackBar(content: Text('Please select return/exchange type')),
       );
       return;
     }
 
-    final Map<String, dynamic> requestBody = {
-      'item': _selectedReturnItem!.id,
-      'product': _selectedReturnItem!.product,
-      'remark': _selectedRefundRemark,
-      'reason_type': _selectedReasonType,
-      'reason': _selectedReasonType == 'other'
-          ? customReason
-          : _getRefundLabel(_selectedReasonType!, _refundReasonTypeOptions),
-    };
-
-    final response = await http.post(
-      Uri.parse('$api/api/myskates/msk/refund/'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode(requestBody),
-    );
-
-    print("RETURN EXCHANGE API STATUS: ${response.statusCode}");
-    print("RETURN EXCHANGE REQUEST BODY: ${jsonEncode(requestBody)}");
-    print("RETURN EXCHANGE RESPONSE: ${response.body}");
-
-    Map<String, dynamic>? decoded;
-
-    try {
-      final dynamic parsed = jsonDecode(response.body);
-      if (parsed is Map<String, dynamic>) {
-        decoded = parsed;
-      }
-    } catch (_) {
-      decoded = null;
+    if (_selectedReasonType == null || _selectedReasonType!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select reason type')),
+      );
+      return;
     }
 
-    final bool apiStatus = decoded?['status'] == true;
+    final customReason = _customReasonController.text.trim();
 
-    final String responseMessage =
-        decoded?['message']?.toString() ??
-        decoded?['error']?.toString() ??
-        decoded?['detail']?.toString() ??
-        'Something went wrong';
-
-    if ((response.statusCode == 200 || response.statusCode == 201) &&
-        apiStatus) {
-      if (!mounted) return;
-
-      Navigator.pop(context);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(responseMessage.isNotEmpty
-              ? responseMessage
-              : 'Return/Exchange request submitted successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } else {
-      if (!mounted) return;
+    if (_selectedReasonType == 'other' && customReason.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter reason')));
+      return;
+    }
 
     bottomSheetSetState(() {
-  _returnExchangeErrorMessage = responseMessage;
-});
-    }
-  } catch (e) {
-    print("ERROR SUBMITTING RETURN EXCHANGE REQUEST: $e");
+      _isSubmittingReturnExchange = true;
+      _returnExchangeErrorMessage = null;
+    });
 
-    if (!mounted) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Error: $e'),
-        backgroundColor: Colors.redAccent,
-      ),
-    );
-  } finally {
-    if (mounted) {
-      bottomSheetSetState(() {
-        _isSubmittingReturnExchange = false;
-      });
+      if (token == null) {
+        bottomSheetSetState(() {
+          _isSubmittingReturnExchange = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authentication token missing')),
+        );
+        return;
+      }
+
+      final Map<String, dynamic> requestBody = {
+        'item': _selectedReturnItem!.id,
+        'product': _selectedReturnItem!.product,
+        'remark': _selectedRefundRemark,
+        'reason_type': _selectedReasonType,
+        'reason': _selectedReasonType == 'other'
+            ? customReason
+            : _getRefundLabel(_selectedReasonType!, _refundReasonTypeOptions),
+      };
+
+      final response = await http.post(
+        Uri.parse('$api/api/myskates/msk/refund/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print("RETURN EXCHANGE API STATUS: ${response.statusCode}");
+      print("RETURN EXCHANGE REQUEST BODY: ${jsonEncode(requestBody)}");
+      print("RETURN EXCHANGE RESPONSE: ${response.body}");
+
+      Map<String, dynamic>? decoded;
+
+      try {
+        final dynamic parsed = jsonDecode(response.body);
+        if (parsed is Map<String, dynamic>) {
+          decoded = parsed;
+        }
+      } catch (_) {
+        decoded = null;
+      }
+
+      final bool apiStatus = decoded?['status'] == true;
+
+      final String responseMessage =
+          decoded?['message']?.toString() ??
+          decoded?['error']?.toString() ??
+          decoded?['detail']?.toString() ??
+          'Something went wrong';
+
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          apiStatus) {
+        if (!mounted) return;
+
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Return/Exchange request submitted successfully',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        if (!mounted) return;
+
+        bottomSheetSetState(() {
+          _returnExchangeErrorMessage = responseMessage;
+        });
+      }
+    } catch (e) {
+      print("ERROR SUBMITTING RETURN EXCHANGE REQUEST: $e");
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      if (mounted) {
+        bottomSheetSetState(() {
+          _isSubmittingReturnExchange = false;
+        });
+      }
     }
   }
-}
 
   Future<void> _showReturnExchangeBottomSheet() async {
     if (widget.order.items.isEmpty) {
@@ -2867,49 +3193,49 @@ bottomSheetSetState(() {
                         ),
                       ],
                       const SizedBox(height: 22),
-                    if (_returnExchangeErrorMessage != null &&
-    _returnExchangeErrorMessage!.trim().isNotEmpty) ...[
-  const SizedBox(height: 18),
-  Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.redAccent.withOpacity(0.12),
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(
-        color: Colors.redAccent.withOpacity(0.35),
-      ),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Icon(
-          Icons.error_outline,
-          color: Colors.redAccent,
-          size: 18,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            _returnExchangeErrorMessage!,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              height: 1.35,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
-    ),
-  ),
-],
+                      if (_returnExchangeErrorMessage != null &&
+                          _returnExchangeErrorMessage!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 18),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.redAccent.withOpacity(0.35),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                color: Colors.redAccent,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _returnExchangeErrorMessage!,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    height: 1.35,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
 
-const SizedBox(height: 22),
-SizedBox(
-  width: double.infinity,
-  height: 52,
-  child: ElevatedButton(
+                      const SizedBox(height: 22),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
                           onPressed: _isSubmittingReturnExchange
                               ? null
                               : () => _submitReturnExchangeRequest(
@@ -3166,7 +3492,7 @@ SizedBox(
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context, _orderStatusChanged),
         ),
         actions: [
           if (order.items.isNotEmpty) ...[
@@ -3240,32 +3566,32 @@ SizedBox(
                             ),
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(
-                              order.status,
-                            ).withOpacity(0.18),
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(
-                              color: _getStatusColor(
-                                order.status,
-                              ).withOpacity(0.5),
-                            ),
-                          ),
-                          child: Text(
-                            order.status,
-                            style: TextStyle(
-                              color: _getStatusColor(order.status),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
+                        // Container(
+                        //   padding: const EdgeInsets.symmetric(
+                        //     horizontal: 12,
+                        //     vertical: 6,
+                        //   ),
+                        //   decoration: BoxDecoration(
+                        //     color: _getStatusColor(
+                        //       _liveOrderStatus,
+                        //     ).withOpacity(0.18),
+                        //     borderRadius: BorderRadius.circular(30),
+                        //     border: Border.all(
+                        //       color: _getStatusColor(
+                        //         _liveOrderStatus,
+                        //       ).withOpacity(0.5),
+                        //     ),
+                        //   ),
+                        //   child: Text(
+                        //     _liveOrderStatus,
+                        //     style: TextStyle(
+                        //       color: _getStatusColor(_liveOrderStatus),
+                        //       fontSize: 11,
+                        //       fontWeight: FontWeight.w700,
+                        //       letterSpacing: 0.5,
+                        //     ),
+                        //   ),
+                        // ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -3340,222 +3666,103 @@ SizedBox(
                 ),
               ),
               const SizedBox(height: 16),
-              _buildGlassCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _sectionTitle('Order Items'),
-                    const SizedBox(height: 16),
-                    ...order.items.map(
-                      (item) => InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () async {
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => StudentProductReviewpage(
-                                productId: item.product,
-                                productTitle: item.productTitle,
-                                productImage: item.productImage,
-                                variantId: item.variantId,
-                                variantLabel: item.variantLabel,
-                                variantImage: item.variantImage,
-                              ),
-                            ),
-                          );
+           _buildGlassCard(
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _sectionTitle('Selected Item'),
+      const SizedBox(height: 16),
 
-                          if (result == true) {
-                            _reviewsCacheByProduct.remove(item.product);
-                            _reviewPopupCheckedOnce = false;
-                            await Future.delayed(
-                              const Duration(milliseconds: 150),
-                            );
-                            await _maybeShowReviewPopup();
-                          }
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 14),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.04),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.07),
-                            ),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 74,
-                                height: 74,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(14),
-                                  color: Colors.white.withOpacity(0.05),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: _buildProductImage(item),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.productTitle,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    if (item.variantLabel.isNotEmpty) ...[
-                                      const SizedBox(height: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.tealAccent.withOpacity(
-                                            0.14,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          item.variantLabel,
-                                          style: const TextStyle(
-                                            color: Colors.tealAccent,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                    const SizedBox(height: 10),
-                                    if (item.coachName != null &&
-                                        item.coachName!.trim().isNotEmpty) ...[
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.storefront_outlined,
-                                            color: Colors.white54,
-                                            size: 14,
-                                          ),
-                                          const SizedBox(width: 5),
-                                          Expanded(
-                                            child: Text(
-                                              'Seller: ${item.coachName}',
-                                              style: const TextStyle(
-                                                color: Colors.white60,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                    Text(
-                                      'Qty: ${item.quantity}',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Divider(color: Colors.white24, height: 26),
-                    _priceRow(
-                      'Subtotal',
-                      '₹${_toDouble(order.subtotal).toStringAsFixed(2)}',
-                    ),
+      _buildOrderDetailItemCard(_openedItem),
 
-                    if (_toDouble(order.discountTotal) > 0) ...[
-                      const SizedBox(height: 10),
-                      _priceRow(
-                        'Discount',
-                        '-₹${_toDouble(order.discountTotal).toStringAsFixed(2)}',
-                        valueColor: Colors.greenAccent,
-                      ),
-                    ],
+      if (_otherItemsInOrder.isNotEmpty) ...[
+        const Divider(color: Colors.white24, height: 30),
+        _sectionTitle('Other items in this order'),
+        const SizedBox(height: 16),
+        ..._otherItemsInOrder.map(
+          (item) => _buildOrderDetailItemCard(item),
+        ),
+      ],
 
-                    if (_toDouble(order.platformFee) > 0) ...[
-                      const SizedBox(height: 10),
-                      _priceRow(
-                        'Platform Fee',
-                        '₹${_toDouble(order.platformFee).toStringAsFixed(2)}',
-                      ),
-                    ],
+      const Divider(color: Colors.white24, height: 26),
 
-                    if (_toDouble(order.convenienceFee) > 0) ...[
-                      const SizedBox(height: 10),
-                      _priceRow(
-                        'Convenience Fee',
-                        '₹${_toDouble(order.convenienceFee).toStringAsFixed(2)}',
-                      ),
-                    ],
+      _priceRow(
+        'Subtotal',
+        '₹${_toDouble(order.subtotal).toStringAsFixed(2)}',
+      ),
 
-                    if (_toDouble(order.shipmentCharge) > 0) ...[
-                      const SizedBox(height: 10),
-                      _priceRow(
-                        'Shipment Charge',
-                        '₹${_toDouble(order.shipmentCharge).toStringAsFixed(2)}',
-                      ),
-                    ],
+      if (_toDouble(order.discountTotal) > 0) ...[
+        const SizedBox(height: 10),
+        _priceRow(
+          'Discount',
+          '-₹${_toDouble(order.discountTotal).toStringAsFixed(2)}',
+          valueColor: Colors.greenAccent,
+        ),
+      ],
 
-                    const SizedBox(height: 14),
+      if (_toDouble(order.platformFee) > 0) ...[
+        const SizedBox(height: 10),
+        _priceRow(
+          'Platform Fee',
+          '₹${_toDouble(order.platformFee).toStringAsFixed(2)}',
+        ),
+      ],
 
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.tealAccent.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: Colors.tealAccent.withOpacity(0.25),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Total',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            '₹${_toDouble(order.finalPayable).toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              color: Colors.tealAccent,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+      if (_toDouble(order.convenienceFee) > 0) ...[
+        const SizedBox(height: 10),
+        _priceRow(
+          'Convenience Fee',
+          '₹${_toDouble(order.convenienceFee).toStringAsFixed(2)}',
+        ),
+      ],
+
+      if (_toDouble(order.shipmentCharge) > 0) ...[
+        const SizedBox(height: 10),
+        _priceRow(
+          'Shipment Charge',
+          '₹${_toDouble(order.shipmentCharge).toStringAsFixed(2)}',
+        ),
+      ],
+
+      const SizedBox(height: 14),
+
+      Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.tealAccent.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: Colors.tealAccent.withOpacity(0.25),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Total',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
               ),
+            ),
+            Text(
+              '₹${_toDouble(order.finalPayable).toStringAsFixed(2)}',
+              style: const TextStyle(
+                color: Colors.tealAccent,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  ),
+),
               const SizedBox(height: 16),
               _buildCancelOrderButton(),
               if (_canCancelOrderItem) const SizedBox(height: 12),
