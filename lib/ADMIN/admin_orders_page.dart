@@ -482,22 +482,41 @@ class Order {
 class OrderResponse {
   final bool success;
   final int count;
+  final String? next;
+  final String? previous;
   final List<Order> data;
 
   OrderResponse({
     required this.success,
     required this.count,
+    this.next,
+    this.previous,
     required this.data,
   });
 
   factory OrderResponse.fromJson(Map<String, dynamic> json) {
-    var ordersList = json['data'] as List? ?? [];
-    List<Order> orders = ordersList.map((i) => Order.fromJson(i)).toList();
+    final results = json['results'];
+
+    if (results is Map<String, dynamic>) {
+      final ordersList = results['data'] as List? ?? [];
+
+      return OrderResponse(
+        success: results['success'] ?? false,
+        count: json['count'] ?? results['count'] ?? 0,
+        next: json['next'],
+        previous: json['previous'],
+        data: ordersList.map((i) => Order.fromJson(i)).toList(),
+      );
+    }
+
+    final ordersList = json['data'] as List? ?? [];
 
     return OrderResponse(
       success: json['success'] ?? false,
       count: json['count'] ?? 0,
-      data: orders,
+      next: json['next'],
+      previous: json['previous'],
+      data: ordersList.map((i) => Order.fromJson(i)).toList(),
     );
   }
 }
@@ -518,6 +537,62 @@ class _Admin_order_pageState extends State<Admin_order_page> {
   bool isLoading = true;
   String? error;
   bool _isAdmin = false;
+  final TextEditingController _searchController = TextEditingController();
+
+  int _currentPage = 1;
+  int _totalCount = 0;
+  String? _nextPageUrl;
+  String? _previousPageUrl;
+
+  String _searchText = '';
+  String? _startDate;
+  String? _endDate;
+  String _sortBy = 'latest';
+
+  bool get _isAllOrdersView => _selectedView == OrderViewType.allOrders;
+
+  bool get _hasBackendOrderFilters =>
+      _selectedView == OrderViewType.allOrders ||
+      _selectedView == OrderViewType.coachProductOrders ||
+      _selectedView == OrderViewType.myOrders ||
+      _selectedView == OrderViewType.mySoldOrders;
+
+  Uri _buildOrderUri() {
+    if (_hasBackendOrderFilters) {
+      final params = <String, String>{
+        'page': _currentPage.toString(),
+        'sort_by': _sortBy,
+      };
+
+      if (_searchText.trim().isNotEmpty) {
+        params['search'] = _searchText.trim();
+      }
+
+      if (_startDate != null && _startDate!.isNotEmpty) {
+        params['start_date'] = _startDate!;
+      }
+
+      if (_endDate != null && _endDate!.isNotEmpty) {
+        params['end_date'] = _endDate!;
+      }
+
+      String endpoint;
+
+      if (_selectedView == OrderViewType.allOrders) {
+        endpoint = '$api/api/myskates/all/orders/';
+      } else if (_selectedView == OrderViewType.coachProductOrders) {
+        endpoint = '$api/api/myskates/coach/orders/view/';
+      } else if (_selectedView == OrderViewType.myOrders) {
+        endpoint = '$api/api/myskates/orders/bought/products/';
+      } else {
+        endpoint = '$api/api/myskates/seller/orders/';
+      }
+
+      return Uri.parse(endpoint).replace(queryParameters: params);
+    }
+
+    return Uri.parse(_apiUrl);
+  }
 
   // Only two options: All Orders and My Orders
   OrderViewType _selectedView = OrderViewType.myOrders;
@@ -526,6 +601,12 @@ class _Admin_order_pageState extends State<Admin_order_page> {
   void initState() {
     super.initState();
     _loadUserRoleAndFetchOrders();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserRoleAndFetchOrders() async {
@@ -577,7 +658,6 @@ class _Admin_order_pageState extends State<Admin_order_page> {
   Future<void> fetchOrders() async {
     setState(() {
       isLoading = true;
-
       error = null;
     });
 
@@ -598,6 +678,10 @@ class _Admin_order_pageState extends State<Admin_order_page> {
           _selectedView = OrderViewType.myOrders;
           orders = [];
           boughtProducts = [];
+          _currentPage = 1;
+          _totalCount = 0;
+          _nextPageUrl = null;
+          _previousPageUrl = null;
         });
       }
 
@@ -610,14 +694,17 @@ class _Admin_order_pageState extends State<Admin_order_page> {
         return;
       }
 
+      final requestUri = _buildOrderUri();
+
       final response = await http.get(
-        Uri.parse(_apiUrl),
+        requestUri,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
       );
 
+      print("ORDERS API URL: $requestUri");
       print("ORDERS API STATUS: ${response.statusCode}");
       print("ORDERS RESPONSE: ${response.body}");
 
@@ -625,7 +712,25 @@ class _Admin_order_pageState extends State<Admin_order_page> {
         final jsonResponse = json.decode(response.body);
 
         if (_selectedView == OrderViewType.myOrders) {
-          final productList = jsonResponse['data'] as List? ?? [];
+          final results = jsonResponse['results'];
+
+          List productList = [];
+          int totalCount = 0;
+          String? nextUrl;
+          String? previousUrl;
+
+          if (results is Map<String, dynamic>) {
+            productList = results['data'] as List? ?? [];
+            totalCount =
+                jsonResponse['count'] ?? results['count'] ?? productList.length;
+            nextUrl = jsonResponse['next'];
+            previousUrl = jsonResponse['previous'];
+          } else {
+            productList = jsonResponse['data'] as List? ?? [];
+            totalCount = jsonResponse['count'] ?? productList.length;
+            nextUrl = jsonResponse['next'];
+            previousUrl = jsonResponse['previous'];
+          }
 
           setState(() {
             boughtProducts = productList
@@ -633,6 +738,9 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                 .toList();
 
             orders = [];
+            _totalCount = totalCount;
+            _nextPageUrl = nextUrl;
+            _previousPageUrl = previousUrl;
             isLoading = false;
           });
 
@@ -645,6 +753,17 @@ class _Admin_order_pageState extends State<Admin_order_page> {
           setState(() {
             orders = orderResponse.data;
             boughtProducts = [];
+
+            if (_hasBackendOrderFilters) {
+              _totalCount = orderResponse.count;
+              _nextPageUrl = orderResponse.next;
+              _previousPageUrl = orderResponse.previous;
+            } else {
+              _totalCount = orders.length;
+              _nextPageUrl = null;
+              _previousPageUrl = null;
+            }
+
             isLoading = false;
           });
 
@@ -1172,11 +1291,23 @@ class _Admin_order_pageState extends State<Admin_order_page> {
           style: const TextStyle(color: Colors.white, fontSize: 14),
           onChanged: (OrderViewType? newValue) {
             if (newValue != null && newValue != _selectedView) {
+              _searchController.clear();
+
               setState(() {
                 _selectedView = newValue;
                 orders = [];
                 boughtProducts = [];
+                _currentPage = 1;
+                _totalCount = 0;
+                _nextPageUrl = null;
+                _previousPageUrl = null;
+
+                _searchText = '';
+                _startDate = null;
+                _endDate = null;
+                _sortBy = 'latest';
               });
+
               fetchOrders();
             }
           },
@@ -1308,6 +1439,79 @@ class _Admin_order_pageState extends State<Admin_order_page> {
     );
   }
 
+  Widget _buildOrdersHeader() {
+    final hasDateFilter = _startDate != null || _endDate != null;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+
+          const SizedBox(width: 6),
+
+          const Expanded(
+            child: Text(
+              'Orders',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+
+          if (_hasBackendOrderFilters)
+            GestureDetector(
+              onTap: _pickAllOrdersDateRange,
+              child: Container(
+                height: 42,
+                width: 42,
+                decoration: BoxDecoration(
+                  color: hasDateFilter
+                      ? Colors.tealAccent.withOpacity(0.18)
+                      : Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: hasDateFilter
+                        ? Colors.tealAccent.withOpacity(0.65)
+                        : Colors.white.withOpacity(0.12),
+                  ),
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(
+                      Icons.date_range_rounded,
+                      color: hasDateFilter ? Colors.tealAccent : Colors.white70,
+                      size: 21,
+                    ),
+
+                    if (hasDateFilter)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: const BoxDecoration(
+                            color: Colors.tealAccent,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1331,36 +1535,9 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                   ? Column(
                       children: [
                         // Header row shown during loading too
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 4,
-                          ),
-                          child: Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.arrow_back,
-                                  color: Colors.white,
-                                ),
-                                onPressed: () => Navigator.pop(context),
-                              ),
-                              const SizedBox(width: 6),
-                              const Expanded(
-                                child: Text(
-                                  'Orders',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
+                        _buildOrdersHeader(), const SizedBox(height: 12),
                         _buildViewDropdown(),
+                        _buildAllOrdersFilters(),
                         const SizedBox(height: 16),
                         Expanded(child: _buildShimmerList()),
                       ],
@@ -1424,36 +1601,10 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: Column(
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 4,
-                            ),
-                            child: Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.arrow_back,
-                                    color: Colors.white,
-                                  ),
-                                  onPressed: () => Navigator.pop(context),
-                                ),
-                                const SizedBox(width: 6),
-                                const Expanded(
-                                  child: Text(
-                                    'Orders',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          _buildOrdersHeader(),
                           const SizedBox(height: 12),
                           _buildViewDropdown(),
+                          _buildAllOrdersFilters(),
                           const SizedBox(height: 40),
                           _glassWrap(
                             padding: const EdgeInsets.all(32),
@@ -1508,39 +1659,12 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                       child: Column(
                         children: [
                           // Header
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 4,
-                            ),
-                            child: Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.arrow_back,
-                                    color: Colors.white,
-                                  ),
-                                  onPressed: () => Navigator.pop(context),
-                                ),
-                                const SizedBox(width: 6),
-                                const Expanded(
-                                  child: Text(
-                                    'Orders',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
+                          _buildOrdersHeader(),
                           const SizedBox(height: 16),
 
                           // View type dropdown (All Orders / My Orders)
                           _buildViewDropdown(),
+                          _buildAllOrdersFilters(),
 
                           const SizedBox(height: 10),
 
@@ -1551,7 +1675,9 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                               children: [
                                 Text(
                                   _selectedView == OrderViewType.myOrders
-                                      ? '${boughtProducts.length} product${boughtProducts.length == 1 ? '' : 's'} found'
+                                      ? 'Showing ${boughtProducts.length} of $_totalCount products'
+                                      : _hasBackendOrderFilters
+                                      ? 'Showing ${orders.length} of $_totalCount orders'
                                       : '${orders.length} order${orders.length == 1 ? '' : 's'} found',
                                   style: const TextStyle(
                                     color: Colors.white54,
@@ -1602,6 +1728,8 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                                 .map((order) => _buildOrderCard(order))
                                 .toList(),
 
+                          _buildAllOrdersPagination(),
+
                           const SizedBox(height: 20),
                         ],
                       ),
@@ -1609,6 +1737,363 @@ class _Admin_order_pageState extends State<Admin_order_page> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  String get _dateRangeLabel {
+    if (_startDate != null && _endDate != null) {
+      return '$_startDate  to  $_endDate';
+    }
+
+    if (_startDate != null) {
+      return 'From $_startDate';
+    }
+
+    if (_endDate != null) {
+      return 'Until $_endDate';
+    }
+
+    return 'Select Date Range';
+  }
+
+  Future<void> _pickAllOrdersDateRange() async {
+    final now = DateTime.now();
+
+    final initialRange = (_startDate != null && _endDate != null)
+        ? DateTimeRange(
+            start: DateTime.tryParse(_startDate!) ?? now,
+            end: DateTime.tryParse(_endDate!) ?? now,
+          )
+        : null;
+
+    final pickedRange = await showDateRangePicker(
+      context: context,
+      initialDateRange: initialRange,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year + 2),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Colors.tealAccent,
+              onPrimary: Colors.black,
+              surface: Color(0xFF0D2B28),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedRange != null) {
+      final formattedStartDate = DateFormat(
+        'yyyy-MM-dd',
+      ).format(pickedRange.start);
+      final formattedEndDate = DateFormat('yyyy-MM-dd').format(pickedRange.end);
+
+      setState(() {
+        _startDate = formattedStartDate;
+        _endDate = formattedEndDate;
+        _currentPage = 1;
+      });
+
+      fetchOrders();
+    }
+  }
+
+  Widget _buildAllOrdersFilters() {
+    if (!_hasBackendOrderFilters) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        const SizedBox(height: 8),
+
+        Row(
+          children: [
+            Expanded(
+              flex: 6,
+              child: _glassWrap(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 0,
+                ),
+                child: SizedBox(
+                  height: 38,
+                  child: Center(
+                    child: TextField(
+                      controller: _searchController,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      textInputAction: TextInputAction.search,
+                      decoration: InputDecoration(
+                        hintText: 'Search orders...',
+                        hintStyle: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 12,
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: Colors.tealAccent,
+                          size: 18,
+                        ),
+                        prefixIconConstraints: const BoxConstraints(
+                          minWidth: 34,
+                          minHeight: 34,
+                        ),
+                        suffixIcon: _searchController.text.trim().isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(
+                                  Icons.close_rounded,
+                                  color: Colors.white54,
+                                  size: 17,
+                                ),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _searchText = '';
+                                    _currentPage = 1;
+                                  });
+                                  fetchOrders();
+                                },
+                              )
+                            : null,
+                      ),
+                      onSubmitted: (value) {
+                        setState(() {
+                          _searchText = value.trim();
+                          _currentPage = 1;
+                        });
+                        fetchOrders();
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            Expanded(
+              flex: 3,
+              child: _glassWrap(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: SizedBox(
+                  height: 38,
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _sortBy,
+                      isExpanded: true,
+                      dropdownColor: const Color(0xFF1A1A1A),
+                      icon: const Icon(
+                        Icons.keyboard_arrow_down,
+                        color: Colors.tealAccent,
+                        size: 18,
+                      ),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'latest',
+                          child: Text(
+                            'Latest',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'earliest',
+                          child: Text(
+                            'Earliest',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value == null) return;
+
+                        setState(() {
+                          _sortBy = value;
+                          _currentPage = 1;
+                        });
+
+                        fetchOrders();
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            GestureDetector(
+              onTap: () {
+                _searchController.clear();
+                setState(() {
+                  _searchText = '';
+                  _startDate = null;
+                  _endDate = null;
+                  _sortBy = 'latest';
+                  _currentPage = 1;
+                });
+                fetchOrders();
+              },
+              child: Container(
+                height: 38,
+                width: 38,
+                decoration: BoxDecoration(
+                  // color: Colors.tealAccent.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white.withOpacity(0.10)),
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  color: Colors.white60,
+                  size: 21,
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        if (_startDate != null && _endDate != null) ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              'Date: $_startDate to $_endDate',
+              style: const TextStyle(
+                color: Colors.tealAccent,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 10),
+      ],
+    );
+  }
+
+  Widget _compactFilterBox({required IconData icon, required String label}) {
+    return _glassWrap(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: SizedBox(
+        height: 48,
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.tealAccent, size: 17),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _filterBox({required IconData icon, required String label}) {
+    return _glassWrap(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.tealAccent, size: 17),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAllOrdersPagination() {
+    if (!_hasBackendOrderFilters) return const SizedBox.shrink();
+
+    final hasPrevious = _previousPageUrl != null;
+    final hasNext = _nextPageUrl != null;
+
+    if (_totalCount == 0) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          ElevatedButton.icon(
+            onPressed: hasPrevious
+                ? () {
+                    setState(() {
+                      _currentPage--;
+                    });
+                    fetchOrders();
+                  }
+                : null,
+            icon: const Icon(Icons.chevron_left_rounded, size: 18),
+            label: const Text('Previous'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.tealAccent,
+              disabledBackgroundColor: Colors.white12,
+              foregroundColor: Colors.black,
+              disabledForegroundColor: Colors.white30,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+
+          Text(
+            'Page $_currentPage',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+          ElevatedButton.icon(
+            onPressed: hasNext
+                ? () {
+                    setState(() {
+                      _currentPage++;
+                    });
+                    fetchOrders();
+                  }
+                : null,
+            icon: const Icon(Icons.chevron_right_rounded, size: 18),
+            label: const Text('Next'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.tealAccent,
+              disabledBackgroundColor: Colors.white12,
+              foregroundColor: Colors.black,
+              disabledForegroundColor: Colors.white30,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
