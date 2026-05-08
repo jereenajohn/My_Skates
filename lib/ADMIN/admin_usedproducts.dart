@@ -378,6 +378,7 @@ Widget _usedOrderGlassWrap({required Widget child, EdgeInsets? padding}) {
 }
 
 // ─── List Page ────────────────────────────────────────────────────────────────
+enum UsedAllOrderSortType { latest, earliest }
 
 class UsedProductOrdersPage extends StatefulWidget {
   const UsedProductOrdersPage({super.key});
@@ -388,6 +389,7 @@ class UsedProductOrdersPage extends StatefulWidget {
 
 class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
   List<UsedOrder> _orders = [];
+  UsedAllOrderSortType _selectedSort = UsedAllOrderSortType.latest;
   bool _isLoading = true;
   String? _error;
 
@@ -604,288 +606,230 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
     }
   }
 
+  List<UsedOrder> get _sortedOrders {
+    final List<UsedOrder> sortedList = List.from(_orders);
+
+    sortedList.sort((a, b) {
+      switch (_selectedSort) {
+        case UsedAllOrderSortType.latest:
+          return b.createdAt.compareTo(a.createdAt);
+
+        case UsedAllOrderSortType.earliest:
+          return a.createdAt.compareTo(b.createdAt);
+      }
+    });
+
+    return sortedList;
+  }
+
   Widget _buildFilterBar() {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Column(
         children: [
-          // Search bar
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.06),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white.withOpacity(0.10)),
-            ),
-            child: TextField(
-              controller: _searchController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Search by order no., customer name, phone...',
-                hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-                prefixIcon: const Icon(
-                  Icons.search,
-                  color: Colors.tealAccent,
-                  size: 20,
-                ),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(
-                          Icons.clear,
-                          color: Colors.white54,
-                          size: 18,
-                        ),
-                        onPressed: () {
-                          _searchController.clear();
-                          _currentPage = 1; // Reset to first page
-                          _fetchOrders();
-                        },
-                      )
-                    : null,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 12,
+          Row(
+            children: [
+              Expanded(
+                flex: 6,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white.withOpacity(0.10)),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Search orders...',
+                      hintStyle: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 13,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Colors.tealAccent,
+                        size: 20,
+                      ),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(
+                                Icons.clear,
+                                color: Colors.white54,
+                                size: 18,
+                              ),
+                              onPressed: () {
+                                _searchController.clear();
+                                _currentPage = 1;
+                                _fetchOrders();
+                              },
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 12,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
+
+              const SizedBox(width: 10),
+
+              Expanded(flex: 4, child: _buildSortDropdown()),
+            ],
           ),
-          const SizedBox(height: 8),
 
-          // Date filters row
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                // Start Date picker
-                GestureDetector(
-                  onTap: () => _pickStartDate(),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: _startDate != null
-                          ? Colors.tealAccent.withOpacity(0.2)
-                          : Colors.white.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _startDate != null
-                            ? Colors.tealAccent.withOpacity(0.5)
-                            : Colors.white.withOpacity(0.15),
+          if (_startDate != null && _endDate != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.tealAccent.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.tealAccent.withOpacity(0.30)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.date_range_rounded,
+                    color: Colors.tealAccent,
+                    size: 17,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${DateFormat('dd MMM yyyy').format(_startDate!)} - ${DateFormat('dd MMM yyyy').format(_endDate!)}',
+                      style: const TextStyle(
+                        color: Colors.tealAccent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          color: _startDate != null
-                              ? Colors.tealAccent
-                              : Colors.white54,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _startDate != null
-                              ? 'Start: ${DateFormat('dd/MM/yy').format(_startDate!)}'
-                              : 'Start Date',
-                          style: TextStyle(
-                            color: _startDate != null
-                                ? Colors.tealAccent
-                                : Colors.white70,
-                            fontSize: 12,
-                          ),
-                        ),
-                        if (_startDate != null) ...[
-                          const SizedBox(width: 6),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _startDate = null;
-                              });
-                              _fetchOrders(); // Direct fetch
-                            },
-                            child: const Icon(
-                              Icons.close,
-                              size: 14,
-                              color: Colors.white54,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
                   ),
-                ),
-
-                // End Date picker
-                GestureDetector(
-                  onTap: () => _pickEndDate(),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: _endDate != null
-                          ? Colors.tealAccent.withOpacity(0.2)
-                          : Colors.white.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _endDate != null
-                            ? Colors.tealAccent.withOpacity(0.5)
-                            : Colors.white.withOpacity(0.15),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          color: _endDate != null
-                              ? Colors.tealAccent
-                              : Colors.white54,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _endDate != null
-                              ? 'End: ${DateFormat('dd/MM/yy').format(_endDate!)}'
-                              : 'End Date',
-                          style: TextStyle(
-                            color: _endDate != null
-                                ? Colors.tealAccent
-                                : Colors.white70,
-                            fontSize: 12,
-                          ),
-                        ),
-                        if (_endDate != null) ...[
-                          const SizedBox(width: 6),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _endDate = null;
-                              });
-                              _fetchOrders(); // Direct fetch
-                            },
-                            child: const Icon(
-                              Icons.close,
-                              size: 14,
-                              color: Colors.white54,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Clear all filters button
-                if (_searchController.text.isNotEmpty ||
-                    _startDate != null ||
-                    _endDate != null)
                   GestureDetector(
-                    onTap: _clearFilters,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.redAccent.withOpacity(0.3),
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.clear, color: Colors.redAccent, size: 14),
-                          SizedBox(width: 4),
-                          Text(
-                            'Clear',
-                            style: TextStyle(
-                              color: Colors.redAccent,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
+                    onTap: _clearDateFilter,
+                    child: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.redAccent,
+                      size: 18,
                     ),
                   ),
-              ],
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 
-  Future<void> _pickStartDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _startDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: _endDate ?? DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Colors.tealAccent,
-              onPrimary: Colors.black,
-              surface: Color(0xFF001F1D),
-              onSurface: Colors.white,
-            ),
+  Widget _buildSortDropdown() {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.10)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<UsedAllOrderSortType>(
+          value: _selectedSort,
+          isExpanded: true,
+          dropdownColor: const Color(0xFF1A1A1A),
+          icon: const Icon(
+            Icons.keyboard_arrow_down,
+            color: Colors.tealAccent,
+            size: 18,
           ),
-          child: child!,
-        );
-      },
-    );
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+          onChanged: (UsedAllOrderSortType? value) {
+            if (value == null) return;
 
-    if (picked != null) {
-      setState(() {
-        _startDate = picked;
-      });
-      // Small delay to ensure state is updated
-      Future.delayed(const Duration(milliseconds: 100), () {
-        _fetchOrders(); // Call fetch directly instead of goToPage
-      });
-    }
-  }
-
-  Future<void> _pickEndDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _endDate ?? DateTime.now(),
-      firstDate: _startDate ?? DateTime(2020),
-      lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Colors.tealAccent,
-              onPrimary: Colors.black,
-              surface: Color(0xFF001F1D),
-              onSurface: Colors.white,
+            setState(() {
+              _selectedSort = value;
+            });
+          },
+          selectedItemBuilder: (context) {
+            return const [
+              Row(
+                children: [
+                  Icon(Icons.south_rounded, color: Colors.tealAccent, size: 17),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Latest',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Icon(Icons.north_rounded, color: Colors.tealAccent, size: 17),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Earliest',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ];
+          },
+          items: const [
+            DropdownMenuItem<UsedAllOrderSortType>(
+              value: UsedAllOrderSortType.latest,
+              child: Row(
+                children: [
+                  Icon(Icons.south_rounded, color: Colors.tealAccent, size: 18),
+                  SizedBox(width: 10),
+                  Text(
+                    'Latest First',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          child: child!,
-        );
-      },
+            DropdownMenuItem<UsedAllOrderSortType>(
+              value: UsedAllOrderSortType.earliest,
+              child: Row(
+                children: [
+                  Icon(Icons.north_rounded, color: Colors.tealAccent, size: 18),
+                  SizedBox(width: 10),
+                  Text(
+                    'Earliest First',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
-
-    if (picked != null) {
-      setState(() {
-        _endDate = picked;
-      });
-      // Small delay to ensure state is updated
-      Future.delayed(const Duration(milliseconds: 100), () {
-        _fetchOrders(); // Call fetch directly instead of goToPage
-      });
-    }
   }
 
   void _clearFilters() {
@@ -893,6 +837,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
       _searchController.clear();
       _startDate = null;
       _endDate = null;
+      _selectedSort = UsedAllOrderSortType.latest;
     });
     _currentPage = 1; // Reset to first page
     _fetchOrders(); // Fetch immediately
@@ -1418,6 +1363,34 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
                             ),
                           ),
                         ),
+
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          IconButton(
+                            onPressed: _pickDateRange,
+                            icon: Icon(
+                              Icons.calendar_month_rounded,
+                              color: _startDate != null && _endDate != null
+                                  ? Colors.tealAccent
+                                  : Colors.white70,
+                            ),
+                          ),
+                          if (_startDate != null && _endDate != null)
+                            Positioned(
+                              right: 9,
+                              top: 9,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Colors.redAccent,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -1435,8 +1408,8 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
                         ? _buildEmpty()
                         : ListView.builder(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            itemCount: _orders.length,
-                            itemBuilder: (_, i) => _orderCard(_orders[i]),
+                            itemCount: _sortedOrders.length,
+                            itemBuilder: (_, i) => _orderCard(_sortedOrders[i]),
                           ),
                   ),
                   _buildPaginationControls(),
