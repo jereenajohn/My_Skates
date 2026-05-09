@@ -284,7 +284,7 @@ class _UserMenuPageState extends State<UserMenuPage>
                     _coachHeader(),
                     const SizedBox(height: 18),
                     // _quickActionCard(),
-                    // const SizedBox(height: 20),
+                    // const SizedBox(height: 20), 
                     _menuGrid(),
                     const SizedBox(height: 24),
                     _reportCard(),

@@ -30,6 +30,15 @@ class _ReturnRefundProductsScreenState
   DateTime? startDate;
   DateTime? endDate;
 
+  final List<String> refundStatusChoices = const [
+    "pending",
+    "approved",
+    "rejected",
+    "Waiting For Approval",
+  ];
+
+  final Set<int> updatingRefundIds = {};
+
   // Controllers
   final TextEditingController searchController = TextEditingController();
   final TextEditingController startDateController = TextEditingController();
@@ -64,6 +73,95 @@ class _ReturnRefundProductsScreenState
         fetchRefundProducts(loadMore: true);
       }
     }
+  }
+
+  Future<void> updateRefundStatus({
+    required int refundId,
+    required String status,
+  }) async {
+    if (updatingRefundIds.contains(refundId)) return;
+
+    setState(() {
+      updatingRefundIds.add(refundId);
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        _showSnackBar("Authentication token missing", isError: true);
+        return;
+      }
+
+      final uri = Uri.parse("$api/api/myskates/msk/refund/$refundId/");
+
+      print("UPDATE REFUND STATUS URL: $uri");
+      print("UPDATE REFUND STATUS BODY: ${jsonEncode({"status": status})}");
+
+      final response = await http.put(
+        uri,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({"status": status}),
+      );
+
+      print("UPDATE REFUND STATUS CODE: ${response.statusCode}");
+      print("UPDATE REFUND STATUS RESPONSE: ${response.body}");
+
+      final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+
+      if (response.statusCode == 200 || response.statusCode == 202) {
+        final message =
+            decoded["message"]?.toString() ??
+            "Refund status updated successfully";
+
+        setState(() {
+          refundProducts = refundProducts.map((refund) {
+            if (refund.id == refundId) {
+              return refund.copyWith(status: status);
+            }
+            return refund;
+          }).toList();
+        });
+
+        _showSnackBar(message);
+      } else {
+        _showSnackBar(
+          decoded["message"]?.toString() ??
+              decoded["error"]?.toString() ??
+              "Failed to update refund status",
+          isError: true,
+        );
+      }
+    } catch (e) {
+      print("ERROR UPDATING REFUND STATUS: $e");
+      _showSnackBar(
+        "Something went wrong while updating status",
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          updatingRefundIds.remove(refundId);
+        });
+      }
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.redAccent : const Color(0xFF00AFA5),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   Future<void> fetchRefundProducts({bool loadMore = false}) async {
@@ -140,6 +238,7 @@ class _ReturnRefundProductsScreenState
                   .map((item) => RefundProduct.fromJson(item))
                   .toList();
             }
+            currentPage = decoded["current_page"] ?? currentPage;
             totalPages = decoded["total_pages"] ?? 1;
             totalCount = decoded["count"] ?? 0;
             isLoading = false;
@@ -229,11 +328,11 @@ class _ReturnRefundProductsScreenState
       case 'pending':
         return Colors.orange;
       case 'approved':
-      case 'completed':
         return Colors.green;
       case 'rejected':
-      case 'cancelled':
         return Colors.red;
+      case 'waiting for approval':
+        return Colors.blueAccent;
       default:
         return Colors.grey;
     }
@@ -245,15 +344,218 @@ class _ReturnRefundProductsScreenState
         return "Pending";
       case 'approved':
         return "Approved";
-      case 'completed':
-        return "Completed";
       case 'rejected':
         return "Rejected";
-      case 'cancelled':
-        return "Cancelled";
+      case 'waiting for approval':
+        return "Waiting For Approval";
       default:
         return status;
     }
+  }
+
+  Future<void> _showStatusUpdateSheet(RefundProduct refund) async {
+    final selectedStatus = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF001F1D),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  "Update Request Status",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "Order #${refund.orderNo}",
+                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                ),
+                const SizedBox(height: 18),
+
+                ...refundStatusChoices.map((status) {
+                  final bool isSelected =
+                      refund.status.toLowerCase() == status.toLowerCase();
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? _getStatusColor(status).withOpacity(0.18)
+                          : Colors.white.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isSelected
+                            ? _getStatusColor(status).withOpacity(0.7)
+                            : Colors.white12,
+                      ),
+                    ),
+                    child: ListTile(
+                      onTap: () => Navigator.pop(context, status),
+                      leading: CircleAvatar(
+                        radius: 17,
+                        backgroundColor: _getStatusColor(
+                          status,
+                        ).withOpacity(0.18),
+                        child: Icon(
+                          isSelected
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          color: _getStatusColor(status),
+                          size: 19,
+                        ),
+                      ),
+                      title: Text(
+                        _getStatusLabel(status),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? const Text(
+                              "Current",
+                              style: TextStyle(
+                                color: Colors.tealAccent,
+                                fontSize: 12,
+                              ),
+                            )
+                          : null,
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selectedStatus == null) return;
+
+    if (selectedStatus.toLowerCase() == refund.status.toLowerCase()) {
+      return;
+    }
+
+    await updateRefundStatus(refundId: refund.id, status: selectedStatus);
+  }
+
+ Widget _buildExchangeVariantDetails(RefundProduct refund) {
+  final details = refund.exchangeVariantDetails;
+
+  if (details == null || refund.remark.toLowerCase() != "exchange") {
+    return const SizedBox.shrink();
+  }
+
+  return Container(
+    margin: const EdgeInsets.only(top: 12),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.06),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.white.withOpacity(0.10)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Exchange Item Needed",
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 6),
+
+        Text(
+          details.name,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+
+        const SizedBox(height: 6),
+
+        Row(
+          children: [
+            // Text(
+            //   "Variant ID: ${details.id}",
+            //   style: const TextStyle(
+            //     color: Colors.white54,
+            //     fontSize: 11,
+            //   ),
+            // ),
+            // const SizedBox(width: 12),
+            Text(
+              "Stock: ${details.stock}",
+              style: TextStyle(
+                color: details.stock > 0 ? Colors.greenAccent : Colors.redAccent,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+  Widget _exchangeInfoRow({
+    required String label,
+    required String value,
+    Color valueColor = Colors.white70,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white54,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: TextStyle(
+            color: valueColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
   }
 
   Widget _buildShimmerCard() {
@@ -796,7 +1098,7 @@ class _ReturnRefundProductsScreenState
               ),
             ],
           ),
-
+          _buildExchangeVariantDetails(refund),
           const SizedBox(height: 8),
 
           // Request Date
@@ -809,6 +1111,48 @@ class _ReturnRefundProductsScreenState
                 style: const TextStyle(color: Colors.white38, fontSize: 11),
               ),
             ],
+          ),
+
+          const SizedBox(height: 12),
+
+          SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: ElevatedButton.icon(
+              onPressed: updatingRefundIds.contains(refund.id)
+                  ? null
+                  : () => _showStatusUpdateSheet(refund),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00AFA5),
+                disabledBackgroundColor: Colors.white12,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: updatingRefundIds.contains(refund.id)
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.edit_note_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+              label: Text(
+                updatingRefundIds.contains(refund.id)
+                    ? "Updating..."
+                    : "Update Status",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -981,6 +1325,8 @@ class RefundProduct {
   final String customerName;
   final int customerId;
   final DateTime requestDate;
+  final int? exchangeVariant;
+  final ExchangeVariantDetails? exchangeVariantDetails;
 
   RefundProduct({
     required this.id,
@@ -1000,7 +1346,54 @@ class RefundProduct {
     required this.customerName,
     required this.customerId,
     required this.requestDate,
+    required this.exchangeVariant,
+    required this.exchangeVariantDetails,
   });
+
+  RefundProduct copyWith({
+    int? id,
+    int? orderId,
+    String? orderNo,
+    int? productId,
+    String? productTitle,
+    String? productImage,
+    int? variantId,
+    String? variantLabel,
+    int? quantity,
+    double? amount,
+    String? refundType,
+    String? remark,
+    String? reason,
+    String? status,
+    String? customerName,
+    int? customerId,
+    int? exchangeVariant,
+    ExchangeVariantDetails? exchangeVariantDetails,
+    DateTime? requestDate,
+  }) {
+    return RefundProduct(
+      id: id ?? this.id,
+      orderId: orderId ?? this.orderId,
+      orderNo: orderNo ?? this.orderNo,
+      productId: productId ?? this.productId,
+      productTitle: productTitle ?? this.productTitle,
+      productImage: productImage ?? this.productImage,
+      variantId: variantId ?? this.variantId,
+      variantLabel: variantLabel ?? this.variantLabel,
+      quantity: quantity ?? this.quantity,
+      amount: amount ?? this.amount,
+      refundType: refundType ?? this.refundType,
+      remark: remark ?? this.remark,
+      reason: reason ?? this.reason,
+      status: status ?? this.status,
+      customerName: customerName ?? this.customerName,
+      customerId: customerId ?? this.customerId,
+      exchangeVariant: exchangeVariant ?? this.exchangeVariant,
+      exchangeVariantDetails:
+          exchangeVariantDetails ?? this.exchangeVariantDetails,
+      requestDate: requestDate ?? this.requestDate,
+    );
+  }
 
   factory RefundProduct.fromJson(Map<String, dynamic> json) {
     return RefundProduct(
@@ -1023,6 +1416,30 @@ class RefundProduct {
       requestDate:
           DateTime.tryParse(json['created_at']?.toString() ?? '') ??
           DateTime.now(),
+      exchangeVariant: json["exchange_variant"],
+      exchangeVariantDetails: json["exchange_variant_details"] != null
+          ? ExchangeVariantDetails.fromJson(json["exchange_variant_details"])
+          : null,
+    );
+  }
+}
+
+class ExchangeVariantDetails {
+  final int id;
+  final String name;
+  final int stock;
+
+  ExchangeVariantDetails({
+    required this.id,
+    required this.name,
+    required this.stock,
+  });
+
+  factory ExchangeVariantDetails.fromJson(Map<String, dynamic> json) {
+    return ExchangeVariantDetails(
+      id: json["id"] ?? 0,
+      name: json["name"]?.toString() ?? "",
+      stock: json["stock"] ?? 0,
     );
   }
 }
