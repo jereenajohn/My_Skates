@@ -251,7 +251,7 @@ class _CoachSettingsState extends State<CoachSettings> {
                       _menuTile(
                         icon: Icons.inventory_2_outlined,
                         text: "Used product Orders",
-                        onTap: () => pushWithSlide(UsedProductOrdersPage()),
+                        onTap: () => pushWithSlide(CoachUsedProductOrdersPage()),
                       ),
 
                     if ("Product Review Approval".toLowerCase().contains(

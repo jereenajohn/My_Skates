@@ -7,6 +7,7 @@ import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/view_address.dart';
 import 'package:my_skates/COACH/add_bank_details.dart';
 import 'package:my_skates/COACH/bank_details_page.dart';
+import 'package:my_skates/COACH/used_product_orders_page.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/add_student_achievements.dart';
 import 'package:my_skates/STUDENTS/products.dart';
@@ -311,7 +312,7 @@ class _UserSettingsState extends State<UserSettings> {
                           Navigator.push(
                             context,
                             slideRightToLeftRoute(
-                              const UsedProductOrdersPage(),
+                              const CoachUsedProductOrdersPage(),
                             ), // ✅ same animation + no white
                           );
                         },
