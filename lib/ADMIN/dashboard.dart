@@ -9,6 +9,7 @@ import 'package:my_skates/ADMIN/add_company.dart';
 import 'package:my_skates/ADMIN/add_country.dart';
 import 'package:my_skates/ADMIN/add_coupon.dart';
 import 'package:my_skates/ADMIN/add_district.dart';
+import 'package:my_skates/ADMIN/add_offers.dart';
 import 'package:my_skates/ADMIN/add_payment_method.dart';
 import 'package:my_skates/ADMIN/add_product.dart';
 import 'package:my_skates/ADMIN/add_state.dart';
@@ -608,6 +609,14 @@ class _DashboardPageState extends State<DashboardPage> {
           title: "Company\nManagemnent",
           onTap: () {
             pushWithSlide(const AdminCompaniesPage());
+          },
+        ),
+
+          adminCard(
+          icon: Icons.chat,
+          title: "Add Offers",
+          onTap: () {
+            pushWithSlide(const AddOffers());
           },
         ),
       ],
