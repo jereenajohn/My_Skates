@@ -154,14 +154,14 @@ class UsedProductOrder {
   }
 }
 
-class UsedProductOrdersPage extends StatefulWidget {
-  const UsedProductOrdersPage({super.key});
+class CoachUsedProductOrdersPage extends StatefulWidget {
+  const CoachUsedProductOrdersPage({super.key});
 
   @override
-  State<UsedProductOrdersPage> createState() => _UsedProductOrdersPageState();
+  State<CoachUsedProductOrdersPage> createState() => _CoachUsedProductOrdersPageState();
 }
 
-class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
+class _CoachUsedProductOrdersPageState extends State<CoachUsedProductOrdersPage> {
   UsedOrderViewType selectedView = UsedOrderViewType.myOrders;
   UsedOrderSortType selectedSort = UsedOrderSortType.latest;
 
