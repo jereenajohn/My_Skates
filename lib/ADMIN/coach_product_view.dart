@@ -380,7 +380,11 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
             'image': c['image'] != null ? '$api${c['image']}' : "",
             'category_name': c['category_name'] ?? "",
             'price': priceString,
+            'discounted_price':
+                c['discounted_price']?.toString() ?? priceString,
+            'discount': c['discount']?.toString() ?? "0",
             'is_wishlisted': c['is_in_wishlist'] ?? false,
+            'offer_details': c['offer_details'],
           };
         }).toList();
 
@@ -832,7 +836,7 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
                                               color: Colors.white54,
                                               size: 20,
                                             ),
-                                            hintText: "Search ",
+                                            hintText: "Search",
                                             hintStyle: TextStyle(
                                               color: Colors.white54,
                                               fontSize: 14,
@@ -1290,6 +1294,52 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
     );
   }
 
+ Widget _offerBadge(Map<String, dynamic> p) {
+  final offer = p['offer_details'];
+
+  if (offer == null || offer is! Map || offer['is_active'] != true) {
+    return const SizedBox.shrink();
+  }
+
+  final String title = (offer['title'] ?? '').toString().trim();
+
+  if (title.isEmpty) {
+    return const SizedBox.shrink();
+  }
+
+  return ClipPath(
+    clipper: _ExactOfferRibbonClipper(),
+    child: Container(
+      height: 18,
+      width: 72,
+      padding: const EdgeInsets.fromLTRB(5, 0, 13, 0),
+      alignment: Alignment.centerLeft,
+      color: const Color.fromARGB(255, 55, 210, 194), // teal
+      child: Text(
+        _formatOfferText(title),
+        maxLines: 1,
+        overflow: TextOverflow.clip,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          fontFamily: 'Poppins',
+          height: 1,
+          letterSpacing: -0.4,
+        ),
+      ),
+    ),
+  );
+}
+
+String _formatOfferText(String title) {
+  return title
+      .toUpperCase()
+      .replaceAll('BUY ', 'B')
+      .replaceAll(' GET ', 'G')
+      .replaceAll(' FREE', 'FREE')
+      .replaceAll(' ', '');
+}
   Widget _productCard(Map<String, dynamic> p) {
     final bool isWishlisted = p['is_wishlisted'] == true;
 
@@ -1339,19 +1389,32 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
                         child: SizedBox(
                           height: 150,
                           width: double.infinity,
-                          child: Image.network(
-                            p['image'],
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const ColoredBox(
-                              color: Colors.white10,
-                              child: Center(
-                                child: Icon(
-                                  Icons.broken_image,
-                                  color: Colors.grey,
+                          child:
+                              p['image'] != null &&
+                                  p['image'].toString().isNotEmpty
+                              ? Image.network(
+                                  p['image'],
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      const ColoredBox(
+                                        color: Colors.white10,
+                                        child: Center(
+                                          child: Icon(
+                                            Icons.broken_image,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ),
+                                )
+                              : const ColoredBox(
+                                  color: Colors.white10,
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.image_not_supported_outlined,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ),
                         ),
                       ),
 
@@ -1373,8 +1436,11 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
                           ),
                         ),
                       ),
-
-                      // Wishlist button
+Positioned(
+  left: 0,
+  top: 12,
+  child: _offerBadge(p),
+),                      // Wishlist button
                       Positioned(
                         top: 8,
                         right: 8,
@@ -1607,4 +1673,39 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
       ),
     );
   }
+}
+class _OfferRibbonClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    const double cutWidth = 11;
+
+    return Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width - cutWidth, 0)
+      ..lineTo(size.width, size.height / 2)
+      ..lineTo(size.width - cutWidth, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
+class _ExactOfferRibbonClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    const double notchWidth = 10;
+
+    return Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width - notchWidth, size.height / 2)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
