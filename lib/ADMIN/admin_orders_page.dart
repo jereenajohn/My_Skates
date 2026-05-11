@@ -33,6 +33,7 @@ class OrderItem {
   final String? coachPhone;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String status;
 
   OrderItem({
     required this.id,
@@ -56,6 +57,7 @@ class OrderItem {
     this.coachPhone,
     required this.createdAt,
     required this.updatedAt,
+    required this.status,
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
@@ -79,6 +81,8 @@ class OrderItem {
       coachId: json['coach_id'],
       coachName: json['coach_name'],
       coachPhone: json['coach_phone'],
+      status:
+          json['status']?.toString() ?? json['order_status']?.toString() ?? '',
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),
     );
@@ -1004,22 +1008,44 @@ class _Admin_order_pageState extends State<Admin_order_page> {
     );
   }
 
+  // Color _getStatusColor(String status) {
+  //   switch (status.toUpperCase()) {
+  //     case 'PLACED':
+  //       return Colors.orange;
+  //     case 'PAID':
+  //       return Colors.blue;
+  //     case 'SHIPPED':
+  //       return Colors.purple;
+  //     case 'DELIVERED':
+  //       return Colors.green;
+  //     case 'CANCELLED':
+  //       return Colors.red;
+  //     default:
+  //       return Colors.grey;
+  //   }
+  // }
+
+
   Color _getStatusColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'PLACED':
-        return Colors.orange;
-      case 'PAID':
-        return Colors.blue;
-      case 'SHIPPED':
-        return Colors.purple;
-      case 'DELIVERED':
-        return Colors.green;
-      case 'CANCELLED':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
+  switch (status.toUpperCase()) {
+    case 'PLACED':
+      return Colors.orange;
+    case 'CONFIRMED':
+      return Colors.blue;
+    case 'PROCESSING':
+      return Colors.purple;
+    case 'PAID':
+      return Colors.blue;
+    case 'SHIPPED':
+      return Colors.indigo;
+    case 'DELIVERED':
+      return Colors.green;
+    case 'CANCELLED':
+      return Colors.red;
+    default:
+      return Colors.grey;
   }
+}
 
   // void _navigateToOrderDetail(Order order) {
   //   Navigator.push(
@@ -1101,8 +1127,13 @@ class _Admin_order_pageState extends State<Admin_order_page> {
 
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => OrderDetailPage(order: order)),
-        );
+          MaterialPageRoute(
+            builder: (_) =>
+                OrderDetailPage(order: order, selectedItemId: item.id),
+          ),
+        ).then((result) {
+          fetchOrders();
+        });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2330,188 +2361,332 @@ class _Admin_order_pageState extends State<Admin_order_page> {
     );
   }
 
+  // Widget _buildBoughtProductCard(BoughtProductItem item) {
+  //   return GestureDetector(
+  //     onTap: () => _navigateToBoughtProductOrderDetail(item),
+  //     child: Container(
+  //       margin: const EdgeInsets.only(bottom: 12),
+  //       child: _glassWrap(
+  //         padding: const EdgeInsets.all(12),
+  //         child: Column(
+  //           crossAxisAlignment: CrossAxisAlignment.start,
+  //           children: [
+  //             Row(
+  //               crossAxisAlignment: CrossAxisAlignment.start,
+  //               children: [
+  //                 Expanded(
+  //                   child: Text(
+  //                     'Order #${item.orderNo}',
+  //                     style: const TextStyle(
+  //                       color: Colors.white,
+  //                       fontSize: 14,
+  //                       fontWeight: FontWeight.w600,
+  //                     ),
+  //                     maxLines: 2,
+  //                     overflow: TextOverflow.ellipsis,
+  //                   ),
+  //                 ),
+  //                 const SizedBox(width: 8),
+  //                 Container(
+  //                   padding: const EdgeInsets.symmetric(
+  //                     horizontal: 10,
+  //                     vertical: 5,
+  //                   ),
+  //                   decoration: BoxDecoration(
+  //                     color: _getStatusColor(item.orderStatus).withOpacity(0.2),
+  //                     borderRadius: BorderRadius.circular(16),
+  //                     border: Border.all(
+  //                       color: _getStatusColor(
+  //                         item.orderStatus,
+  //                       ).withOpacity(0.5),
+  //                       width: 0.5,
+  //                     ),
+  //                   ),
+  //                   child: Text(
+  //                     item.orderStatus,
+  //                     style: TextStyle(
+  //                       color: _getStatusColor(item.orderStatus),
+  //                       fontSize: 11,
+  //                       fontWeight: FontWeight.w500,
+  //                     ),
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+
+  //             const SizedBox(height: 12),
+
+  //             Row(
+  //               children: [
+  //                 SizedBox(
+  //                   width: 58,
+  //                   height: 58,
+  //                   child: ClipRRect(
+  //                     borderRadius: BorderRadius.circular(10),
+  //                     child: _buildBoughtProductImage(item),
+  //                   ),
+  //                 ),
+
+  //                 const SizedBox(width: 12),
+
+  //                 Expanded(
+  //                   child: Column(
+  //                     crossAxisAlignment: CrossAxisAlignment.start,
+  //                     children: [
+  //                       Text(
+  //                         item.productTitle,
+  //                         style: const TextStyle(
+  //                           color: Colors.white,
+  //                           fontSize: 15,
+  //                           fontWeight: FontWeight.w600,
+  //                         ),
+  //                         maxLines: 1,
+  //                         overflow: TextOverflow.ellipsis,
+  //                       ),
+
+  //                       const SizedBox(height: 5),
+
+  //                       Text(
+  //                         'Qty: ${item.quantity}',
+  //                         style: const TextStyle(
+  //                           color: Colors.white70,
+  //                           fontSize: 12,
+  //                         ),
+  //                       ),
+
+  //                       if (item.productUserType != null &&
+  //                           item.productUserType!.isNotEmpty) ...[
+  //                         const SizedBox(height: 4),
+  //                         Text(
+  //                           item.productUserType == 'coach'
+  //                               ? 'Coach Product'
+  //                               : 'Admin Product',
+  //                           style: TextStyle(
+  //                             color: item.productUserType == 'coach'
+  //                                 ? Colors.tealAccent
+  //                                 : Colors.orangeAccent,
+  //                             fontSize: 11,
+  //                             fontWeight: FontWeight.w500,
+  //                           ),
+  //                         ),
+  //                       ],
+
+  //                       const SizedBox(height: 4),
+
+  //                       Text(
+  //                         DateFormat(
+  //                           'dd MMM yyyy, hh:mm a',
+  //                         ).format(item.orderCreatedAt),
+  //                         style: const TextStyle(
+  //                           color: Colors.white38,
+  //                           fontSize: 11,
+  //                         ),
+  //                       ),
+  //                     ],
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+
+  //             const Divider(color: Colors.white24, height: 24),
+
+  //             Row(
+  //               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //               children: [
+  //                 const Text(
+  //                   'Tap to view details',
+  //                   style: TextStyle(color: Colors.white38, fontSize: 12),
+  //                 ),
+
+  //                 GestureDetector(
+  //                   onTap: () {
+  //                     _openInvoice(item.orderId);
+  //                   },
+  //                   child: Container(
+  //                     padding: const EdgeInsets.symmetric(
+  //                       horizontal: 12,
+  //                       vertical: 7,
+  //                     ),
+  //                     decoration: BoxDecoration(
+  //                       color: Colors.tealAccent.withOpacity(0.15),
+  //                       borderRadius: BorderRadius.circular(12),
+  //                       border: Border.all(
+  //                         color: Colors.tealAccent.withOpacity(0.4),
+  //                       ),
+  //                     ),
+  //                     child: const Row(
+  //                       mainAxisSize: MainAxisSize.min,
+  //                       children: [
+  //                         Icon(
+  //                           Icons.receipt_long_rounded,
+  //                           color: Colors.tealAccent,
+  //                           size: 15,
+  //                         ),
+  //                         SizedBox(width: 6),
+  //                         Text(
+  //                           'Invoice',
+  //                           style: TextStyle(
+  //                             color: Colors.tealAccent,
+  //                             fontSize: 12,
+  //                             fontWeight: FontWeight.w600,
+  //                           ),
+  //                         ),
+  //                       ],
+  //                     ),
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+  //           ],
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
+
   Widget _buildBoughtProductCard(BoughtProductItem item) {
-    return GestureDetector(
-      onTap: () => _navigateToBoughtProductOrderDetail(item),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        child: _glassWrap(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  return GestureDetector(
+    onTap: () => _navigateToBoughtProductOrderDetail(item),
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.10)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.22),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Order #${item.orderNo}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+              Expanded(
+                child: Text(
+                  'Order #${item.orderNo}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(item.orderStatus).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: _getStatusColor(
-                          item.orderStatus,
-                        ).withOpacity(0.5),
-                        width: 0.5,
-                      ),
-                    ),
-                    child: Text(
-                      item.orderStatus,
-                      style: TextStyle(
-                        color: _getStatusColor(item.orderStatus),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  SizedBox(
-                    width: 58,
-                    height: 58,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: _buildBoughtProductImage(item),
-                    ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: _getStatusColor(item.orderStatus).withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _getStatusColor(item.orderStatus).withOpacity(0.35),
                   ),
-
-                  const SizedBox(width: 12),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.productTitle,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-
-                        const SizedBox(height: 5),
-
-                        Text(
-                          'Qty: ${item.quantity}',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
-                        ),
-
-                        if (item.productUserType != null &&
-                            item.productUserType!.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            item.productUserType == 'coach'
-                                ? 'Coach Product'
-                                : 'Admin Product',
-                            style: TextStyle(
-                              color: item.productUserType == 'coach'
-                                  ? Colors.tealAccent
-                                  : Colors.orangeAccent,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-
-                        const SizedBox(height: 4),
-
-                        Text(
-                          DateFormat(
-                            'dd MMM yyyy, hh:mm a',
-                          ).format(item.orderCreatedAt),
-                          style: const TextStyle(
-                            color: Colors.white38,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
+                ),
+                child: Text(
+                  item.orderStatus,
+                  style: TextStyle(
+                    color: _getStatusColor(item.orderStatus),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
                   ),
-                ],
-              ),
-
-              const Divider(color: Colors.white24, height: 24),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Tap to view details',
-                    style: TextStyle(color: Colors.white38, fontSize: 12),
-                  ),
-
-                  GestureDetector(
-                    onTap: () {
-                      _openInvoice(item.orderId);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.tealAccent.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.tealAccent.withOpacity(0.4),
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.receipt_long_rounded,
-                            color: Colors.tealAccent,
-                            size: 15,
-                          ),
-                          SizedBox(width: 6),
-                          Text(
-                            'Invoice',
-                            style: TextStyle(
-                              color: Colors.tealAccent,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
-        ),
+
+          const SizedBox(height: 14),
+
+          Row(
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: _buildBoughtProductImage(item),
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.productTitle,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    if (item.variantLabel.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        item.variantLabel,
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+
+                    const SizedBox(height: 4),
+
+                    Text(
+                      'Qty: ${item.quantity}',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+
+                    if (item.productUserType != null &&
+                        item.productUserType!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        item.productUserType == 'coach'
+                            ? 'Coach Product'
+                            : 'Admin Product',
+                        style: TextStyle(
+                          color: item.productUserType == 'coach'
+                              ? Colors.tealAccent
+                              : Colors.orangeAccent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildProductImage(OrderItem item) {
     if (item.variantImage != null) {
@@ -2585,14 +2760,120 @@ class _Admin_order_pageState extends State<Admin_order_page> {
 
 // ==================== ORDER DETAIL PAGE ====================
 
+class RefundRequestModel {
+  final int id;
+  final int item;
+  final int? exchangeVariant;
+  final String reason;
+  final String reasonType;
+  final String remark;
+  final String status;
+  final int? createdBy;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  RefundRequestModel({
+    required this.id,
+    required this.item,
+    this.exchangeVariant,
+    required this.reason,
+    required this.reasonType,
+    required this.remark,
+    required this.status,
+    this.createdBy,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory RefundRequestModel.fromJson(Map<String, dynamic> json) {
+    return RefundRequestModel(
+      id: json['id'] ?? 0,
+      item: json['item'] ?? 0,
+      exchangeVariant: json['exchange_variant'],
+      reason: json['reason']?.toString() ?? '',
+      reasonType: json['reason_type']?.toString() ?? '',
+      remark: json['remark']?.toString() ?? '',
+      status: json['status']?.toString() ?? '',
+      createdBy: json['created_by'],
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
+      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? ''),
+    );
+  }
+}
+
+class ExchangeVariant {
+  final int id;
+  final String label;
+  final String? image;
+  final String? productTitle;
+  final String? productImage;
+  final String? sku;
+  final String? variantPrice;
+  final String? discountedPrice;
+  final String? variantDiscount;
+  final String? shippingCharge;
+  final String? coachName;
+
+  ExchangeVariant({
+    required this.id,
+    required this.label,
+    this.image,
+    this.productTitle,
+    this.productImage,
+    this.sku,
+    this.variantPrice,
+    this.discountedPrice,
+    this.variantDiscount,
+    this.shippingCharge,
+    this.coachName,
+  });
+
+  factory ExchangeVariant.fromJson(Map<String, dynamic> json) {
+    final int parsedId =
+        json['id'] ?? json['variant_id'] ?? json['variant'] ?? 0;
+
+    final String parsedLabel =
+        json['variant_label']?.toString().trim().isNotEmpty == true
+        ? json['variant_label'].toString()
+        : json['label']?.toString().trim().isNotEmpty == true
+        ? json['label'].toString()
+        : json['name']?.toString().trim().isNotEmpty == true
+        ? json['name'].toString()
+        : json['variant_name']?.toString().trim().isNotEmpty == true
+        ? json['variant_name'].toString()
+        : 'Variant #$parsedId';
+
+    return ExchangeVariant(
+      id: parsedId,
+      label: parsedLabel,
+      image: json['variant_image']?.toString() ?? json['image']?.toString(),
+      productTitle: json['product_title']?.toString(),
+      productImage: json['product_image']?.toString(),
+      sku: json['sku']?.toString(),
+      variantPrice:
+          json['variant_price']?.toString() ??
+          json['price']?.toString() ??
+          json['product_price']?.toString(),
+      discountedPrice: json['discounted_price']?.toString(),
+      variantDiscount: json['variant_discount']?.toString(),
+      shippingCharge:
+          json['product_shipping_charge']?.toString() ??
+          json['shipping_charge']?.toString(),
+      coachName: json['coach_name']?.toString(),
+    );
+  }
+}
+
 class OrderDetailPage extends StatefulWidget {
   final Order order;
   final bool isCoachProductOrder;
+  final int? selectedItemId;
 
   const OrderDetailPage({
     super.key,
     required this.order,
     this.isCoachProductOrder = false,
+    this.selectedItemId,
   });
 
   @override
@@ -2607,11 +2888,96 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   Map<int, bool> _reviewCheckedStatus = {};
   Map<int, ReviewModel?> _existingReviews = {}; // Store existing reviews
 
+  final TextEditingController _customReasonController = TextEditingController();
+
+  bool _isSubmittingReturnExchange = false;
+  bool _isLoadingRefunds = false;
+  bool _isLoadingExchangeVariants = false;
+
+  String? _selectedRefundRemark;
+  String? _selectedReasonType;
+  String? _returnExchangeErrorMessage;
+  String? _exchangeVariantErrorMessage;
+
+  OrderItem? _selectedReturnItem;
+  ExchangeVariant? _selectedExchangeVariant;
+  List<ExchangeVariant> _exchangeVariants = [];
+
+  final Map<int, RefundRequestModel> _refundByItemId = {};
+
+  final List<Map<String, String>> _refundRemarkOptions = [
+    {'value': 'return', 'label': 'Return'},
+    {'value': 'exchange', 'label': 'Exchange'},
+    {'value': 'cod_return', 'label': 'COD Return'},
+  ];
+
+  final List<Map<String, String>> _refundReasonTypeOptions = [
+    {'value': 'defective', 'label': 'Defective Product'},
+    {'value': 'wrong_item', 'label': 'Wrong Item Delivered'},
+    {'value': 'no_longer_needed', 'label': 'No Longer Needed'},
+    {'value': 'other', 'label': 'Other'},
+  ];
+
+  bool get _isCashOnDeliveryOrder {
+    final method = _order.paymentMethod.trim().toUpperCase();
+    return method == 'COD' ||
+        method == 'CASH ON DELIVERY' ||
+        method == 'CASH_ON_DELIVERY';
+  }
+
+  List<Map<String, String>> get _availableRefundRemarkOptions {
+    if (_isCashOnDeliveryOrder) {
+      return _refundRemarkOptions
+          .where((option) => option['value'] != 'return')
+          .toList();
+    }
+
+    return _refundRemarkOptions
+        .where((option) => option['value'] != 'cod_return')
+        .toList();
+  }
+
+  OrderItem get _openedItem {
+    if (widget.selectedItemId != null) {
+      final matched = _order.items.where(
+        (item) => item.id == widget.selectedItemId,
+      );
+      if (matched.isNotEmpty) return matched.first;
+    }
+
+    return _order.items.isNotEmpty
+        ? _order.items.first
+        : throw Exception('No order item found');
+  }
+
+  RefundRequestModel? get _openedItemRefund {
+    if (_order.items.isEmpty) return null;
+    return _refundByItemId[_openedItem.id];
+  }
+
+  bool get _canRequestReturnExchange {
+    if (_order.items.isEmpty) return false;
+    if (widget.isCoachProductOrder) return false;
+
+    final status = _openedItem.status.trim().toUpperCase().isNotEmpty
+        ? _openedItem.status.trim().toUpperCase()
+        : _order.status.trim().toUpperCase();
+
+    final alreadyRequested = _refundByItemId.containsKey(_openedItem.id);
+
+    return status == 'DELIVERED' && !alreadyRequested;
+  }
+
   @override
   void initState() {
     super.initState();
     _order = widget.order;
+
     _fetchOrderDetail();
+
+    if (!widget.isCoachProductOrder) {
+      _fetchRefundRequests();
+    }
   }
 
   Future<void> _fetchOrderDetail() async {
@@ -2658,6 +3024,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           _isRefreshing = false;
         });
 
+        await _fetchRefundRequests();
+
         // After order is loaded, check reviews for all items
         if (!widget.isCoachProductOrder) {
           await _checkAllReviews();
@@ -2674,6 +3042,162 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       setState(() {
         _fetchError = e.toString();
         _isRefreshing = false;
+      });
+    }
+  }
+
+  Future<void> _fetchRefundRequests() async {
+    if (widget.isCoachProductOrder) return;
+
+    setState(() {
+      _isLoadingRefunds = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        setState(() {
+          _isLoadingRefunds = false;
+        });
+        return;
+      }
+
+      final response = await http.get(
+        Uri.parse('$api/api/myskates/msk/refund/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print("REFUND LIST API STATUS: ${response.statusCode}");
+      print("REFUND LIST API RESPONSE: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+
+        List<dynamic> refundList = [];
+
+        if (decoded is Map<String, dynamic>) {
+          if (decoded['data'] is List) {
+            refundList = decoded['data'];
+          } else if (decoded['results'] is List) {
+            refundList = decoded['results'];
+          } else if (decoded['results'] is Map<String, dynamic> &&
+              decoded['results']['data'] is List) {
+            refundList = decoded['results']['data'];
+          }
+        } else if (decoded is List) {
+          refundList = decoded;
+        }
+
+        final Map<int, RefundRequestModel> temp = {};
+
+        for (final item in refundList) {
+          if (item is Map<String, dynamic>) {
+            final refund = RefundRequestModel.fromJson(item);
+            if (refund.item > 0) {
+              temp[refund.item] = refund;
+            }
+          }
+        }
+
+        setState(() {
+          _refundByItemId
+            ..clear()
+            ..addAll(temp);
+          _isLoadingRefunds = false;
+        });
+      } else {
+        setState(() {
+          _isLoadingRefunds = false;
+        });
+      }
+    } catch (e) {
+      print("ERROR FETCHING REFUNDS: $e");
+      setState(() {
+        _isLoadingRefunds = false;
+      });
+    }
+  }
+
+  Future<void> _fetchExchangeVariants({
+    required OrderItem item,
+    required StateSetter bottomSheetSetState,
+  }) async {
+    bottomSheetSetState(() {
+      _isLoadingExchangeVariants = true;
+      _exchangeVariantErrorMessage = null;
+      _exchangeVariants = [];
+      _selectedExchangeVariant = null;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        bottomSheetSetState(() {
+          _isLoadingExchangeVariants = false;
+          _exchangeVariantErrorMessage = 'Authentication token missing';
+        });
+        return;
+      }
+
+      final response = await http.get(
+        Uri.parse(
+          '$api/api/myskates/products/exchange/variant/${item.product}/',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print("EXCHANGE VARIANT API STATUS: ${response.statusCode}");
+      print("EXCHANGE VARIANT RESPONSE: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+
+        List<dynamic> variantList = [];
+
+        if (decoded is List) {
+          variantList = decoded;
+        } else if (decoded is Map<String, dynamic>) {
+          if (decoded['data'] is List) {
+            variantList = decoded['data'];
+          } else if (decoded['results'] is List) {
+            variantList = decoded['results'];
+          }
+        }
+
+        final variants = variantList
+            .whereType<Map<String, dynamic>>()
+            .map((e) => ExchangeVariant.fromJson(e))
+            .where((variant) => variant.id != item.variantId)
+            .toList();
+
+        bottomSheetSetState(() {
+          _exchangeVariants = variants;
+          _isLoadingExchangeVariants = false;
+          if (variants.isEmpty) {
+            _exchangeVariantErrorMessage = 'No exchange variants available';
+          }
+        });
+      } else {
+        bottomSheetSetState(() {
+          _isLoadingExchangeVariants = false;
+          _exchangeVariantErrorMessage =
+              'Failed to load variants: ${response.statusCode}';
+        });
+      }
+    } catch (e) {
+      bottomSheetSetState(() {
+        _isLoadingExchangeVariants = false;
+        _exchangeVariantErrorMessage = e.toString();
       });
     }
   }
@@ -2781,6 +3305,176 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           _showReviewDialog(item);
           break; // Only show one popup at a time
         }
+      }
+    }
+  }
+
+  String _getRefundLabel(String value, List<Map<String, String>> options) {
+    final matched = options.where((option) => option['value'] == value);
+    if (matched.isEmpty) return value;
+    return matched.first['label'] ?? value;
+  }
+
+  void _resetReturnExchangeForm() {
+    _selectedReturnItem = _canRequestReturnExchange ? _openedItem : null;
+    _selectedRefundRemark = null;
+    _selectedReasonType = null;
+    _selectedExchangeVariant = null;
+    _exchangeVariants = [];
+    _exchangeVariantErrorMessage = null;
+    _customReasonController.clear();
+    _isSubmittingReturnExchange = false;
+    _isLoadingExchangeVariants = false;
+    _returnExchangeErrorMessage = null;
+  }
+
+  Future<void> _submitReturnExchangeRequest(
+    StateSetter bottomSheetSetState,
+  ) async {
+    if (_selectedReturnItem == null) {
+      bottomSheetSetState(() {
+        _returnExchangeErrorMessage = 'Please select a product';
+      });
+      return;
+    }
+
+    if (_selectedRefundRemark == null) {
+      bottomSheetSetState(() {
+        _returnExchangeErrorMessage = 'Please select return or exchange';
+      });
+      return;
+    }
+
+    if (_selectedReasonType == null) {
+      bottomSheetSetState(() {
+        _returnExchangeErrorMessage = 'Please select a reason';
+      });
+      return;
+    }
+
+    final customReason = _customReasonController.text.trim();
+
+    if (_selectedReasonType == 'other' && customReason.isEmpty) {
+      bottomSheetSetState(() {
+        _returnExchangeErrorMessage = 'Please enter reason';
+      });
+      return;
+    }
+
+    if (_selectedRefundRemark == 'exchange' &&
+        _selectedExchangeVariant == null) {
+      bottomSheetSetState(() {
+        _returnExchangeErrorMessage = 'Please select exchange variant';
+      });
+      return;
+    }
+
+    bottomSheetSetState(() {
+      _isSubmittingReturnExchange = true;
+      _returnExchangeErrorMessage = null;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        bottomSheetSetState(() {
+          _isSubmittingReturnExchange = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authentication token missing')),
+        );
+        return;
+      }
+
+      final Map<String, dynamic> requestBody = {
+        'item': _selectedReturnItem!.id,
+        'product': _selectedReturnItem!.product,
+        'remark': _selectedRefundRemark,
+        'reason_type': _selectedReasonType,
+        'reason': _selectedReasonType == 'other'
+            ? customReason
+            : _getRefundLabel(_selectedReasonType!, _refundReasonTypeOptions),
+      };
+
+      if (_selectedRefundRemark == 'exchange' &&
+          _selectedExchangeVariant != null) {
+        requestBody['exchange_variant'] = _selectedExchangeVariant!.id;
+      }
+
+      final response = await http.post(
+        Uri.parse('$api/api/myskates/msk/refund/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print("RETURN EXCHANGE API STATUS: ${response.statusCode}");
+      print("RETURN EXCHANGE REQUEST BODY: ${jsonEncode(requestBody)}");
+      print("RETURN EXCHANGE RESPONSE: ${response.body}");
+
+      Map<String, dynamic>? decoded;
+
+      try {
+        final parsed = jsonDecode(response.body);
+        if (parsed is Map<String, dynamic>) {
+          decoded = parsed;
+        }
+      } catch (_) {
+        decoded = null;
+      }
+
+      final bool apiStatus = decoded?['status'] == true;
+
+      final String responseMessage =
+          decoded?['message']?.toString() ??
+          decoded?['error']?.toString() ??
+          decoded?['detail']?.toString() ??
+          'Something went wrong';
+
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          apiStatus) {
+        if (!mounted) return;
+
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Return/Exchange request submitted successfully',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        await _fetchRefundRequests();
+        await _fetchOrderDetail();
+      } else {
+        if (!mounted) return;
+
+        bottomSheetSetState(() {
+          _returnExchangeErrorMessage = responseMessage;
+        });
+      }
+    } catch (e) {
+      print("ERROR SUBMITTING RETURN EXCHANGE REQUEST: $e");
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      if (mounted) {
+        bottomSheetSetState(() {
+          _isSubmittingReturnExchange = false;
+        });
       }
     }
   }
@@ -3226,6 +3920,548 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildReturnExchangeStatusCard() {
+    final refund = _openedItemRefund;
+
+    if (refund == null) return const SizedBox.shrink();
+
+    Color statusColor;
+
+    switch (refund.status.toLowerCase()) {
+      case 'approved':
+        statusColor = Colors.green;
+        break;
+      case 'rejected':
+        statusColor = Colors.redAccent;
+        break;
+      default:
+        statusColor = Colors.orangeAccent;
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: statusColor.withOpacity(0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.assignment_turned_in_outlined,
+            color: statusColor,
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${refund.remark.toUpperCase()} request already submitted',
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'Status: ${refund.status}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                if (refund.reason.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Reason: ${refund.reason}',
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReturnExchangeButton() {
+    if (_isLoadingRefunds) {
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.10)),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                color: Colors.tealAccent,
+                strokeWidth: 2,
+              ),
+            ),
+            SizedBox(width: 10),
+            Text(
+              'Checking return/exchange status...',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_openedItemRefund != null) {
+      return _buildReturnExchangeStatusCard();
+    }
+
+    if (!_canRequestReturnExchange) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 12),
+      child: ElevatedButton.icon(
+        onPressed: _showReturnExchangeBottomSheet,
+        icon: const Icon(Icons.assignment_return_outlined, size: 20),
+        label: const Text(
+          'Return / Exchange',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.tealAccent,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          minimumSize: const Size(double.infinity, 54),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showReturnExchangeBottomSheet() {
+    _resetReturnExchangeForm();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, bottomSheetSetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.88,
+                ),
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 22),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF071412),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 44,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        'Return / Exchange Request',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _openedItem.productTitle,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (_openedItem.variantLabel.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          _openedItem.variantLabel,
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 18),
+
+                      const Text(
+                        'Select Type',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: _availableRefundRemarkOptions.map((option) {
+                          final selected =
+                              _selectedRefundRemark == option['value'];
+
+                          return ChoiceChip(
+                            selected: selected,
+                            label: Text(option['label']!),
+                            selectedColor: Colors.tealAccent,
+                            backgroundColor: Colors.white10,
+                            labelStyle: TextStyle(
+                              color: selected ? Colors.black : Colors.white70,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            onSelected: (_) async {
+                              bottomSheetSetState(() {
+                                _selectedRefundRemark = option['value'];
+                                _selectedExchangeVariant = null;
+                                _exchangeVariants = [];
+                                _exchangeVariantErrorMessage = null;
+                                _returnExchangeErrorMessage = null;
+                              });
+
+                              if (option['value'] == 'exchange') {
+                                await _fetchExchangeVariants(
+                                  item: _openedItem,
+                                  bottomSheetSetState: bottomSheetSetState,
+                                );
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+
+                      const SizedBox(height: 18),
+                      const Text(
+                        'Reason',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      Column(
+                        children: _refundReasonTypeOptions.map((option) {
+                          final selected =
+                              _selectedReasonType == option['value'];
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? Colors.tealAccent.withOpacity(0.14)
+                                  : Colors.white.withOpacity(0.06),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: selected
+                                    ? Colors.tealAccent.withOpacity(0.45)
+                                    : Colors.white.withOpacity(0.10),
+                              ),
+                            ),
+                            child: RadioListTile<String>(
+                              value: option['value']!,
+                              groupValue: _selectedReasonType,
+                              activeColor: Colors.tealAccent,
+                              title: Text(
+                                option['label']!,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              onChanged: (value) {
+                                bottomSheetSetState(() {
+                                  _selectedReasonType = value;
+                                  _returnExchangeErrorMessage = null;
+                                });
+                              },
+                            ),
+                          );
+                        }).toList(),
+                      ),
+
+                      if (_selectedReasonType == 'other') ...[
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _customReasonController,
+                          maxLines: 3,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Enter your reason',
+                            hintStyle: const TextStyle(color: Colors.white38),
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.06),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.10),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.10),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                color: Colors.tealAccent,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      if (_selectedRefundRemark == 'exchange') ...[
+                        const SizedBox(height: 18),
+                        const Text(
+                          'Select Exchange Variant',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        if (_isLoadingExchangeVariants)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(18),
+                              child: CircularProgressIndicator(
+                                color: Colors.tealAccent,
+                              ),
+                            ),
+                          )
+                        else if (_exchangeVariantErrorMessage != null)
+                          Text(
+                            _exchangeVariantErrorMessage!,
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 13,
+                            ),
+                          )
+                        else
+                          Column(
+                            children: _exchangeVariants.map((variant) {
+                              final selected =
+                                  _selectedExchangeVariant?.id == variant.id;
+
+                              return GestureDetector(
+                                onTap: () {
+                                  bottomSheetSetState(() {
+                                    _selectedExchangeVariant = variant;
+                                    _returnExchangeErrorMessage = null;
+                                  });
+                                },
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: selected
+                                        ? Colors.tealAccent.withOpacity(0.13)
+                                        : Colors.white.withOpacity(0.06),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: selected
+                                          ? Colors.tealAccent
+                                          : Colors.white.withOpacity(0.10),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 54,
+                                        height: 54,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white10,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        clipBehavior: Clip.antiAlias,
+                                        child: _variantImage(variant),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              variant.label,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            if (variant.sku != null &&
+                                                variant.sku!.trim().isNotEmpty)
+                                              Text(
+                                                'SKU: ${variant.sku}',
+                                                style: const TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            if (variant.variantPrice != null)
+                                              Text(
+                                                '₹${variant.variantPrice}',
+                                                style: const TextStyle(
+                                                  color: Colors.tealAccent,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (selected)
+                                        const Icon(
+                                          Icons.check_circle,
+                                          color: Colors.tealAccent,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                      ],
+
+                      if (_returnExchangeErrorMessage != null) ...[
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.redAccent.withOpacity(0.35),
+                            ),
+                          ),
+                          child: Text(
+                            _returnExchangeErrorMessage!,
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 22),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          onPressed: _isSubmittingReturnExchange
+                              ? null
+                              : () => _submitReturnExchangeRequest(
+                                  bottomSheetSetState,
+                                ),
+                          icon: _isSubmittingReturnExchange
+                              ? const SizedBox.shrink()
+                              : const Icon(Icons.send_rounded),
+                          label: _isSubmittingReturnExchange
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.black,
+                                    strokeWidth: 2.2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Submit Request',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.tealAccent,
+                            disabledBackgroundColor: Colors.tealAccent
+                                .withOpacity(0.35),
+                            foregroundColor: Colors.black,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _variantImage(ExchangeVariant variant) {
+    final imagePath = variant.image ?? variant.productImage;
+
+    if (imagePath == null || imagePath.trim().isEmpty) {
+      return const Icon(
+        Icons.image_not_supported_outlined,
+        color: Colors.white38,
+      );
+    }
+
+    final imageUrl = imagePath.startsWith('http')
+        ? imagePath
+        : '$api$imagePath';
+
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) {
+        return const Icon(
+          Icons.image_not_supported_outlined,
+          color: Colors.white38,
+        );
+      },
     );
   }
 
@@ -4216,6 +5452,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                 ],
                               ),
                             ),
+
+                            if (!widget.isCoachProductOrder) ...[
+                              const SizedBox(height: 16),
+                              _buildReturnExchangeButton(),
+                            ],
                             if (widget.isCoachProductOrder &&
                                 _order.sellerBreakdown.isNotEmpty) ...[
                               const SizedBox(height: 24),

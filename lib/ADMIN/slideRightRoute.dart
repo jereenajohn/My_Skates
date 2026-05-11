@@ -30,3 +30,4 @@ Route slideRightToLeftRoute(Widget page) {
     },
   );
 }
+
