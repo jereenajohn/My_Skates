@@ -625,6 +625,45 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                                             ],
                                           ),
                                         ),
+                                        const SizedBox(height: 10),
+
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: ElevatedButton.icon(
+                                            onPressed: () {
+                                              updateVariantStatus(
+                                                variant['id'],
+                                                "approved",
+                                              );
+                                            },
+                                            icon: const Icon(
+                                              Icons.check_circle_outline,
+                                              size: 18,
+                                            ),
+                                            label: const Text(
+                                              "Approve Variant",
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: const Color(
+                                                0xFF00CFC5,
+                                              ),
+                                              foregroundColor: Colors.black,
+                                              elevation: 0,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 11,
+                                                  ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -635,30 +674,64 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                           const SizedBox(height: 16),
 
                           // Close Button
-                          GestureDetector(
-                            onTap: () => Navigator.pop(context),
-                            child: Container(
-                              height: 48,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF00CFC5),
-                                    Color(0xFF00A89F),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Center(
-                                child: Text(
-                                  "Close",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => Navigator.pop(context),
+                                  child: Container(
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[800],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        "Close",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    updateMainProductStatus(
+                                      product['id'],
+                                      "approved",
+                                    );
+                                  },
+                                  child: Container(
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFF00CFC5),
+                                          Color(0xFF00A89F),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        "Approve",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -671,6 +744,72 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
         );
       },
     );
+  }
+
+  Future<void> updateVariantStatus(int variantId, String status) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Authentication token missing"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final response = await http.patch(
+        Uri.parse("$api/api/myskates/products/variant/approval/$variantId/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({"approval_status": status}),
+      );
+
+      print("VARIANT STATUS UPDATE ID: $variantId");
+      print("VARIANT STATUS UPDATE TO: $status");
+      print("VARIANT STATUS UPDATE CODE: ${response.statusCode}");
+      print("VARIANT STATUS UPDATE BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              status == "approved"
+                  ? "Variant approved successfully"
+                  : "Variant disapproved successfully",
+            ),
+            backgroundColor: status == "approved"
+                ? Colors.green
+                : Colors.orange,
+          ),
+        );
+
+        await getproduct("disapproved", page: currentPage);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to update variant: ${response.statusCode}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print("VARIANT STATUS UPDATE ERROR: $e");
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error updating variant: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildPaginationControls(String status) {
@@ -701,9 +840,12 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            icon: const Icon(Icons.chevron_left_rounded, size: 18,color: Colors.white,),
-            label: const Text("Prev",style: TextStyle(color: Colors.white)),
-            
+            icon: const Icon(
+              Icons.chevron_left_rounded,
+              size: 18,
+              color: Colors.white,
+            ),
+            label: const Text("Prev", style: TextStyle(color: Colors.white)),
           ),
 
           isPageLoading
@@ -738,8 +880,12 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            icon: const Icon(Icons.chevron_right_rounded, size: 18,color: Colors.white,),
-            label: const Text("Next",style: TextStyle(color: Colors.white)),
+            icon: const Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: Colors.white,
+            ),
+            label: const Text("Next", style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -1076,6 +1222,73 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
         ],
       ),
     );
+  }
+
+  Future<void> updateMainProductStatus(int id, String status) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Authentication token missing"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final response = await http.patch(
+        Uri.parse("$api/api/myskates/products/approval/$id/"),
+        headers: {"Authorization": "Bearer $token"},
+        body: {"approval_status": status},
+      );
+
+      print("MAIN PRODUCT STATUS UPDATE ID: $id");
+      print("MAIN PRODUCT STATUS UPDATE TO: $status");
+      print("MAIN PRODUCT STATUS UPDATE CODE: ${response.statusCode}");
+      print("MAIN PRODUCT STATUS UPDATE BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              status == "approved"
+                  ? "Product approved successfully"
+                  : "Product disapproved successfully",
+            ),
+            backgroundColor: status == "approved"
+                ? Colors.green
+                : Colors.orange,
+          ),
+        );
+
+        await getproduct("disapproved", page: currentPage);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Failed to update product status: ${response.statusCode}",
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print("MAIN PRODUCT STATUS UPDATE ERROR: $e");
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error updating product status: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildShimmerCard() {

@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 
 class UsedProductOrderDetailItem {
+  final int id;
   final int productId;
   final String title;
   final String description;
@@ -21,6 +22,7 @@ class UsedProductOrderDetailItem {
   final int quantity;
 
   UsedProductOrderDetailItem({
+    required this.id,
     required this.productId,
     required this.title,
     required this.description,
@@ -35,7 +37,8 @@ class UsedProductOrderDetailItem {
 
   factory UsedProductOrderDetailItem.fromJson(Map<String, dynamic> json) {
     return UsedProductOrderDetailItem(
-      productId: json['product_id'] ?? 0,
+      id: json['id'] ?? json['item_id'] ?? json['order_item_id'] ?? 0,
+      productId: json['product_id'] ?? json['product'] ?? 0,
       title: json['title']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       image: json['image']?.toString(),
@@ -168,6 +171,661 @@ class _UsedProductOrderDetailPageState
   UsedProductOrderDetailModel? order;
   bool isLoading = true;
   String? error;
+  final TextEditingController _usedReturnReasonController =
+      TextEditingController();
+
+  bool _usedReturnAlreadyRequested = false;
+  String? _usedReturnStatus;
+
+  bool _isSubmittingUsedReturn = false;
+  UsedProductOrderDetailItem? _selectedUsedReturnItem;
+  String? _selectedUsedReturnReasonType;
+  String? _usedReturnErrorMessage;
+
+  final List<Map<String, String>> _usedReturnReasonTypeOptions = [
+    {'value': 'defective', 'label': 'Defective Product'},
+    {'value': 'wrong_item', 'label': 'Wrong Item Delivered'},
+    {'value': 'no_longer_needed', 'label': 'No Longer Needed'},
+    {'value': 'damaged', 'label': 'Damaged Product'},
+    {'value': 'size_issue', 'label': 'Size Issue'},
+    {'value': 'other', 'label': 'Other'},
+  ];
+
+  bool get _canRequestUsedReturn {
+    final status = order?.status.trim().toUpperCase() ?? '';
+    return status == 'DELIVERED';
+  }
+
+  String _getUsedReturnReasonLabel(String value) {
+    final match = _usedReturnReasonTypeOptions
+        .where((option) => option['value'] == value)
+        .toList();
+
+    if (match.isEmpty) return value;
+    return match.first['label'] ?? value;
+  }
+
+  @override
+  void dispose() {
+    _usedReturnReasonController.dispose();
+    super.dispose();
+  }
+
+  void _resetUsedReturnForm() {
+    _selectedUsedReturnItem = order != null && order!.items.isNotEmpty
+        ? order!.items.first
+        : null;
+    _selectedUsedReturnReasonType = null;
+    _usedReturnReasonController.clear();
+    _usedReturnErrorMessage = null;
+    _isSubmittingUsedReturn = false;
+  }
+
+  Future<void> _submitUsedProductReturnRequest(
+    StateSetter bottomSheetSetState,
+  ) async {
+    if (order == null) return;
+
+    if (_selectedUsedReturnItem == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a product')));
+      return;
+    }
+
+    if (_selectedUsedReturnItem!.id == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Order item id missing from API response'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedUsedReturnReasonType == null ||
+        _selectedUsedReturnReasonType!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select reason type')),
+      );
+      return;
+    }
+
+    final customReason = _usedReturnReasonController.text.trim();
+
+    if (_selectedUsedReturnReasonType == 'other' && customReason.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter reason')));
+      return;
+    }
+
+    bottomSheetSetState(() {
+      _isSubmittingUsedReturn = true;
+      _usedReturnErrorMessage = null;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        bottomSheetSetState(() {
+          _isSubmittingUsedReturn = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authentication token missing')),
+        );
+        return;
+      }
+
+      final Map<String, dynamic> requestBody = {
+        'invoice': order!.id,
+        'item': _selectedUsedReturnItem!.id,
+        'remark': 'return',
+        'reason_type': _selectedUsedReturnReasonType,
+        'reason': _selectedUsedReturnReasonType == 'other'
+            ? customReason
+            : _getUsedReturnReasonLabel(_selectedUsedReturnReasonType!),
+      };
+
+      final response = await http.post(
+        Uri.parse('$api/api/myskates/msk/used/product/refund/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print("USED PRODUCT RETURN API STATUS: ${response.statusCode}");
+      print("USED PRODUCT RETURN REQUEST BODY: ${jsonEncode(requestBody)}");
+      print("USED PRODUCT RETURN RESPONSE: ${response.body}");
+
+      Map<String, dynamic>? decoded;
+
+      try {
+        final dynamic parsed = jsonDecode(response.body);
+        if (parsed is Map<String, dynamic>) {
+          decoded = parsed;
+        }
+      } catch (_) {
+        decoded = null;
+      }
+
+      final bool apiStatus = decoded?['status'] == true;
+
+      final String responseMessage =
+          decoded?['message']?.toString() ??
+          decoded?['error']?.toString() ??
+          decoded?['detail']?.toString() ??
+          'Something went wrong';
+
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          (apiStatus || decoded?['status'] == null)) {
+        if (!mounted) return;
+
+        setState(() {
+          _usedReturnAlreadyRequested = true;
+          _usedReturnStatus =
+              decoded?['data']?['status']?.toString() ?? 'pending';
+        });
+
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Return request submitted successfully',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        await fetchOrderDetail();
+      } else {
+        if (!mounted) return;
+
+        bottomSheetSetState(() {
+          _usedReturnErrorMessage = responseMessage;
+        });
+      }
+    } catch (e) {
+      print("ERROR SUBMITTING USED PRODUCT RETURN: $e");
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      if (mounted) {
+        bottomSheetSetState(() {
+          _isSubmittingUsedReturn = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _showUsedProductReturnBottomSheet() async {
+    if (order == null || order!.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No products available in this order')),
+      );
+      return;
+    }
+
+    if (!_canRequestUsedReturn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Return is available only for delivered used products'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    _resetUsedReturnForm();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) {
+        return StatefulBuilder(
+          builder: (context, bottomSheetSetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.88,
+                ),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF101010),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(26),
+                    topRight: Radius.circular(26),
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 42,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+
+                      Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: Colors.tealAccent.withOpacity(0.14),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(
+                              Icons.assignment_return_outlined,
+                              color: Colors.tealAccent,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Return Request',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(height: 3),
+                                Text(
+                                  'Submit return request for used product',
+                                  style: TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: _isSubmittingUsedReturn
+                                ? null
+                                : () => Navigator.pop(context),
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 22),
+
+                      const Text(
+                        'Choose Product',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.12),
+                          ),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<UsedProductOrderDetailItem>(
+                            value: _selectedUsedReturnItem,
+                            isExpanded: true,
+                            dropdownColor: const Color(0xFF161616),
+                            icon: const Icon(
+                              Icons.keyboard_arrow_down,
+                              color: Colors.white70,
+                            ),
+                            style: const TextStyle(color: Colors.white),
+                            onChanged: _isSubmittingUsedReturn
+                                ? null
+                                : (UsedProductOrderDetailItem? value) {
+                                    bottomSheetSetState(() {
+                                      _selectedUsedReturnItem = value;
+                                    });
+                                  },
+                            items: order!.items.map((item) {
+                              return DropdownMenuItem<
+                                UsedProductOrderDetailItem
+                              >(
+                                value: item,
+                                child: Text(
+                                  item.title.isEmpty
+                                      ? 'Used Product'
+                                      : item.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      const Text(
+                        'Request Type',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 15,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.tealAccent.withOpacity(0.10),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(
+                            color: Colors.tealAccent.withOpacity(0.25),
+                          ),
+                        ),
+                        child: const Text(
+                          'Return',
+                          style: TextStyle(
+                            color: Colors.tealAccent,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      const Text(
+                        'Reason Type',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.12),
+                          ),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedUsedReturnReasonType,
+                            isExpanded: true,
+                            dropdownColor: const Color(0xFF161616),
+                            hint: const Text(
+                              'Select reason type',
+                              style: TextStyle(color: Colors.white54),
+                            ),
+                            icon: const Icon(
+                              Icons.keyboard_arrow_down,
+                              color: Colors.white70,
+                            ),
+                            style: const TextStyle(color: Colors.white),
+                            onChanged: _isSubmittingUsedReturn
+                                ? null
+                                : (String? value) {
+                                    bottomSheetSetState(() {
+                                      _selectedUsedReturnReasonType = value;
+                                      if (value != 'other') {
+                                        _usedReturnReasonController.clear();
+                                      }
+                                    });
+                                  },
+                            items: _usedReturnReasonTypeOptions.map((option) {
+                              return DropdownMenuItem<String>(
+                                value: option['value'],
+                                child: Text(
+                                  option['label'] ?? '',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+
+                      if (_selectedUsedReturnReasonType == 'other') ...[
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Reason',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _usedReturnReasonController,
+                          enabled: !_isSubmittingUsedReturn,
+                          maxLines: 4,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Type your reason',
+                            hintStyle: const TextStyle(color: Colors.white38),
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.07),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.12),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.12),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: const BorderSide(
+                                color: Colors.tealAccent,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      if (_usedReturnErrorMessage != null &&
+                          _usedReturnErrorMessage!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 18),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.redAccent.withOpacity(0.35),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                color: Colors.redAccent,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _usedReturnErrorMessage!,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    height: 1.35,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 22),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          onPressed: _isSubmittingUsedReturn
+                              ? null
+                              : () => _submitUsedProductReturnRequest(
+                                  bottomSheetSetState,
+                                ),
+                          icon: _isSubmittingUsedReturn
+                              ? const SizedBox.shrink()
+                              : const Icon(Icons.assignment_return_outlined),
+                          label: _isSubmittingUsedReturn
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.black,
+                                    strokeWidth: 2.2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Submit Return Request',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.tealAccent,
+                            disabledBackgroundColor: Colors.tealAccent
+                                .withOpacity(0.35),
+                            foregroundColor: Colors.black,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildUsedProductReturnButton() {
+    if (!_canRequestUsedReturn) {
+      return const SizedBox.shrink();
+    }
+
+    if (_usedReturnAlreadyRequested) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.orangeAccent.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.orangeAccent.withOpacity(0.35)),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.hourglass_top_rounded,
+              color: Colors.orangeAccent,
+              size: 22,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                _usedReturnStatus != null && _usedReturnStatus!.isNotEmpty
+                    ? 'Return request already submitted. Status: $_usedReturnStatus'
+                    : 'Return request already submitted',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 2),
+      child: ElevatedButton.icon(
+        onPressed: _showUsedProductReturnBottomSheet,
+        icon: const Icon(Icons.assignment_return_outlined, size: 20),
+        label: const Text(
+          'Return Product',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.tealAccent,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          minimumSize: const Size(double.infinity, 54),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -210,8 +868,27 @@ class _UsedProductOrderDetailPageState
         final decoded = jsonDecode(response.body);
         final data = decoded['data'] ?? decoded;
 
+        bool returnAlreadyRequested = false;
+        String? returnStatus;
+
+        final refunds = data['refunds'];
+
+        if (refunds is List && refunds.isNotEmpty) {
+          final returnRefund = refunds.where((refund) {
+            if (refund is! Map) return false;
+            return refund['remark']?.toString() == 'return';
+          }).toList();
+
+          if (returnRefund.isNotEmpty) {
+            returnAlreadyRequested = true;
+            returnStatus = returnRefund.first['status']?.toString();
+          }
+        }
+
         setState(() {
           order = UsedProductOrderDetailModel.fromJson(data);
+          _usedReturnAlreadyRequested = returnAlreadyRequested;
+          _usedReturnStatus = returnStatus;
           isLoading = false;
         });
       } else {
@@ -674,7 +1351,6 @@ class _UsedProductOrderDetailPageState
 
           // if ((double.tryParse(orderData.productPercentage) ?? 0) > 0)
           //   _pricingRow('Product Percentage', orderData.productPercentage),
-
           const Divider(color: Colors.white24, height: 24),
 
           _pricingRow('Final Payable', orderData.finalPayable, isTotal: true),
@@ -744,11 +1420,14 @@ class _UsedProductOrderDetailPageState
         _buildOrderTopCard(orderData),
         const SizedBox(height: 14),
         _buildItemsCard(orderData),
+
         const SizedBox(height: 14),
         _buildAddressCard(orderData),
         const SizedBox(height: 14),
         _buildPaymentSummaryCard(orderData),
         const SizedBox(height: 24),
+
+        _buildUsedProductReturnButton(),
       ],
     );
   }

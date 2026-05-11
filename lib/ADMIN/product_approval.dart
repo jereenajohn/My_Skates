@@ -103,151 +103,207 @@ class _ApproveproductState extends State<Approveproduct> {
     }
   }
 
-  Future<void> updateVariantStatus(int variantId, String status) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
+Future<bool> updateVariantStatus(int variantId, String status) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
 
-    try {
-      var response = await http.patch(
-        Uri.parse("$api/api/myskates/products/variant/approval/$variantId/"),
-        headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode({"approval_status": status}),
-      );
-
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "Variant ${status == 'approved' ? 'approved' : 'rejected'} successfully",
-            ),
-            backgroundColor: status == 'approved'
-                ? Colors.green
-                : Colors.orange,
-          ),
-        );
-        Navigator.pop(context);
-        getproduct("pending", page: currentPage);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Failed to update variant status"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      print(e);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Error updating variant status"),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+  if (token == null) {
+    print("TOKEN MISSING");
+    return false;
   }
 
-  Future<void> submitFinalApproval(List<Map<String, dynamic>> variants) async {
-    // Show confirmation dialog
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1A1A1A),
-          title: const Text(
-            "Confirm Final Approval",
-            style: TextStyle(color: Colors.white),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Please review before final submission:",
-                style: TextStyle(color: Colors.white70),
-              ),
-              const SizedBox(height: 16),
-              ...variants.map((variant) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      Icon(
-                        variant['isAccepted'] == true
-                            ? Icons.check_circle
-                            : Icons.cancel,
-                        color: variant['isAccepted'] == true
-                            ? Colors.green
-                            : Colors.red,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              variant['sku'],
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              "Status: ${variant['status'].toUpperCase()}",
-                              style: TextStyle(
-                                color: variant['status'] == 'approved'
-                                    ? Colors.green
-                                    : Colors.red,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+  try {
+    final response = await http.patch(
+      Uri.parse("$api/api/myskates/products/variant/approval/$variantId/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "approval_status": status,
+      }),
+    );
+
+    print("VARIANT APPROVAL ID: $variantId");
+    print("VARIANT APPROVAL STATUS CODE: ${response.statusCode}");
+    print("VARIANT APPROVAL BODY: ${response.body}");
+
+    return response.statusCode == 200;
+  } catch (e) {
+    print("VARIANT APPROVAL ERROR: $e");
+    return false;
+  }
+}
+Future<void> submitFinalApproval(
+  BuildContext productDialogContext,
+  List<Map<String, dynamic>> variants,
+) async {
+  if (variants.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please select at least one variant"),
+        backgroundColor: Colors.orange,
+      ),
+    );
+    return;
+  }
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext confirmDialogContext) {
+      bool isSubmitting = false;
+
+      return StatefulBuilder(
+        builder: (BuildContext confirmStateContext, StateSetter setDialogState) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1A1A1A),
+            title: const Text(
+              "Confirm Final Approval",
+              style: TextStyle(color: Colors.white),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Please review before final submission:",
+                    style: TextStyle(color: Colors.white70),
                   ),
-                );
-              }).toList(),
-              const SizedBox(height: 16),
-              const Text(
-                "Do you want to proceed?",
-                style: TextStyle(color: Colors.white),
+                  const SizedBox(height: 16),
+
+                  ...variants.map((variant) {
+                    final bool isAccepted = variant['isAccepted'] == true;
+                    final String status =
+                        variant['status']?.toString() ?? 'pending';
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isAccepted ? Icons.check_circle : Icons.cancel,
+                            color: isAccepted ? Colors.green : Colors.red,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  variant['sku']?.toString() ?? '',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  "Status: ${status.toUpperCase()}",
+                                  style: TextStyle(
+                                    color: status == 'approved'
+                                        ? Colors.green
+                                        : Colors.red,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Do you want to proceed?",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () => Navigator.pop(confirmDialogContext),
+                child: const Text(
+                  "Cancel",
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        setDialogState(() {
+                          isSubmitting = true;
+                        });
+
+                        int successCount = 0;
+                        int failedCount = 0;
+
+                        for (final variant in variants) {
+                          final int variantId = variant['id'];
+                          final String status = variant['status'];
+
+                          final bool success = await updateVariantStatus(
+                            variantId,
+                            status,
+                          );
+
+                          if (success) {
+                            successCount++;
+                          } else {
+                            failedCount++;
+                          }
+                        }
+
+                        if (!mounted) return;
+
+                        Navigator.pop(confirmDialogContext);
+
+                        if (failedCount == 0) {
+                          Navigator.pop(productDialogContext);
+                        }
+
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              failedCount == 0
+                                  ? "All $successCount variants processed successfully"
+                                  : "$successCount variants processed, $failedCount failed",
+                            ),
+                            backgroundColor:
+                                failedCount == 0 ? Colors.green : Colors.orange,
+                          ),
+                        );
+
+                        await getproduct("pending", page: currentPage);
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                ),
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text("Confirm"),
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
-
-                // Process each variant
-                for (var variant in variants) {
-                  await updateVariantStatus(variant['id'], variant['status']);
-                }
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("All variants processed successfully!"),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-              child: const Text("Confirm"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
+          );
+        },
+      );
+    },
+  );
+}
   Future<void> getproduct(String status, {int page = 1}) async {
     try {
       setState(() {
@@ -471,9 +527,9 @@ class _ApproveproductState extends State<Approveproduct> {
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
+      builder: (BuildContext productDialogContext) {
+  return StatefulBuilder(
+    builder: (BuildContext dialogStateContext, StateSetter setDialogState) {
             return BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
               child: Dialog(
@@ -974,7 +1030,7 @@ class _ApproveproductState extends State<Approveproduct> {
                                       final selectedVariants = variantSelections
                                           .values
                                           .toList();
-                                      submitFinalApproval(selectedVariants);
+                                     submitFinalApproval(productDialogContext, selectedVariants);
                                     },
                                     child: Container(
                                       height: 48,
