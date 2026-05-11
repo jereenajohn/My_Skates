@@ -125,6 +125,7 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
     getproductDetails();
     fetchProductReviews();
     CartCountNotifier.refreshCartCount();
+    print("Product ID in big view: ${widget.productId}");
   }
 
   @override

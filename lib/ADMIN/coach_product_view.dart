@@ -379,10 +379,22 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
             'title': c['title'] ?? "",
             'image': c['image'] != null ? '$api${c['image']}' : "",
             'category_name': c['category_name'] ?? "",
-            'price': priceString,
+
+            // Original product price
+            'base_price': c['base_price']?.toString() ?? priceString,
+
+            // Backend selling price
+            'price': c['price']?.toString() ?? priceString,
+
+            // Final discounted price
             'discounted_price':
-                c['discounted_price']?.toString() ?? priceString,
+                c['discounted_price']?.toString() ??
+                c['price']?.toString() ??
+                priceString,
+
+            // Discount percentage
             'discount': c['discount']?.toString() ?? "0",
+
             'is_wishlisted': c['is_in_wishlist'] ?? false,
             'offer_details': c['offer_details'],
           };
@@ -630,8 +642,7 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
     List<Map<String, dynamic>> filteredProducts = _allProducts.where((product) {
       // Parse price safely to double
       double price = 0.0;
-      var priceValue = product['price'];
-
+      var priceValue = product['discounted_price'] ?? product['price'];
       if (priceValue is String) {
         price = double.tryParse(priceValue) ?? 0.0;
       } else if (priceValue is int) {
@@ -1249,7 +1260,7 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
                                     gridDelegate:
                                         const SliverGridDelegateWithFixedCrossAxisCount(
                                           crossAxisCount: 2,
-                                          mainAxisExtent: 250,
+                                          mainAxisExtent: 295,
                                           crossAxisSpacing: 12,
                                           mainAxisSpacing: 12,
                                         ),
@@ -1294,54 +1305,143 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
     );
   }
 
- Widget _offerBadge(Map<String, dynamic> p) {
-  final offer = p['offer_details'];
+  Widget _offerBadge(Map<String, dynamic> p) {
+    final offer = p['offer_details'];
 
-  if (offer == null || offer is! Map || offer['is_active'] != true) {
-    return const SizedBox.shrink();
-  }
+    if (offer == null || offer is! Map || offer['is_active'] != true) {
+      return const SizedBox.shrink();
+    }
 
-  final String title = (offer['title'] ?? '').toString().trim();
+    final String title = (offer['title'] ?? '').toString().trim();
 
-  if (title.isEmpty) {
-    return const SizedBox.shrink();
-  }
+    if (title.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-  return ClipPath(
-    clipper: _ExactOfferRibbonClipper(),
-    child: Container(
-      height: 18,
-      width: 72,
-      padding: const EdgeInsets.fromLTRB(5, 0, 13, 0),
-      alignment: Alignment.centerLeft,
-      color: const Color.fromARGB(255, 55, 210, 194), // teal
-      child: Text(
-        _formatOfferText(title),
-        maxLines: 1,
-        overflow: TextOverflow.clip,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 9,
-          fontWeight: FontWeight.w800,
-          fontFamily: 'Poppins',
-          height: 1,
-          letterSpacing: -0.4,
+    return ClipPath(
+      clipper: _ExactOfferRibbonClipper(),
+      child: Container(
+        height: 18,
+        width: 72,
+        padding: const EdgeInsets.fromLTRB(5, 0, 13, 0),
+        alignment: Alignment.centerLeft,
+        color: const Color.fromARGB(255, 55, 210, 194), // teal
+        child: Text(
+          _formatOfferText(title),
+          maxLines: 1,
+          overflow: TextOverflow.clip,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+            fontFamily: 'Poppins',
+            height: 1,
+            letterSpacing: -0.4,
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-String _formatOfferText(String title) {
-  return title
-      .toUpperCase()
-      .replaceAll('BUY ', 'B')
-      .replaceAll(' GET ', 'G')
-      .replaceAll(' FREE', 'FREE')
-      .replaceAll(' ', '');
-}
+  String _formatOfferText(String title) {
+    return title
+        .toUpperCase()
+        .replaceAll('BUY ', 'B')
+        .replaceAll(' GET ', 'G')
+        .replaceAll(' FREE', 'FREE')
+        .replaceAll(' ', '');
+  }
+
+  Widget _productPriceSection(Map<String, dynamic> p) {
+    final double basePrice =
+        double.tryParse((p['base_price'] ?? p['price'] ?? "0").toString()) ??
+        0.0;
+
+    final double discountPercent =
+        double.tryParse((p['discount'] ?? "0").toString()) ?? 0.0;
+
+    double discountedPrice =
+        double.tryParse((p['discounted_price'] ?? "0").toString()) ?? 0.0;
+
+    if (discountedPrice <= 0) {
+      discountedPrice =
+          double.tryParse((p['price'] ?? p['base_price'] ?? "0").toString()) ??
+          0.0;
+    }
+
+    final bool hasDiscount = discountPercent > 0 && discountedPrice < basePrice;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "₹${discountedPrice.toStringAsFixed(2)}",
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Colors.tealAccent,
+            fontSize: 15.5,
+            fontWeight: FontWeight.w800,
+            fontFamily: 'Poppins',
+            letterSpacing: 0.2,
+          ),
+        ),
+
+        if (hasDiscount) ...[
+          const SizedBox(height: 3),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  "₹${basePrice.toStringAsFixed(2)}",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.45),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'Poppins',
+                    decoration: TextDecoration.lineThrough,
+                    decorationColor: Colors.white.withOpacity(0.55),
+                    decorationThickness: 1.5,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.greenAccent.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.greenAccent.withOpacity(0.35),
+                  ),
+                ),
+                child: Text(
+                  "${discountPercent.toStringAsFixed(discountPercent.truncateToDouble() == discountPercent ? 0 : 1)}% OFF",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.greenAccent,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    fontFamily: 'Poppins',
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _productCard(Map<String, dynamic> p) {
     final bool isWishlisted = p['is_wishlisted'] == true;
+    final double discountPercent =
+        double.tryParse((p['discount'] ?? "0").toString()) ?? 0.0;
+    final bool hasDiscount = discountPercent > 0;
 
     return OpenContainer(
       transitionDuration: const Duration(milliseconds: 400),
@@ -1387,7 +1487,7 @@ String _formatOfferText(String title) {
                           top: Radius.circular(20),
                         ),
                         child: SizedBox(
-                          height: 150,
+                          height: 160,
                           width: double.infinity,
                           child:
                               p['image'] != null &&
@@ -1436,11 +1536,35 @@ String _formatOfferText(String title) {
                           ),
                         ),
                       ),
-Positioned(
-  left: 0,
-  top: 12,
-  child: _offerBadge(p),
-),                      // Wishlist button
+                      Positioned(left: 0, top: 12, child: _offerBadge(p)),
+
+                      if (hasDiscount)
+                        Positioned(
+                          left: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE53935),
+                              borderRadius: BorderRadius.only(
+                                topRight: Radius.circular(10),
+                              ),
+                            ),
+                            child: Text(
+                              "${discountPercent.toStringAsFixed(discountPercent.truncateToDouble() == discountPercent ? 0 : 1)}% OFF",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                fontFamily: 'Poppins',
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+                        ), // Wishlist button
                       Positioned(
                         top: 8,
                         right: 8,
@@ -1500,53 +1624,45 @@ Positioned(
                   // ── Text content ──────────────────────────────────
                   const SizedBox(height: 10),
 
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: SizedBox(
+                      height: 38,
                       child: Text(
-                        p['title'],
+                        p['title']?.toString() ?? "",
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
                           fontFamily: 'Poppins',
-                          height: 1.3,
+                          height: 1.25,
                         ),
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: 3),
+                  // const SizedBox(height: 3),
 
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Text(
-                      p['category_name'],
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.45),
-                        fontSize: 11.5,
-                        fontFamily: 'Poppins',
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ),
+                  // Padding(
+                  //   padding: const EdgeInsets.symmetric(horizontal: 10),
+                  //   child: Text(
+                  //     p['category_name'],
+                  //     style: TextStyle(
+                  //       color: Colors.white.withOpacity(0.45),
+                  //       fontSize: 11.5,
+                  //       fontFamily: 'Poppins',
+                  //       letterSpacing: 0.3,
+                  //     ),
+                  //   ),
+                  // ),
 
-                  const SizedBox(height: 6),
+                  // const SizedBox(height: 6),
 
                   Padding(
                     padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-                    child: Text(
-                      "₹${p['price']}",
-                      style: const TextStyle(
-                        color: Colors.tealAccent,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Poppins',
-                        letterSpacing: 0.2,
-                      ),
-                    ),
+                    child: _productPriceSection(p),
                   ),
                 ],
               ),
@@ -1572,7 +1688,7 @@ Positioned(
       itemCount: 6,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        mainAxisExtent: 250,
+        mainAxisExtent: 295,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
@@ -1590,7 +1706,7 @@ Positioned(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  height: 150,
+                  height: 142,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.grey.shade800,
@@ -1674,6 +1790,7 @@ Positioned(
     );
   }
 }
+
 class _OfferRibbonClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
