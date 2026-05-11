@@ -41,6 +41,9 @@ class _cartState extends State<cart> {
   String convenienceFee = "0.00";
   String amountPayable = "0.00";
   String shipmentfee = "0.00";
+  String offerDiscount = "0.00";
+  List<Map<String, dynamic>> offerDetails = [];
+  Set<int> freeCartItemIds = {};
 
   List<Map<String, dynamic>> restrictedProducts =
       []; // Products causing restrictions
@@ -113,19 +116,34 @@ class _cartState extends State<cart> {
           final data = decoded["data"];
           if (!mounted) return;
           setState(() {
-            bagTotal = (data["bag_total"] ?? "0").toString();
-            bagSavings = data["bag_savings"].toString();
-            subtotal = data["subtotal"].toString();
+            bagTotal = (data["bag_total"] ?? "0.00").toString();
+            bagSavings = (data["bag_savings"] ?? "0.00").toString();
+            subtotal = (data["subtotal"] ?? "0.00").toString();
 
             couponCode = data["coupon_code"] == null
                 ? ""
                 : data["coupon_code"].toString();
 
-            couponDiscount = data["coupon_discount"].toString();
-            platformFee = data["platform_fee"].toString();
-            convenienceFee = data["convenience_fee"].toString();
-            amountPayable = data["amount_payable"].toString();
-            shipmentfee = data["shipment_charge"].toString();
+            couponDiscount = (data["coupon_discount"] ?? "0.00").toString();
+            platformFee = (data["platform_fee"] ?? "0.00").toString();
+            convenienceFee = (data["convenience_fee"] ?? "0.00").toString();
+            amountPayable = (data["amount_payable"] ?? "0.00").toString();
+            shipmentfee = (data["shipment_charge"] ?? "0.00").toString();
+            offerDiscount = (data["offer_discount"] ?? "0.00").toString();
+
+            offerDetails = List<Map<String, dynamic>>.from(
+              data["offer_details"] ?? [],
+            );
+
+            freeCartItemIds = offerDetails
+                .expand((offer) => offer["free_products"] ?? [])
+                .map<int?>((freeProduct) {
+                  final value = freeProduct["cart_item_id"];
+                  if (value == null) return null;
+                  return int.tryParse(value.toString());
+                })
+                .whereType<int>()
+                .toSet();
 
             if (couponCode.isNotEmpty) {
               couponController.text = couponCode;
@@ -981,7 +999,7 @@ class _cartState extends State<cart> {
                     ? _buildEmptyCartUI()
                     : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 140),
-                        itemCount: cartItems.length + 4,
+                        itemCount: cartItems.length + 5,
                         itemBuilder: (context, index) {
                           if (index == 0) return _buildAddressSection();
 
@@ -992,17 +1010,21 @@ class _cartState extends State<cart> {
                           }
 
                           if (index == cartItems.length + 1) {
+                            return _buildOfferUnlockHintSection();
+                          }
+
+                          if (index == cartItems.length + 2) {
                             return Padding(
                               padding: const EdgeInsets.only(top: 12),
                               child: _buildCouponSectionPremiumInput(),
                             );
                           }
 
-                          if (index == cartItems.length + 2) {
+                          if (index == cartItems.length + 3) {
                             return _buildPaymentMethodSection();
                           }
 
-                          if (index == cartItems.length + 3) {
+                          if (index == cartItems.length + 4) {
                             return _buildOrderSummary();
                           }
 
@@ -1671,6 +1693,288 @@ class _cartState extends State<cart> {
     );
   }
 
+  List<Map<String, dynamic>> _getActuallyAppliedOffers() {
+    return offerDetails.where((offer) {
+      final bool canApplyOffer = offer["can_apply_offer"] == true;
+
+      final double offerDiscountValue =
+          double.tryParse((offer["offer_discount"] ?? "0").toString()) ?? 0;
+
+      final int freeItemsCount = _toInt(offer["free_items_count"]);
+
+      final List freeProducts = offer["free_products"] ?? [];
+
+      return canApplyOffer ||
+          offerDiscountValue > 0 ||
+          freeItemsCount > 0 ||
+          freeProducts.isNotEmpty;
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> _getOfferUnlockHints() {
+    return offerDetails.where((offer) {
+      final bool canApplyOffer = offer["can_apply_offer"] == true;
+      final int eligibleCount = _toInt(offer["eligible_items_count"]);
+      final int needToAdd = _toInt(offer["need_to_add"]);
+
+      return !canApplyOffer && eligibleCount > 0 && needToAdd > 0;
+    }).toList();
+  }
+
+  Widget _buildOfferUnlockHintSection() {
+    final hints = _getOfferUnlockHints();
+
+    if (hints.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 14),
+      child: Column(
+        children: hints.map((offer) {
+          final int eligibleCount = _toInt(offer["eligible_items_count"]);
+          final int requiredCount = _toInt(offer["required_items_count"]);
+          final int needToAdd = _toInt(offer["need_to_add"]);
+
+          return Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.tealAccent.withOpacity(0.16),
+                  const Color(0xFF121212),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.tealAccent.withOpacity(0.45),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.tealAccent.withOpacity(0.08),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 34,
+                  width: 34,
+                  decoration: BoxDecoration(
+                    color: Colors.tealAccent.withOpacity(0.18),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.tealAccent.withOpacity(0.45),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.local_offer_rounded,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        offer["title"]?.toString() ?? "Offer available",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: "Poppins",
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        needToAdd == 1
+                            ? "Add 1 more eligible product to unlock this offer"
+                            : "Add $needToAdd more eligible products to unlock this offer",
+                        style: const TextStyle(
+                          color: Colors.tealAccent,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: "Poppins",
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: LinearProgressIndicator(
+                          minHeight: 5,
+                          value: requiredCount <= 0
+                              ? 0
+                              : (eligibleCount / requiredCount).clamp(0.0, 1.0),
+                          backgroundColor: Colors.white.withOpacity(0.10),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            Colors.tealAccent,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        "$eligibleCount/$requiredCount eligible items added",
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 10.5,
+                          fontFamily: "Poppins",
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildAppliedOfferDetails() {
+    final List<Map<String, dynamic>> appliedOffers = _getActuallyAppliedOffers();
+
+    if (appliedOffers.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.tealAccent.withOpacity(0.14),
+            Colors.tealAccent.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.tealAccent.withOpacity(0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.local_offer_rounded,
+                color: Colors.tealAccent,
+                size: 16,
+              ),
+              SizedBox(width: 7),
+              Text(
+                "Applied Offers",
+                style: TextStyle(
+                  color: Colors.tealAccent,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: "Poppins",
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...appliedOffers.map((offer) {
+            final List freeProducts = offer["free_products"] ?? [];
+            final String message = (offer["message"] ?? "").toString().trim();
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.28),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.08)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    offer["title"]?.toString() ?? "Offer Applied",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: "Poppins",
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    message.isNotEmpty
+                        ? message
+                        : "Buy ${offer["buy_quantity"]} Get ${offer["free_quantity"]} Free",
+                    style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: 11,
+                      fontFamily: "Poppins",
+                    ),
+                  ),
+                  if (freeProducts.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    ...freeProducts.map((freeProduct) {
+                      final String freeAmount =
+                          (freeProduct["free_amount"] ??
+                                  freeProduct["free_price"] ??
+                                  "0.00")
+                              .toString();
+
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.card_giftcard_rounded,
+                            color: Colors.greenAccent,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 7),
+                          Expanded(
+                            child: Text(
+                              "${freeProduct["product_title"] ?? "Free product"} is free",
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11.5,
+                                fontFamily: "Poppins",
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "-₹$freeAmount",
+                            style: const TextStyle(
+                              color: Colors.greenAccent,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: "Poppins",
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ],
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
   // ================= ORDER SUMMARY =================
   Widget _buildOrderSummary() {
     final double bagTotalValue = double.tryParse(bagTotal) ?? 0;
@@ -1680,7 +1984,9 @@ class _cartState extends State<cart> {
     final double convieniencefeevalue = double.tryParse(convenienceFee) ?? 0;
     final double payableValue = double.tryParse(amountPayable) ?? 0;
     final double shipmentcharge = double.tryParse(shipmentfee) ?? 0;
-
+    final double offerDiscountValue = double.tryParse(offerDiscount) ?? 0;
+    final double totalSavingsValue =
+        bagSavingsValue + couponDiscountValue + offerDiscountValue;
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       padding: const EdgeInsets.all(16),
@@ -1722,6 +2028,19 @@ class _cartState extends State<cart> {
                   : Colors.greenAccent,
             ),
           ),
+          if (offerDiscountValue > 0) ...[
+            const SizedBox(height: 10),
+            _row(
+              "Offer Discount",
+              "-₹${offerDiscountValue.toStringAsFixed(2)}",
+              valueColor: Colors.greenAccent,
+            ),
+          ],
+
+        if (_getActuallyAppliedOffers().isNotEmpty) ...[
+  const SizedBox(height: 12),
+  _buildAppliedOfferDetails(),
+],
           const SizedBox(height: 12),
           Divider(color: Colors.white.withOpacity(0.08)),
           const SizedBox(height: 12),
@@ -1817,7 +2136,7 @@ class _cartState extends State<cart> {
             ),
             child: Center(
               child: Text(
-                "🎉 Cheers! You saved ₹${bagSavingsValue.toStringAsFixed(2)}",
+                "🎉 Cheers! You saved ₹${totalSavingsValue.toStringAsFixed(2)}",
                 style: const TextStyle(
                   color: Colors.greenAccent,
                   fontSize: 13,
@@ -1929,6 +2248,40 @@ class _cartState extends State<cart> {
     );
   }
 
+  Map<String, dynamic>? _getFreeOfferForCartItem(dynamic item) {
+    final int? cartItemId = int.tryParse(item["id"].toString());
+
+    if (cartItemId == null) return null;
+
+    for (final offer in offerDetails) {
+      final List freeProducts = offer["free_products"] ?? [];
+
+      for (final freeProduct in freeProducts) {
+        final int? freeCartItemId = int.tryParse(
+          freeProduct["cart_item_id"].toString(),
+        );
+
+        if (freeCartItemId == cartItemId) {
+          return {"offer": offer, "free_product": freeProduct};
+        }
+      }
+    }
+
+    return null;
+  }
+
+  int _toInt(dynamic value) {
+    if (value == null) return 0;
+
+    if (value is int) return value;
+
+    if (value is double) return value.toInt();
+
+    if (value is num) return value.toInt();
+
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
   // ================= CART ITEM UI =================
   Widget _buildCartItem(dynamic item, dynamic variant) {
     String imageUrl = "";
@@ -1939,170 +2292,486 @@ class _cartState extends State<cart> {
       imageUrl = "$api${variant["first_image"]}";
     }
 
-    final attrs = (variant["attribute_names"] as List?) ?? [];
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: imageUrl.isEmpty
-                    ? Container(
-                        height: 64,
-                        width: 64,
+    final attrs = (variant?["attribute_names"] as List?) ?? [];
+    final Map<String, dynamic>? freeOfferData = _getFreeOfferForCartItem(item);
+    final bool isFreeOfferItem = freeOfferData != null;
+    final Map<String, dynamic>? appliedOffer =
+        freeOfferData?["offer"] as Map<String, dynamic>?;
+    final Map<String, dynamic>? freeProduct =
+        freeOfferData?["free_product"] as Map<String, dynamic>?;
+
+    final String productTitle =
+        variant?["product_title"]?.toString() ?? "Product unavailable";
+    final String variantText = attrs.isEmpty ? "Default" : attrs.join(" • ");
+    final String sellingPrice = item["product_price"]?.toString() ?? "0.00";
+    final String mrpPrice = variant?["price"]?.toString() ?? "0.00";
+    final String lineTotal = item["line_total"]?.toString() ?? "0.00";
+    final int qty = _toInt(item["quantity"]);
+    final int availableStock = _toInt(item["available_stock"]);
+    final bool isOutOfStock = item["is_out_of_stock"] == true;
+    final bool isQtyExceeded = item["is_qty_exceeded"] == true;
+    final double sellingPriceValue = double.tryParse(sellingPrice) ?? 0;
+    final double mrpPriceValue = double.tryParse(mrpPrice) ?? 0;
+    final double discountPercentage =
+        mrpPriceValue > sellingPriceValue && mrpPriceValue > 0
+        ? ((mrpPriceValue - sellingPriceValue) / mrpPriceValue) * 100
+        : 0;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111111),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isFreeOfferItem
+              ? Colors.tealAccent.withOpacity(0.42)
+              : Colors.white.withOpacity(0.08),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.34),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Stack(
+                    children: [
+                      Container(
+                        height: 112,
+                        width: 92,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(10),
+                          color: Colors.white.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(18),
                           border: Border.all(
                             color: Colors.white.withOpacity(0.08),
                           ),
                         ),
-                        child: const Icon(
-                          Icons.image_not_supported_outlined,
-                          color: Colors.white54,
-                          size: 26,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: imageUrl.isEmpty
+                              ? const Center(
+                                  child: Icon(
+                                    Icons.image_not_supported_outlined,
+                                    color: Colors.white54,
+                                    size: 30,
+                                  ),
+                                )
+                              : Image.network(
+                                  imageUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Center(
+                                      child: Icon(
+                                        Icons.broken_image_outlined,
+                                        color: Colors.white54,
+                                        size: 30,
+                                      ),
+                                    );
+                                  },
+                                ),
                         ),
-                      )
-                    : Image.network(
-                        imageUrl,
-                        height: 64,
-                        width: 64,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            height: 64,
-                            width: 64,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.08),
+                      ),
+                      if (discountPercentage > 0 && !isFreeOfferItem)
+                        Positioned(
+                          left: 0,
+                          top: 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 4,
+                            ),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE53935),
+                              borderRadius: BorderRadius.only(
+                                topRight: Radius.circular(10),
+                                bottomRight: Radius.circular(10),
                               ),
                             ),
-                            child: const Icon(
-                              Icons.broken_image_outlined,
-                              color: Colors.white54,
-                              size: 26,
+                            child: Text(
+                              "${discountPercentage.round()}% OFF",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                fontFamily: "Poppins",
+                              ),
                             ),
-                          );
-                        },
-                      ),
-              ),
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      variant["product_title"] ?? "",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins',
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      attrs.isEmpty ? "Default" : attrs.join(", "),
-
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 12,
-                        fontFamily: 'Poppins',
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Text(
-                          "₹${item["product_price"] ?? "0.00"}",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            fontFamily: 'Poppins',
                           ),
                         ),
-
-                        const SizedBox(width: 7),
-
-                        Text(
-                          "₹${variant["price"] ?? "0.00"}",
-                          style: const TextStyle(
-                            color: Colors.white38,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            decoration: TextDecoration.lineThrough,
-                            decorationColor: Colors.white38,
-                            decorationThickness: 1.5,
-                            fontFamily: 'Poppins',
+                      if (isFreeOfferItem)
+                        Positioned(
+                          left: 0,
+                          top: 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF009688),
+                              borderRadius: BorderRadius.only(
+                                topRight: Radius.circular(10),
+                                bottomRight: Radius.circular(10),
+                              ),
+                            ),
+                            child: const Text(
+                              "FREE",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                fontFamily: "Poppins",
+                                letterSpacing: 0.5,
+                              ),
+                            ),
                           ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                productTitle,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14.5,
+                                  height: 1.25,
+                                  fontWeight: FontWeight.w700,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: () => _confirmDelete(item),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                height: 30,
+                                width: 30,
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent.withOpacity(0.10),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.redAccent.withOpacity(0.22),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 17,
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.06),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.08),
+                                ),
+                              ),
+                              child: Text(
+                                variantText,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w500,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ),
+                            if (availableStock > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.tealAccent.withOpacity(0.10),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  "Stock $availableStock",
+                                  style: const TextStyle(
+                                    color: Colors.tealAccent,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 9),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              "₹$sellingPrice",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                            const SizedBox(width: 7),
+                            if (mrpPriceValue > sellingPriceValue)
+                              Text(
+                                "₹$mrpPrice",
+                                style: const TextStyle(
+                                  color: Colors.white38,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  decoration: TextDecoration.lineThrough,
+                                  decorationColor: Colors.white38,
+                                  decorationThickness: 1.4,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.tealAccent.withOpacity(0.55),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  InkWell(
+                                    onTap: qty > 1
+                                        ? () {
+                                            final int newQty = qty - 1;
+                                            setState(() {
+                                              item["quantity"] = newQty;
+                                            });
+                                            updatecart(item["id"], newQty);
+                                          }
+                                        : null,
+                                    borderRadius: const BorderRadius.horizontal(
+                                      left: Radius.circular(12),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(6),
+                                      child: Icon(
+                                        Icons.remove_rounded,
+                                        size: 16,
+                                        color: qty > 1
+                                            ? Colors.tealAccent
+                                            : Colors.white24,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 34,
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      qty.toString(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w800,
+                                        fontFamily: 'Poppins',
+                                      ),
+                                    ),
+                                  ),
+                                  InkWell(
+                                    onTap:
+                                        availableStock == 0 ||
+                                            qty >= availableStock
+                                        ? null
+                                        : () {
+                                            final int newQty = qty + 1;
+                                            setState(() {
+                                              item["quantity"] = newQty;
+                                            });
+                                            updatecart(item["id"], newQty);
+                                          },
+                                    borderRadius: const BorderRadius.horizontal(
+                                      right: Radius.circular(12),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(6),
+                                      child: Icon(
+                                        Icons.add_rounded,
+                                        size: 16,
+                                        color:
+                                            availableStock == 0 ||
+                                                qty >= availableStock
+                                            ? Colors.white24
+                                            : Colors.tealAccent,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Spacer(),
+                            InkWell(
+                              onTap: () => _showQtyPopup(item),
+                              borderRadius: BorderRadius.circular(20),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 4,
+                                ),
+                                child: Text(
+                                  "Edit",
+                                  style: TextStyle(
+                                    color: Colors.tealAccent,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                  ],
-                ),
-              ),
-
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  GestureDetector(
-                    onTap: () => _confirmDelete(item),
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.delete_outline,
-                        size: 20,
-                        color: Colors.redAccent,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () => _showQtyPopup(item),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.tealAccent),
-                      ),
-                      child: Text(
-                        "Qty ${item["quantity"]}",
-                        style: const TextStyle(
-                          color: Colors.tealAccent,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
                     ),
                   ),
                 ],
               ),
+            ),
+            if (isFreeOfferItem) ...[
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.tealAccent.withOpacity(0.16),
+                      Colors.greenAccent.withOpacity(0.08),
+                    ],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Colors.tealAccent.withOpacity(0.35),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      height: 28,
+                      width: 28,
+                      decoration: BoxDecoration(
+                        color: Colors.tealAccent.withOpacity(0.16),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.card_giftcard_rounded,
+                        color: Colors.tealAccent,
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "${appliedOffer?["title"] ?? "Offer Applied"} • FREE",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: "Poppins",
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            "You saved ₹${freeProduct?["free_amount"] ?? freeProduct?["free_price"] ?? "0.00"} on this item",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.greenAccent,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w500,
+                              fontFamily: "Poppins",
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
-          ),
+            if (isOutOfStock || isQtyExceeded)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.redAccent.withOpacity(0.28)),
+                ),
+                child: Text(
+                  isOutOfStock
+                      ? "This item is currently out of stock"
+                      : "Selected quantity is higher than available stock",
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: "Poppins",
+                  ),
+                ),
+              ),
+          
+          ],
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
-          child: Divider(
-            color: Colors.white.withOpacity(0.08),
-            height: 1,
-            thickness: 1,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
