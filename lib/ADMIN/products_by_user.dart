@@ -727,101 +727,100 @@ class _ProductsByUserState extends State<ProductsByUser> {
             ),
           ),
 
-          // Variants Section - Only show if there are variants
-          if (hasVariants && variants.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.color_lens,
-                          size: 12,
-                          color: Colors.tealAccent,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          "${variants.length} Variant${variants.length > 1 ? 's' : ''}",
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    // Show variant preview (max 2)
-                    ...variants.take(2).map((variant) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: _getStatusColor(
-                                  variant['approval_status'],
-                                ),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                variant['sku'] ?? "Variant",
-                                style: const TextStyle(
-                                  color: Colors.white60,
-                                  fontSize: 10,
-                                  fontFamily: 'Poppins',
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Text(
-                              "₹${variant['price']}",
-                              style: const TextStyle(
-                                color: Colors.tealAccent,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                    if (variants.length > 2)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          "+${variants.length - 2} more",
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 9,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-
+          // // Variants Section - Only show if there are variants
+          // if (hasVariants && variants.isNotEmpty) ...[
+          //   const SizedBox(height: 6),
+          //   Padding(
+          //     padding: const EdgeInsets.symmetric(horizontal: 6),
+          //     child: Container(
+          //       padding: const EdgeInsets.all(6),
+          //       decoration: BoxDecoration(
+          //         color: Colors.white.withOpacity(0.05),
+          //         borderRadius: BorderRadius.circular(8),
+          //         border: Border.all(color: Colors.white12),
+          //       ),
+          //       child: Column(
+          //         crossAxisAlignment: CrossAxisAlignment.start,
+          //         children: [
+          //           Row(
+          //             children: [
+          //               const Icon(
+          //                 Icons.color_lens,
+          //                 size: 12,
+          //                 color: Colors.tealAccent,
+          //               ),
+          //               const SizedBox(width: 4),
+          //               Text(
+          //                 "${variants.length} Variant${variants.length > 1 ? 's' : ''}",
+          //                 style: const TextStyle(
+          //                   color: Colors.white70,
+          //                   fontSize: 11,
+          //                   fontWeight: FontWeight.w500,
+          //                   fontFamily: 'Poppins',
+          //                 ),
+          //               ),
+          //             ],
+          //           ),
+          //           const SizedBox(height: 6),
+          //           // Show variant preview (max 2)
+          //           ...variants.take(2).map((variant) {
+          //             return Padding(
+          //               padding: const EdgeInsets.only(bottom: 4),
+          //               child: Row(
+          //                 children: [
+          //                   Container(
+          //                     width: 8,
+          //                     height: 8,
+          //                     decoration: BoxDecoration(
+          //                       color: _getStatusColor(
+          //                         variant['approval_status'],
+          //                       ),
+          //                       shape: BoxShape.circle,
+          //                     ),
+          //                   ),
+          //                   const SizedBox(width: 6),
+          //                   Expanded(
+          //                     child: Text(
+          //                       variant['sku'] ?? "Variant",
+          //                       style: const TextStyle(
+          //                         color: Colors.white60,
+          //                         fontSize: 10,
+          //                         fontFamily: 'Poppins',
+          //                       ),
+          //                       maxLines: 1,
+          //                       overflow: TextOverflow.ellipsis,
+          //                     ),
+          //                   ),
+          //                   Text(
+          //                     "₹${variant['price']}",
+          //                     style: const TextStyle(
+          //                       color: Colors.tealAccent,
+          //                       fontSize: 10,
+          //                       fontWeight: FontWeight.w500,
+          //                       fontFamily: 'Poppins',
+          //                     ),
+          //                   ),
+          //                 ],
+          //               ),
+          //             );
+          //           }),
+          //           if (variants.length > 2)
+          //             Padding(
+          //               padding: const EdgeInsets.only(top: 2),
+          //               child: Text(
+          //                 "+${variants.length - 2} more",
+          //                 style: const TextStyle(
+          //                   color: Colors.white54,
+          //                   fontSize: 9,
+          //                   fontFamily: 'Poppins',
+          //                 ),
+          //               ),
+          //             ),
+          //         ],
+          //       ),
+          //     ),
+          //   ),
+          // ],
           const SizedBox(height: 8),
         ],
       ),
