@@ -140,6 +140,97 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
     _overlayEntry = null;
   }
 
+  String _formatOfferText(String title) {
+    return title
+        .toUpperCase()
+        .replaceAll('BUY ', 'B')
+        .replaceAll(' GET ', 'G')
+        .replaceAll(' FREE', 'FREE')
+        .replaceAll(' ', '');
+  }
+
+  Map<String, dynamic>? _getActiveOffer() {
+    final offers = product?["offer_details"];
+
+    debugPrint("PRODUCT OFFER DETAILS: $offers");
+
+    if (offers == null || offers is! List || offers.isEmpty) {
+      return null;
+    }
+
+    for (final offer in offers) {
+      if (offer is Map) {
+        final Map<String, dynamic> offerMap = Map<String, dynamic>.from(offer);
+
+        final dynamic activeValue = offerMap["is_active"];
+
+        final bool isActive =
+            activeValue == true ||
+            activeValue.toString().toLowerCase() == "true" ||
+            activeValue.toString() == "1";
+
+        if (isActive) {
+          return offerMap;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  String _getOfferTitle() {
+    final offer = _getActiveOffer();
+
+    if (offer == null) return "";
+
+    final title = offer["title"]?.toString().trim() ?? "";
+    final message = offer["message"]?.toString().trim() ?? "";
+
+    debugPrint("ACTIVE OFFER TITLE: $title");
+    debugPrint("ACTIVE OFFER MESSAGE: $message");
+
+    if (title.isNotEmpty && title.toLowerCase() != "null") return title;
+    if (message.isNotEmpty && message.toLowerCase() != "null") return message;
+
+    return "";
+  }
+
+  bool _hasActiveOffer() {
+    return _getOfferTitle().isNotEmpty;
+  }
+
+  Widget _offerRibbonBadgeFromTitle(String title) {
+    final String cleanTitle = title.trim();
+
+    if (cleanTitle.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return ClipPath(
+      clipper: _ExactOfferRibbonClipper(),
+      child: Container(
+        height: 30,
+        width: 128,
+        padding: const EdgeInsets.fromLTRB(10, 0, 22, 0),
+        alignment: Alignment.centerLeft,
+        color: const Color.fromARGB(255, 55, 210, 194),
+        child: Text(
+          _formatOfferText(cleanTitle),
+          maxLines: 1,
+          overflow: TextOverflow.clip,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+            fontFamily: 'Poppins',
+            height: 1,
+            letterSpacing: -0.5,
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showFloatingAnimation(Offset startPosition, String imageUrl) {
     _removeOverlay();
     RenderBox? cartBox =
@@ -1874,6 +1965,11 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                     final bool hasDiscount =
                         _getDiscount() > 0 && savedAmount > 0;
 
+                    final String offerTitle = _getOfferTitle();
+                    final bool hasActiveOffer = offerTitle.isNotEmpty;
+
+                    debugPrint("UI OFFER TITLE: $offerTitle");
+                    debugPrint("UI HAS ACTIVE OFFER: $hasActiveOffer");
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -2007,6 +2103,15 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                       ),
                                     ),
                                   ),
+
+                                if (hasActiveOffer)
+                                  Positioned(
+                                    top: hasDiscount ? 56 : 18,
+                                    left: 16,
+                                    child: _offerRibbonBadgeFromTitle(
+                                      offerTitle,
+                                    ),
+                                  ),
                                 Positioned(
                                   top: 16,
                                   right: 16,
@@ -2088,7 +2193,6 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                               CrossAxisAlignment.start,
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                         
                                             Text(
                                               "Tap image to zoom",
                                               style: TextStyle(
@@ -2243,6 +2347,85 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                               fontWeight: FontWeight.w600,
                                               fontFamily: 'Poppins',
                                             ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+
+                              if (hasActiveOffer) ...[
+                                const SizedBox(height: 14),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 18,
+                                  ),
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 13,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Colors.orangeAccent.withOpacity(0.22),
+                                          Colors.amberAccent.withOpacity(0.12),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                        color: Colors.orangeAccent.withOpacity(
+                                          0.42,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          height: 34,
+                                          width: 34,
+                                          decoration: BoxDecoration(
+                                            color: Colors.orangeAccent
+                                                .withOpacity(0.18),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.card_giftcard_rounded,
+                                            color: Colors.orangeAccent,
+                                            size: 18,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 11),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                "Active Offer",
+                                                style: TextStyle(
+                                                  color: Colors.orangeAccent,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w800,
+                                                  fontFamily: 'Poppins',
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                offerTitle,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 13.5,
+                                                  fontWeight: FontWeight.w800,
+                                                  fontFamily: 'Poppins',
+                                                  height: 1.25,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ],
@@ -3260,4 +3443,23 @@ class RatingSummary extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ExactOfferRibbonClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+
+    path.moveTo(0, 0);
+    path.lineTo(size.width, 0);
+    path.lineTo(size.width - 9, size.height / 2);
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
