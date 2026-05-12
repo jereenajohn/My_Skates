@@ -9,7 +9,16 @@ import 'package:shimmer/shimmer.dart';
 enum RefundRequestViewType { orders, usedOrders }
 
 class ReturnRefundProductsScreen extends StatefulWidget {
-  const ReturnRefundProductsScreen({super.key});
+  final RefundRequestViewType initialViewType;
+  final bool showViewDropdown;
+  final bool allowStatusUpdate;
+
+  const ReturnRefundProductsScreen({
+    super.key,
+    this.initialViewType = RefundRequestViewType.orders,
+    this.showViewDropdown = true,
+    this.allowStatusUpdate = true,
+  });
 
   @override
   State<ReturnRefundProductsScreen> createState() =>
@@ -19,7 +28,7 @@ class ReturnRefundProductsScreen extends StatefulWidget {
 class _ReturnRefundProductsScreenState
     extends State<ReturnRefundProductsScreen> {
   List<RefundProduct> refundProducts = [];
-  RefundRequestViewType selectedRefundView = RefundRequestViewType.orders;
+
   bool isLoading = true;
   String? error;
 
@@ -37,7 +46,9 @@ class _ReturnRefundProductsScreenState
     "pending",
     "approved",
     "rejected",
-    "Waiting For Approval",
+    "waiting_for_approval",
+    "completed",
+    "cancelled",
   ];
 
   String get _refundListEndpoint {
@@ -46,7 +57,7 @@ class _ReturnRefundProductsScreenState
         return "$api/api/myskates/msk/refund/product/owner/";
 
       case RefundRequestViewType.usedOrders:
-        return "$api/api/myskates/msk/used/product/refund/";
+        return "$api/api/myskates/msk/used/product/refund/product/owner/";
     }
   }
 
@@ -82,9 +93,14 @@ class _ReturnRefundProductsScreenState
 
   late final ScrollController _scrollController;
 
+  late RefundRequestViewType selectedRefundView;
+
   @override
   void initState() {
     super.initState();
+
+    selectedRefundView = widget.initialViewType;
+
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener);
     fetchRefundProducts();
@@ -747,12 +763,24 @@ class _ReturnRefundProductsScreenState
     switch (status.toLowerCase()) {
       case 'pending':
         return Colors.orange;
+
       case 'approved':
         return Colors.green;
+
       case 'rejected':
         return Colors.red;
+
+      case 'waiting_for_approval':
       case 'waiting for approval':
         return Colors.blueAccent;
+
+      case 'completed':
+        return Colors.tealAccent;
+
+      case 'cancelled':
+      case 'canceled':
+        return Colors.grey;
+
       default:
         return Colors.grey;
     }
@@ -762,14 +790,33 @@ class _ReturnRefundProductsScreenState
     switch (status.toLowerCase()) {
       case 'pending':
         return "Pending";
+
       case 'approved':
         return "Approved";
+
       case 'rejected':
         return "Rejected";
+
+      case 'waiting_for_approval':
       case 'waiting for approval':
         return "Waiting For Approval";
+
+      case 'completed':
+        return "Completed";
+
+      case 'cancelled':
+      case 'canceled':
+        return "Cancelled";
+
       default:
-        return status;
+        return status
+            .replaceAll("_", " ")
+            .split(" ")
+            .map((word) {
+              if (word.isEmpty) return word;
+              return word[0].toUpperCase() + word.substring(1).toLowerCase();
+            })
+            .join(" ");
     }
   }
 
@@ -777,96 +824,124 @@ class _ReturnRefundProductsScreenState
     final selectedStatus = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: const Color(0xFF001F1D),
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 42,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  "Update Request Status",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "Order #${refund.orderNo}",
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
-                ),
-                const SizedBox(height: 18),
-
-                ...refundStatusChoices.map((status) {
-                  final bool isSelected =
-                      refund.status.toLowerCase() == status.toLowerCase();
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? _getStatusColor(status).withOpacity(0.18)
-                          : Colors.white.withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isSelected
-                            ? _getStatusColor(status).withOpacity(0.7)
-                            : Colors.white12,
-                      ),
-                    ),
-                    child: ListTile(
-                      onTap: () => Navigator.pop(context, status),
-                      leading: CircleAvatar(
-                        radius: 17,
-                        backgroundColor: _getStatusColor(
-                          status,
-                        ).withOpacity(0.18),
-                        child: Icon(
-                          isSelected
-                              ? Icons.check_circle
-                              : Icons.radio_button_unchecked,
-                          color: _getStatusColor(status),
-                          size: 19,
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.72,
+            minChildSize: 0.45,
+            maxChildSize: 0.92,
+            builder: (context, scrollController) {
+              return SingleChildScrollView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      title: Text(
-                        _getStatusLabel(status),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      trailing: isSelected
-                          ? const Text(
-                              "Current",
-                              style: TextStyle(
-                                color: Colors.tealAccent,
-                                fontSize: 12,
-                              ),
-                            )
-                          : null,
                     ),
-                  );
-                }),
-              ],
-            ),
+
+                    const SizedBox(height: 18),
+
+                    const Text(
+                      "Update Request Status",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    Text(
+                      refund.orderNo.isNotEmpty
+                          ? "Order #${refund.orderNo}"
+                          : "Refund #${refund.id}",
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 13,
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    ...refundStatusChoices.map((status) {
+                      final bool isSelected =
+                          refund.status.toLowerCase() == status.toLowerCase();
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? _getStatusColor(status).withOpacity(0.18)
+                              : Colors.white.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isSelected
+                                ? _getStatusColor(status).withOpacity(0.7)
+                                : Colors.white12,
+                          ),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 2,
+                          ),
+                          onTap: () => Navigator.pop(context, status),
+                          leading: CircleAvatar(
+                            radius: 17,
+                            backgroundColor: _getStatusColor(
+                              status,
+                            ).withOpacity(0.18),
+                            child: Icon(
+                              isSelected
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: _getStatusColor(status),
+                              size: 19,
+                            ),
+                          ),
+                          title: Text(
+                            _getStatusLabel(status),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          trailing: isSelected
+                              ? const Text(
+                                  "Current",
+                                  style: TextStyle(
+                                    color: Colors.tealAccent,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                )
+                              : null,
+                        ),
+                      );
+                    }),
+
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              );
+            },
           ),
         );
       },
@@ -1043,99 +1118,125 @@ class _ReturnRefundProductsScreenState
   }
 
   Widget _buildFilterPanel() {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      height: isFilterPanelOpen ? 220 : 0,
-      child: isFilterPanelOpen
-          ? Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => _selectStartDate(context),
-                          child: AbsorbPointer(
-                            child: TextField(
-                              controller: startDateController,
-                              decoration: InputDecoration(
-                                labelText: "Start Date",
-                                labelStyle: const TextStyle(
-                                  color: Colors.white54,
-                                ),
-                                hintText: "Select start date",
-                                hintStyle: const TextStyle(
-                                  color: Colors.white38,
-                                ),
-                                prefixIcon: const Icon(
-                                  Icons.calendar_today,
-                                  color: Colors.tealAccent,
-                                  size: 18,
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                    color: Colors.white24,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                    color: Colors.tealAccent,
-                                  ),
+    return ClipRect(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        height: isFilterPanelOpen ? 150 : 0,
+        child: SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => _selectStartDate(context),
+                        child: AbsorbPointer(
+                          child: TextField(
+                            controller: startDateController,
+                            decoration: InputDecoration(
+                              labelText: "Start Date",
+                              labelStyle: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 12,
+                              ),
+                              hintText: "Start date",
+                              hintStyle: const TextStyle(
+                                color: Colors.white38,
+                                fontSize: 12,
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.calendar_today,
+                                color: Colors.tealAccent,
+                                size: 17,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 12,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Colors.white24,
                                 ),
                               ),
-                              style: const TextStyle(color: Colors.white),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Colors.tealAccent,
+                                ),
+                              ),
+                            ),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => _selectEndDate(context),
-                          child: AbsorbPointer(
-                            child: TextField(
-                              controller: endDateController,
-                              decoration: InputDecoration(
-                                labelText: "End Date",
-                                labelStyle: const TextStyle(
-                                  color: Colors.white54,
-                                ),
-                                hintText: "Select end date",
-                                hintStyle: const TextStyle(
-                                  color: Colors.white38,
-                                ),
-                                prefixIcon: const Icon(
-                                  Icons.calendar_today,
-                                  color: Colors.tealAccent,
-                                  size: 18,
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                    color: Colors.white24,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                    color: Colors.tealAccent,
-                                  ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => _selectEndDate(context),
+                        child: AbsorbPointer(
+                          child: TextField(
+                            controller: endDateController,
+                            decoration: InputDecoration(
+                              labelText: "End Date",
+                              labelStyle: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 12,
+                              ),
+                              hintText: "End date",
+                              hintStyle: const TextStyle(
+                                color: Colors.white38,
+                                fontSize: 12,
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.calendar_today,
+                                color: Colors.tealAccent,
+                                size: 17,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 12,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Colors.white24,
                                 ),
                               ),
-                              style: const TextStyle(color: Colors.white),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Colors.tealAccent,
+                                ),
+                              ),
+                            ),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
                             ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 14),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 44,
                         child: OutlinedButton(
                           onPressed: _clearFilters,
                           style: OutlinedButton.styleFrom(
@@ -1146,12 +1247,18 @@ class _ReturnRefundProductsScreenState
                           ),
                           child: const Text(
                             "Clear All",
-                            style: TextStyle(color: Colors.white70),
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SizedBox(
+                        height: 44,
                         child: ElevatedButton(
                           onPressed: _applyFilters,
                           style: ElevatedButton.styleFrom(
@@ -1160,15 +1267,24 @@ class _ReturnRefundProductsScreenState
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: const Text("Apply Filters"),
+                          child: const Text(
+                            "Apply Filters",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                ],
-              ),
-            )
-          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1556,46 +1672,46 @@ class _ReturnRefundProductsScreenState
             ),
 
             const SizedBox(height: 12),
-
-            SizedBox(
-              width: double.infinity,
-              height: 42,
-              child: ElevatedButton.icon(
-                onPressed: updatingRefundIds.contains(refund.id)
-                    ? null
-                    : () => _showStatusUpdateSheet(refund),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00AFA5),
-                  disabledBackgroundColor: Colors.white12,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+            if (widget.allowStatusUpdate)
+              SizedBox(
+                width: double.infinity,
+                height: 42,
+                child: ElevatedButton.icon(
+                  onPressed: updatingRefundIds.contains(refund.id)
+                      ? null
+                      : () => _showStatusUpdateSheet(refund),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00AFA5),
+                    disabledBackgroundColor: Colors.white12,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                ),
-                icon: updatingRefundIds.contains(refund.id)
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
+                  icon: updatingRefundIds.contains(refund.id)
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.edit_note_rounded,
                           color: Colors.white,
+                          size: 20,
                         ),
-                      )
-                    : const Icon(
-                        Icons.edit_note_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                label: Text(
-                  updatingRefundIds.contains(refund.id)
-                      ? "Updating..."
-                      : "Update Status",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
+                  label: Text(
+                    updatingRefundIds.contains(refund.id)
+                        ? "Updating..."
+                        : "Update Status",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -1637,7 +1753,7 @@ class _ReturnRefundProductsScreenState
         ),
         child: Column(
           children: [
-            _buildRefundTypeDropdown(),
+            if (widget.showViewDropdown) _buildRefundTypeDropdown(),
             _buildSearchBar(),
             _buildFilterPanel(),
             _buildStatsBar(),
@@ -1865,13 +1981,14 @@ class RefundProduct {
           'Used Product Item #${json['item'] ?? ''}',
 
       productImage:
-          json['product_image']?.toString() ?? json['image']?.toString() ?? '',
+          json['product_image']?.toString() ??
+          json['item_image']?.toString() ??
+          '',
 
       variantId:
           // json['variant'] ??
           // json['variant_id'] ??
-          json['exchange_variant'] ??
-          0,
+          json['exchange_variant'] ?? 0,
 
       variantLabel:
           json['variant_name']?.toString() ??
@@ -1883,11 +2000,7 @@ class RefundProduct {
 
       amount:
           double.tryParse(
-            (json['product_price'] ??
-                 
-                    json['item_price'] ??
-                    0)
-                .toString(),
+            (json['product_price'] ?? json['item_price'] ?? 0).toString(),
           ) ??
           0.0,
 

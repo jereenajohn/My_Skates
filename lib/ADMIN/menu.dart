@@ -131,7 +131,11 @@ class _MenuPageState extends State<MenuPage> {
                             sectionTile(
                               icon: Icons.tune,
                               title: "Return/Refund Requests",
-                              page: const ReturnRefundProductsScreen(),
+                              page: const ReturnRefundProductsScreen(
+                                initialViewType: RefundRequestViewType.orders,
+                                showViewDropdown: true,
+                                allowStatusUpdate: true,
+                              ),
                             ),
                           if (matchesSearch("Values"))
                             sectionTile(
