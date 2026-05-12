@@ -317,7 +317,11 @@ class _CoachSettingsState extends State<CoachSettings> {
                         icon: Icons.production_quantity_limits_rounded,
                         text: "Return/Refund Products",
                         onTap: () =>
-                            pushWithSlide(ReturnRefundProductsScreen()),
+                            pushWithSlide(const ReturnRefundProductsScreen(
+  initialViewType: RefundRequestViewType.orders,
+  showViewDropdown: true,
+  allowStatusUpdate: true,
+)),
                       ),
 
                     if ("Attributes".toLowerCase().contains(_searchQuery))

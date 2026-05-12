@@ -1,7 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:my_skates/COACH/coach_timeline_page.dart';
+import 'package:my_skates/api.dart';
+import 'package:my_skates/pending_screen.dart';
+import 'package:my_skates/rejected_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:http/http.dart' as http;
 import 'package:my_skates/loginpage.dart';
 import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
@@ -73,27 +78,87 @@ class MyApp extends StatelessWidget {
   // ----------------------------------------------------------
   // CHECK LOGIN STATUS (UNCHANGED LOGIC)
   // ----------------------------------------------------------
-  Future<Widget> checkLoginStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-    final userType = prefs.getString("user_type");
+Future<Widget> checkLoginStatus() async {
+  final prefs = await SharedPreferences.getInstance();
 
-    // ignore: avoid_print
-    print("User Type from prefs: $userType");
+  final token = prefs.getString("access");
+  final userType = prefs.getString("user_type");
 
-    if (token != null && token.isNotEmpty) {
-      final normalizedUserType = userType?.toLowerCase().trim();
-      if (normalizedUserType == "admin") {
-        return DashboardPage();
-      } else if (normalizedUserType == "coach") {
-        return const CoachHomepage();
-      } else if (normalizedUserType == "student") {
-        return const HomePage();
-      }
+  final int userId =
+      prefs.getInt("id") ??
+      prefs.getInt("user_id") ??
+      0;
+
+  print("User Type from prefs: $userType");
+  print("User ID from prefs: $userId");
+
+  if (token != null && token.isNotEmpty) {
+    final normalizedUserType = userType?.toLowerCase().trim();
+
+    if (normalizedUserType == "admin") {
+      return DashboardPage();
     }
 
+    if (normalizedUserType == "student") {
+      return const HomePage();
+    }
+
+    if (normalizedUserType == "coach") {
+      return await _checkCoachApprovalStatusOnStart(
+        userId: userId,
+        token: token,
+      );
+    }
+  }
+
+  return Loginpage();
+}
+
+  Future<Widget> _checkCoachApprovalStatusOnStart({
+  required int userId,
+  required String token,
+}) async {
+  if (userId == 0) {
     return Loginpage();
   }
+
+  try {
+    final response = await http.get(
+      Uri.parse("$api/api/myskates/coach/approval/$userId/"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
+
+    print("APP START COACH APPROVAL STATUS CODE: ${response.statusCode}");
+    print("APP START COACH APPROVAL BODY: ${response.body}");
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+
+      final String approvalStatus =
+          decoded["approval_status"]?.toString().toLowerCase().trim() ??
+              "pending";
+
+      if (approvalStatus == "approved") {
+        return const CoachHomepage();
+      }
+
+      if (approvalStatus == "rejected" || approvalStatus == "disapproved") {
+        return const CoachApprovalRejectedScreen();
+      }
+
+      return CoachApprovalPendingScreen(userId: userId);
+    }
+
+    return CoachApprovalPendingScreen(userId: userId);
+  } catch (e) {
+    print("APP START COACH APPROVAL CHECK ERROR: $e");
+
+    return CoachApprovalPendingScreen(userId: userId);
+  }
+}
 
   @override
   Widget build(BuildContext context) {

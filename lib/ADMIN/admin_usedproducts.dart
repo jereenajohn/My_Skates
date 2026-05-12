@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/admin_orders_page.dart';
+import 'package:my_skates/COACH/used_product_my_order_detail_page.dart'
+    as my_used_detail;
+import 'package:my_skates/COACH/used_product_sold_order_detail_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -181,6 +184,7 @@ class UsedSellerBreakdown {
   final String sellerTotal;
   final String sellerPercentageTotal;
   final String sellerPayableTotal;
+  final String sellerPaymentStatus;
 
   UsedSellerBreakdown({
     required this.sellerId,
@@ -192,23 +196,35 @@ class UsedSellerBreakdown {
     required this.sellerTotal,
     required this.sellerPercentageTotal,
     required this.sellerPayableTotal,
+    required this.sellerPaymentStatus,
   });
 
   factory UsedSellerBreakdown.fromJson(Map<String, dynamic> json) {
     return UsedSellerBreakdown(
-      sellerId: json['seller_id'] ?? 0,
-      sellerName: json['seller_name'] ?? '',
-      sellerPhone: json['seller_phone'] ?? '',
-      userType: json['user_type'] ?? '',
+      sellerId: json['seller_id'] ?? json['id'] ?? json['user_id'] ?? 0,
+
+      sellerName: json['seller_name']?.toString() ?? '',
+
+      sellerPhone: json['seller_phone']?.toString() ?? '',
+
+      userType: json['user_type']?.toString() ?? '',
+
       bankDetails: json['bank_details'] != null
           ? UsedSellerBankDetails.fromJson(json['bank_details'])
           : null,
+
       items: (json['items'] as List? ?? [])
           .map((e) => UsedSellerItem.fromJson(e))
           .toList(),
+
       sellerTotal: json['seller_total']?.toString() ?? '0',
+
       sellerPercentageTotal: json['seller_percentage_total']?.toString() ?? '0',
+
       sellerPayableTotal: json['seller_payable_total']?.toString() ?? '0',
+
+      sellerPaymentStatus:
+          json['seller_payment_status']?.toString().toUpperCase() ?? 'PENDING',
     );
   }
 }
@@ -253,10 +269,11 @@ class UsedOrder {
   final String? note;
   final DateTime createdAt;
   final List<UsedOrderItem> items;
-  // pricing is optional — list API returns flat fields, detail API nests them
   final UsedPricing? pricing;
   final List<UsedSellerBreakdown> sellerBreakdown;
   final UsedOrderSummary? summary;
+
+  final String sellerPaymentStatus;
 
   UsedOrder({
     required this.id,
@@ -278,19 +295,17 @@ class UsedOrder {
     this.pricing,
     required this.sellerBreakdown,
     this.summary,
+    required this.sellerPaymentStatus,
   });
 
-  // Convenience getter — works for both list (flat) and detail (nested) responses.
   String get finalPayable => pricing?.finalPayable ?? '0';
 
   factory UsedOrder.fromJson(Map<String, dynamic> json) {
-    // The list API returns flat pricing fields at the root;
-    // the detail API wraps them inside a "pricing" key.
     UsedPricing? pricing;
+
     if (json['pricing'] != null) {
       pricing = UsedPricing.fromJson(json['pricing']);
     } else if (json['final_payable'] != null) {
-      // Build a UsedPricing from the flat fields present in the list response
       pricing = UsedPricing(
         subtotal: json['subtotal']?.toString() ?? '0',
         discountTotal: json['discount_total']?.toString() ?? '0',
@@ -305,34 +320,42 @@ class UsedOrder {
 
     return UsedOrder(
       id: json['id'] ?? 0,
-      orderNo: json['order_no'] ?? '',
-      status: json['status'] ?? '',
-      paymentMethod: json['payment_method'] ?? '',
+      orderNo: json['order_no']?.toString() ?? '',
+      status: json['status']?.toString() ?? '',
+      paymentMethod: json['payment_method']?.toString() ?? '',
       razorpayPaymentRef: json['payment_ref'] ?? json['razorpay_payment_ref'],
-      fullName: json['full_name'] ?? '',
+      fullName: json['full_name']?.toString() ?? '',
       phone: json['phone']?.toString() ?? '',
-      addressLine1: json['address_line1'] ?? '',
-      addressLine2: json['address_line2'],
-      city: json['city'] ?? '',
+      addressLine1: json['address_line1']?.toString() ?? '',
+      addressLine2: json['address_line2']?.toString(),
+      city: json['city']?.toString() ?? '',
       state: json['state']?.toString() ?? '',
       pincode: json['pincode']?.toString() ?? '',
       country: json['country']?.toString() ?? '',
-      note: json['note'],
-      createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+      note: json['note']?.toString(),
+      createdAt:
+          DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+
       items: (json['items'] as List? ?? [])
           .map((e) => UsedOrderItem.fromJson(e))
           .toList(),
+
       pricing: pricing,
+
       sellerBreakdown: (json['seller_breakdown'] as List? ?? [])
           .map((e) => UsedSellerBreakdown.fromJson(e))
           .toList(),
+
       summary: json['summary'] != null
           ? UsedOrderSummary.fromJson(json['summary'])
           : null,
+
+      sellerPaymentStatus:
+          json['seller_payment_status']?.toString().toUpperCase() ?? 'PENDING',
     );
   }
 }
-
 // ─── Shared Helpers ───────────────────────────────────────────────────────────
 
 Color _usedOrderStatusColor(String status) {
@@ -380,6 +403,13 @@ Widget _usedOrderGlassWrap({required Widget child, EdgeInsets? padding}) {
 // ─── List Page ────────────────────────────────────────────────────────────────
 enum UsedAllOrderSortType { latest, earliest }
 
+enum UsedProductOrderViewType {
+  coachUsedProducts,
+  myUsedProducts,
+  mySoldProducts,
+  allUsedProducts,
+}
+
 class UsedProductOrdersPage extends StatefulWidget {
   const UsedProductOrdersPage({super.key});
 
@@ -389,6 +419,8 @@ class UsedProductOrdersPage extends StatefulWidget {
 
 class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
   List<UsedOrder> _orders = [];
+  UsedProductOrderViewType _selectedView =
+      UsedProductOrderViewType.coachUsedProducts;
   UsedAllOrderSortType _selectedSort = UsedAllOrderSortType.latest;
   bool _isLoading = true;
   String? _error;
@@ -399,6 +431,22 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
   int _totalPages = 0;
   String? _nextPageUrl;
   String? _previousPageUrl;
+
+  String get _selectedEndpoint {
+    switch (_selectedView) {
+      case UsedProductOrderViewType.coachUsedProducts:
+        return '$api/api/myskates/used/product/all/orders/';
+
+      case UsedProductOrderViewType.myUsedProducts:
+        return '$api/api/myskates/used/product/my/orders/';
+
+      case UsedProductOrderViewType.mySoldProducts:
+        return '$api/api/myskates/used/product/sold/orders/view/';
+
+      case UsedProductOrderViewType.allUsedProducts:
+        return '$api/api/myskates/used/product/all/seller/orders/view/';
+    }
+  }
 
   // Search and date filter
   final TextEditingController _searchController = TextEditingController();
@@ -547,7 +595,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
       }
 
       final uri = Uri.parse(
-        '$api/api/myskates/used/product/all/orders/',
+        _selectedEndpoint,
       ).replace(queryParameters: queryParams);
 
       print('USED ORDERS URL: $uri');
@@ -604,6 +652,193 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
         _isLoading = false;
       });
     }
+  }
+
+  Widget _buildViewDropdown() {
+    return Container(
+      height: 48,
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.10)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<UsedProductOrderViewType>(
+          value: _selectedView,
+          isExpanded: true,
+          dropdownColor: const Color(0xFF1A1A1A),
+          icon: const Icon(
+            Icons.keyboard_arrow_down,
+            color: Colors.tealAccent,
+            size: 20,
+          ),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+          onChanged: (UsedProductOrderViewType? value) {
+            if (value == null || value == _selectedView) return;
+
+            setState(() {
+              _selectedView = value;
+              _orders = [];
+              _currentPage = 1;
+              _totalCount = 0;
+              _totalPages = 0;
+              _nextPageUrl = null;
+              _previousPageUrl = null;
+              _searchController.clear();
+              _startDate = null;
+              _endDate = null;
+              _selectedSort = UsedAllOrderSortType.latest;
+            });
+
+            _fetchOrders();
+          },
+          selectedItemBuilder: (context) {
+            return const [
+              Row(
+                children: [
+                  Icon(
+                    Icons.sports_rounded,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Coach Used Product Orders',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.person_outline_rounded,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'My Used Product Orders',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.storefront_rounded,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'My Sold Products',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.inventory_2_outlined,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'All Used Products',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ];
+          },
+          items: const [
+            DropdownMenuItem<UsedProductOrderViewType>(
+              value: UsedProductOrderViewType.coachUsedProducts,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.sports_rounded,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'Coach Used Product Orders',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            DropdownMenuItem<UsedProductOrderViewType>(
+              value: UsedProductOrderViewType.myUsedProducts,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.person_outline_rounded,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'My Used Product Orders',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            DropdownMenuItem<UsedProductOrderViewType>(
+              value: UsedProductOrderViewType.mySoldProducts,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.storefront_rounded,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'My Sold Products',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            DropdownMenuItem<UsedProductOrderViewType>(
+              value: UsedProductOrderViewType.allUsedProducts,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.inventory_2_outlined,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'All Used Products',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   List<UsedOrder> get _sortedOrders {
@@ -1066,12 +1301,46 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
     final statusColor = _usedOrderStatusColor(order.status);
 
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => UsedProductOrderDetailPage(orderId: order.id),
-        ),
-      ),
+      onTap: () {
+        if (_selectedView == UsedProductOrderViewType.myUsedProducts) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  my_used_detail.UsedProductOrderDetailPage(orderId: order.id),
+            ),
+          );
+          return;
+        }
+
+        if (_selectedView == UsedProductOrderViewType.mySoldProducts) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => UsedProductSoldOrderDetailPage(orderId: order.id),
+            ),
+          );
+          return;
+        }
+
+        if (_selectedView == UsedProductOrderViewType.allUsedProducts) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  my_used_detail.UsedProductOrderDetailPage(orderId: order.id),
+            ),
+          );
+          return;
+        }
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CoachUsedProductOrderDetailPage(orderId: order.id),
+          ),
+        );
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         child: _usedOrderGlassWrap(
@@ -1330,10 +1599,19 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
                         onPressed: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 4),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Used Product Orders',
-                          style: TextStyle(
+                          _selectedView ==
+                                  UsedProductOrderViewType.coachUsedProducts
+                              ? 'Coach Used Product Orders'
+                              : _selectedView ==
+                                    UsedProductOrderViewType.myUsedProducts
+                              ? 'My Used Product Orders'
+                              : _selectedView ==
+                                    UsedProductOrderViewType.mySoldProducts
+                              ? 'My Sold Products'
+                              : 'All Used Products',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -1394,6 +1672,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  _buildViewDropdown(),
                   _buildFilterBar(),
                   const SizedBox(height: 8),
                   Expanded(
@@ -1462,24 +1741,45 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
   }
 
   Widget _buildEmpty() {
+    final title = _selectedView == UsedProductOrderViewType.coachUsedProducts
+        ? 'No coach used product orders yet'
+        : _selectedView == UsedProductOrderViewType.myUsedProducts
+        ? 'No my used product orders yet'
+        : _selectedView == UsedProductOrderViewType.mySoldProducts
+        ? 'No sold products yet'
+        : 'No all used products yet';
+
+    final subtitle = _selectedView == UsedProductOrderViewType.coachUsedProducts
+        ? 'Coach used product orders will appear here'
+        : _selectedView == UsedProductOrderViewType.myUsedProducts
+        ? 'Your used product orders will appear here'
+        : _selectedView == UsedProductOrderViewType.mySoldProducts
+        ? 'Orders for your used products will appear here'
+        : 'All seller used product orders will appear here';
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         const SizedBox(height: 80),
         _usedOrderGlassWrap(
           padding: const EdgeInsets.all(36),
-          child: const Column(
+          child: Column(
             children: [
-              Icon(Icons.inventory_2_outlined, color: Colors.white24, size: 64),
-              SizedBox(height: 16),
-              Text(
-                'No used product orders yet',
-                style: TextStyle(color: Colors.white70, fontSize: 18),
+              const Icon(
+                Icons.inventory_2_outlined,
+                color: Colors.white24,
+                size: 64,
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 16),
               Text(
-                'Your used product orders will appear here',
-                style: TextStyle(color: Colors.white38, fontSize: 14),
+                title,
+                style: const TextStyle(color: Colors.white70, fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                subtitle,
+                style: const TextStyle(color: Colors.white38, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -1490,21 +1790,325 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
   }
 } // ─── Detail Page ──────────────────────────────────────────────────────────────
 
-class UsedProductOrderDetailPage extends StatefulWidget {
+class CoachUsedProductOrderDetailPage extends StatefulWidget {
   final int orderId;
 
-  const UsedProductOrderDetailPage({super.key, required this.orderId});
+  const CoachUsedProductOrderDetailPage({super.key, required this.orderId});
 
   @override
-  State<UsedProductOrderDetailPage> createState() =>
-      _UsedProductOrderDetailPageState();
+  State<CoachUsedProductOrderDetailPage> createState() =>
+      _CoachUsedProductOrderDetailPageState();
 }
 
-class _UsedProductOrderDetailPageState
-    extends State<UsedProductOrderDetailPage> {
+class _CoachUsedProductOrderDetailPageState
+    extends State<CoachUsedProductOrderDetailPage> {
   UsedOrder? _order;
   bool _isLoading = true;
   String? _error;
+
+  final List<String> _sellerPaymentStatusChoices = const [
+    "PENDING",
+    "PROCESSING",
+    "PAID",
+  ];
+
+  final Set<int> _updatingSellerPaymentIds = {};
+
+  Color _sellerPaymentStatusColor(String status) {
+    switch (status.trim().toUpperCase()) {
+      case 'PENDING':
+        return Colors.orangeAccent;
+      case 'PROCESSING':
+        return Colors.blueAccent;
+      case 'PAID':
+        return Colors.greenAccent;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _sellerPaymentStatusLabel(String status) {
+    switch (status.trim().toUpperCase()) {
+      case 'PENDING':
+        return 'Pending';
+      case 'PROCESSING':
+        return 'Processing';
+      case 'PAID':
+        return 'Paid';
+      default:
+        return status.isEmpty ? 'Pending' : status;
+    }
+  }
+
+  Future<void> _updateCoachSellerPaymentStatus({
+    required int sellerId,
+    required String status,
+  }) async {
+    if (_order == null) return;
+
+    if (_updatingSellerPaymentIds.contains(sellerId)) return;
+
+    setState(() {
+      _updatingSellerPaymentIds.add(sellerId);
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access');
+
+      if (token == null) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Authentication token missing'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      final requestBody = {
+        // "seller_id": sellerId,
+        "seller_payment_status": status,
+      };
+
+      final uri = Uri.parse(
+        '$api/api/myskates/used/product/order/${_order!.id}/seller/payment/status/',
+      );
+
+      final response = await http.patch(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print("SELLER PAYMENT STATUS UPDATE URL: $uri");
+      print("SELLER PAYMENT STATUS UPDATE BODY: ${jsonEncode(requestBody)}");
+      print("SELLER PAYMENT STATUS UPDATE CODE: ${response.statusCode}");
+      print("SELLER PAYMENT STATUS UPDATE RESPONSE: ${response.body}");
+
+      Map<String, dynamic>? decoded;
+
+      try {
+        final parsed = jsonDecode(response.body);
+        if (parsed is Map<String, dynamic>) {
+          decoded = parsed;
+        }
+      } catch (_) {
+        decoded = null;
+      }
+
+      final responseMessage =
+          decoded?['message']?.toString() ??
+          decoded?['error']?.toString() ??
+          decoded?['detail']?.toString() ??
+          '';
+
+      if (response.statusCode == 200 || response.statusCode == 202) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Seller payment status updated successfully',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        await _fetchDetail();
+      } else {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Failed to update seller payment status',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      print("SELLER PAYMENT STATUS UPDATE ERROR: $e");
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _updatingSellerPaymentIds.remove(sellerId);
+        });
+      }
+    }
+  }
+
+  Widget _buildSellerPaymentStatusDropdown(
+    UsedSellerBreakdown seller,
+    String orderSellerPaymentStatus,
+  ) {
+    final sellerId = seller.sellerId;
+    final currentStatus = orderSellerPaymentStatus.trim().isEmpty
+        ? "PENDING"
+        : orderSellerPaymentStatus.trim().toUpperCase();
+
+    final selectedStatus = _sellerPaymentStatusChoices.contains(currentStatus)
+        ? currentStatus
+        : "PENDING";
+
+    final statusColor = _sellerPaymentStatusColor(selectedStatus);
+    final isUpdating = _updatingSellerPaymentIds.contains(sellerId);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: statusColor.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.account_balance_wallet_outlined,
+                color: statusColor,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Seller Payment Status',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (isUpdating)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    color: Colors.tealAccent,
+                    strokeWidth: 2,
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.20),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.10)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: selectedStatus,
+                isExpanded: true,
+                dropdownColor: const Color(0xFF101010),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white70,
+                ),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+                onChanged: isUpdating
+                    ? null
+                    : (String? value) {
+                        if (value == null) return;
+
+                        if (value == selectedStatus) return;
+
+                        _updateCoachSellerPaymentStatus(
+                          sellerId: sellerId,
+                          status: value,
+                        );
+                      },
+                selectedItemBuilder: (context) {
+                  return _sellerPaymentStatusChoices.map((status) {
+                    final color = _sellerPaymentStatusColor(status);
+
+                    return Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _sellerPaymentStatusLabel(status),
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList();
+                },
+                items: _sellerPaymentStatusChoices.map((status) {
+                  final color = _sellerPaymentStatusColor(status);
+
+                  return DropdownMenuItem<String>(
+                    value: status,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _sellerPaymentStatusLabel(status),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -2282,6 +2886,10 @@ class _UsedProductOrderDetailPageState
                           ),
                         ),
 
+                        _buildSellerPaymentStatusDropdown(
+                          seller,
+                          order.sellerPaymentStatus,
+                        ),
                         const Divider(color: Colors.white10, height: 1),
 
                         // Items

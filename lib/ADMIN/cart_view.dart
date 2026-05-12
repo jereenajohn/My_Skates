@@ -939,54 +939,103 @@ class _cartState extends State<cart> {
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
+    final int itemCount = cartItems.fold<int>(
+      0,
+      (sum, item) => sum + _toInt(item["quantity"]),
+    );
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF050505),
       bottomNavigationBar: loading || cartItems.isEmpty
           ? null
           : _buildBottomBar(context),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
+            begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF00312D), Color(0xFF000000)],
-            stops: [0.0, 0.35],
+            colors: [
+              Color(0xFF062F2B),
+              Color(0xFF071614),
+              Color(0xFF050505),
+            ],
+            stops: [0.0, 0.26, 0.58],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
                 child: Row(
                   children: [
                     InkWell(
-                      borderRadius: BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(16),
                       onTap: () => Navigator.pop(context),
-                      child: const Padding(
-                        padding: EdgeInsets.all(6),
-                        child: Icon(
-                          Icons.arrow_back_ios_new,
-                          size: 18,
+                      child: Container(
+                        height: 42,
+                        width: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.10),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 17,
                           color: Colors.white,
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        "Cart View",
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'Poppins',
-                        ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Shopping Bag",
+                            style: TextStyle(
+                              fontSize: 19,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'Poppins',
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            itemCount == 1
+                                ? "1 item ready for checkout"
+                                : "$itemCount items ready for checkout",
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: Colors.white.withOpacity(0.60),
+                              fontWeight: FontWeight.w500,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                    if (!loading && cartItems.isNotEmpty)
+                      Container(
+                        height: 42,
+                        width: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.tealAccent.withOpacity(0.14),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.tealAccent.withOpacity(0.30),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.shopping_bag_outlined,
+                          color: Colors.tealAccent,
+                          size: 21,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -997,39 +1046,48 @@ class _cartState extends State<cart> {
                     ? _buildErrorUI(cartErrorMessage!)
                     : cartItems.isEmpty
                     ? _buildEmptyCartUI()
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 140),
-                        itemCount: cartItems.length + 5,
-                        itemBuilder: (context, index) {
-                          if (index == 0) return _buildAddressSection();
-
-                          if (index >= 1 && index <= cartItems.length) {
-                            final item = cartItems[index - 1];
-                            final variant = item["variant"];
-                            return _buildCartItem(item, variant);
-                          }
-
-                          if (index == cartItems.length + 1) {
-                            return _buildOfferUnlockHintSection();
-                          }
-
-                          if (index == cartItems.length + 2) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: _buildCouponSectionPremiumInput(),
-                            );
-                          }
-
-                          if (index == cartItems.length + 3) {
-                            return _buildPaymentMethodSection();
-                          }
-
-                          if (index == cartItems.length + 4) {
-                            return _buildOrderSummary();
-                          }
-
-                          return const SizedBox.shrink();
+                    : RefreshIndicator(
+                        color: Colors.tealAccent,
+                        backgroundColor: const Color(0xFF111111),
+                        onRefresh: () async {
+                          await fetchCart();
+                          await fetchCartSummary();
                         },
+                        child: ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                          itemCount: cartItems.length + 5,
+                          itemBuilder: (context, index) {
+                            if (index == 0) return _buildAddressSection();
+
+                            if (index >= 1 && index <= cartItems.length) {
+                              final item = cartItems[index - 1];
+                              final variant = item["variant"];
+                              return _buildCartItem(item, variant);
+                            }
+
+                            if (index == cartItems.length + 1) {
+                              return _buildOfferUnlockHintSection();
+                            }
+
+                            if (index == cartItems.length + 2) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: _buildCouponSectionPremiumInput(),
+                              );
+                            }
+
+                            if (index == cartItems.length + 3) {
+                              return _buildPaymentMethodSection();
+                            }
+
+                            if (index == cartItems.length + 4) {
+                              return _buildOrderSummary();
+                            }
+
+                            return const SizedBox.shrink();
+                          },
+                        ),
                       ),
               ),
             ],
@@ -1191,25 +1249,24 @@ class _cartState extends State<cart> {
 
   // ================= COUPON UI =================
   Widget _buildCouponSectionPremiumInput() {
+    final bool hasCoupon = couponCode.isNotEmpty;
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 14),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.fromLTRB(4, 0, 4, 14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color.fromARGB(255, 0, 0, 0).withOpacity(0.18),
-            const Color(0xFF121212),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        color: const Color(0xFF101010),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: hasCoupon
+              ? Colors.greenAccent.withOpacity(0.38)
+              : Colors.white.withOpacity(0.08),
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.tealAccent.withOpacity(0.45)),
         boxShadow: [
           BoxShadow(
-            color: Colors.tealAccent.withOpacity(0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            color: Colors.black.withOpacity(0.28),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -1217,55 +1274,107 @@ class _cartState extends State<cart> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
-              Icon(
-                Icons.local_offer_rounded,
-                color: Colors.tealAccent,
-                size: 18,
-              ),
-              SizedBox(width: 8),
-              Text(
-                "Apply Coupon",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: 'Poppins',
+            children: [
+              Container(
+                height: 36,
+                width: 36,
+                decoration: BoxDecoration(
+                  color: Colors.tealAccent.withOpacity(0.13),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.confirmation_number_outlined,
+                  color: Colors.tealAccent,
+                  size: 19,
                 ),
               ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Coupons & Rewards",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      "Apply a code and reduce your payable amount",
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (hasCoupon)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.greenAccent.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    "APPLIED",
+                    style: TextStyle(
+                      color: Colors.greenAccent,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ),
             ],
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            "Have a promo code? Get instant savings",
-            style: TextStyle(color: Colors.white70, fontSize: 11),
           ),
           const SizedBox(height: 14),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.fromLTRB(13, 7, 7, 7),
             decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.tealAccent.withOpacity(0.4)),
+              color: const Color(0xFF070707),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: hasCoupon
+                    ? Colors.greenAccent.withOpacity(0.35)
+                    : Colors.white.withOpacity(0.10),
+              ),
             ),
             child: Row(
               children: [
+                const Icon(
+                  Icons.sell_outlined,
+                  color: Colors.white38,
+                  size: 18,
+                ),
+                const SizedBox(width: 9),
                 Expanded(
                   child: TextField(
                     controller: couponController,
+                    enabled: !hasCoupon,
                     textCapitalization: TextCapitalization.characters,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.1,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.0,
+                      fontFamily: 'Poppins',
                     ),
                     decoration: const InputDecoration(
-                      hintText: "ENTER COUPON CODE",
+                      hintText: "COUPON CODE",
                       hintStyle: TextStyle(
-                        color: Colors.white38,
+                        color: Colors.white30,
                         fontSize: 12,
                         letterSpacing: 1,
+                        fontFamily: 'Poppins',
                       ),
                       border: InputBorder.none,
                       isDense: true,
@@ -1280,24 +1389,30 @@ class _cartState extends State<cart> {
                       applyCouponBackend();
                     }
                   },
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                   child: Container(
-                    height: 36,
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    height: 38,
+                    padding: const EdgeInsets.symmetric(horizontal: 17),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Colors.tealAccent, Color(0xFF00C2A8)],
+                      color: hasCoupon
+                          ? Colors.redAccent.withOpacity(0.16)
+                          : Colors.tealAccent,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: hasCoupon
+                            ? Colors.redAccent.withOpacity(0.35)
+                            : Colors.transparent,
                       ),
-                      borderRadius: BorderRadius.circular(12),
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      couponCode.isNotEmpty ? "REMOVE" : "APPLY",
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.6,
+                      hasCoupon ? "REMOVE" : "APPLY",
+                      style: TextStyle(
+                        color: hasCoupon ? Colors.redAccent : Colors.black,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                        fontFamily: 'Poppins',
                       ),
                     ),
                   ),
@@ -1305,17 +1420,30 @@ class _cartState extends State<cart> {
               ],
             ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: const [
-              Icon(Icons.flash_on_rounded, size: 14, color: Colors.tealAccent),
-              SizedBox(width: 6),
-              Text(
-                "Best coupons auto-applied at checkout",
-                style: TextStyle(color: Colors.white54, fontSize: 11),
-              ),
-            ],
-          ),
+          if (hasCoupon) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(
+                  Icons.check_circle_rounded,
+                  size: 15,
+                  color: Colors.greenAccent,
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    "$couponCode coupon is active on this cart",
+                    style: const TextStyle(
+                      color: Colors.greenAccent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -1442,34 +1570,80 @@ class _cartState extends State<cart> {
 
   Widget _buildPaymentMethodSection() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      margin: const EdgeInsets.fromLTRB(4, 0, 4, 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        borderRadius: BorderRadius.circular(18),
+        color: const Color(0xFF101010),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white.withOpacity(0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Payment Method",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              fontFamily: 'Poppins',
-            ),
+          Row(
+            children: [
+              Container(
+                height: 36,
+                width: 36,
+                decoration: BoxDecoration(
+                  color: Colors.tealAccent.withOpacity(0.13),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  color: Colors.tealAccent,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Payment Method",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      "Choose a payment option available for all items",
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 13),
-
+          const SizedBox(height: 14),
           if (dynamicPaymentMethods.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text(
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.redAccent.withOpacity(0.20)),
+              ),
+              child: const Text(
                 "No payment methods available for these cart items",
                 style: TextStyle(
-                  color: Colors.white54,
+                  color: Colors.white70,
                   fontSize: 12,
                   fontFamily: "Poppins",
                 ),
@@ -1492,24 +1666,24 @@ class _cartState extends State<cart> {
                   id: method["id"],
                   code: code,
                   title: name,
-                  icon: Icons.credit_card,
+                  icon: code == "COD"
+                      ? Icons.payments_outlined
+                      : Icons.credit_card_rounded,
                   isEnabled: isAvailable,
                   restrictedBy: restrictedBy,
                 ),
               );
             }).toList(),
-
-          // Show detailed restriction message with product names
           if (restrictedProducts.isNotEmpty)
             Container(
               width: double.infinity,
-              margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.all(13),
               decoration: BoxDecoration(
-                color: Colors.orangeAccent.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.orangeAccent.withOpacity(0.11),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Colors.orangeAccent.withOpacity(0.35),
+                  color: Colors.orangeAccent.withOpacity(0.30),
                 ),
               ),
               child: Column(
@@ -1520,20 +1694,21 @@ class _cartState extends State<cart> {
                       Icon(
                         Icons.warning_amber_rounded,
                         color: Colors.orangeAccent,
-                        size: 16,
+                        size: 17,
                       ),
                       SizedBox(width: 8),
                       Text(
-                        "Payment Methods Restricted",
+                        "Payment restrictions found",
                         style: TextStyle(
                           color: Colors.orangeAccent,
                           fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w800,
+                          fontFamily: 'Poppins',
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 9),
                   ...restrictedProducts.map(
                     (product) => Padding(
                       padding: const EdgeInsets.only(bottom: 6),
@@ -1553,6 +1728,8 @@ class _cartState extends State<cart> {
                               style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 11,
+                                height: 1.35,
+                                fontFamily: 'Poppins',
                               ),
                             ),
                           ),
@@ -1560,19 +1737,19 @@ class _cartState extends State<cart> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   const Text(
-                    "Remove these items to enable all payment options",
+                    "Remove restricted items to unlock all payment options.",
                     style: TextStyle(
                       color: Colors.white54,
-                      fontSize: 10,
+                      fontSize: 10.5,
                       fontStyle: FontStyle.italic,
+                      fontFamily: 'Poppins',
                     ),
                   ),
                 ],
               ),
             ),
-          const SizedBox(height: 2),
         ],
       ),
     );
@@ -1589,7 +1766,7 @@ class _cartState extends State<cart> {
     final bool selected = selectedPaymentCode == code;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(13),
+      borderRadius: BorderRadius.circular(18),
       onTap: isEnabled
           ? () {
               setState(() {
@@ -1602,89 +1779,113 @@ class _cartState extends State<cart> {
               debugPrint("SELECTED PAYMENT NAME: $selectedPaymentName");
             }
           : null,
-      child: Opacity(
-        opacity: isEnabled ? 1 : 0.45,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 180),
+        opacity: isEnabled ? 1 : 0.50,
         child: Container(
           padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            color: isEnabled
-                ? Colors.transparent
-                : Colors.white.withOpacity(0.03),
+            color: selected
+                ? Colors.tealAccent.withOpacity(0.12)
+                : const Color(0xFF080808),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: selected ? Colors.tealAccent : Colors.white24,
+              color: selected
+                  ? Colors.tealAccent.withOpacity(0.85)
+                  : Colors.white.withOpacity(0.08),
+              width: selected ? 1.2 : 1,
             ),
           ),
-          child: Column(
+          child: Row(
             children: [
-              Row(
-                children: [
-                  Icon(
-                    icon,
-                    color: isEnabled ? Colors.tealAccent : Colors.white38,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              Container(
+                height: 40,
+                width: 40,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Colors.tealAccent.withOpacity(0.17)
+                      : Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(
+                  icon,
+                  color: isEnabled ? Colors.tealAccent : Colors.white38,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                title,
-                                style: TextStyle(
-                                  color: isEnabled
-                                      ? Colors.white
-                                      : Colors.white54,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              color: isEnabled ? Colors.white : Colors.white54,
+                              fontSize: 13.2,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'Poppins',
                             ),
-                            if (!isEnabled)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.redAccent.withOpacity(0.18),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: const Text(
-                                  "Unavailable",
-                                  style: TextStyle(
-                                    color: Colors.redAccent,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                          ],
+                          ),
                         ),
-                        if (!isEnabled && restrictedBy.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              "Not supported by: ${restrictedBy.take(2).join(", ")}${restrictedBy.length > 2 ? " +${restrictedBy.length - 2} more" : ""}",
-                              style: const TextStyle(
-                                color: Colors.white38,
-                                fontSize: 10,
+                        if (!isEnabled)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              "Unavailable",
+                              style: TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 9.8,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: 'Poppins',
                               ),
                             ),
                           ),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    selected
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_off,
-                    color: isEnabled ? Colors.tealAccent : Colors.white24,
-                  ),
-                ],
+                    const SizedBox(height: 3),
+                    Text(
+                      code == "COD"
+                          ? "Pay when your order arrives"
+                          : "Secure online payment via Razorpay",
+                      style: TextStyle(
+                        color: isEnabled ? Colors.white54 : Colors.white30,
+                        fontSize: 10.6,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                    if (!isEnabled && restrictedBy.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          "Not supported by: ${restrictedBy.take(2).join(", ")}${restrictedBy.length > 2 ? " +${restrictedBy.length - 2} more" : ""}",
+                          style: const TextStyle(
+                            color: Colors.white38,
+                            fontSize: 10,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Icon(
+                selected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_off_rounded,
+                color: isEnabled ? Colors.tealAccent : Colors.white24,
+                size: 21,
               ),
             ],
           ),
@@ -1729,7 +1930,7 @@ class _cartState extends State<cart> {
     }
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 4, 12, 14),
+      margin: const EdgeInsets.fromLTRB(4, 2, 4, 14),
       child: Column(
         children: hints.map((offer) {
           final int eligibleCount = _toInt(offer["eligible_items_count"]);
@@ -1739,25 +1940,20 @@ class _cartState extends State<cart> {
           return Container(
             width: double.infinity,
             margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(13),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.tealAccent.withOpacity(0.16),
-                  const Color(0xFF121212),
-                ],
+              gradient: const LinearGradient(
+                colors: [Color(0xFF073F39), Color(0xFF101010)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.tealAccent.withOpacity(0.45),
-              ),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: Colors.tealAccent.withOpacity(0.34)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.tealAccent.withOpacity(0.08),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
+                  blurRadius: 18,
+                  offset: const Offset(0, 10),
                 ),
               ],
             ),
@@ -1765,22 +1961,22 @@ class _cartState extends State<cart> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  height: 34,
-                  width: 34,
+                  height: 42,
+                  width: 42,
                   decoration: BoxDecoration(
-                    color: Colors.tealAccent.withOpacity(0.18),
-                    shape: BoxShape.circle,
+                    color: Colors.tealAccent.withOpacity(0.16),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.tealAccent.withOpacity(0.45),
+                      color: Colors.tealAccent.withOpacity(0.32),
                     ),
                   ),
                   child: const Icon(
                     Icons.local_offer_rounded,
                     color: Colors.tealAccent,
-                    size: 18,
+                    size: 21,
                   ),
                 ),
-                const SizedBox(width: 11),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1791,28 +1987,28 @@ class _cartState extends State<cart> {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w900,
                           fontFamily: "Poppins",
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         needToAdd == 1
-                            ? "Add 1 more eligible product to unlock this offer"
-                            : "Add $needToAdd more eligible products to unlock this offer",
+                            ? "Add 1 more eligible product to unlock this deal"
+                            : "Add $needToAdd more eligible products to unlock this deal",
                         style: const TextStyle(
                           color: Colors.tealAccent,
                           fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                           fontFamily: "Poppins",
                         ),
                       ),
-                      const SizedBox(height: 7),
+                      const SizedBox(height: 9),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(20),
                         child: LinearProgressIndicator(
-                          minHeight: 5,
+                          minHeight: 6,
                           value: requiredCount <= 0
                               ? 0
                               : (eligibleCount / requiredCount).clamp(0.0, 1.0),
@@ -1822,9 +2018,9 @@ class _cartState extends State<cart> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 6),
                       Text(
-                        "$eligibleCount/$requiredCount eligible items added",
+                        "$eligibleCount of $requiredCount eligible items added",
                         style: const TextStyle(
                           color: Colors.white54,
                           fontSize: 10.5,
@@ -1843,7 +2039,8 @@ class _cartState extends State<cart> {
   }
 
   Widget _buildAppliedOfferDetails() {
-    final List<Map<String, dynamic>> appliedOffers = _getActuallyAppliedOffers();
+    final List<Map<String, dynamic>> appliedOffers =
+        _getActuallyAppliedOffers();
 
     if (appliedOffers.isEmpty) {
       return const SizedBox.shrink();
@@ -1851,18 +2048,11 @@ class _cartState extends State<cart> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.tealAccent.withOpacity(0.14),
-            Colors.tealAccent.withOpacity(0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.tealAccent.withOpacity(0.35)),
+        color: Colors.tealAccent.withOpacity(0.09),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.tealAccent.withOpacity(0.28)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1870,7 +2060,7 @@ class _cartState extends State<cart> {
           const Row(
             children: [
               Icon(
-                Icons.local_offer_rounded,
+                Icons.verified_rounded,
                 color: Colors.tealAccent,
                 size: 16,
               ),
@@ -1880,7 +2070,7 @@ class _cartState extends State<cart> {
                 style: TextStyle(
                   color: Colors.tealAccent,
                   fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w900,
                   fontFamily: "Poppins",
                 ),
               ),
@@ -1893,10 +2083,10 @@ class _cartState extends State<cart> {
 
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(11),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.28),
-                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFF070707),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.white.withOpacity(0.08)),
               ),
               child: Column(
@@ -1907,7 +2097,7 @@ class _cartState extends State<cart> {
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                       fontFamily: "Poppins",
                     ),
                   ),
@@ -1923,7 +2113,7 @@ class _cartState extends State<cart> {
                     ),
                   ),
                   if (freeProducts.isNotEmpty) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 9),
                     ...freeProducts.map((freeProduct) {
                       final String freeAmount =
                           (freeProduct["free_amount"] ??
@@ -1934,12 +2124,20 @@ class _cartState extends State<cart> {
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.card_giftcard_rounded,
-                            color: Colors.greenAccent,
-                            size: 14,
+                          Container(
+                            height: 24,
+                            width: 24,
+                            decoration: BoxDecoration(
+                              color: Colors.greenAccent.withOpacity(0.14),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.card_giftcard_rounded,
+                              color: Colors.greenAccent,
+                              size: 14,
+                            ),
                           ),
-                          const SizedBox(width: 7),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               "${freeProduct["product_title"] ?? "Free product"} is free",
@@ -1958,7 +2156,7 @@ class _cartState extends State<cart> {
                             style: const TextStyle(
                               color: Colors.greenAccent,
                               fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w900,
                               fontFamily: "Poppins",
                             ),
                           ),
@@ -1987,35 +2185,77 @@ class _cartState extends State<cart> {
     final double offerDiscountValue = double.tryParse(offerDiscount) ?? 0;
     final double totalSavingsValue =
         bagSavingsValue + couponDiscountValue + offerDiscountValue;
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      margin: const EdgeInsets.fromLTRB(4, 2, 4, 18),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        borderRadius: BorderRadius.circular(18),
+        color: const Color(0xFF101010),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white.withOpacity(0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.28),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Order Details",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              fontFamily: 'Poppins',
-            ),
+          Row(
+            children: [
+              Container(
+                height: 36,
+                width: 36,
+                decoration: BoxDecoration(
+                  color: Colors.tealAccent.withOpacity(0.13),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.receipt_long_rounded,
+                  color: Colors.tealAccent,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Order Summary",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      "Price breakdown before placing order",
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 15),
           _row("Bag Total", "₹${bagTotalValue.toStringAsFixed(2)}"),
-          const SizedBox(height: 10),
+          const SizedBox(height: 11),
           _row(
             "Bag Savings",
             "-₹${bagSavingsValue.toStringAsFixed(2)}",
             valueColor: Colors.greenAccent,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 11),
           InkWell(
             onTap: () {},
             child: _row(
@@ -2029,122 +2269,101 @@ class _cartState extends State<cart> {
             ),
           ),
           if (offerDiscountValue > 0) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 11),
             _row(
               "Offer Discount",
               "-₹${offerDiscountValue.toStringAsFixed(2)}",
               valueColor: Colors.greenAccent,
             ),
           ],
-
-        if (_getActuallyAppliedOffers().isNotEmpty) ...[
-  const SizedBox(height: 12),
-  _buildAppliedOfferDetails(),
-],
-          const SizedBox(height: 12),
-          Divider(color: Colors.white.withOpacity(0.08)),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Text(
-                    "Convenience Fee",
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
-                  ),
-                  const SizedBox(width: 6),
-                  InkWell(
-                    onTap: () {},
-                    child: const Text(
-                      "What's this?",
-                      style: TextStyle(color: Colors.tealAccent, fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    "₹$convieniencefeevalue",
-                    style: TextStyle(color: Colors.white, fontSize: 11),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Text(
-                    "Shipment Charge",
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    "₹$shipmentcharge",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      // decoration: TextDecoration.lineThrough,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _row("Platform Fee", "₹${platformFeeValue.toStringAsFixed(2)}"),
+          if (_getActuallyAppliedOffers().isNotEmpty) ...[
+            const SizedBox(height: 13),
+            _buildAppliedOfferDetails(),
+          ],
           const SizedBox(height: 14),
-          Divider(color: Colors.white.withOpacity(0.12)),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "Amount Payable",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                "₹${payableValue.toStringAsFixed(2)}",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+          Divider(color: Colors.white.withOpacity(0.08), height: 1),
+          const SizedBox(height: 14),
+          _row(
+            "Convenience Fee",
+            "₹${convieniencefeevalue.toStringAsFixed(2)}",
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 11),
+          _row(
+            "Shipment Charge",
+            "₹${shipmentcharge.toStringAsFixed(2)}",
+          ),
+          const SizedBox(height: 11),
+          _row("Platform Fee", "₹${platformFeeValue.toStringAsFixed(2)}"),
+          const SizedBox(height: 15),
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 10),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.greenAccent.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
+              color: Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
             ),
-            child: Center(
-              child: Text(
-                "🎉 Cheers! You saved ₹${totalSavingsValue.toStringAsFixed(2)}",
-                style: const TextStyle(
-                  color: Colors.greenAccent,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Amount Payable",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      "Inclusive of all charges",
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 10.5,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  "₹${payableValue.toStringAsFixed(2)}",
+                  style: const TextStyle(
+                    color: Colors.tealAccent,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (totalSavingsValue > 0) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.greenAccent.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.greenAccent.withOpacity(0.20)),
+              ),
+              child: Center(
+                child: Text(
+                  "🎉 You saved ₹${totalSavingsValue.toStringAsFixed(2)} on this order",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.greenAccent,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    fontFamily: 'Poppins',
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -2153,17 +2372,28 @@ class _cartState extends State<cart> {
   Widget _row(String label, String value, {Color valueColor = Colors.white}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white70, fontSize: 13),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white60,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              fontFamily: 'Poppins',
+            ),
+          ),
         ),
+        const SizedBox(width: 12),
         Text(
           value,
+          textAlign: TextAlign.right,
           style: TextStyle(
             color: valueColor,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+            fontSize: 12.8,
+            fontWeight: FontWeight.w800,
+            fontFamily: 'Poppins',
           ),
         ),
       ],
@@ -2172,33 +2402,50 @@ class _cartState extends State<cart> {
 
   // ================= ADDRESS UI =================
   Widget _buildAddressSection() {
+    final bool hasAddress = selectedAddress != null;
+
     return GestureDetector(
       onTap: () {
         _showAddressPopup();
       },
       child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.fromLTRB(4, 4, 4, 14),
+        padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [const Color(0xFF121212), const Color(0xFF1A1A1A)],
+          gradient: const LinearGradient(
+            colors: [Color(0xFF123A35), Color(0xFF101010)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.tealAccent.withOpacity(0.35)),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: hasAddress
+                ? Colors.tealAccent.withOpacity(0.36)
+                : Colors.orangeAccent.withOpacity(0.40),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.28),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              height: 42,
+              width: 42,
               decoration: BoxDecoration(
                 color: Colors.tealAccent.withOpacity(0.15),
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.tealAccent.withOpacity(0.28)),
               ),
               child: const Icon(
                 Icons.location_on_rounded,
                 color: Colors.tealAccent,
-                size: 20,
+                size: 21,
               ),
             ),
             const SizedBox(width: 12),
@@ -2206,39 +2453,86 @@ class _cartState extends State<cart> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "Deliver to",
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 11,
-                      fontFamily: 'Poppins',
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        hasAddress ? "Delivering to" : "Delivery Address",
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                      if (hasAddress && selectedAddress!["is_default"] == true) ...[
+                        const SizedBox(width: 7),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.tealAccent.withOpacity(0.14),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            "DEFAULT",
+                            style: TextStyle(
+                              color: Colors.tealAccent,
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w900,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
-                    selectedAddress == null
-                        ? "No address selected"
-                        : "${selectedAddress!["full_name"]}, ${selectedAddress!["city"]}",
-                    maxLines: 2,
+                    hasAddress
+                        ? "${selectedAddress!["full_name"] ?? ""}, ${selectedAddress!["city"] ?? ""}"
+                        : "Select address to continue checkout",
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
                       fontFamily: 'Poppins',
                     ),
                   ),
+                  if (hasAddress) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      "${selectedAddress!["address_line1"] ?? ""}, ${selectedAddress!["pincode"] ?? ""}",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            TextButton(
-              onPressed: () {},
-              child: const Text(
-                "CHANGE",
-                style: TextStyle(
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: Colors.white.withOpacity(0.08)),
+              ),
+              child: Text(
+                hasAddress ? "CHANGE" : "ADD",
+                style: const TextStyle(
                   color: Colors.tealAccent,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 10.8,
+                  fontWeight: FontWeight.w900,
+                  fontFamily: 'Poppins',
                 ),
               ),
             ),
@@ -2248,6 +2542,33 @@ class _cartState extends State<cart> {
     );
   }
 
+Map<String, dynamic>? _getEligibleOfferForCartItem(dynamic item) {
+  final variant = item["variant"];
+
+  final int productId = _toInt(variant?["product_id"]);
+  final int variantId = _toInt(variant?["id"]);
+
+  if (productId <= 0 && variantId <= 0) return null;
+
+  for (final offer in offerDetails) {
+    final List eligibleProductIds = offer["eligible_product_ids"] ?? [];
+    final List eligibleVariantIds = offer["eligible_variant_ids"] ?? [];
+
+    final bool isProductEligible = eligibleProductIds
+        .map((e) => _toInt(e))
+        .contains(productId);
+
+    final bool isVariantEligible = eligibleVariantIds
+        .map((e) => _toInt(e))
+        .contains(variantId);
+
+    if (isProductEligible || isVariantEligible) {
+      return offer;
+    }
+  }
+
+  return null;
+}
   Map<String, dynamic>? _getFreeOfferForCartItem(dynamic item) {
     final int? cartItemId = int.tryParse(item["id"].toString());
 
@@ -2295,8 +2616,16 @@ class _cartState extends State<cart> {
     final attrs = (variant?["attribute_names"] as List?) ?? [];
     final Map<String, dynamic>? freeOfferData = _getFreeOfferForCartItem(item);
     final bool isFreeOfferItem = freeOfferData != null;
+
+    final Map<String, dynamic>? eligibleOffer = _getEligibleOfferForCartItem(
+      item,
+    );
+
+    final bool isOfferEligibleItem = eligibleOffer != null && !isFreeOfferItem;
+
     final Map<String, dynamic>? appliedOffer =
         freeOfferData?["offer"] as Map<String, dynamic>?;
+
     final Map<String, dynamic>? freeProduct =
         freeOfferData?["free_product"] as Map<String, dynamic>?;
 
@@ -2312,31 +2641,34 @@ class _cartState extends State<cart> {
     final bool isQtyExceeded = item["is_qty_exceeded"] == true;
     final double sellingPriceValue = double.tryParse(sellingPrice) ?? 0;
     final double mrpPriceValue = double.tryParse(mrpPrice) ?? 0;
+    final double lineTotalValue = double.tryParse(lineTotal) ?? 0;
     final double discountPercentage =
         mrpPriceValue > sellingPriceValue && mrpPriceValue > 0
         ? ((mrpPriceValue - sellingPriceValue) / mrpPriceValue) * 100
         : 0;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      margin: const EdgeInsets.fromLTRB(4, 7, 4, 13),
       decoration: BoxDecoration(
-        color: const Color(0xFF111111),
-        borderRadius: BorderRadius.circular(22),
+        color: const Color(0xFF101010),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isFreeOfferItem
-              ? Colors.tealAccent.withOpacity(0.42)
+              ? Colors.greenAccent.withOpacity(0.45)
+              : isOfferEligibleItem
+              ? Colors.tealAccent.withOpacity(0.35)
               : Colors.white.withOpacity(0.08),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.34),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
+            color: Colors.black.withOpacity(0.30),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2348,17 +2680,17 @@ class _cartState extends State<cart> {
                   Stack(
                     children: [
                       Container(
-                        height: 112,
-                        width: 92,
+                        height: 118,
+                        width: 98,
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.06),
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: Colors.white.withOpacity(0.08),
                           ),
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius: BorderRadius.circular(20),
                           child: imageUrl.isEmpty
                               ? const Center(
                                   child: Icon(
@@ -2382,61 +2714,33 @@ class _cartState extends State<cart> {
                                 ),
                         ),
                       ),
-                      if (discountPercentage > 0 && !isFreeOfferItem)
-                        Positioned(
-                          left: 0,
-                          top: 10,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 4,
-                            ),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFE53935),
-                              borderRadius: BorderRadius.only(
-                                topRight: Radius.circular(10),
-                                bottomRight: Radius.circular(10),
-                              ),
-                            ),
-                            child: Text(
-                              "${discountPercentage.round()}% OFF",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                fontFamily: "Poppins",
-                              ),
-                            ),
-                          ),
+                      Positioned(
+                        left: 0,
+                        top: 11,
+                        child: Builder(
+                          builder: (_) {
+                            if (isFreeOfferItem) {
+                              return _cartImageBadge(
+                                text: "FREE",
+                                color: const Color(0xFF00A676),
+                              );
+                            }
+                            if (isOfferEligibleItem) {
+                              return _cartImageBadge(
+                                text: "OFFER",
+                                color: const Color(0xFF009688),
+                              );
+                            }
+                            if (discountPercentage > 0) {
+                              return _cartImageBadge(
+                                text: "${discountPercentage.round()}% OFF",
+                                color: const Color(0xFFE53935),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
                         ),
-                      if (isFreeOfferItem)
-                        Positioned(
-                          left: 0,
-                          top: 10,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF009688),
-                              borderRadius: BorderRadius.only(
-                                topRight: Radius.circular(10),
-                                bottomRight: Radius.circular(10),
-                              ),
-                            ),
-                            child: const Text(
-                              "FREE",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                fontFamily: "Poppins",
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(width: 13),
@@ -2456,7 +2760,7 @@ class _cartState extends State<cart> {
                                   color: Colors.white,
                                   fontSize: 14.5,
                                   height: 1.25,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w900,
                                   fontFamily: 'Poppins',
                                 ),
                               ),
@@ -2464,13 +2768,13 @@ class _cartState extends State<cart> {
                             const SizedBox(width: 8),
                             InkWell(
                               onTap: () => _confirmDelete(item),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(18),
                               child: Container(
-                                height: 30,
-                                width: 30,
+                                height: 32,
+                                width: 32,
                                 decoration: BoxDecoration(
                                   color: Colors.redAccent.withOpacity(0.10),
-                                  shape: BoxShape.circle,
+                                  borderRadius: BorderRadius.circular(13),
                                   border: Border.all(
                                     color: Colors.redAccent.withOpacity(0.22),
                                   ),
@@ -2484,58 +2788,24 @@ class _cartState extends State<cart> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 7),
                         Wrap(
                           spacing: 6,
                           runSpacing: 6,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.06),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.08),
-                                ),
-                              ),
-                              child: Text(
-                                variantText,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w500,
-                                  fontFamily: 'Poppins',
-                                ),
-                              ),
+                            _cartMetaChip(
+                              text: variantText,
+                              icon: Icons.tune_rounded,
                             ),
                             if (availableStock > 0)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.tealAccent.withOpacity(0.10),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  "Stock $availableStock",
-                                  style: const TextStyle(
-                                    color: Colors.tealAccent,
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w600,
-                                    fontFamily: 'Poppins',
-                                  ),
-                                ),
+                              _cartMetaChip(
+                                text: "Stock $availableStock",
+                                icon: Icons.inventory_2_outlined,
+                                color: Colors.tealAccent,
                               ),
                           ],
                         ),
-                        const SizedBox(height: 9),
+                        const SizedBox(height: 10),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
@@ -2543,7 +2813,7 @@ class _cartState extends State<cart> {
                               "₹$sellingPrice",
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 16,
+                                fontSize: 17,
                                 fontWeight: FontWeight.w900,
                                 fontFamily: 'Poppins',
                               ),
@@ -2564,15 +2834,15 @@ class _cartState extends State<cart> {
                               ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 9),
                         Row(
                           children: [
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.black,
-                                borderRadius: BorderRadius.circular(12),
+                                color: const Color(0xFF070707),
+                                borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: Colors.tealAccent.withOpacity(0.55),
+                                  color: Colors.tealAccent.withOpacity(0.42),
                                 ),
                               ),
                               child: Row(
@@ -2589,10 +2859,10 @@ class _cartState extends State<cart> {
                                           }
                                         : null,
                                     borderRadius: const BorderRadius.horizontal(
-                                      left: Radius.circular(12),
+                                      left: Radius.circular(14),
                                     ),
                                     child: Padding(
-                                      padding: const EdgeInsets.all(6),
+                                      padding: const EdgeInsets.all(7),
                                       child: Icon(
                                         Icons.remove_rounded,
                                         size: 16,
@@ -2603,14 +2873,14 @@ class _cartState extends State<cart> {
                                     ),
                                   ),
                                   Container(
-                                    width: 34,
+                                    width: 36,
                                     alignment: Alignment.center,
                                     child: Text(
                                       qty.toString(),
                                       style: const TextStyle(
                                         color: Colors.white,
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12.8,
+                                        fontWeight: FontWeight.w900,
                                         fontFamily: 'Poppins',
                                       ),
                                     ),
@@ -2628,10 +2898,10 @@ class _cartState extends State<cart> {
                                             updatecart(item["id"], newQty);
                                           },
                                     borderRadius: const BorderRadius.horizontal(
-                                      right: Radius.circular(12),
+                                      right: Radius.circular(14),
                                     ),
                                     child: Padding(
-                                      padding: const EdgeInsets.all(6),
+                                      padding: const EdgeInsets.all(7),
                                       child: Icon(
                                         Icons.add_rounded,
                                         size: 16,
@@ -2647,24 +2917,28 @@ class _cartState extends State<cart> {
                               ),
                             ),
                             const Spacer(),
-                            InkWell(
-                              onTap: () => _showQtyPopup(item),
-                              borderRadius: BorderRadius.circular(20),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 4,
-                                ),
-                                child: Text(
-                                  "Edit",
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                const Text(
+                                  "Item Total",
                                   style: TextStyle(
-                                    color: Colors.tealAccent,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white38,
+                                    fontSize: 9.8,
                                     fontFamily: 'Poppins',
                                   ),
                                 ),
-                              ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  "₹${lineTotalValue.toStringAsFixed(2)}",
+                                  style: const TextStyle(
+                                    color: Colors.tealAccent,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w900,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -2674,103 +2948,172 @@ class _cartState extends State<cart> {
                 ],
               ),
             ),
+            if (isOfferEligibleItem) ...[
+              _cartInfoStrip(
+                icon: Icons.local_offer_rounded,
+                iconColor: Colors.tealAccent,
+                title: "${eligibleOffer?["title"] ?? "Offer product"} eligible",
+                subtitle: "Add required eligible items to unlock this deal",
+                borderColor: Colors.tealAccent.withOpacity(0.28),
+                backgroundColor: Colors.tealAccent.withOpacity(0.09),
+              ),
+            ],
             if (isFreeOfferItem) ...[
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.tealAccent.withOpacity(0.16),
-                      Colors.greenAccent.withOpacity(0.08),
-                    ],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: Colors.tealAccent.withOpacity(0.35),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      height: 28,
-                      width: 28,
-                      decoration: BoxDecoration(
-                        color: Colors.tealAccent.withOpacity(0.16),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.card_giftcard_rounded,
-                        color: Colors.tealAccent,
-                        size: 16,
-                      ),
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "${appliedOffer?["title"] ?? "Offer Applied"} • FREE",
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
-                              fontFamily: "Poppins",
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            "You saved ₹${freeProduct?["free_amount"] ?? freeProduct?["free_price"] ?? "0.00"} on this item",
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.greenAccent,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w500,
-                              fontFamily: "Poppins",
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              _cartInfoStrip(
+                icon: Icons.card_giftcard_rounded,
+                iconColor: Colors.greenAccent,
+                title: "${appliedOffer?["title"] ?? "Offer Applied"} • FREE",
+                subtitle:
+                    "You saved ₹${freeProduct?["free_amount"] ?? freeProduct?["free_price"] ?? "0.00"} on this item",
+                borderColor: Colors.greenAccent.withOpacity(0.30),
+                backgroundColor: Colors.greenAccent.withOpacity(0.09),
               ),
             ],
             if (isOutOfStock || isQtyExceeded)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.redAccent.withOpacity(0.28)),
-                ),
-                child: Text(
-                  isOutOfStock
-                      ? "This item is currently out of stock"
-                      : "Selected quantity is higher than available stock",
+              _cartInfoStrip(
+                icon: Icons.error_outline_rounded,
+                iconColor: Colors.redAccent,
+                title: isOutOfStock
+                    ? "This item is currently out of stock"
+                    : "Selected quantity is higher than available stock",
+                subtitle: "Please update quantity or remove this item",
+                borderColor: Colors.redAccent.withOpacity(0.28),
+                backgroundColor: Colors.redAccent.withOpacity(0.09),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _cartImageBadge({required String text, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(10),
+          bottomRight: Radius.circular(10),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.25),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+          fontFamily: "Poppins",
+          letterSpacing: 0.4,
+        ),
+      ),
+    );
+  }
+
+  Widget _cartMetaChip({
+    required String text,
+    required IconData icon,
+    Color color = Colors.white70,
+  }) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 150),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(color == Colors.white70 ? 0.06 : 0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: color.withOpacity(color == Colors.white70 ? 0.08 : 0.22),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 12),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 10.2,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cartInfoStrip({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required Color borderColor,
+    required Color backgroundColor,
+  }) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 11),
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 30,
+            width: 30,
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.14),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 16),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.redAccent,
-                    fontSize: 11,
+                    color: Colors.white,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: "Poppins",
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: iconColor,
+                    fontSize: 10.4,
                     fontWeight: FontWeight.w600,
                     fontFamily: "Poppins",
                   ),
                 ),
-              ),
-          
-          ],
-        ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3183,11 +3526,24 @@ class _cartState extends State<cart> {
 
   // ================= BOTTOM BAR =================
   Widget _buildBottomBar(BuildContext context) {
+    final double payableValue = double.tryParse(amountPayable) ?? 0;
+    final double savedValue =
+        (double.tryParse(bagSavings) ?? 0) +
+        (double.tryParse(couponDiscount) ?? 0) +
+        (double.tryParse(offerDiscount) ?? 0);
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E0E0E),
+        color: const Color(0xFF090909),
         border: Border(top: BorderSide(color: Colors.white.withOpacity(0.08))),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.35),
+            blurRadius: 24,
+            offset: const Offset(0, -10),
+          ),
+        ],
       ),
       child: SafeArea(
         top: false,
@@ -3199,28 +3555,40 @@ class _cartState extends State<cart> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    "Total",
+                    "Payable Amount",
                     style: TextStyle(
-                      color: Colors.white60,
-                      fontSize: 12,
+                      color: Colors.white54,
+                      fontSize: 11.2,
                       fontFamily: 'Poppins',
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
-                    "₹$amountPayable",
+                    "₹${payableValue.toStringAsFixed(2)}",
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
                       fontFamily: 'Poppins',
                     ),
                   ),
+                  if (savedValue > 0) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      "Saved ₹${savedValue.toStringAsFixed(2)}",
+                      style: const TextStyle(
+                        color: Colors.greenAccent,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
             SizedBox(
-              height: 48,
+              height: 52,
               child: ElevatedButton(
                 onPressed: cartItems.isEmpty
                     ? null
@@ -3264,19 +3632,26 @@ class _cartState extends State<cart> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.tealAccent,
                   foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  padding: const EdgeInsets.symmetric(horizontal: 26),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  "Proceed",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                    fontFamily: 'Poppins',
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      placingOrder ? "Processing" : "Checkout",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14.5,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.arrow_forward_rounded, size: 18),
+                  ],
                 ),
               ),
             ),
@@ -3293,7 +3668,7 @@ class CartSkeleton extends StatelessWidget {
   Widget _box({
     double height = 12,
     double width = double.infinity,
-    double radius = 6,
+    double radius = 8,
   }) {
     return Container(
       height: height,
@@ -3308,43 +3683,61 @@ class CartSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
       itemCount: 5,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, __) {
+      separatorBuilder: (_, __) => const SizedBox(height: 14),
+      itemBuilder: (_, index) {
         return Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF121212),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.tealAccent.withOpacity(0.15)),
+            color: const Color(0xFF101010),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _box(height: 70, width: 70, radius: 12),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
+          child: index == 0
+              ? Row(
+                  children: [
+                    _box(height: 42, width: 42, radius: 15),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _box(height: 13, width: 130),
+                          const SizedBox(height: 8),
+                          _box(height: 11, width: double.infinity),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              : Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _box(height: 14, width: double.infinity),
-                    const SizedBox(height: 8),
-                    _box(height: 12, width: 100),
-                    const SizedBox(height: 10),
-                    _box(height: 14, width: 80),
+                    _box(height: 118, width: 98, radius: 20),
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _box(height: 15, width: double.infinity),
+                          const SizedBox(height: 8),
+                          _box(height: 13, width: 150),
+                          const SizedBox(height: 12),
+                          _box(height: 18, width: 95),
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              _box(height: 34, width: 96, radius: 14),
+                              const Spacer(),
+                              _box(height: 25, width: 70, radius: 8),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              Column(
-                children: [
-                  _box(height: 10, width: 24),
-                  const SizedBox(height: 6),
-                  _box(height: 26, width: 40, radius: 8),
-                ],
-              ),
-            ],
-          ),
         );
       },
     );
