@@ -389,18 +389,104 @@ class _ProductsByUserState extends State<ProductsByUser> {
                               final hasVariants =
                                   (p['variants_count'] ?? 0) > 0;
 
+                              // return Dismissible(
+                              //   key: ValueKey(p['id']),
+                              //   direction: DismissDirection.horizontal,
+                              //   confirmDismiss: (direction) async {
+                              //     if (direction ==
+                              //         DismissDirection.endToStart) {
+                              //       addvariant(p);
+                              //       return false;
+                              //     }
+                              //     return false;
+                              //   },
+                              //   background: const SizedBox.shrink(),
+                              //   secondaryBackground: Container(
+                              //     alignment: Alignment.centerRight,
+                              //     padding: const EdgeInsets.only(right: 20),
+                              //     decoration: BoxDecoration(
+                              //       color: const Color.fromARGB(
+                              //         255,
+                              //         82,
+                              //         255,
+                              //         203,
+                              //       ).withOpacity(0.9),
+                              //       borderRadius: BorderRadius.circular(18),
+                              //     ),
+                              //     child: const Column(
+                              //       mainAxisAlignment: MainAxisAlignment.center,
+                              //       children: [
+                              //         Icon(
+                              //           Icons.chevron_left,
+                              //           color: Colors.white,
+                              //           size: 24,
+                              //         ),
+                              //         Text(
+                              //           "Add Variant",
+                              //           style: TextStyle(
+                              //             color: Colors.white,
+                              //             fontSize: 12,
+                              //             fontWeight: FontWeight.w600,
+                              //             fontFamily: 'Poppins',
+                              //           ),
+                              //         ),
+                              //       ],
+                              //     ),
+                              //   ),
+                              //   child: _productCard(p, hasVariants),
+                              // );
+
                               return Dismissible(
-                                key: ValueKey(p['id']),
+                                key: ValueKey(
+                                  "product_${p['id']}_$selectedStatus",
+                                ),
                                 direction: DismissDirection.horizontal,
+
                                 confirmDismiss: (direction) async {
                                   if (direction ==
                                       DismissDirection.endToStart) {
                                     addvariant(p);
                                     return false;
                                   }
+
+                                  if (direction ==
+                                      DismissDirection.startToEnd) {
+                                    updateProduct(p);
+                                    return false;
+                                  }
+
                                   return false;
                                 },
-                                background: const SizedBox.shrink(),
+
+                                background: Container(
+                                  alignment: Alignment.centerLeft,
+                                  padding: const EdgeInsets.only(left: 20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orangeAccent.withOpacity(0.9),
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  child: const Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.edit_note_rounded,
+                                        color: Colors.white,
+                                        size: 26,
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        "Update",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          fontFamily: 'Poppins',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
                                 secondaryBackground: Container(
                                   alignment: Alignment.centerRight,
                                   padding: const EdgeInsets.only(right: 20),
@@ -417,10 +503,11 @@ class _ProductsByUserState extends State<ProductsByUser> {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(
-                                        Icons.chevron_left,
+                                        Icons.add_circle_outline_rounded,
                                         color: Colors.white,
-                                        size: 24,
+                                        size: 26,
                                       ),
+                                      SizedBox(height: 4),
                                       Text(
                                         "Add Variant",
                                         style: TextStyle(
@@ -433,6 +520,7 @@ class _ProductsByUserState extends State<ProductsByUser> {
                                     ],
                                   ),
                                 ),
+
                                 child: _productCard(p, hasVariants),
                               );
                             },
@@ -759,6 +847,43 @@ class _ProductsByUserState extends State<ProductsByUser> {
       slideRightToLeftRoute(variant(productId: product['id'])),
     );
   }
+
+  void updateProduct(Map<String, dynamic> product) async {
+  print("Update product ${product['id']}");
+
+  final result = await Navigator.push(
+    context,
+    _slideLeftToRightRoute(
+      UpdateProduct(productId: product['id']),
+    ),
+  );
+
+  if (result == true || mounted) {
+    await getproduct(selectedStatus);
+  }
+}
+
+Route _slideLeftToRightRoute(Widget page) {
+  return PageRouteBuilder(
+    pageBuilder: (context, animation, secondaryAnimation) => page,
+    transitionDuration: const Duration(milliseconds: 280),
+    reverseTransitionDuration: const Duration(milliseconds: 220),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      const begin = Offset(-1.0, 0.0);
+      const end = Offset.zero;
+      const curve = Curves.easeOutCubic;
+
+      final tween = Tween(begin: begin, end: end).chain(
+        CurveTween(curve: curve),
+      );
+
+      return SlideTransition(
+        position: animation.drive(tween),
+        child: child,
+      );
+    },
+  );
+}
 
   Widget bannerSkeleton() {
     return Skeleton(height: 160, radius: 14);
