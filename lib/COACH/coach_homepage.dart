@@ -2294,61 +2294,73 @@ class _CoachHomepageState extends State<CoachHomepage> {
                             const SizedBox(height: 25),
                           ] else if (trainingSessions.isNotEmpty) ...[
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
-                                  "Upcoming Training Sessions",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                // Optional: "Swipe to see more" indicator
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 5,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.08),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.15),
+                                const Expanded(
+                                  child: Text(
+                                    "Upcoming Training Sessions",
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.swipe,
-                                        size: 14,
-                                        color: Colors.tealAccent,
+                                ),
+
+                                const SizedBox(width: 8),
+
+                                Flexible(
+                                  fit: FlexFit.loose,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.15),
                                       ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        "Swipe to see more",
-                                        style: TextStyle(
-                                          color: Colors.tealAccent.withOpacity(
-                                            0.9,
-                                          ),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.swipe,
+                                          size: 13,
+                                          color: Colors.tealAccent,
                                         ),
-                                      ),
-                                      const Icon(
-                                        Icons.arrow_forward_ios,
-                                        size: 10,
-                                        color: Colors.tealAccent,
-                                      ),
-                                    ],
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: Text(
+                                            "Swipe",
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              color: Colors.tealAccent
+                                                  .withOpacity(0.9),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 3),
+                                        const Icon(
+                                          Icons.arrow_forward_ios,
+                                          size: 9,
+                                          color: Colors.tealAccent,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 15),
                             SizedBox(
-                              height: 140,                          
+                              height: 140,
                               child: ListView.builder(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: trainingSessions.length,
@@ -2361,11 +2373,14 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                       : "";
 
                                   return Container(
-                                    width: 260,
-                                    margin: EdgeInsets.only(
-                                      right: 12,
-                                      left: index == 0 ? 0 : 0,
+                                    width:
+                                        MediaQuery.of(context).size.width *
+                                        0.78,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 240,
+                                      maxWidth: 300,
                                     ),
+                                    margin: const EdgeInsets.only(right: 12),
                                     child: buildTrainingSessionRow(
                                       context: context,
                                       title: session['title'] ?? "",
