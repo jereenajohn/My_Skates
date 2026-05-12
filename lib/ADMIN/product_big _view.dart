@@ -149,28 +149,182 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
         .replaceAll(' ', '');
   }
 
+  Map<String, dynamic>? _getActiveOfferFromProductItem(
+    Map<String, dynamic> item,
+  ) {
+    final offers = item["offer_details"];
+
+    if (offers == null) {
+      return null;
+    }
+
+    // Case 1: API returns offer_details as object/map
+    if (offers is Map) {
+      final Map<String, dynamic> offerMap = Map<String, dynamic>.from(offers);
+
+      final dynamic activeValue = offerMap["is_active"];
+
+      final bool isActive =
+          activeValue == true ||
+          activeValue.toString().toLowerCase() == "true" ||
+          activeValue.toString() == "1";
+
+      if (isActive) {
+        return offerMap;
+      }
+
+      return null;
+    }
+
+    // Case 2: API returns offer_details as list
+    if (offers is List && offers.isNotEmpty) {
+      for (final offer in offers) {
+        if (offer is Map) {
+          final Map<String, dynamic> offerMap = Map<String, dynamic>.from(
+            offer,
+          );
+
+          final dynamic activeValue = offerMap["is_active"];
+
+          final bool isActive =
+              activeValue == true ||
+              activeValue.toString().toLowerCase() == "true" ||
+              activeValue.toString() == "1";
+
+          if (isActive) {
+            return offerMap;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  String _getOfferTitleFromProductItem(Map<String, dynamic> item) {
+    final offer = _getActiveOfferFromProductItem(item);
+
+    if (offer == null) return "";
+
+    final title = offer["title"]?.toString().trim() ?? "";
+    final message = offer["message"]?.toString().trim() ?? "";
+
+    if (title.isNotEmpty && title.toLowerCase() != "null") return title;
+    if (message.isNotEmpty && message.toLowerCase() != "null") return message;
+
+    return "";
+  }
+
+  int _toInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
+  String _getVariantOfferTitle(Map<String, dynamic> variant) {
+    final offers = product?["offer_details"];
+
+    if (offers == null) return "";
+
+    final int productId = _toInt(product?["id"]);
+    final int variantId = _toInt(variant["id"]);
+
+    final List<Map<String, dynamic>> activeOffers = [];
+
+    if (offers is Map) {
+      activeOffers.add(Map<String, dynamic>.from(offers));
+    } else if (offers is List) {
+      for (final offer in offers) {
+        if (offer is Map) {
+          activeOffers.add(Map<String, dynamic>.from(offer));
+        }
+      }
+    }
+
+    for (final offer in activeOffers) {
+      final dynamic activeValue = offer["is_active"];
+
+      final bool isActive =
+          activeValue == true ||
+          activeValue.toString().toLowerCase() == "true" ||
+          activeValue.toString() == "1";
+
+      if (!isActive) continue;
+
+      final List eligibleProductIds = offer["eligible_product_ids"] ?? [];
+      final List eligibleVariantIds = offer["eligible_variant_ids"] ?? [];
+
+      final bool isProductEligible = eligibleProductIds
+          .map((e) => _toInt(e))
+          .contains(productId);
+
+      final bool isVariantEligible = eligibleVariantIds
+          .map((e) => _toInt(e))
+          .contains(variantId);
+
+      if (isProductEligible || isVariantEligible) {
+        final String title = offer["title"]?.toString().trim() ?? "";
+        final String message = offer["message"]?.toString().trim() ?? "";
+
+        if (title.isNotEmpty && title.toLowerCase() != "null") {
+          return title;
+        }
+
+        if (message.isNotEmpty && message.toLowerCase() != "null") {
+          return message;
+        }
+      }
+    }
+
+    return "";
+  }
+
   Map<String, dynamic>? _getActiveOffer() {
     final offers = product?["offer_details"];
 
     debugPrint("PRODUCT OFFER DETAILS: $offers");
 
-    if (offers == null || offers is! List || offers.isEmpty) {
+    if (offers == null) {
       return null;
     }
 
-    for (final offer in offers) {
-      if (offer is Map) {
-        final Map<String, dynamic> offerMap = Map<String, dynamic>.from(offer);
+    // Case 1: offer_details is object/map
+    if (offers is Map) {
+      final Map<String, dynamic> offerMap = Map<String, dynamic>.from(offers);
 
-        final dynamic activeValue = offerMap["is_active"];
+      final dynamic activeValue = offerMap["is_active"];
 
-        final bool isActive =
-            activeValue == true ||
-            activeValue.toString().toLowerCase() == "true" ||
-            activeValue.toString() == "1";
+      final bool isActive =
+          activeValue == true ||
+          activeValue.toString().toLowerCase() == "true" ||
+          activeValue.toString() == "1";
 
-        if (isActive) {
-          return offerMap;
+      if (isActive) {
+        return offerMap;
+      }
+
+      return null;
+    }
+
+    // Case 2: offer_details is list
+    if (offers is List && offers.isNotEmpty) {
+      for (final offer in offers) {
+        if (offer is Map) {
+          final Map<String, dynamic> offerMap = Map<String, dynamic>.from(
+            offer,
+          );
+
+          final dynamic activeValue = offerMap["is_active"];
+
+          final bool isActive =
+              activeValue == true ||
+              activeValue.toString().toLowerCase() == "true" ||
+              activeValue.toString() == "1";
+
+          if (isActive) {
+            return offerMap;
+          }
         }
       }
     }
@@ -197,6 +351,38 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
 
   bool _hasActiveOffer() {
     return _getOfferTitle().isNotEmpty;
+  }
+
+  Widget _compactOfferRibbonBadgeFromTitle(String title) {
+    final String cleanTitle = title.trim();
+
+    if (cleanTitle.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return ClipPath(
+      clipper: _ExactOfferRibbonClipper(),
+      child: Container(
+        height: 24,
+        width: 92,
+        padding: const EdgeInsets.fromLTRB(8, 0, 16, 0),
+        alignment: Alignment.centerLeft,
+        color: const Color.fromARGB(255, 55, 210, 194),
+        child: Text(
+          _formatOfferText(cleanTitle),
+          maxLines: 1,
+          overflow: TextOverflow.clip,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            fontFamily: 'Poppins',
+            height: 1,
+            letterSpacing: -0.2,
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _offerRibbonBadgeFromTitle(String title) {
@@ -987,6 +1173,10 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                 final double discount =
                     double.tryParse(item["discount"]?.toString() ?? "0") ?? 0.0;
                 final bool wishlisted = item["is_in_wishlist"] == true;
+                final String similarOfferTitle = _getOfferTitleFromProductItem(
+                  item,
+                );
+                final bool hasSimilarOffer = similarOfferTitle.isNotEmpty;
 
                 return GestureDetector(
                   onTap: () async {
@@ -1091,6 +1281,14 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                       ),
                                     ],
                                   ),
+                                ),
+                              ),
+                            if (hasSimilarOffer)
+                              Positioned(
+                                top: discount > 0 ? 48 : 8,
+                                left: 8,
+                                child: _compactOfferRibbonBadgeFromTitle(
+                                  similarOfferTitle,
                                 ),
                               ),
 
@@ -2826,6 +3024,14 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                 final String imageUrl = _buildImageUrl(
                                   rawVariantImage,
                                 );
+                                final String variantOfferTitle =
+                                    _getVariantOfferTitle(
+                                      Map<String, dynamic>.from(variant),
+                                    );
+
+                                final bool hasVariantOffer =
+                                    variantOfferTitle.isNotEmpty &&
+                                    !isOutOfStock;
 
                                 return GestureDetector(
                                   onTap: isOutOfStock
@@ -2931,6 +3137,21 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                                                 },
                                                           ),
                                                   ),
+
+                                                  if (hasVariantOffer)
+                                                    Positioned(
+                                                      top: 8,
+                                                      left: 0,
+                                                      child: Transform.scale(
+                                                        scale: 0.72,
+                                                        alignment: Alignment
+                                                            .centerLeft,
+                                                        child:
+                                                            _compactOfferRibbonBadgeFromTitle(
+                                                              variantOfferTitle,
+                                                            ),
+                                                      ),
+                                                    ),
                                                   if (isOutOfStock)
                                                     Positioned.fill(
                                                       child: Container(
@@ -2999,6 +3220,7 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                                 fontFamily: 'Poppins',
                                               ),
                                             ),
+
                                             const Spacer(),
                                             Text(
                                               "₹${variant["price"] ?? product!["base_price"]}",
