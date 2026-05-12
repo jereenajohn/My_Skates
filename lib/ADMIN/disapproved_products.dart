@@ -19,6 +19,8 @@
 //   bool isRefreshing = false;
 //   Map<int, bool> expandedProducts = {};
 
+//   Set<int> approvedMainProducts = {};
+
 //   int currentPage = 1;
 //   int totalCount = 0;
 //   String? nextPageUrl;
@@ -173,8 +175,304 @@
 //     await getproduct("disapproved", page: 1);
 //   }
 
+//   // Update main product status - when approved, all variants get approved automatically
+// Future<void> updateMainProductStatus(int id, String status) async {
+//   final prefs = await SharedPreferences.getInstance();
+//   final token = prefs.getString("access");
+
+//   if (token == null) {
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       const SnackBar(
+//         content: Text("Authentication token missing"),
+//         backgroundColor: Colors.red,
+//       ),
+//     );
+//     return;
+//   }
+
+//   try {
+//     final response = await http.patch(
+//       Uri.parse("$api/api/myskates/products/approval/$id/"),
+//       headers: {
+//         "Authorization": "Bearer $token",
+//         "Content-Type": "application/json",
+//       },
+//       body: jsonEncode({
+//         "approval_status": status,
+//       }),
+//     );
+
+//     print("MAIN PRODUCT STATUS UPDATE ID: $id");
+//     print("MAIN PRODUCT STATUS UPDATE TO: $status");
+//     print("MAIN PRODUCT STATUS UPDATE CODE: ${response.statusCode}");
+//     print("MAIN PRODUCT STATUS UPDATE BODY: ${response.body}");
+
+//     if (response.statusCode == 200 || response.statusCode == 202) {
+//       if (!mounted) return;
+
+//       setState(() {
+//         if (status == "approved") {
+//           approvedMainProducts.add(id);
+//         } else {
+//           approvedMainProducts.remove(id);
+//         }
+
+//         final index = products.indexWhere((p) => p["id"] == id);
+//         if (index != -1) {
+//           products[index]["approval_status"] = status;
+//         }
+//       });
+
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(
+//           content: Text(
+//             status == "approved"
+//                 ? "Main product approved. Now you can approve variants."
+//                 : "Product status updated successfully",
+//           ),
+//           backgroundColor: status == "approved" ? Colors.green : Colors.orange,
+//         ),
+//       );
+//     } else {
+//       if (!mounted) return;
+
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(
+//           content: Text(
+//             "Failed to update product status: ${response.statusCode}",
+//           ),
+//           backgroundColor: Colors.red,
+//         ),
+//       );
+//     }
+//   } catch (e) {
+//     print("MAIN PRODUCT STATUS UPDATE ERROR: $e");
+
+//     if (!mounted) return;
+
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       SnackBar(
+//         content: Text("Error updating product status: $e"),
+//         backgroundColor: Colors.red,
+//       ),
+//     );
+//   }
+// }
+//   // Update individual variant status
+//   Future<void> updateVariantStatus(int variantId, String status) async {
+//     final prefs = await SharedPreferences.getInstance();
+//     final token = prefs.getString("access");
+
+//     if (token == null) {
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         const SnackBar(
+//           content: Text("Authentication token missing"),
+//           backgroundColor: Colors.red,
+//         ),
+//       );
+//       return;
+//     }
+
+//     try {
+//       final response = await http.patch(
+//         Uri.parse("$api/api/myskates/products/variant/approval/$variantId/"),
+//         headers: {
+//           "Authorization": "Bearer $token",
+//           "Content-Type": "application/json",
+//         },
+//         body: jsonEncode({"approval_status": status}),
+//       );
+
+//       print("VARIANT STATUS UPDATE ID: $variantId");
+//       print("VARIANT STATUS UPDATE TO: $status");
+//       print("VARIANT STATUS UPDATE CODE: ${response.statusCode}");
+//       print("VARIANT STATUS UPDATE BODY: ${response.body}");
+
+//       if (response.statusCode == 200) {
+//         if (!mounted) return;
+
+//         ScaffoldMessenger.of(context).showSnackBar(
+//           SnackBar(
+//             content: Text(
+//               status == "approved"
+//                   ? "Variant approved successfully"
+//                   : "Variant disapproved successfully",
+//             ),
+//             backgroundColor: status == "approved"
+//                 ? Colors.green
+//                 : Colors.orange,
+//           ),
+//         );
+
+//         await getproduct("disapproved", page: currentPage);
+//       } else {
+//         ScaffoldMessenger.of(context).showSnackBar(
+//           SnackBar(
+//             content: Text("Failed to update variant: ${response.statusCode}"),
+//             backgroundColor: Colors.red,
+//           ),
+//         );
+//       }
+//     } catch (e) {
+//       print("VARIANT STATUS UPDATE ERROR: $e");
+
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(
+//           content: Text("Error updating variant: $e"),
+//           backgroundColor: Colors.red,
+//         ),
+//       );
+//     }
+//   }
+
+//   // Show confirmation dialog for main product approval
+// void _showMainProductApprovalDialog(Map<String, dynamic> product) {
+//   showDialog(
+//     context: context,
+//     barrierDismissible: false,
+//     builder: (BuildContext dialogContext) {
+//       return AlertDialog(
+//         backgroundColor: const Color(0xFF1A1A1A),
+//         title: const Text(
+//           "Approve Main Product",
+//           style: TextStyle(color: Colors.white),
+//         ),
+//         content: Column(
+//           mainAxisSize: MainAxisSize.min,
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             Text(
+//               "Are you sure you want to approve '${product['title']}'?",
+//               style: const TextStyle(color: Colors.white70),
+//             ),
+//             const SizedBox(height: 12),
+//             Container(
+//               padding: const EdgeInsets.all(10),
+//               decoration: BoxDecoration(
+//                 color: Colors.green.withOpacity(0.1),
+//                 borderRadius: BorderRadius.circular(8),
+//                 border: Border.all(color: Colors.green.withOpacity(0.3)),
+//               ),
+//               child: const Row(
+//                 children: [
+//                   Icon(Icons.check_circle_outline, color: Colors.green),
+//                   SizedBox(width: 10),
+//                   Expanded(
+//                     child: Text(
+//                       "This will approve only the main product. After that, you can approve variants separately.",
+//                       style: TextStyle(color: Colors.green, fontSize: 12),
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//           ],
+//         ),
+//         actions: [
+//           TextButton(
+//             onPressed: () => Navigator.pop(dialogContext),
+//             child: const Text(
+//               "Cancel",
+//               style: TextStyle(color: Colors.white70),
+//             ),
+//           ),
+//           ElevatedButton(
+//             onPressed: () {
+//               Navigator.pop(dialogContext);
+//               updateMainProductStatus(product['id'], "approved");
+//             },
+//             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+//             child: const Text("Approve Main Product"),
+//           ),
+//         ],
+//       );
+//     },
+//   );
+// }
+//   // Show confirmation dialog for variant approval
+//   void _showVariantApprovalDialog(
+//     Map<String, dynamic> product,
+//     Map<String, dynamic> variant,
+//   ) {
+//     showDialog(
+//       context: context,
+//       barrierDismissible: false,
+//       builder: (BuildContext dialogContext) {
+//         return AlertDialog(
+//           backgroundColor: const Color(0xFF1A1A1A),
+//           title: const Text(
+//             "Approve Variant",
+//             style: TextStyle(color: Colors.white),
+//           ),
+//           content: Column(
+//             mainAxisSize: MainAxisSize.min,
+//             crossAxisAlignment: CrossAxisAlignment.start,
+//             children: [
+//               Text(
+//                 "Are you sure you want to approve this variant?",
+//                 style: const TextStyle(color: Colors.white70),
+//               ),
+//               const SizedBox(height: 12),
+//               Container(
+//                 padding: const EdgeInsets.all(10),
+//                 decoration: BoxDecoration(
+//                   color: Colors.white.withOpacity(0.05),
+//                   borderRadius: BorderRadius.circular(8),
+//                 ),
+//                 child: Column(
+//                   crossAxisAlignment: CrossAxisAlignment.start,
+//                   children: [
+//                     Text(
+//                       "SKU: ${variant['sku']}",
+//                       style: const TextStyle(
+//                         color: Colors.white,
+//                         fontWeight: FontWeight.w500,
+//                       ),
+//                     ),
+//                     const SizedBox(height: 4),
+//                     Text(
+//                       "Price: ₹${variant['price']}",
+//                       style: const TextStyle(color: Colors.tealAccent),
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//               const SizedBox(height: 12),
+//               const Text(
+//                 "✓ Only this variant will be approved. Other variants will remain disapproved.",
+//                 style: TextStyle(color: Colors.orange, fontSize: 12),
+//               ),
+//             ],
+//           ),
+//           actions: [
+//             TextButton(
+//               onPressed: () => Navigator.pop(dialogContext),
+//               child: const Text(
+//                 "Cancel",
+//                 style: TextStyle(color: Colors.white70),
+//               ),
+//             ),
+//             ElevatedButton(
+//               onPressed: () {
+//                 Navigator.pop(dialogContext);
+//                 updateVariantStatus(variant['id'], "approved");
+//               },
+//               style: ElevatedButton.styleFrom(
+//                 backgroundColor: const Color(0xFF00CFC5),
+//               ),
+//               child: const Text("Approve"),
+//             ),
+//           ],
+//         );
+//       },
+//     );
+//   }
+
 //   void _showProductDetailDialog(Map<String, dynamic> product) {
 //     final List variants = product['variants'] ?? [];
+//     final bool isMainProductApproved =
+//     product['approval_status'] == 'approved' ||
+//     approvedMainProducts.contains(product['id']);
 
 //     showDialog(
 //       context: context,
@@ -396,284 +694,40 @@
 //                           ),
 
 //                           // Variants Section
-//                           if (variants.isNotEmpty) ...[
-//                             const SizedBox(height: 16),
-//                             const Divider(color: Colors.white24, height: 24),
-//                             Row(
-//                               children: [
-//                                 const Icon(
-//                                   Icons.swap_horiz,
-//                                   color: Colors.white70,
-//                                   size: 20,
-//                                 ),
-//                                 const SizedBox(width: 8),
-//                                 Text(
-//                                   "Variants (${variants.length})",
-//                                   style: const TextStyle(
-//                                     color: Colors.white70,
-//                                     fontSize: 16,
-//                                     fontWeight: FontWeight.w600,
-//                                   ),
-//                                 ),
-//                               ],
-//                             ),
-//                             const SizedBox(height: 12),
-//                             ...variants
-//                                 .map(
-//                                   (variant) => Container(
-//                                     margin: const EdgeInsets.only(bottom: 12),
-//                                     padding: const EdgeInsets.all(12),
-//                                     decoration: BoxDecoration(
-//                                       color: Colors.white.withOpacity(0.05),
-//                                       borderRadius: BorderRadius.circular(12),
-//                                       border: Border.all(
-//                                         color:
-//                                             variant['approval_status'] ==
-//                                                 'disapproved'
-//                                             ? Colors.red.withOpacity(0.3)
-//                                             : Colors.white.withOpacity(0.1),
-//                                       ),
-//                                     ),
-//                                     child: Column(
-//                                       crossAxisAlignment:
-//                                           CrossAxisAlignment.start,
-//                                       children: [
-//                                         Row(
-//                                           mainAxisAlignment:
-//                                               MainAxisAlignment.spaceBetween,
-//                                           children: [
-//                                             Expanded(
-//                                               child: Text(
-//                                                 variant['sku'],
-//                                                 style: const TextStyle(
-//                                                   color: Colors.white,
-//                                                   fontWeight: FontWeight.w600,
-//                                                   fontSize: 14,
-//                                                 ),
-//                                                 overflow: TextOverflow.ellipsis,
-//                                               ),
-//                                             ),
-//                                             Container(
-//                                               padding:
-//                                                   const EdgeInsets.symmetric(
-//                                                     horizontal: 8,
-//                                                     vertical: 4,
-//                                                   ),
-//                                               decoration: BoxDecoration(
-//                                                 color:
-//                                                     variant['is_active'] == true
-//                                                     ? Colors.green.withOpacity(
-//                                                         0.2,
-//                                                       )
-//                                                     : Colors.red.withOpacity(
-//                                                         0.2,
-//                                                       ),
-//                                                 borderRadius:
-//                                                     BorderRadius.circular(12),
-//                                               ),
-//                                               child: Text(
-//                                                 variant['is_active'] == true
-//                                                     ? 'Active'
-//                                                     : 'Inactive',
-//                                                 style: TextStyle(
-//                                                   color:
-//                                                       variant['is_active'] ==
-//                                                           true
-//                                                       ? Colors.green
-//                                                       : Colors.red,
-//                                                   fontSize: 11,
-//                                                   fontWeight: FontWeight.w500,
-//                                                 ),
-//                                               ),
-//                                             ),
-//                                           ],
-//                                         ),
-//                                         const SizedBox(height: 10),
-//                                         Row(
-//                                           children: [
-//                                             Expanded(
-//                                               child: Column(
-//                                                 crossAxisAlignment:
-//                                                     CrossAxisAlignment.start,
-//                                                 children: [
-//                                                   const Text(
-//                                                     "Price",
-//                                                     style: TextStyle(
-//                                                       color: Colors.white54,
-//                                                       fontSize: 11,
-//                                                     ),
-//                                                   ),
-//                                                   const SizedBox(height: 2),
-//                                                   Text(
-//                                                     "₹${variant['price']}",
-//                                                     style: const TextStyle(
-//                                                       color: Colors.white,
-//                                                       fontSize: 15,
-//                                                       fontWeight:
-//                                                           FontWeight.w600,
-//                                                     ),
-//                                                   ),
-//                                                 ],
-//                                               ),
-//                                             ),
-//                                             if (variant['discount'] != "0" &&
-//                                                 variant['discount'] != "0.00")
-//                                               Expanded(
-//                                                 child: Column(
-//                                                   crossAxisAlignment:
-//                                                       CrossAxisAlignment.start,
-//                                                   children: [
-//                                                     const Text(
-//                                                       "Discount",
-//                                                       style: TextStyle(
-//                                                         color: Colors.white54,
-//                                                         fontSize: 11,
-//                                                       ),
-//                                                     ),
-//                                                     const SizedBox(height: 2),
-//                                                     Text(
-//                                                       "${variant['discount']}% OFF",
-//                                                       style: const TextStyle(
-//                                                         color: Colors.green,
-//                                                         fontSize: 13,
-//                                                         fontWeight:
-//                                                             FontWeight.w500,
-//                                                       ),
-//                                                     ),
-//                                                   ],
-//                                                 ),
-//                                               ),
-//                                             Expanded(
-//                                               child: Column(
-//                                                 crossAxisAlignment:
-//                                                     CrossAxisAlignment.start,
-//                                                 children: [
-//                                                   const Text(
-//                                                     "Stock",
-//                                                     style: TextStyle(
-//                                                       color: Colors.white54,
-//                                                       fontSize: 11,
-//                                                     ),
-//                                                   ),
-//                                                   const SizedBox(height: 2),
-//                                                   Text(
-//                                                     variant['stock'].toString(),
-//                                                     style: TextStyle(
-//                                                       color:
-//                                                           (variant['stock']
-//                                                                   as int) <
-//                                                               10
-//                                                           ? Colors.orange
-//                                                           : Colors.white,
-//                                                       fontSize: 13,
-//                                                       fontWeight:
-//                                                           FontWeight.w500,
-//                                                     ),
-//                                                   ),
-//                                                 ],
-//                                               ),
-//                                             ),
-//                                           ],
-//                                         ),
-//                                         const SizedBox(height: 8),
-//                                         Container(
-//                                           padding: const EdgeInsets.symmetric(
-//                                             horizontal: 8,
-//                                             vertical: 4,
-//                                           ),
-//                                           decoration: BoxDecoration(
-//                                             color:
-//                                                 variant['approval_status'] ==
-//                                                     'disapproved'
-//                                                 ? Colors.red.withOpacity(0.2)
-//                                                 : Colors.orange.withOpacity(
-//                                                     0.2,
-//                                                   ),
-//                                             borderRadius: BorderRadius.circular(
-//                                               8,
-//                                             ),
-//                                           ),
-//                                           child: Row(
-//                                             mainAxisSize: MainAxisSize.min,
-//                                             children: [
-//                                               Icon(
-//                                                 variant['approval_status'] ==
-//                                                         'disapproved'
-//                                                     ? Icons.block
-//                                                     : Icons.pending,
-//                                                 color:
-//                                                     variant['approval_status'] ==
-//                                                         'disapproved'
-//                                                     ? Colors.red
-//                                                     : Colors.orange,
-//                                                 size: 12,
-//                                               ),
-//                                               const SizedBox(width: 4),
-//                                               Text(
-//                                                 variant['approval_status']
-//                                                     .toUpperCase(),
-//                                                 style: TextStyle(
-//                                                   color:
-//                                                       variant['approval_status'] ==
-//                                                           'disapproved'
-//                                                       ? Colors.red
-//                                                       : Colors.orange,
-//                                                   fontSize: 10,
-//                                                   fontWeight: FontWeight.w500,
-//                                                 ),
-//                                               ),
-//                                             ],
-//                                           ),
-//                                         ),
-//                                         const SizedBox(height: 10),
+//                          if (!isMainProductApproved && variants.isNotEmpty) ...[
+//   const SizedBox(height: 16),
+//   Container(
+//     width: double.infinity,
+//     padding: const EdgeInsets.all(12),
+//     decoration: BoxDecoration(
+//       color: Colors.orange.withOpacity(0.12),
+//       borderRadius: BorderRadius.circular(12),
+//       border: Border.all(color: Colors.orange.withOpacity(0.35)),
+//     ),
+//     child: const Row(
+//       children: [
+//         Icon(Icons.lock_outline, color: Colors.orange, size: 20),
+//         SizedBox(width: 10),
+//         Expanded(
+//           child: Text(
+//             "Approve the main product first to enable variant approval.",
+//             style: TextStyle(
+//               color: Colors.orange,
+//               fontSize: 13,
+//               fontWeight: FontWeight.w600,
+//             ),
+//           ),
+//         ),
+//       ],
+//     ),
+//   ),
+// ],
 
-//                                         SizedBox(
-//                                           width: double.infinity,
-//                                           child: ElevatedButton.icon(
-//                                             onPressed: () {
-//                                               updateVariantStatus(
-//                                                 variant['id'],
-//                                                 "approved",
-//                                               );
-//                                             },
-//                                             icon: const Icon(
-//                                               Icons.check_circle_outline,
-//                                               size: 18,
-//                                             ),
-//                                             label: const Text(
-//                                               "Approve Variant",
-//                                               style: TextStyle(
-//                                                 fontSize: 13,
-//                                                 fontWeight: FontWeight.w600,
-//                                               ),
-//                                             ),
-//                                             style: ElevatedButton.styleFrom(
-//                                               backgroundColor: const Color(
-//                                                 0xFF00CFC5,
-//                                               ),
-//                                               foregroundColor: Colors.black,
-//                                               elevation: 0,
-//                                               padding:
-//                                                   const EdgeInsets.symmetric(
-//                                                     vertical: 11,
-//                                                   ),
-//                                               shape: RoundedRectangleBorder(
-//                                                 borderRadius:
-//                                                     BorderRadius.circular(10),
-//                                               ),
-//                                             ),
-//                                           ),
-//                                         ),
-//                                       ],
-//                                     ),
-//                                   ),
-//                                 )
-//                                 .toList(),
-//                           ],
+// if (isMainProductApproved && variants.isNotEmpty) ...[
 
 //                           const SizedBox(height: 16),
 
-//                           // Close Button
+//                           // Buttons Row
 //                           Row(
 //                             children: [
 //                               Expanded(
@@ -702,10 +756,8 @@
 //                               Expanded(
 //                                 child: GestureDetector(
 //                                   onTap: () {
-//                                     updateMainProductStatus(
-//                                       product['id'],
-//                                       "approved",
-//                                     );
+//                                     Navigator.pop(context);
+//                                     _showMainProductApprovalDialog(product);
 //                                   },
 //                                   child: Container(
 //                                     height: 48,
@@ -720,10 +772,10 @@
 //                                     ),
 //                                     child: const Center(
 //                                       child: Text(
-//                                         "Approve",
+//                                         "Approve Product & All Variants",
 //                                         style: TextStyle(
 //                                           color: Colors.white,
-//                                           fontSize: 16,
+//                                           fontSize: 13,
 //                                           fontWeight: FontWeight.w600,
 //                                         ),
 //                                       ),
@@ -733,7 +785,7 @@
 //                               ),
 //                             ],
 //                           ),
-//                         ],
+//                         ],]
 //                       ),
 //                     ),
 //                   ),
@@ -746,70 +798,224 @@
 //     );
 //   }
 
-//   Future<void> updateVariantStatus(int variantId, String status) async {
-//     final prefs = await SharedPreferences.getInstance();
-//     final token = prefs.getString("access");
+//   // Dialog variant card with approve button for each variant
+// Widget _buildDialogVariantCard(
+//   Map<String, dynamic> product,
+//   Map<String, dynamic> variant,
+//   bool isMainProductApproved,
+// ) {
+//   final String approvalStatus =
+//       variant['approval_status']?.toString() ?? 'disapproved';
 
-//     if (token == null) {
-//       ScaffoldMessenger.of(context).showSnackBar(
-//         const SnackBar(
-//           content: Text("Authentication token missing"),
-//           backgroundColor: Colors.red,
+//   final bool canApprove =
+//       isMainProductApproved && approvalStatus == 'disapproved';
+
+//     return Container(
+//       margin: const EdgeInsets.only(bottom: 12),
+//       padding: const EdgeInsets.all(12),
+//       decoration: BoxDecoration(
+//         color: Colors.white.withOpacity(0.05),
+//         borderRadius: BorderRadius.circular(12),
+//         border: Border.all(
+//           color: approvalStatus == 'disapproved'
+//               ? Colors.red.withOpacity(0.3)
+//               : Colors.green.withOpacity(0.3),
 //         ),
-//       );
-//       return;
-//     }
-
-//     try {
-//       final response = await http.patch(
-//         Uri.parse("$api/api/myskates/products/variant/approval/$variantId/"),
-//         headers: {
-//           "Authorization": "Bearer $token",
-//           "Content-Type": "application/json",
-//         },
-//         body: jsonEncode({"approval_status": status}),
-//       );
-
-//       print("VARIANT STATUS UPDATE ID: $variantId");
-//       print("VARIANT STATUS UPDATE TO: $status");
-//       print("VARIANT STATUS UPDATE CODE: ${response.statusCode}");
-//       print("VARIANT STATUS UPDATE BODY: ${response.body}");
-
-//       if (response.statusCode == 200) {
-//         if (!mounted) return;
-
-//         ScaffoldMessenger.of(context).showSnackBar(
-//           SnackBar(
-//             content: Text(
-//               status == "approved"
-//                   ? "Variant approved successfully"
-//                   : "Variant disapproved successfully",
+//       ),
+//       child: Column(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           Row(
+//             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//             children: [
+//               Expanded(
+//                 child: Text(
+//                   variant['sku'],
+//                   style: const TextStyle(
+//                     color: Colors.white,
+//                     fontWeight: FontWeight.w600,
+//                     fontSize: 14,
+//                   ),
+//                   overflow: TextOverflow.ellipsis,
+//                 ),
+//               ),
+//               Container(
+//                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+//                 decoration: BoxDecoration(
+//                   color: variant['is_active'] == true
+//                       ? Colors.green.withOpacity(0.2)
+//                       : Colors.red.withOpacity(0.2),
+//                   borderRadius: BorderRadius.circular(12),
+//                 ),
+//                 child: Text(
+//                   variant['is_active'] == true ? 'Active' : 'Inactive',
+//                   style: TextStyle(
+//                     color: variant['is_active'] == true
+//                         ? Colors.green
+//                         : Colors.red,
+//                     fontSize: 11,
+//                     fontWeight: FontWeight.w500,
+//                   ),
+//                 ),
+//               ),
+//             ],
+//           ),
+//           const SizedBox(height: 10),
+//           Row(
+//             children: [
+//               Expanded(
+//                 child: Column(
+//                   crossAxisAlignment: CrossAxisAlignment.start,
+//                   children: [
+//                     const Text(
+//                       "Price",
+//                       style: TextStyle(color: Colors.white54, fontSize: 11),
+//                     ),
+//                     const SizedBox(height: 2),
+//                     Text(
+//                       "₹${variant['price']}",
+//                       style: const TextStyle(
+//                         color: Colors.white,
+//                         fontSize: 15,
+//                         fontWeight: FontWeight.w600,
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//               if (variant['discount'] != "0" && variant['discount'] != "0.00")
+//                 Expanded(
+//                   child: Column(
+//                     crossAxisAlignment: CrossAxisAlignment.start,
+//                     children: [
+//                       const Text(
+//                         "Discount",
+//                         style: TextStyle(color: Colors.white54, fontSize: 11),
+//                       ),
+//                       const SizedBox(height: 2),
+//                       Text(
+//                         "${variant['discount']}% OFF",
+//                         style: const TextStyle(
+//                           color: Colors.green,
+//                           fontSize: 13,
+//                           fontWeight: FontWeight.w500,
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               Expanded(
+//                 child: Column(
+//                   crossAxisAlignment: CrossAxisAlignment.start,
+//                   children: [
+//                     const Text(
+//                       "Stock",
+//                       style: TextStyle(color: Colors.white54, fontSize: 11),
+//                     ),
+//                     const SizedBox(height: 2),
+//                     Text(
+//                       variant['stock'].toString(),
+//                       style: TextStyle(
+//                         color: (variant['stock'] as int) < 10
+//                             ? Colors.orange
+//                             : Colors.white,
+//                         fontSize: 13,
+//                         fontWeight: FontWeight.w500,
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//             ],
+//           ),
+//           const SizedBox(height: 8),
+//           Container(
+//             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+//             decoration: BoxDecoration(
+//               color: approvalStatus == 'disapproved'
+//                   ? Colors.red.withOpacity(0.2)
+//                   : Colors.green.withOpacity(0.2),
+//               borderRadius: BorderRadius.circular(8),
 //             ),
-//             backgroundColor: status == "approved"
-//                 ? Colors.green
-//                 : Colors.orange,
+//             child: Row(
+//               mainAxisSize: MainAxisSize.min,
+//               children: [
+//                 Icon(
+//                   approvalStatus == 'disapproved'
+//                       ? Icons.block
+//                       : Icons.check_circle,
+//                   color: approvalStatus == 'disapproved'
+//                       ? Colors.red
+//                       : Colors.green,
+//                   size: 12,
+//                 ),
+//                 const SizedBox(width: 4),
+//                 Text(
+//                   approvalStatus.toUpperCase(),
+//                   style: TextStyle(
+//                     color: approvalStatus == 'disapproved'
+//                         ? Colors.red
+//                         : Colors.green,
+//                     fontSize: 10,
+//                     fontWeight: FontWeight.w500,
+//                   ),
+//                 ),
+//               ],
+//             ),
 //           ),
-//         );
-
-//         await getproduct("disapproved", page: currentPage);
-//       } else {
-//         ScaffoldMessenger.of(context).showSnackBar(
-//           SnackBar(
-//             content: Text("Failed to update variant: ${response.statusCode}"),
-//             backgroundColor: Colors.red,
-//           ),
-//         );
-//       }
-//     } catch (e) {
-//       print("VARIANT STATUS UPDATE ERROR: $e");
-
-//       ScaffoldMessenger.of(context).showSnackBar(
-//         SnackBar(
-//           content: Text("Error updating variant: $e"),
-//           backgroundColor: Colors.red,
-//         ),
-//       );
-//     }
+//           if (canApprove) ...[
+//             const SizedBox(height: 10),
+//             GestureDetector(
+//               onTap: () {
+//                 Navigator.pop(context); // Close dialog first
+//                 _showVariantApprovalDialog(product, variant);
+//               },
+//               child: Container(
+//                 width: double.infinity,
+//                 padding: const EdgeInsets.symmetric(vertical: 10),
+//                 decoration: BoxDecoration(
+//                   color: const Color(0xFF00CFC5).withOpacity(0.15),
+//                   borderRadius: BorderRadius.circular(10),
+//                   border: Border.all(
+//                     color: const Color(0xFF00CFC5).withOpacity(0.3),
+//                   ),
+//                 ),
+//                 child: const Center(
+//                   child: Text(
+//                     "Approve This Variant Only",
+//                     style: TextStyle(
+//                       color: Color(0xFF00CFC5),
+//                       fontSize: 12,
+//                       fontWeight: FontWeight.w600,
+//                     ),
+//                   ),
+//                 ),
+//               ),
+//             ),
+//           ] else if (approvalStatus == 'approved') ...[
+//             const SizedBox(height: 10),
+//             Container(
+//               width: double.infinity,
+//               padding: const EdgeInsets.symmetric(vertical: 10),
+//               decoration: BoxDecoration(
+//                 color: Colors.grey.withOpacity(0.15),
+//                 borderRadius: BorderRadius.circular(10),
+//               ),
+//               child: const Center(
+//                 child: Text(
+//                   "Variant Already Approved",
+//                   style: TextStyle(
+//                     color: Colors.grey,
+//                     fontSize: 12,
+//                     fontWeight: FontWeight.w500,
+//                   ),
+//                 ),
+//               ),
+//             ),
+//           ],
+//         ],
+//       ),
+//     );
 //   }
 
 //   Widget _buildPaginationControls(String status) {
@@ -847,7 +1053,6 @@
 //             ),
 //             label: const Text("Prev", style: TextStyle(color: Colors.white)),
 //           ),
-
 //           isPageLoading
 //               ? const SizedBox(
 //                   height: 22,
@@ -865,7 +1070,6 @@
 //                     fontWeight: FontWeight.w600,
 //                   ),
 //                 ),
-
 //           ElevatedButton.icon(
 //             onPressed: nextPageUrl == null || isPageLoading
 //                 ? null
@@ -1115,7 +1319,9 @@
 //                     ),
 //                   if (isExpanded && variants.isNotEmpty) ...[
 //                     const Divider(color: Colors.white24, height: 16),
-//                     ...variants.map((variant) => _buildVariantCard(variant)),
+//                     ...variants.map(
+//                       (variant) => _buildVariantCard(product, variant),
+//                     ),
 //                   ],
 //                 ],
 //               ),
@@ -1126,7 +1332,15 @@
 //     );
 //   }
 
-//   Widget _buildVariantCard(Map<String, dynamic> variant) {
+//   // Updated variant card with approve button for each variant
+//   Widget _buildVariantCard(
+//     Map<String, dynamic> product,
+//     Map<String, dynamic> variant,
+//   ) {
+//     final String approvalStatus =
+//         variant['approval_status']?.toString() ?? 'disapproved';
+//     final bool canApprove = approvalStatus == 'disapproved';
+
 //     return Container(
 //       margin: const EdgeInsets.only(top: 8, bottom: 8, left: 10),
 //       padding: const EdgeInsets.all(10),
@@ -1134,161 +1348,144 @@
 //         color: Colors.white.withOpacity(0.05),
 //         borderRadius: BorderRadius.circular(12),
 //         border: Border.all(
-//           color: variant['approval_status'] == 'disapproved'
+//           color: approvalStatus == 'disapproved'
 //               ? Colors.red.withOpacity(0.3)
-//               : Colors.white.withOpacity(0.1),
+//               : Colors.green.withOpacity(0.3),
 //         ),
 //       ),
-//       child: Row(
+//       child: Column(
 //         children: [
-//           ClipRRect(
-//             borderRadius: BorderRadius.circular(8),
-//             child: Container(
-//               width: 40,
-//               height: 40,
+//           Row(
+//             children: [
+//               ClipRRect(
+//                 borderRadius: BorderRadius.circular(8),
+//                 child: Container(
+//                   width: 40,
+//                   height: 40,
+//                   decoration: BoxDecoration(
+//                     color: Colors.grey[800],
+//                     borderRadius: BorderRadius.circular(8),
+//                   ),
+//                   child:
+//                       (variant['image'] != null && variant['image'].isNotEmpty)
+//                       ? Image.network(
+//                           variant['image'],
+//                           fit: BoxFit.cover,
+//                           errorBuilder: (context, error, stackTrace) =>
+//                               Icon(Icons.image, color: Colors.grey[600]),
+//                         )
+//                       : Icon(Icons.image, color: Colors.grey[600]),
+//                 ),
+//               ),
+//               const SizedBox(width: 12),
+//               Expanded(
+//                 child: Column(
+//                   crossAxisAlignment: CrossAxisAlignment.start,
+//                   children: [
+//                     Text(
+//                       variant['sku'],
+//                       style: const TextStyle(
+//                         color: Colors.white,
+//                         fontSize: 12,
+//                         fontWeight: FontWeight.w500,
+//                       ),
+//                     ),
+//                     const SizedBox(height: 2),
+//                     Text(
+//                       "₹${variant['price']}",
+//                       style: const TextStyle(
+//                         color: Colors.white,
+//                         fontSize: 12,
+//                         fontWeight: FontWeight.w600,
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//               Container(
+//                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+//                 decoration: BoxDecoration(
+//                   color: approvalStatus == 'disapproved'
+//                       ? Colors.red.withOpacity(0.2)
+//                       : Colors.green.withOpacity(0.2),
+//                   borderRadius: BorderRadius.circular(8),
+//                 ),
+//                 child: Row(
+//                   mainAxisSize: MainAxisSize.min,
+//                   children: [
+//                     Icon(
+//                       approvalStatus == 'disapproved'
+//                           ? Icons.block
+//                           : Icons.check_circle,
+//                       color: approvalStatus == 'disapproved'
+//                           ? Colors.red
+//                           : Colors.green,
+//                       size: 10,
+//                     ),
+//                     const SizedBox(width: 4),
+//                     Text(
+//                       approvalStatus.toUpperCase(),
+//                       style: TextStyle(
+//                         color: approvalStatus == 'disapproved'
+//                             ? Colors.red
+//                             : Colors.green,
+//                         fontSize: 9,
+//                         fontWeight: FontWeight.w500,
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//             ],
+//           ),
+//           if (canApprove) ...[
+//             const SizedBox(height: 8),
+//             GestureDetector(
+//               onTap: () => _showVariantApprovalDialog(product, variant),
+//               child: Container(
+//                 padding: const EdgeInsets.symmetric(vertical: 8),
+//                 decoration: BoxDecoration(
+//                   color: const Color(0xFF00CFC5).withOpacity(0.15),
+//                   borderRadius: BorderRadius.circular(8),
+//                   border: Border.all(
+//                     color: const Color(0xFF00CFC5).withOpacity(0.3),
+//                   ),
+//                 ),
+//                 child: const Center(
+//                   child: Text(
+//                     "Approve Variant",
+//                     style: TextStyle(
+//                       color: Color(0xFF00CFC5),
+//                       fontSize: 11,
+//                       fontWeight: FontWeight.w500,
+//                     ),
+//                   ),
+//                 ),
+//               ),
+//             ),
+//           ] else if (approvalStatus == 'approved') ...[
+//             const SizedBox(height: 8),
+//             Container(
+//               padding: const EdgeInsets.symmetric(vertical: 8),
 //               decoration: BoxDecoration(
-//                 color: Colors.grey[800],
+//                 color: Colors.grey.withOpacity(0.15),
 //                 borderRadius: BorderRadius.circular(8),
 //               ),
-//               child: (variant['image'] != null && variant['image'].isNotEmpty)
-//                   ? Image.network(
-//                       variant['image'],
-//                       fit: BoxFit.cover,
-//                       errorBuilder: (context, error, stackTrace) =>
-//                           Icon(Icons.image, color: Colors.grey[600]),
-//                     )
-//                   : Icon(Icons.image, color: Colors.grey[600]),
-//             ),
-//           ),
-//           const SizedBox(width: 12),
-//           Expanded(
-//             child: Column(
-//               crossAxisAlignment: CrossAxisAlignment.start,
-//               children: [
-//                 Text(
-//                   variant['sku'],
-//                   style: const TextStyle(
-//                     color: Colors.white,
-//                     fontSize: 12,
-//                     fontWeight: FontWeight.w500,
-//                   ),
-//                 ),
-//                 const SizedBox(height: 2),
-//                 Text(
-//                   "₹${variant['price']}",
-//                   style: const TextStyle(
-//                     color: Colors.white,
-//                     fontSize: 12,
-//                     fontWeight: FontWeight.w600,
-//                   ),
-//                 ),
-//               ],
-//             ),
-//           ),
-//           Container(
-//             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-//             decoration: BoxDecoration(
-//               color: variant['approval_status'] == 'disapproved'
-//                   ? Colors.red.withOpacity(0.2)
-//                   : Colors.orange.withOpacity(0.2),
-//               borderRadius: BorderRadius.circular(8),
-//             ),
-//             child: Row(
-//               mainAxisSize: MainAxisSize.min,
-//               children: [
-//                 Icon(
-//                   variant['approval_status'] == 'disapproved'
-//                       ? Icons.block
-//                       : Icons.pending,
-//                   color: variant['approval_status'] == 'disapproved'
-//                       ? Colors.red
-//                       : Colors.orange,
-//                   size: 10,
-//                 ),
-//                 const SizedBox(width: 4),
-//                 Text(
-//                   variant['approval_status'].toUpperCase(),
+//               child: const Center(
+//                 child: Text(
+//                   "Approved",
 //                   style: TextStyle(
-//                     color: variant['approval_status'] == 'disapproved'
-//                         ? Colors.red
-//                         : Colors.orange,
-//                     fontSize: 9,
+//                     color: Colors.grey,
+//                     fontSize: 11,
 //                     fontWeight: FontWeight.w500,
 //                   ),
 //                 ),
-//               ],
+//               ),
 //             ),
-//           ),
+//           ],
 //         ],
 //       ),
 //     );
-//   }
-
-//   Future<void> updateMainProductStatus(int id, String status) async {
-//     final prefs = await SharedPreferences.getInstance();
-//     final token = prefs.getString("access");
-
-//     if (token == null) {
-//       ScaffoldMessenger.of(context).showSnackBar(
-//         const SnackBar(
-//           content: Text("Authentication token missing"),
-//           backgroundColor: Colors.red,
-//         ),
-//       );
-//       return;
-//     }
-
-//     try {
-//       final response = await http.patch(
-//         Uri.parse("$api/api/myskates/products/approval/$id/"),
-//         headers: {"Authorization": "Bearer $token"},
-//         body: {"approval_status": status},
-//       );
-
-//       print("MAIN PRODUCT STATUS UPDATE ID: $id");
-//       print("MAIN PRODUCT STATUS UPDATE TO: $status");
-//       print("MAIN PRODUCT STATUS UPDATE CODE: ${response.statusCode}");
-//       print("MAIN PRODUCT STATUS UPDATE BODY: ${response.body}");
-
-//       if (response.statusCode == 200) {
-//         if (!mounted) return;
-
-//         Navigator.pop(context);
-
-//         ScaffoldMessenger.of(context).showSnackBar(
-//           SnackBar(
-//             content: Text(
-//               status == "approved"
-//                   ? "Product approved successfully"
-//                   : "Product disapproved successfully",
-//             ),
-//             backgroundColor: status == "approved"
-//                 ? Colors.green
-//                 : Colors.orange,
-//           ),
-//         );
-
-//         await getproduct("disapproved", page: currentPage);
-//       } else {
-//         ScaffoldMessenger.of(context).showSnackBar(
-//           SnackBar(
-//             content: Text(
-//               "Failed to update product status: ${response.statusCode}",
-//             ),
-//             backgroundColor: Colors.red,
-//           ),
-//         );
-//       }
-//     } catch (e) {
-//       print("MAIN PRODUCT STATUS UPDATE ERROR: $e");
-
-//       ScaffoldMessenger.of(context).showSnackBar(
-//         SnackBar(
-//           content: Text("Error updating product status: $e"),
-//           backgroundColor: Colors.red,
-//         ),
-//       );
-//     }
 //   }
 
 //   Widget _buildShimmerCard() {
@@ -1465,12 +1662,14 @@
 // }
 
 
+
 import 'dart:convert';
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 
 class DisapprovedProducts extends StatefulWidget {
@@ -1486,6 +1685,8 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
   bool isRefreshing = false;
   Map<int, bool> expandedProducts = {};
 
+  Set<int> approvedMainProducts = {};
+
   int currentPage = 1;
   int totalCount = 0;
   String? nextPageUrl;
@@ -1497,6 +1698,11 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
   void initState() {
     super.initState();
     getproduct("disapproved");
+  }
+
+  bool _isMainProductApproved(Map<String, dynamic> product) {
+    return product['approval_status']?.toString() == 'approved' ||
+        approvedMainProducts.contains(product['id']);
   }
 
   Future<void> getproduct(String status, {int page = 1}) async {
@@ -1640,7 +1846,7 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
     await getproduct("disapproved", page: 1);
   }
 
-  // Update main product status - when approved, all variants get approved automatically
+  // Update only main product status. Variants are approved separately.
   Future<void> updateMainProductStatus(int id, String status) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
@@ -1658,8 +1864,13 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
     try {
       final response = await http.patch(
         Uri.parse("$api/api/myskates/products/approval/$id/"),
-        headers: {"Authorization": "Bearer $token"},
-        body: {"approval_status": status},
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "approval_status": status,
+        }),
       );
 
       print("MAIN PRODUCT STATUS UPDATE ID: $id");
@@ -1667,24 +1878,35 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
       print("MAIN PRODUCT STATUS UPDATE CODE: ${response.statusCode}");
       print("MAIN PRODUCT STATUS UPDATE BODY: ${response.body}");
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 202) {
         if (!mounted) return;
 
-        Navigator.pop(context);
+        setState(() {
+          if (status == "approved") {
+            approvedMainProducts.add(id);
+          } else {
+            approvedMainProducts.remove(id);
+          }
+
+          final index = products.indexWhere((p) => p["id"] == id);
+          if (index != -1) {
+            products[index]["approval_status"] = status;
+          }
+        });
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               status == "approved"
-                  ? "Product and all its variants have been approved successfully"
-                  : "Product disapproved successfully",
+                  ? "Main product approved. Now you can approve variants."
+                  : "Product status updated successfully",
             ),
             backgroundColor: status == "approved" ? Colors.green : Colors.orange,
           ),
         );
-
-        await getproduct("disapproved", page: currentPage);
       } else {
+        if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1697,6 +1919,8 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
     } catch (e) {
       print("MAIN PRODUCT STATUS UPDATE ERROR: $e");
 
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error updating product status: $e"),
@@ -1706,7 +1930,6 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
     }
   }
 
-  // Update individual variant status
   Future<void> updateVariantStatus(int variantId, String status) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
@@ -1736,7 +1959,7 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
       print("VARIANT STATUS UPDATE CODE: ${response.statusCode}");
       print("VARIANT STATUS UPDATE BODY: ${response.body}");
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 202) {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1752,6 +1975,8 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
 
         await getproduct("disapproved", page: currentPage);
       } else {
+        if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Failed to update variant: ${response.statusCode}"),
@@ -1762,6 +1987,8 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
     } catch (e) {
       print("VARIANT STATUS UPDATE ERROR: $e");
 
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error updating variant: $e"),
@@ -1771,7 +1998,6 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
     }
   }
 
-  // Show confirmation dialog for main product approval
   void _showMainProductApprovalDialog(Map<String, dynamic> product) {
     showDialog(
       context: context,
@@ -1780,7 +2006,7 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
         return AlertDialog(
           backgroundColor: const Color(0xFF1A1A1A),
           title: const Text(
-            "Approve Product",
+            "Approve Main Product",
             style: TextStyle(color: Colors.white),
           ),
           content: Column(
@@ -1805,11 +2031,8 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        "✓ This will approve the main product AND ALL its variants at once.",
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontSize: 12,
-                        ),
+                        "This will approve only the main product. After that, you can approve variants separately.",
+                        style: TextStyle(color: Colors.green, fontSize: 12),
                       ),
                     ),
                   ],
@@ -1830,10 +2053,8 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                 Navigator.pop(dialogContext);
                 updateMainProductStatus(product['id'], "approved");
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-              ),
-              child: const Text("Approve All"),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: const Text("Approve Main Product"),
             ),
           ],
         );
@@ -1841,8 +2062,22 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
     );
   }
 
-  // Show confirmation dialog for variant approval
-  void _showVariantApprovalDialog(Map<String, dynamic> product, Map<String, dynamic> variant) {
+  void _showVariantApprovalDialog(
+    Map<String, dynamic> product,
+    Map<String, dynamic> variant,
+  ) {
+    final bool isMainProductApproved = _isMainProductApproved(product);
+
+    if (!isMainProductApproved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Approve the main product first"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1857,9 +2092,9 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 "Are you sure you want to approve this variant?",
-                style: const TextStyle(color: Colors.white70),
+                style: TextStyle(color: Colors.white70),
               ),
               const SizedBox(height: 12),
               Container(
@@ -1889,10 +2124,7 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
               const SizedBox(height: 12),
               const Text(
                 "✓ Only this variant will be approved. Other variants will remain disapproved.",
-                style: TextStyle(
-                  color: Colors.orange,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: Colors.orange, fontSize: 12),
               ),
             ],
           ),
@@ -1922,11 +2154,12 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
 
   void _showProductDetailDialog(Map<String, dynamic> product) {
     final List variants = product['variants'] ?? [];
+    final bool isMainProductApproved = _isMainProductApproved(product);
 
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
           child: Dialog(
@@ -1937,7 +2170,7 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
             ),
             child: Container(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.9,
+                maxHeight: MediaQuery.of(dialogContext).size.height * 0.9,
               ),
               decoration: BoxDecoration(
                 color: const Color(0xFF1A1A1A),
@@ -1954,7 +2187,6 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Header with image
                   Container(
                     height: 200,
                     decoration: BoxDecoration(
@@ -1962,7 +2194,7 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                         topLeft: Radius.circular(24),
                         topRight: Radius.circular(24),
                       ),
-                      image: product['image'].isNotEmpty
+                      image: product['image'].toString().isNotEmpty
                           ? DecorationImage(
                               image: NetworkImage(product['image']),
                               fit: BoxFit.cover,
@@ -1999,12 +2231,16 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.8),
+                                  color: isMainProductApproved
+                                      ? Colors.green.withOpacity(0.8)
+                                      : Colors.red.withOpacity(0.8),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Text(
-                                  "DISAPPROVED",
-                                  style: TextStyle(
+                                child: Text(
+                                  isMainProductApproved
+                                      ? "MAIN APPROVED"
+                                      : "DISAPPROVED",
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -2027,14 +2263,12 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                     ),
                   ),
 
-                  // Content
                   Flexible(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Category
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -2056,7 +2290,6 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
 
                           const SizedBox(height: 16),
 
-                          // Price
                           Row(
                             children: [
                               const Icon(
@@ -2078,8 +2311,7 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
 
                           const SizedBox(height: 16),
 
-                          // Description
-                          if (product['description'].isNotEmpty) ...[
+                          if (product['description'].toString().isNotEmpty) ...[
                             const Text(
                               "Description",
                               style: TextStyle(
@@ -2110,7 +2342,6 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                             const SizedBox(height: 16),
                           ],
 
-                          // Product ID
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -2142,14 +2373,49 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                             ),
                           ),
 
-                          // Variants Section
-                          if (variants.isNotEmpty) ...[
+                          if (!isMainProductApproved &&
+                              variants.isNotEmpty) ...[
                             const SizedBox(height: 16),
-                            const Divider(color: Colors.white24, height: 24),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.orange.withOpacity(0.35),
+                                ),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(
+                                    Icons.lock_outline,
+                                    color: Colors.orange,
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      "Approve the main product first to enable variant approval.",
+                                      style: TextStyle(
+                                        color: Colors.orange,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          if (isMainProductApproved &&
+                              variants.isNotEmpty) ...[
+                            const SizedBox(height: 20),
                             Row(
                               children: [
                                 const Icon(
-                                  Icons.swap_horiz,
+                                  Icons.inventory_2_outlined,
                                   color: Colors.white70,
                                   size: 20,
                                 ),
@@ -2157,25 +2423,30 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                                 Text(
                                   "Variants (${variants.length})",
                                   style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 12),
-                            ...variants.map((variant) => _buildDialogVariantCard(product, variant)).toList(),
+                            ...variants.map(
+                              (variant) => _buildDialogVariantCard(
+                                product,
+                                Map<String, dynamic>.from(variant),
+                                isMainProductApproved,
+                              ),
+                            ),
                           ],
 
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
 
-                          // Buttons Row
                           Row(
                             children: [
                               Expanded(
                                 child: GestureDetector(
-                                  onTap: () => Navigator.pop(context),
+                                  onTap: () => Navigator.pop(dialogContext),
                                   child: Container(
                                     height: 48,
                                     decoration: BoxDecoration(
@@ -2195,37 +2466,41 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    Navigator.pop(context);
-                                    _showMainProductApprovalDialog(product);
-                                  },
-                                  child: Container(
-                                    height: 48,
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF00CFC5),
-                                          Color(0xFF00A89F),
-                                        ],
+
+                              if (!isMainProductApproved) ...[
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      Navigator.pop(dialogContext);
+                                      _showMainProductApprovalDialog(product);
+                                    },
+                                    child: Container(
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [
+                                            Color(0xFF00CFC5),
+                                            Color(0xFF00A89F),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Center(
-                                      child: Text(
-                                        "Approve Product & All Variants",
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
+                                      child: const Center(
+                                        child: Text(
+                                          "Approve Main Product",
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ],
                           ),
                         ],
@@ -2241,10 +2516,16 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
     );
   }
 
-  // Dialog variant card with approve button for each variant
-  Widget _buildDialogVariantCard(Map<String, dynamic> product, Map<String, dynamic> variant) {
-    final String approvalStatus = variant['approval_status']?.toString() ?? 'disapproved';
-    final bool canApprove = approvalStatus == 'disapproved';
+  Widget _buildDialogVariantCard(
+    Map<String, dynamic> product,
+    Map<String, dynamic> variant,
+    bool isMainProductApproved,
+  ) {
+    final String approvalStatus =
+        variant['approval_status']?.toString() ?? 'disapproved';
+
+    final bool canApprove =
+        isMainProductApproved && approvalStatus == 'disapproved';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -2262,8 +2543,26 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              if (variant['image'] != null &&
+                  variant['image'].toString().isNotEmpty) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    variant['image'],
+                    width: 44,
+                    height: 44,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 44,
+                      height: 44,
+                      color: Colors.grey[800],
+                      child: Icon(Icons.image, color: Colors.grey[600]),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
               Expanded(
                 child: Text(
                   variant['sku'],
@@ -2276,10 +2575,7 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: variant['is_active'] == true
                       ? Colors.green.withOpacity(0.2)
@@ -2289,7 +2585,9 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                 child: Text(
                   variant['is_active'] == true ? 'Active' : 'Inactive',
                   style: TextStyle(
-                    color: variant['is_active'] == true ? Colors.green : Colors.red,
+                    color: variant['is_active'] == true
+                        ? Colors.green
+                        : Colors.red,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
@@ -2297,7 +2595,9 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
               ),
             ],
           ),
+
           const SizedBox(height: 10),
+
           Row(
             children: [
               Expanded(
@@ -2306,10 +2606,7 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                   children: [
                     const Text(
                       "Price",
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 11,
-                      ),
+                      style: TextStyle(color: Colors.white54, fontSize: 11),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -2323,17 +2620,15 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                   ],
                 ),
               ),
-              if (variant['discount'] != "0" && variant['discount'] != "0.00")
+              if (variant['discount'] != "0" &&
+                  variant['discount'] != "0.00")
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         "Discount",
-                        style: TextStyle(
-                          color: Colors.white54,
-                          fontSize: 11,
-                        ),
+                        style: TextStyle(color: Colors.white54, fontSize: 11),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -2353,16 +2648,14 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                   children: [
                     const Text(
                       "Stock",
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 11,
-                      ),
+                      style: TextStyle(color: Colors.white54, fontSize: 11),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       variant['stock'].toString(),
                       style: TextStyle(
-                        color: (variant['stock'] as int) < 10
+                        color: (variant['stock'] is int &&
+                                (variant['stock'] as int) < 10)
                             ? Colors.orange
                             : Colors.white,
                         fontSize: 13,
@@ -2374,12 +2667,11 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
               ),
             ],
           ),
+
           const SizedBox(height: 8),
+
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 4,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: approvalStatus == 'disapproved'
                   ? Colors.red.withOpacity(0.2)
@@ -2390,15 +2682,21 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  approvalStatus == 'disapproved' ? Icons.block : Icons.check_circle,
-                  color: approvalStatus == 'disapproved' ? Colors.red : Colors.green,
+                  approvalStatus == 'disapproved'
+                      ? Icons.block
+                      : Icons.check_circle,
+                  color: approvalStatus == 'disapproved'
+                      ? Colors.red
+                      : Colors.green,
                   size: 12,
                 ),
                 const SizedBox(width: 4),
                 Text(
                   approvalStatus.toUpperCase(),
                   style: TextStyle(
-                    color: approvalStatus == 'disapproved' ? Colors.red : Colors.green,
+                    color: approvalStatus == 'disapproved'
+                        ? Colors.red
+                        : Colors.green,
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
                   ),
@@ -2406,11 +2704,12 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
               ],
             ),
           ),
+
           if (canApprove) ...[
             const SizedBox(height: 10),
             GestureDetector(
               onTap: () {
-                Navigator.pop(context); // Close dialog first
+                Navigator.pop(context);
                 _showVariantApprovalDialog(product, variant);
               },
               child: Container(
@@ -2542,6 +2841,7 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
   Widget _buildGlassProductCard(Map<String, dynamic> product) {
     final List variants = product['variants'] ?? [];
     final bool isExpanded = expandedProducts[product['id']] ?? false;
+    final bool isMainProductApproved = _isMainProductApproved(product);
 
     return GestureDetector(
       onTap: () => _showProductDetailDialog(product),
@@ -2579,18 +2879,18 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: product['image'].isNotEmpty
+                          child: product['image'].toString().isNotEmpty
                               ? Image.network(
                                   product['image'],
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) =>
                                       Container(
-                                        color: Colors.grey.shade800,
-                                        child: const Icon(
-                                          Icons.image,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
+                                    color: Colors.grey.shade800,
+                                    child: const Icon(
+                                      Icons.image,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
                                 )
                               : const Icon(Icons.image, color: Colors.grey),
                         ),
@@ -2620,13 +2920,19 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.red.withOpacity(0.2),
+                                    color: isMainProductApproved
+                                        ? Colors.green.withOpacity(0.2)
+                                        : Colors.red.withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: const Text(
-                                    "DISAPPROVED",
+                                  child: Text(
+                                    isMainProductApproved
+                                        ? "MAIN APPROVED"
+                                        : "DISAPPROVED",
                                     style: TextStyle(
-                                      color: Colors.red,
+                                      color: isMainProductApproved
+                                          ? Colors.greenAccent
+                                          : Colors.red,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -2698,7 +3004,7 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                               ],
                             ),
                             const SizedBox(height: 4),
-                            if (product['description'].isNotEmpty)
+                            if (product['description'].toString().isNotEmpty)
                               Text(
                                 product['description'],
                                 style: const TextStyle(
@@ -2714,6 +3020,7 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                       const Icon(Icons.chevron_right, color: Colors.white54),
                     ],
                   ),
+
                   if (variants.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -2760,9 +3067,47 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                         ),
                       ),
                     ),
+
                   if (isExpanded && variants.isNotEmpty) ...[
                     const Divider(color: Colors.white24, height: 16),
-                    ...variants.map((variant) => _buildVariantCard(product, variant)),
+                    if (!isMainProductApproved)
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.orange.withOpacity(0.35),
+                          ),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.lock_outline,
+                              color: Colors.orange,
+                              size: 18,
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                "Approve main product first to approve variants.",
+                                style: TextStyle(
+                                  color: Colors.orange,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ...variants.map(
+                      (variant) => _buildVariantCard(
+                        product,
+                        Map<String, dynamic>.from(variant),
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -2773,10 +3118,17 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
     );
   }
 
-  // Updated variant card with approve button for each variant
-  Widget _buildVariantCard(Map<String, dynamic> product, Map<String, dynamic> variant) {
-    final String approvalStatus = variant['approval_status']?.toString() ?? 'disapproved';
-    final bool canApprove = approvalStatus == 'disapproved';
+  Widget _buildVariantCard(
+    Map<String, dynamic> product,
+    Map<String, dynamic> variant,
+  ) {
+    final String approvalStatus =
+        variant['approval_status']?.toString() ?? 'disapproved';
+
+    final bool isMainProductApproved = _isMainProductApproved(product);
+
+    final bool canApprove =
+        isMainProductApproved && approvalStatus == 'disapproved';
 
     return Container(
       margin: const EdgeInsets.only(top: 8, bottom: 8, left: 10),
@@ -2803,7 +3155,8 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                     color: Colors.grey[800],
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: (variant['image'] != null && variant['image'].isNotEmpty)
+                  child: (variant['image'] != null &&
+                          variant['image'].toString().isNotEmpty)
                       ? Image.network(
                           variant['image'],
                           fit: BoxFit.cover,
@@ -2850,15 +3203,21 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      approvalStatus == 'disapproved' ? Icons.block : Icons.check_circle,
-                      color: approvalStatus == 'disapproved' ? Colors.red : Colors.green,
+                      approvalStatus == 'disapproved'
+                          ? Icons.block
+                          : Icons.check_circle,
+                      color: approvalStatus == 'disapproved'
+                          ? Colors.red
+                          : Colors.green,
                       size: 10,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       approvalStatus.toUpperCase(),
                       style: TextStyle(
-                        color: approvalStatus == 'disapproved' ? Colors.red : Colors.green,
+                        color: approvalStatus == 'disapproved'
+                            ? Colors.red
+                            : Colors.green,
                         fontSize: 9,
                         fontWeight: FontWeight.w500,
                       ),
@@ -2868,6 +3227,7 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
               ),
             ],
           ),
+
           if (canApprove) ...[
             const SizedBox(height: 8),
             GestureDetector(
@@ -2889,6 +3249,26 @@ class _DisapprovedProductsState extends State<DisapprovedProducts> {
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),
+                  ),
+                ),
+              ),
+            ),
+          ] else if (!isMainProductApproved &&
+              approvalStatus == 'disapproved') ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Center(
+                child: Text(
+                  "Main Product Approval Required",
+                  style: TextStyle(
+                    color: Colors.orange,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
