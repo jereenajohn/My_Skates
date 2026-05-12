@@ -184,6 +184,7 @@ class UsedSellerBreakdown {
   final String sellerTotal;
   final String sellerPercentageTotal;
   final String sellerPayableTotal;
+  final String sellerPaymentStatus;
 
   UsedSellerBreakdown({
     required this.sellerId,
@@ -195,23 +196,35 @@ class UsedSellerBreakdown {
     required this.sellerTotal,
     required this.sellerPercentageTotal,
     required this.sellerPayableTotal,
+    required this.sellerPaymentStatus,
   });
 
   factory UsedSellerBreakdown.fromJson(Map<String, dynamic> json) {
     return UsedSellerBreakdown(
-      sellerId: json['seller_id'] ?? 0,
-      sellerName: json['seller_name'] ?? '',
-      sellerPhone: json['seller_phone'] ?? '',
-      userType: json['user_type'] ?? '',
+      sellerId: json['seller_id'] ?? json['id'] ?? json['user_id'] ?? 0,
+
+      sellerName: json['seller_name']?.toString() ?? '',
+
+      sellerPhone: json['seller_phone']?.toString() ?? '',
+
+      userType: json['user_type']?.toString() ?? '',
+
       bankDetails: json['bank_details'] != null
           ? UsedSellerBankDetails.fromJson(json['bank_details'])
           : null,
+
       items: (json['items'] as List? ?? [])
           .map((e) => UsedSellerItem.fromJson(e))
           .toList(),
+
       sellerTotal: json['seller_total']?.toString() ?? '0',
+
       sellerPercentageTotal: json['seller_percentage_total']?.toString() ?? '0',
+
       sellerPayableTotal: json['seller_payable_total']?.toString() ?? '0',
+
+      sellerPaymentStatus:
+          json['seller_payment_status']?.toString().toUpperCase() ?? 'PENDING',
     );
   }
 }
@@ -256,10 +269,11 @@ class UsedOrder {
   final String? note;
   final DateTime createdAt;
   final List<UsedOrderItem> items;
-  // pricing is optional — list API returns flat fields, detail API nests them
   final UsedPricing? pricing;
   final List<UsedSellerBreakdown> sellerBreakdown;
   final UsedOrderSummary? summary;
+
+  final String sellerPaymentStatus;
 
   UsedOrder({
     required this.id,
@@ -281,19 +295,17 @@ class UsedOrder {
     this.pricing,
     required this.sellerBreakdown,
     this.summary,
+    required this.sellerPaymentStatus,
   });
 
-  // Convenience getter — works for both list (flat) and detail (nested) responses.
   String get finalPayable => pricing?.finalPayable ?? '0';
 
   factory UsedOrder.fromJson(Map<String, dynamic> json) {
-    // The list API returns flat pricing fields at the root;
-    // the detail API wraps them inside a "pricing" key.
     UsedPricing? pricing;
+
     if (json['pricing'] != null) {
       pricing = UsedPricing.fromJson(json['pricing']);
     } else if (json['final_payable'] != null) {
-      // Build a UsedPricing from the flat fields present in the list response
       pricing = UsedPricing(
         subtotal: json['subtotal']?.toString() ?? '0',
         discountTotal: json['discount_total']?.toString() ?? '0',
@@ -308,34 +320,42 @@ class UsedOrder {
 
     return UsedOrder(
       id: json['id'] ?? 0,
-      orderNo: json['order_no'] ?? '',
-      status: json['status'] ?? '',
-      paymentMethod: json['payment_method'] ?? '',
+      orderNo: json['order_no']?.toString() ?? '',
+      status: json['status']?.toString() ?? '',
+      paymentMethod: json['payment_method']?.toString() ?? '',
       razorpayPaymentRef: json['payment_ref'] ?? json['razorpay_payment_ref'],
-      fullName: json['full_name'] ?? '',
+      fullName: json['full_name']?.toString() ?? '',
       phone: json['phone']?.toString() ?? '',
-      addressLine1: json['address_line1'] ?? '',
-      addressLine2: json['address_line2'],
-      city: json['city'] ?? '',
+      addressLine1: json['address_line1']?.toString() ?? '',
+      addressLine2: json['address_line2']?.toString(),
+      city: json['city']?.toString() ?? '',
       state: json['state']?.toString() ?? '',
       pincode: json['pincode']?.toString() ?? '',
       country: json['country']?.toString() ?? '',
-      note: json['note'],
-      createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+      note: json['note']?.toString(),
+      createdAt:
+          DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+
       items: (json['items'] as List? ?? [])
           .map((e) => UsedOrderItem.fromJson(e))
           .toList(),
+
       pricing: pricing,
+
       sellerBreakdown: (json['seller_breakdown'] as List? ?? [])
           .map((e) => UsedSellerBreakdown.fromJson(e))
           .toList(),
+
       summary: json['summary'] != null
           ? UsedOrderSummary.fromJson(json['summary'])
           : null,
+
+      sellerPaymentStatus:
+          json['seller_payment_status']?.toString().toUpperCase() ?? 'PENDING',
     );
   }
 }
-
 // ─── Shared Helpers ───────────────────────────────────────────────────────────
 
 Color _usedOrderStatusColor(String status) {
@@ -1317,8 +1337,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                my_used_detail.UsedProductOrderDetailPage(orderId: order.id),
+            builder: (_) => CoachUsedProductOrderDetailPage(orderId: order.id),
           ),
         );
       },
@@ -1771,21 +1790,325 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
   }
 } // ─── Detail Page ──────────────────────────────────────────────────────────────
 
-class UsedProductOrderDetailPage extends StatefulWidget {
+class CoachUsedProductOrderDetailPage extends StatefulWidget {
   final int orderId;
 
-  const UsedProductOrderDetailPage({super.key, required this.orderId});
+  const CoachUsedProductOrderDetailPage({super.key, required this.orderId});
 
   @override
-  State<UsedProductOrderDetailPage> createState() =>
-      _UsedProductOrderDetailPageState();
+  State<CoachUsedProductOrderDetailPage> createState() =>
+      _CoachUsedProductOrderDetailPageState();
 }
 
-class _UsedProductOrderDetailPageState
-    extends State<UsedProductOrderDetailPage> {
+class _CoachUsedProductOrderDetailPageState
+    extends State<CoachUsedProductOrderDetailPage> {
   UsedOrder? _order;
   bool _isLoading = true;
   String? _error;
+
+  final List<String> _sellerPaymentStatusChoices = const [
+    "PENDING",
+    "PROCESSING",
+    "PAID",
+  ];
+
+  final Set<int> _updatingSellerPaymentIds = {};
+
+  Color _sellerPaymentStatusColor(String status) {
+    switch (status.trim().toUpperCase()) {
+      case 'PENDING':
+        return Colors.orangeAccent;
+      case 'PROCESSING':
+        return Colors.blueAccent;
+      case 'PAID':
+        return Colors.greenAccent;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _sellerPaymentStatusLabel(String status) {
+    switch (status.trim().toUpperCase()) {
+      case 'PENDING':
+        return 'Pending';
+      case 'PROCESSING':
+        return 'Processing';
+      case 'PAID':
+        return 'Paid';
+      default:
+        return status.isEmpty ? 'Pending' : status;
+    }
+  }
+
+  Future<void> _updateCoachSellerPaymentStatus({
+    required int sellerId,
+    required String status,
+  }) async {
+    if (_order == null) return;
+
+    if (_updatingSellerPaymentIds.contains(sellerId)) return;
+
+    setState(() {
+      _updatingSellerPaymentIds.add(sellerId);
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access');
+
+      if (token == null) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Authentication token missing'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      final requestBody = {
+        // "seller_id": sellerId,
+        "seller_payment_status": status,
+      };
+
+      final uri = Uri.parse(
+        '$api/api/myskates/used/product/order/${_order!.id}/seller/payment/status/',
+      );
+
+      final response = await http.patch(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print("SELLER PAYMENT STATUS UPDATE URL: $uri");
+      print("SELLER PAYMENT STATUS UPDATE BODY: ${jsonEncode(requestBody)}");
+      print("SELLER PAYMENT STATUS UPDATE CODE: ${response.statusCode}");
+      print("SELLER PAYMENT STATUS UPDATE RESPONSE: ${response.body}");
+
+      Map<String, dynamic>? decoded;
+
+      try {
+        final parsed = jsonDecode(response.body);
+        if (parsed is Map<String, dynamic>) {
+          decoded = parsed;
+        }
+      } catch (_) {
+        decoded = null;
+      }
+
+      final responseMessage =
+          decoded?['message']?.toString() ??
+          decoded?['error']?.toString() ??
+          decoded?['detail']?.toString() ??
+          '';
+
+      if (response.statusCode == 200 || response.statusCode == 202) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Seller payment status updated successfully',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        await _fetchDetail();
+      } else {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Failed to update seller payment status',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      print("SELLER PAYMENT STATUS UPDATE ERROR: $e");
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _updatingSellerPaymentIds.remove(sellerId);
+        });
+      }
+    }
+  }
+
+  Widget _buildSellerPaymentStatusDropdown(
+    UsedSellerBreakdown seller,
+    String orderSellerPaymentStatus,
+  ) {
+    final sellerId = seller.sellerId;
+    final currentStatus = orderSellerPaymentStatus.trim().isEmpty
+        ? "PENDING"
+        : orderSellerPaymentStatus.trim().toUpperCase();
+
+    final selectedStatus = _sellerPaymentStatusChoices.contains(currentStatus)
+        ? currentStatus
+        : "PENDING";
+
+    final statusColor = _sellerPaymentStatusColor(selectedStatus);
+    final isUpdating = _updatingSellerPaymentIds.contains(sellerId);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: statusColor.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.account_balance_wallet_outlined,
+                color: statusColor,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Seller Payment Status',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (isUpdating)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    color: Colors.tealAccent,
+                    strokeWidth: 2,
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.20),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.10)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: selectedStatus,
+                isExpanded: true,
+                dropdownColor: const Color(0xFF101010),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white70,
+                ),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+                onChanged: isUpdating
+                    ? null
+                    : (String? value) {
+                        if (value == null) return;
+
+                        if (value == selectedStatus) return;
+
+                        _updateCoachSellerPaymentStatus(
+                          sellerId: sellerId,
+                          status: value,
+                        );
+                      },
+                selectedItemBuilder: (context) {
+                  return _sellerPaymentStatusChoices.map((status) {
+                    final color = _sellerPaymentStatusColor(status);
+
+                    return Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _sellerPaymentStatusLabel(status),
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList();
+                },
+                items: _sellerPaymentStatusChoices.map((status) {
+                  final color = _sellerPaymentStatusColor(status);
+
+                  return DropdownMenuItem<String>(
+                    value: status,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _sellerPaymentStatusLabel(status),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -2563,6 +2886,10 @@ class _UsedProductOrderDetailPageState
                           ),
                         ),
 
+                        _buildSellerPaymentStatusDropdown(
+                          seller,
+                          order.sellerPaymentStatus,
+                        ),
                         const Divider(color: Colors.white10, height: 1),
 
                         // Items

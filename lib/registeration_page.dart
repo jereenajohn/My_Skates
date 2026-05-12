@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/map.dart';
+import 'package:my_skates/pending_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -325,21 +326,55 @@ class _RegisterationPageState extends State<RegisterationPage> {
 
       print("UPLOAD RESPONSE: $result");
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final prefs = await SharedPreferences.getInstance();
+     if (response.statusCode == 200 || response.statusCode == 201) {
+  final decoded = jsonDecode(result);
 
-        prefs.setString("name", "${firstNameCtrl.text} ${lastNameCtrl.text}");
-        prefs.setString("user_type", selectedRole ?? "");
-        prefs.setString("profile", "");
+  final data = decoded is Map<String, dynamic>
+      ? decoded['data'] ?? decoded
+      : null;
 
-        success("Profile updated");
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomePage()),
-        );
-      } else {
-        error(result);
-      }
+  final int userId =
+      int.tryParse(
+            data?['id']?.toString() ??
+                data?['user']?.toString() ??
+                data?['user_id']?.toString() ??
+                '',
+          ) ??
+          0;
+
+  await prefs.setString(
+    "name",
+    "${firstNameCtrl.text} ${lastNameCtrl.text}",
+  );
+  await prefs.setString("user_type", selectedRole ?? "");
+  await prefs.setString("profile", "");
+
+  if (userId != 0) {
+    await prefs.setInt("user_id", userId);
+  }
+
+  if (!mounted) return;
+
+  success("Profile updated");
+
+  if (selectedRole == "coach") {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CoachApprovalPendingScreen(
+          userId: userId,
+        ),
+      ),
+    );
+  } else {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const HomePage()),
+    );
+  }
+} else {
+  error(result);
+}
     } catch (e) {
       error("Error: $e");
     }

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
+import 'package:my_skates/pending_screen.dart';
+import 'package:my_skates/rejected_screen.dart';
 import 'package:my_skates/waiting_page.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/api.dart';
@@ -26,6 +28,77 @@ class _OtpPageState extends State<OtpPage> {
   );
 
   final List<FocusNode> focusNodes = List.generate(6, (index) => FocusNode());
+
+  Future<void> _checkCoachApprovalAndNavigate({
+    required int userId,
+    required String token,
+  }) async {
+    try {
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/coach/approval/$userId/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      print("COACH APPROVAL CHECK STATUS: ${response.statusCode}");
+      print("COACH APPROVAL CHECK BODY: ${response.body}");
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+
+        final String approvalStatus =
+            decoded["approval_status"]?.toString().toLowerCase() ?? "pending";
+
+        if (approvalStatus == "approved") {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const CoachHomepage()),
+            (route) => false,
+          );
+        } else if (approvalStatus == "disapproved") {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CoachApprovalRejectedScreen(),
+            ),
+            (route) => false,
+          );
+        } else {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CoachApprovalPendingScreen(userId: userId),
+            ),
+            (route) => false,
+          );
+        }
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CoachApprovalPendingScreen(userId: userId),
+          ),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      print("COACH APPROVAL CHECK ERROR: $e");
+
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CoachApprovalPendingScreen(userId: userId),
+        ),
+        (route) => false,
+      );
+    }
+  }
 
   // ------------------------------------------------------
   // FIXED: POST OTP FUNCTION
@@ -102,11 +175,10 @@ class _OtpPageState extends State<OtpPage> {
               (route) => false,
             );
           } else if (userType == "coach") {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const CoachHomepage()),
-              (route) => false,
-            );
+            final int userId = data["user"]["id"] ?? 0;
+            final String token = data["access"] ?? "";
+
+            await _checkCoachApprovalAndNavigate(userId: userId, token: token);
           } else {
             Navigator.pushAndRemoveUntil(
               context,
