@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/admin_orders_page.dart';
+import 'package:my_skates/COACH/used_product_my_order_detail_page.dart'
+    as my_used_detail;
+import 'package:my_skates/COACH/used_product_sold_order_detail_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -380,6 +383,13 @@ Widget _usedOrderGlassWrap({required Widget child, EdgeInsets? padding}) {
 // ─── List Page ────────────────────────────────────────────────────────────────
 enum UsedAllOrderSortType { latest, earliest }
 
+enum UsedProductOrderViewType {
+  coachUsedProducts,
+  myUsedProducts,
+  mySoldProducts,
+  allUsedProducts,
+}
+
 class UsedProductOrdersPage extends StatefulWidget {
   const UsedProductOrdersPage({super.key});
 
@@ -389,6 +399,8 @@ class UsedProductOrdersPage extends StatefulWidget {
 
 class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
   List<UsedOrder> _orders = [];
+  UsedProductOrderViewType _selectedView =
+      UsedProductOrderViewType.coachUsedProducts;
   UsedAllOrderSortType _selectedSort = UsedAllOrderSortType.latest;
   bool _isLoading = true;
   String? _error;
@@ -399,6 +411,22 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
   int _totalPages = 0;
   String? _nextPageUrl;
   String? _previousPageUrl;
+
+  String get _selectedEndpoint {
+    switch (_selectedView) {
+      case UsedProductOrderViewType.coachUsedProducts:
+        return '$api/api/myskates/used/product/all/orders/';
+
+      case UsedProductOrderViewType.myUsedProducts:
+        return '$api/api/myskates/used/product/my/orders/';
+
+      case UsedProductOrderViewType.mySoldProducts:
+        return '$api/api/myskates/used/product/sold/orders/view/';
+
+      case UsedProductOrderViewType.allUsedProducts:
+        return '$api/api/myskates/used/product/all/seller/orders/view/';
+    }
+  }
 
   // Search and date filter
   final TextEditingController _searchController = TextEditingController();
@@ -547,7 +575,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
       }
 
       final uri = Uri.parse(
-        '$api/api/myskates/used/product/all/orders/',
+        _selectedEndpoint,
       ).replace(queryParameters: queryParams);
 
       print('USED ORDERS URL: $uri');
@@ -604,6 +632,193 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
         _isLoading = false;
       });
     }
+  }
+
+  Widget _buildViewDropdown() {
+    return Container(
+      height: 48,
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.10)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<UsedProductOrderViewType>(
+          value: _selectedView,
+          isExpanded: true,
+          dropdownColor: const Color(0xFF1A1A1A),
+          icon: const Icon(
+            Icons.keyboard_arrow_down,
+            color: Colors.tealAccent,
+            size: 20,
+          ),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+          onChanged: (UsedProductOrderViewType? value) {
+            if (value == null || value == _selectedView) return;
+
+            setState(() {
+              _selectedView = value;
+              _orders = [];
+              _currentPage = 1;
+              _totalCount = 0;
+              _totalPages = 0;
+              _nextPageUrl = null;
+              _previousPageUrl = null;
+              _searchController.clear();
+              _startDate = null;
+              _endDate = null;
+              _selectedSort = UsedAllOrderSortType.latest;
+            });
+
+            _fetchOrders();
+          },
+          selectedItemBuilder: (context) {
+            return const [
+              Row(
+                children: [
+                  Icon(
+                    Icons.sports_rounded,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Coach Used Product Orders',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.person_outline_rounded,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'My Used Product Orders',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.storefront_rounded,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'My Sold Products',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.inventory_2_outlined,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'All Used Products',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ];
+          },
+          items: const [
+            DropdownMenuItem<UsedProductOrderViewType>(
+              value: UsedProductOrderViewType.coachUsedProducts,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.sports_rounded,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'Coach Used Product Orders',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            DropdownMenuItem<UsedProductOrderViewType>(
+              value: UsedProductOrderViewType.myUsedProducts,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.person_outline_rounded,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'My Used Product Orders',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            DropdownMenuItem<UsedProductOrderViewType>(
+              value: UsedProductOrderViewType.mySoldProducts,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.storefront_rounded,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'My Sold Products',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            DropdownMenuItem<UsedProductOrderViewType>(
+              value: UsedProductOrderViewType.allUsedProducts,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.inventory_2_outlined,
+                    color: Colors.tealAccent,
+                    size: 18,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'All Used Products',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   List<UsedOrder> get _sortedOrders {
@@ -1066,12 +1281,47 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
     final statusColor = _usedOrderStatusColor(order.status);
 
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => UsedProductOrderDetailPage(orderId: order.id),
-        ),
-      ),
+      onTap: () {
+        if (_selectedView == UsedProductOrderViewType.myUsedProducts) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  my_used_detail.UsedProductOrderDetailPage(orderId: order.id),
+            ),
+          );
+          return;
+        }
+
+        if (_selectedView == UsedProductOrderViewType.mySoldProducts) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => UsedProductSoldOrderDetailPage(orderId: order.id),
+            ),
+          );
+          return;
+        }
+
+        if (_selectedView == UsedProductOrderViewType.allUsedProducts) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  my_used_detail.UsedProductOrderDetailPage(orderId: order.id),
+            ),
+          );
+          return;
+        }
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                my_used_detail.UsedProductOrderDetailPage(orderId: order.id),
+          ),
+        );
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         child: _usedOrderGlassWrap(
@@ -1330,10 +1580,19 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
                         onPressed: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 4),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Used Product Orders',
-                          style: TextStyle(
+                          _selectedView ==
+                                  UsedProductOrderViewType.coachUsedProducts
+                              ? 'Coach Used Product Orders'
+                              : _selectedView ==
+                                    UsedProductOrderViewType.myUsedProducts
+                              ? 'My Used Product Orders'
+                              : _selectedView ==
+                                    UsedProductOrderViewType.mySoldProducts
+                              ? 'My Sold Products'
+                              : 'All Used Products',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -1394,6 +1653,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  _buildViewDropdown(),
                   _buildFilterBar(),
                   const SizedBox(height: 8),
                   Expanded(
@@ -1462,24 +1722,45 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
   }
 
   Widget _buildEmpty() {
+    final title = _selectedView == UsedProductOrderViewType.coachUsedProducts
+        ? 'No coach used product orders yet'
+        : _selectedView == UsedProductOrderViewType.myUsedProducts
+        ? 'No my used product orders yet'
+        : _selectedView == UsedProductOrderViewType.mySoldProducts
+        ? 'No sold products yet'
+        : 'No all used products yet';
+
+    final subtitle = _selectedView == UsedProductOrderViewType.coachUsedProducts
+        ? 'Coach used product orders will appear here'
+        : _selectedView == UsedProductOrderViewType.myUsedProducts
+        ? 'Your used product orders will appear here'
+        : _selectedView == UsedProductOrderViewType.mySoldProducts
+        ? 'Orders for your used products will appear here'
+        : 'All seller used product orders will appear here';
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         const SizedBox(height: 80),
         _usedOrderGlassWrap(
           padding: const EdgeInsets.all(36),
-          child: const Column(
+          child: Column(
             children: [
-              Icon(Icons.inventory_2_outlined, color: Colors.white24, size: 64),
-              SizedBox(height: 16),
-              Text(
-                'No used product orders yet',
-                style: TextStyle(color: Colors.white70, fontSize: 18),
+              const Icon(
+                Icons.inventory_2_outlined,
+                color: Colors.white24,
+                size: 64,
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 16),
               Text(
-                'Your used product orders will appear here',
-                style: TextStyle(color: Colors.white38, fontSize: 14),
+                title,
+                style: const TextStyle(color: Colors.white70, fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                subtitle,
+                style: const TextStyle(color: Colors.white38, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
             ],

@@ -652,14 +652,14 @@ class _UsedProductSoldOrderDetailPageState
           const SizedBox(height: 14),
           Divider(color: Colors.white.withOpacity(0.10), height: 1),
           const SizedBox(height: 10),
-          _priceRow('Product Price', item.price),
-          if (_amount(item.discountAmount) > 0)
-            _priceRow(
-              'Discount Amount',
-              item.discountAmount,
-              valueColor: Colors.redAccent,
-              isMinus: true,
-            ),
+          // _priceRow('Product Price', item.price),
+          // if (_amount(item.discountAmount) > 0)
+          // _priceRow(
+          //   'Discount Amount',
+          //   item.discountAmount,
+          //   valueColor: Colors.redAccent,
+          //   isMinus: true,
+          // ),
           _priceRow(
             'Product Total',
             item.productTotal,
@@ -668,13 +668,18 @@ class _UsedProductSoldOrderDetailPageState
           _priceRow(
             'Percentage (${item.productPercentage}%)',
             item.percentageAmount,
+            valueColor: Colors.redAccent,
           ),
-          _priceRow('Shipping Charge', item.shipmentCharge),
+          _priceRow(
+            'Shipping Charge',
+            item.shipmentCharge,
+            valueColor: Colors.tealAccent,
+          ),
           const Divider(color: Colors.white24, height: 22),
           _priceRow(
             'Seller Payable',
             item.sellerPayable,
-            valueColor: Colors.greenAccent,
+            valueColor: Colors.tealAccent,
             isBold: true,
           ),
         ],
@@ -682,33 +687,33 @@ class _UsedProductSoldOrderDetailPageState
     );
   }
 
-  Widget _buildSellerSummaryCard(UsedProductSoldOrderDetailModel orderData) {
-    return _glassWrap(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionTitle(
-            'Seller Payment Summary',
-            Icons.account_balance_wallet_outlined,
-          ),
-          const SizedBox(height: 14),
-          _priceRow('Product Total', orderData.sellerProductTotal),
-          _priceRow(
-            'Percentage (${orderData.productPercentage}%)',
-            orderData.sellerPercentageTotal,
-          ),
-          _priceRow('Shipping Total', orderData.sellerShippingTotal),
-          const Divider(color: Colors.white24, height: 24),
-          _priceRow(
-            'Seller Payable Total',
-            orderData.sellerPayableTotal,
-            valueColor: Colors.greenAccent,
-            isBold: true,
-          ),
-        ],
-      ),
-    );
-  }
+  // Widget _buildSellerSummaryCard(UsedProductSoldOrderDetailModel orderData) {
+  //   return _glassWrap(
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         _sectionTitle(
+  //           'Seller Payment Summary',
+  //           Icons.account_balance_wallet_outlined,
+  //         ),
+  //         const SizedBox(height: 14),
+  //         _priceRow('Product Total', orderData.sellerProductTotal),
+  //         _priceRow(
+  //           'Percentage (${orderData.productPercentage}%)',
+  //           orderData.sellerPercentageTotal,
+  //         ),
+  //         _priceRow('Shipping Total', orderData.sellerShippingTotal),
+  //         const Divider(color: Colors.white24, height: 24),
+  //         _priceRow(
+  //           'Seller Payable Total',
+  //           orderData.sellerPayableTotal,
+  //           valueColor: Colors.greenAccent,
+  //           isBold: true,
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _buildCustomerPaymentSummaryCard(
     UsedProductSoldOrderDetailModel orderData,
@@ -863,10 +868,10 @@ class _UsedProductSoldOrderDetailPageState
                               ),
                             ),
                             const SizedBox(height: 8),
-                            _buildSellerSummaryCard(data),
-                            const SizedBox(height: 14),
-                            _buildCustomerPaymentSummaryCard(data),
-                            const SizedBox(height: 24),
+                            // _buildSellerSummaryCard(data),
+                            // const SizedBox(height: 14),
+                            // _buildCustomerPaymentSummaryCard(data),
+                            // const SizedBox(height: 24),
                           ],
                         ),
                       ),

@@ -178,6 +178,7 @@ class _UsedProductOrderDetailPageState
   String? _usedReturnStatus;
 
   bool _isSubmittingUsedReturn = false;
+  bool _isCancellingUsedOrder = false;
   UsedProductOrderDetailItem? _selectedUsedReturnItem;
   String? _selectedUsedReturnReasonType;
   String? _usedReturnErrorMessage;
@@ -194,6 +195,11 @@ class _UsedProductOrderDetailPageState
   bool get _canRequestUsedReturn {
     final status = order?.status.trim().toUpperCase() ?? '';
     return status == 'DELIVERED';
+  }
+
+  bool get _canCancelUsedOrder {
+    final status = order?.status.trim().toUpperCase() ?? '';
+    return status == 'PLACED';
   }
 
   String _getUsedReturnReasonLabel(String value) {
@@ -764,6 +770,164 @@ class _UsedProductOrderDetailPageState
     );
   }
 
+  Future<void> _cancelUsedProductOrder() async {
+    if (order == null) return;
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF101010),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: BorderSide(color: Colors.white.withOpacity(0.10)),
+          ),
+          title: const Text(
+            'Cancel Order?',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to cancel order #${order!.orderNo}?',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('No', style: TextStyle(color: Colors.white70)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Yes, Cancel',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _isCancellingUsedOrder = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        if (!mounted) return;
+
+        setState(() {
+          _isCancellingUsedOrder = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Authentication token missing'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      final Map<String, dynamic> requestBody = {'status': 'CANCELLED'};
+
+      final response = await http.patch(
+        Uri.parse('$api/api/myskates/used/product/order/cancel/${order!.id}/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print("USED PRODUCT CANCEL STATUS: ${response.statusCode}");
+      print("USED PRODUCT CANCEL REQUEST BODY: ${jsonEncode(requestBody)}");
+      print("USED PRODUCT CANCEL RESPONSE: ${response.body}");
+
+      Map<String, dynamic>? decoded;
+
+      try {
+        final parsed = jsonDecode(response.body);
+        if (parsed is Map<String, dynamic>) {
+          decoded = parsed;
+        }
+      } catch (_) {
+        decoded = null;
+      }
+
+      final String responseMessage =
+          decoded?['message']?.toString() ??
+          decoded?['error']?.toString() ??
+          decoded?['detail']?.toString() ??
+          '';
+
+      if (response.statusCode == 200 || response.statusCode == 202) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Used product order cancelled successfully',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        await fetchOrderDetail();
+      } else {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Failed to cancel order: ${response.statusCode}',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      print("USED PRODUCT CANCEL ERROR: $e");
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCancellingUsedOrder = false;
+        });
+      }
+    }
+  }
+
   Widget _buildUsedProductReturnButton() {
     if (!_canRequestUsedReturn) {
       return const SizedBox.shrink();
@@ -817,6 +981,46 @@ class _UsedProductOrderDetailPageState
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.tealAccent,
           foregroundColor: Colors.black,
+          elevation: 0,
+          minimumSize: const Size(double.infinity, 54),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUsedProductCancelButton() {
+    if (!_canCancelUsedOrder) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 2),
+      child: ElevatedButton.icon(
+        onPressed: _isCancellingUsedOrder ? null : _cancelUsedProductOrder,
+        icon: _isCancellingUsedOrder
+            ? const SizedBox.shrink()
+            : const Icon(Icons.cancel_outlined, size: 20),
+        label: _isCancellingUsedOrder
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.2,
+                ),
+              )
+            : const Text(
+                'Cancel Order',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.redAccent,
+          disabledBackgroundColor: Colors.redAccent.withOpacity(0.35),
+          foregroundColor: Colors.white,
           elevation: 0,
           minimumSize: const Size(double.infinity, 54),
           shape: RoundedRectangleBorder(
@@ -1426,6 +1630,10 @@ class _UsedProductOrderDetailPageState
         const SizedBox(height: 14),
         _buildPaymentSummaryCard(orderData),
         const SizedBox(height: 24),
+
+        _buildUsedProductCancelButton(),
+
+        if (_canCancelUsedOrder) const SizedBox(height: 12),
 
         _buildUsedProductReturnButton(),
       ],
