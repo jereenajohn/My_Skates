@@ -9,6 +9,7 @@ import 'package:my_skates/ADMIN/admin_change_phone_number.dart';
 import 'package:my_skates/ADMIN/admin_orders_page.dart';
 import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:my_skates/COACH/add_club.dart';
+import 'package:my_skates/COACH/coach_return_products.dart';
 import 'package:my_skates/COACH/product_review_approval_page.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -54,6 +55,7 @@ class _MenuPageState extends State<MenuPage> {
   Widget build(BuildContext context) {
     final bool showProductManagement =
         matchesSearch("Attributes") ||
+        matchesSearch("Return/Refund Requests") ||
         matchesSearch("Values") ||
         matchesSearch("Product Banners");
 
@@ -124,6 +126,12 @@ class _MenuPageState extends State<MenuPage> {
                               icon: Icons.tune,
                               title: "Attributes",
                               page: const attributes(),
+                            ),
+                          if (matchesSearch("Return/Refund Requests"))
+                            sectionTile(
+                              icon: Icons.tune,
+                              title: "Return/Refund Requests",
+                              page: const ReturnRefundProductsScreen(),
                             ),
                           if (matchesSearch("Values"))
                             sectionTile(

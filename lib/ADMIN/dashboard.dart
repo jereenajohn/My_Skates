@@ -23,6 +23,7 @@ import 'package:my_skates/ADMIN/platform_fee.dart';
 import 'package:my_skates/ADMIN/productapprove_tab.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/COACH/coach_chat_support.dart';
+import 'package:my_skates/COACH/used_products.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
@@ -612,7 +613,7 @@ class _DashboardPageState extends State<DashboardPage> {
           },
         ),
 
-          adminCard(
+        adminCard(
           icon: Icons.chat,
           title: "Add Offers",
           onTap: () {
@@ -931,6 +932,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       buildButton("Orders"),
                       buildButton("Buy and Sell products"),
                       buildButton("Used Products"),
+                      buildButton("Buy and Sell Used Products"),
 
                       const SizedBox(height: 20),
 
@@ -1053,6 +1055,9 @@ class _DashboardPageState extends State<DashboardPage> {
           }
           if (title == "Used Products") {
             pushWithSlide(const UsedProductOrdersPage());
+          }
+          if (title == "Buy and Sell Used Products") {
+            pushWithSlide(const UsedProducts());
           }
         },
         child: Text(
