@@ -1551,39 +1551,66 @@ class _approvedProductsState extends State<approvedProducts> {
     }
 
     try {
+      late final Uri uri;
+      Object? requestBody;
+
+      if (status == "approved") {
+        // NEW API: approve product and all variants
+        uri = Uri.parse("$api/api/myskates/products/$id/approve/all/");
+        requestBody = null;
+      } else {
+        // Keep old API for disapprove unless backend gives a separate disapprove/all API
+        uri = Uri.parse("$api/api/myskates/products/approval/$id/");
+        requestBody = jsonEncode({"approval_status": status});
+      }
+
       final response = await http.patch(
-        Uri.parse("$api/api/myskates/products/approval/$id/"),
+        uri,
         headers: {
           "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
         },
-        body: {
-          "approval_status": status,
-        },
+        body: requestBody,
       );
 
       print("MAIN PRODUCT STATUS UPDATE ID: $id");
       print("MAIN PRODUCT STATUS UPDATE TO: $status");
+      print("MAIN PRODUCT STATUS UPDATE URL: $uri");
       print("MAIN PRODUCT STATUS UPDATE CODE: ${response.statusCode}");
       print("MAIN PRODUCT STATUS UPDATE BODY: ${response.body}");
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 202) {
         if (!mounted) return;
 
-        Navigator.pop(context);
+        Map<String, dynamic>? decoded;
+        try {
+          final parsed = jsonDecode(response.body);
+          if (parsed is Map<String, dynamic>) {
+            decoded = parsed;
+          }
+        } catch (_) {
+          decoded = null;
+        }
+
+        final String message =
+            decoded?["message"]?.toString() ??
+            (status == "approved"
+                ? "Product and all variants approved successfully"
+                : "Product and all variants disapproved successfully");
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              status == "approved"
-                  ? "Product approved successfully"
-                  : "Product and all its variants have been disapproved successfully",
-            ),
-            backgroundColor: status == "approved" ? Colors.green : Colors.orange,
+            content: Text(message),
+            backgroundColor: status == "approved"
+                ? Colors.green
+                : Colors.orange,
           ),
         );
 
         await getproduct("approved", page: currentPage);
       } else {
+        if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1596,6 +1623,8 @@ class _approvedProductsState extends State<approvedProducts> {
     } catch (e) {
       print("MAIN PRODUCT STATUS UPDATE ERROR: $e");
 
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error updating product status: $e"),
@@ -1606,7 +1635,11 @@ class _approvedProductsState extends State<approvedProducts> {
   }
 
   // NEW: Update individual variant status
-  Future<void> updateVariantStatus(int productId, int variantId, String status) async {
+  Future<void> updateVariantStatus(
+    int productId,
+    int variantId,
+    String status,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
 
@@ -1627,9 +1660,7 @@ class _approvedProductsState extends State<approvedProducts> {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
         },
-        body: jsonEncode({
-          "approval_status": status,
-        }),
+        body: jsonEncode({"approval_status": status}),
       );
 
       print("VARIANT STATUS UPDATE ID: $variantId");
@@ -1647,7 +1678,9 @@ class _approvedProductsState extends State<approvedProducts> {
                   ? "Variant approved successfully"
                   : "Variant disapproved successfully",
             ),
-            backgroundColor: status == "approved" ? Colors.green : Colors.orange,
+            backgroundColor: status == "approved"
+                ? Colors.green
+                : Colors.orange,
           ),
         );
 
@@ -1677,7 +1710,9 @@ class _approvedProductsState extends State<approvedProducts> {
 
   // NEW: Show confirmation dialog for variant disapproval
   void _showVariantDisapprovalDialog(
-      Map<String, dynamic> product, Map<String, dynamic> variant) {
+    Map<String, dynamic> product,
+    Map<String, dynamic> variant,
+  ) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1724,10 +1759,7 @@ class _approvedProductsState extends State<approvedProducts> {
               const SizedBox(height: 12),
               const Text(
                 "⚠️ Only this variant will be disapproved. Other variants will remain approved.",
-                style: TextStyle(
-                  color: Colors.orange,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: Colors.orange, fontSize: 12),
               ),
             ],
           ),
@@ -1748,9 +1780,7 @@ class _approvedProductsState extends State<approvedProducts> {
                   "disapproved",
                 );
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: const Text("Disapprove"),
             ),
           ],
@@ -1792,10 +1822,7 @@ class _approvedProductsState extends State<approvedProducts> {
               size: 18,
               color: Colors.white,
             ),
-            label: const Text(
-              "Prev",
-              style: TextStyle(color: Colors.white),
-            ),
+            label: const Text("Prev", style: TextStyle(color: Colors.white)),
           ),
           isPageLoading
               ? const SizedBox(
@@ -1833,10 +1860,7 @@ class _approvedProductsState extends State<approvedProducts> {
               size: 18,
               color: Colors.white,
             ),
-            label: const Text(
-              "Next",
-              style: TextStyle(color: Colors.white),
-            ),
+            label: const Text("Next", style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -2179,10 +2203,7 @@ class _approvedProductsState extends State<approvedProducts> {
                     Expanded(
                       child: Text(
                         "⚠️ This will disapprove the main product AND ALL its variants. This action cannot be undone easily.",
-                        style: TextStyle(
-                          color: Colors.orange,
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: Colors.orange, fontSize: 12),
                       ),
                     ),
                   ],
@@ -2203,9 +2224,7 @@ class _approvedProductsState extends State<approvedProducts> {
                 Navigator.pop(dialogContext);
                 updateMainProductStatus(product['id'], "disapproved");
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: const Text("Disapprove All"),
             ),
           ],
@@ -2215,7 +2234,10 @@ class _approvedProductsState extends State<approvedProducts> {
   }
 
   // UPDATED: Dialog variant card with disapprove button for each variant
-  Widget _buildDialogVariantCard(Map<String, dynamic> product, Map<String, dynamic> variant) {
+  Widget _buildDialogVariantCard(
+    Map<String, dynamic> product,
+    Map<String, dynamic> variant,
+  ) {
     final String approvalStatus =
         variant['approval_status']?.toString() ?? 'pending';
 
@@ -2232,8 +2254,8 @@ class _approvedProductsState extends State<approvedProducts> {
           color: approvalStatus == 'approved'
               ? Colors.green.withOpacity(0.3)
               : approvalStatus == 'disapproved'
-                  ? Colors.red.withOpacity(0.3)
-                  : Colors.white.withOpacity(0.1),
+              ? Colors.red.withOpacity(0.3)
+              : Colors.white.withOpacity(0.1),
         ),
       ),
       child: Column(
@@ -2255,10 +2277,7 @@ class _approvedProductsState extends State<approvedProducts> {
                         width: 48,
                         height: 48,
                         color: Colors.grey[800],
-                        child: const Icon(
-                          Icons.image,
-                          color: Colors.grey,
-                        ),
+                        child: const Icon(Icons.image, color: Colors.grey),
                       );
                     },
                   ),
@@ -2324,9 +2343,7 @@ class _approvedProductsState extends State<approvedProducts> {
                 decoration: BoxDecoration(
                   color: Colors.red.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.red.withOpacity(0.3),
-                  ),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
                 ),
                 child: const Center(
                   child: Text(
@@ -2365,29 +2382,21 @@ class _approvedProductsState extends State<approvedProducts> {
     );
   }
 
-  Widget _buildVariantInfoBox({
-    required String title,
-    required String value,
-  }) {
+  Widget _buildVariantInfoBox({required String title, required String value}) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.04),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.08),
-          ),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               title,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 10,
-              ),
+              style: const TextStyle(color: Colors.white54, fontSize: 10),
             ),
             const SizedBox(height: 3),
             Text(
@@ -2433,11 +2442,7 @@ class _approvedProductsState extends State<approvedProducts> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: textColor,
-            size: 12,
-          ),
+          Icon(icon, color: textColor, size: 12),
           const SizedBox(width: 4),
           Text(
             status.toUpperCase(),
@@ -2453,7 +2458,10 @@ class _approvedProductsState extends State<approvedProducts> {
   }
 
   // UPDATED: Variant card in main list with disapprove button
-  Widget _buildVariantCard(Map<String, dynamic> product, Map<String, dynamic> variant) {
+  Widget _buildVariantCard(
+    Map<String, dynamic> product,
+    Map<String, dynamic> variant,
+  ) {
     final String status = variant['approval_status']?.toString() ?? 'pending';
     final bool canDisapprove = status == 'approved';
 
@@ -2467,8 +2475,8 @@ class _approvedProductsState extends State<approvedProducts> {
           color: status == 'approved'
               ? Colors.green.withOpacity(0.3)
               : status == 'disapproved'
-                  ? Colors.red.withOpacity(0.3)
-                  : Colors.white.withOpacity(0.1),
+              ? Colors.red.withOpacity(0.3)
+              : Colors.white.withOpacity(0.1),
         ),
       ),
       child: Column(
@@ -2484,22 +2492,17 @@ class _approvedProductsState extends State<approvedProducts> {
                     color: Colors.grey[800],
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: variant['image'] != null &&
+                  child:
+                      variant['image'] != null &&
                           variant['image'].toString().isNotEmpty
                       ? Image.network(
                           variant['image'],
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
-                            return Icon(
-                              Icons.image,
-                              color: Colors.grey[600],
-                            );
+                            return Icon(Icons.image, color: Colors.grey[600]);
                           },
                         )
-                      : Icon(
-                          Icons.image,
-                          color: Colors.grey[600],
-                        ),
+                      : Icon(Icons.image, color: Colors.grey[600]),
                 ),
               ),
               const SizedBox(width: 12),
@@ -2539,9 +2542,7 @@ class _approvedProductsState extends State<approvedProducts> {
                 decoration: BoxDecoration(
                   color: Colors.red.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: Colors.red.withOpacity(0.3),
-                  ),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
                 ),
                 child: const Center(
                   child: Text(
@@ -2635,10 +2636,7 @@ class _approvedProductsState extends State<approvedProducts> {
                                     );
                                   },
                                 )
-                              : const Icon(
-                                  Icons.image,
-                                  color: Colors.grey,
-                                ),
+                              : const Icon(Icons.image, color: Colors.grey),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -2744,9 +2742,7 @@ class _approvedProductsState extends State<approvedProducts> {
                               ],
                             ),
                             const SizedBox(height: 4),
-                            if (product['description']
-                                .toString()
-                                .isNotEmpty)
+                            if (product['description'].toString().isNotEmpty)
                               Text(
                                 product['description'],
                                 style: const TextStyle(
@@ -2759,10 +2755,7 @@ class _approvedProductsState extends State<approvedProducts> {
                           ],
                         ),
                       ),
-                      const Icon(
-                        Icons.chevron_right,
-                        color: Colors.white54,
-                      ),
+                      const Icon(Icons.chevron_right, color: Colors.white54),
                     ],
                   ),
                   if (variants.isNotEmpty)
@@ -2813,7 +2806,9 @@ class _approvedProductsState extends State<approvedProducts> {
                     ),
                   if (isExpanded && variants.isNotEmpty) ...[
                     const Divider(color: Colors.white24, height: 16),
-                    ...variants.map((variant) => _buildVariantCard(product, variant)),
+                    ...variants.map(
+                      (variant) => _buildVariantCard(product, variant),
+                    ),
                   ],
                 ],
               ),
