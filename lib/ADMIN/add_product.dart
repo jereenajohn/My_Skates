@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -137,6 +138,7 @@ class _AddProductState extends State<AddProduct> {
   }
 
   Future<void> submitProduct() async {
+    // Prevent double submission
     if (_isSubmitting) {
       print("Submission already in progress, ignoring...");
       return;
@@ -145,6 +147,7 @@ class _AddProductState extends State<AddProduct> {
     print("Submitting product...");
 
     try {
+      // Set submitting flag to true
       setState(() {
         _isSubmitting = true;
       });
@@ -162,63 +165,60 @@ class _AddProductState extends State<AddProduct> {
         return;
       }
 
-      if (userId == null) {
+      if (profileImage == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("User id missing. Please login again.")),
+          const SnackBar(content: Text("Please select an image.")),
         );
         return;
       }
 
-      if (selectedPaymentMethods.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("At least one payment method is required"),
-          ),
-        );
-        return;
-      }
-
-      final Map<String, dynamic> body = {
-        "user": userId,
-        "title": titleCtrl.text.trim(),
-        "description": descriptionCtrl.text.trim(),
-        "base_price": priceCtrl.text.trim(),
-        "return_policy_days": int.tryParse(returnPolicyCtrl.text.trim()) ?? 0,
-        "shipment_charge": shipmentChargeCtrl.text.trim(),
-        "product_type": productType ?? "single",
-        "category": selectedState,
-        "payment_methods": selectedPaymentMethods
-            .map((e) => int.parse(e.toString()))
-            .toList(),
-      };
-
-      if (productType == "single") {
-        body["stock"] = int.tryParse(stockCtrl.text.trim()) ?? 0;
-        body["discount"] = discount.text.trim().isEmpty
-            ? "0"
-            : discount.text.trim();
-      }
-
-      print("PRODUCT ADD BODY: ${jsonEncode(body)}");
-
-      final response = await http.post(
+      var request = http.MultipartRequest(
+        "POST",
         Uri.parse("$api/api/myskates/products/add/"),
-        headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        body: jsonEncode(body),
       );
 
+      request.headers["Authorization"] = "Bearer $token";
+      request.fields["product_type"] = productType!;
+
+      if (productType == "single") {
+        request.fields["stock"] = stockCtrl.text.trim();
+      }
+      if (productType == "single") {
+        request.fields["discount"] = discount.text.trim();
+      }
+
+      request.fields["user"] = userId.toString();
+      request.fields["title"] = titleCtrl.text.trim();
+      request.fields["description"] = descriptionCtrl.text.trim();
+      request.fields["base_price"] = priceCtrl.text.trim();
+      request.fields["return_policy_days"] = returnPolicyCtrl.text.trim();
+      request.fields["shipment_charge"] = shipmentChargeCtrl.text.trim();
+      for (int i = 0; i < selectedPaymentMethods.length; i++) {
+        request.fields["payment_methods[$i]"] = selectedPaymentMethods[i];
+      }
+
+      if (selectedState != null) {
+        request.fields["category"] = selectedState.toString();
+      }
+
+      if (profileImage != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath("image", profileImage!.path),
+        );
+      }
+
+      var response = await request.send();
+      var responseBody = await response.stream.bytesToString();
+
       print("STATUS: ${response.statusCode}");
-      print("BODYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY: ${response.body}");
+      print("BODYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY: $responseBody");
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Product added successfully!")),
         );
 
+        // Reset form after successful submission
         _resetForm();
 
         Navigator.pushReplacement(
@@ -228,20 +228,18 @@ class _AddProductState extends State<AddProduct> {
       } else {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("Failed: ${response.body}")));
+        ).showSnackBar(SnackBar(content: Text("Failed: $responseBody")));
       }
     } catch (e) {
       print("Error in submitProduct: $e");
-
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Something went wrong: $e")));
+      ).showSnackBar(const SnackBar(content: Text("Something went wrong")));
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSubmitting = false;
-        });
-      }
+      // Reset submitting flag
+      setState(() {
+        _isSubmitting = false;
+      });
     }
   }
 
