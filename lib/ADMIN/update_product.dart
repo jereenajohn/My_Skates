@@ -40,7 +40,24 @@ class _UpdateProductState extends State<UpdateProduct> {
   final TextEditingController titleCtrl = TextEditingController();
   final TextEditingController descriptionCtrl = TextEditingController();
   final TextEditingController priceCtrl = TextEditingController();
-  
+
+  final TextEditingController returnPolicyDaysCtrl = TextEditingController();
+  final TextEditingController shipmentChargeCtrl = TextEditingController();
+
+  String? selectedProductType;
+  String? selectedApprovalStatus;
+
+  final List<Map<String, dynamic>> productTypeList = [
+    {"id": "single", "name": "Single"},
+    {"id": "variant", "name": "Variant"},
+  ];
+
+  final List<Map<String, dynamic>> approvalStatusList = [
+    {"id": "pending", "name": "Pending"},
+    {"id": "approved", "name": "Approved"},
+    {"id": "disapproved", "name": "Disapproved"},
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -67,17 +84,22 @@ class _UpdateProductState extends State<UpdateProduct> {
       print("getproductDetails response: ${res.body}");
       if (res.statusCode == 200) {
         final json = jsonDecode(res.body);
-        final data = json["data"]; 
+        final data = json["data"];
 
         setState(() {
           titleCtrl.text = data["title"] ?? "";
           descriptionCtrl.text = data["description"] ?? "";
           priceCtrl.text = data["base_price"]?.toString() ?? "";
-         
+
+          returnPolicyDaysCtrl.text =
+              data["return_policy_days"]?.toString() ?? "";
+          shipmentChargeCtrl.text = data["shipment_charge"]?.toString() ?? "";
+
+          selectedProductType = data["product_type"]?.toString();
+          selectedApprovalStatus = data["approval_status"]?.toString();
 
           selectedState = data["category"]?.toString();
 
-          
           if (data["image"] != null && data["image"] != "") {
             profileNetworkImage = "$api${data["image"]}";
           }
@@ -168,7 +190,16 @@ class _UpdateProductState extends State<UpdateProduct> {
       request.fields["title"] = titleCtrl.text.trim();
       request.fields["description"] = descriptionCtrl.text.trim();
       request.fields["base_price"] = priceCtrl.text.trim();
-      
+      request.fields["return_policy_days"] = returnPolicyDaysCtrl.text.trim();
+      request.fields["shipment_charge"] = shipmentChargeCtrl.text.trim();
+
+      if (selectedProductType != null) {
+        request.fields["product_type"] = selectedProductType.toString();
+      }
+
+      if (selectedApprovalStatus != null) {
+        request.fields["approval_status"] = selectedApprovalStatus.toString();
+      }
 
       if (selectedState != null) {
         request.fields["category"] = selectedState.toString();
@@ -188,7 +219,7 @@ class _UpdateProductState extends State<UpdateProduct> {
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Product added successfully!")),
+          const SnackBar(content: Text("Product updated successfully!")),
         );
 
         Navigator.pushReplacement(
@@ -370,7 +401,39 @@ class _UpdateProductState extends State<UpdateProduct> {
 
                   _inputField("Price", priceCtrl),
 
-                  
+                  _inputField(
+                    "Return Policy Days",
+                    returnPolicyDaysCtrl,
+                    isNumber: true,
+                  ),
+
+                  _inputField(
+                    "Shipment Charge",
+                    shipmentChargeCtrl,
+                    isNumber: true,
+                  ),
+
+                  _dropdownField(
+                    label: "Product Type",
+                    value: selectedProductType,
+                    items: productTypeList,
+                    onChange: (v) {
+                      setState(() {
+                        selectedProductType = v;
+                      });
+                    },
+                  ),
+
+                  _dropdownField(
+                    label: "Approval Status",
+                    value: selectedApprovalStatus,
+                    items: approvalStatusList,
+                    onChange: (v) {
+                      setState(() {
+                        selectedApprovalStatus = v;
+                      });
+                    },
+                  ),
 
                   const SizedBox(height: 20),
 

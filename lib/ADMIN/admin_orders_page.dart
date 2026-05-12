@@ -1025,33 +1025,32 @@ class _Admin_order_pageState extends State<Admin_order_page> {
   //   }
   // }
 
-
   Color _getStatusColor(String status) {
-  switch (status.toUpperCase()) {
-    case 'PLACED':
-      return Colors.orange;
-    case 'CONFIRMED':
-      return Colors.blue;
-    case 'PROCESSING':
-      return Colors.purple;
-    case 'PAID':
-      return Colors.blue;
-    case 'SHIPPED':
-      return Colors.indigo;
-    case 'DELIVERED':
-      return Colors.green;
-    case 'CANCELLED':
-      return Colors.red;
-    default:
-      return Colors.grey;
+    switch (status.toUpperCase()) {
+      case 'PLACED':
+        return Colors.orange;
+      case 'CONFIRMED':
+        return Colors.blue;
+      case 'PROCESSING':
+        return Colors.purple;
+      case 'PAID':
+        return Colors.blue;
+      case 'SHIPPED':
+        return Colors.indigo;
+      case 'DELIVERED':
+        return Colors.green;
+      case 'CANCELLED':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
   }
-}
 
   // void _navigateToOrderDetail(Order order) {
   //   Navigator.push(
   //     context,
   //     MaterialPageRoute(
-  //       builder: (context) => OrderDetailPage(
+  //       builder: (context) => AdminOrderDetailPage(
   //         order: order,
   //         isCoachProductOrder:
   //             _selectedView == OrderViewType.coachProductOrders,
@@ -1074,7 +1073,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => OrderDetailPage(
+        builder: (context) => AdminOrderDetailPage(
           order: order,
           isCoachProductOrder:
               _selectedView == OrderViewType.coachProductOrders,
@@ -1129,7 +1128,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
           context,
           MaterialPageRoute(
             builder: (_) =>
-                OrderDetailPage(order: order, selectedItemId: item.id),
+                AdminOrderDetailPage(order: order, selectedItemId: item.id),
           ),
         ).then((result) {
           fetchOrders();
@@ -2197,6 +2196,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                 //     ),
                 //   ),
                 // ),
+                
               ],
             ),
 
@@ -2545,148 +2545,150 @@ class _Admin_order_pageState extends State<Admin_order_page> {
   // }
 
   Widget _buildBoughtProductCard(BoughtProductItem item) {
-  return GestureDetector(
-    onTap: () => _navigateToBoughtProductOrderDetail(item),
-    child: Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withOpacity(0.10)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.22),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Order #${item.orderNo}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(item.orderStatus).withOpacity(0.16),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: _getStatusColor(item.orderStatus).withOpacity(0.35),
-                  ),
-                ),
-                child: Text(
-                  item.orderStatus,
-                  style: TextStyle(
-                    color: _getStatusColor(item.orderStatus),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          Row(
-            children: [
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: _buildBoughtProductImage(item),
-                ),
-              ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.productTitle,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+    return GestureDetector(
+      onTap: () => _navigateToBoughtProductOrderDetail(item),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withOpacity(0.10)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.22),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Order #${item.orderNo}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(item.orderStatus).withOpacity(0.16),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _getStatusColor(
+                        item.orderStatus,
+                      ).withOpacity(0.35),
+                    ),
+                  ),
+                  child: Text(
+                    item.orderStatus,
+                    style: TextStyle(
+                      color: _getStatusColor(item.orderStatus),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
 
-                    if (item.variantLabel.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+            const SizedBox(height: 14),
+
+            Row(
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: _buildBoughtProductImage(item),
+                  ),
+                ),
+
+                const SizedBox(width: 12),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        item.variantLabel,
+                        item.productTitle,
                         style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 12,
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    ],
 
-                    const SizedBox(height: 4),
+                      if (item.variantLabel.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          item.variantLabel,
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
 
-                    Text(
-                      'Qty: ${item.quantity}',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-
-                    if (item.productUserType != null &&
-                        item.productUserType!.isNotEmpty) ...[
                       const SizedBox(height: 4),
+
                       Text(
-                        item.productUserType == 'coach'
-                            ? 'Coach Product'
-                            : 'Admin Product',
-                        style: TextStyle(
-                          color: item.productUserType == 'coach'
-                              ? Colors.tealAccent
-                              : Colors.orangeAccent,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
+                        'Qty: ${item.quantity}',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
                         ),
                       ),
+
+                      if (item.productUserType != null &&
+                          item.productUserType!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          item.productUserType == 'coach'
+                              ? 'Coach Product'
+                              : 'Admin Product',
+                          style: TextStyle(
+                            color: item.productUserType == 'coach'
+                                ? Colors.tealAccent
+                                : Colors.orangeAccent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildProductImage(OrderItem item) {
     if (item.variantImage != null) {
@@ -2757,6 +2759,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
     );
   }
 }
+
 
 // ==================== ORDER DETAIL PAGE ====================
 
@@ -2834,14 +2837,14 @@ class ExchangeVariant {
 
     final String parsedLabel =
         json['variant_label']?.toString().trim().isNotEmpty == true
-        ? json['variant_label'].toString()
-        : json['label']?.toString().trim().isNotEmpty == true
-        ? json['label'].toString()
-        : json['name']?.toString().trim().isNotEmpty == true
-        ? json['name'].toString()
-        : json['variant_name']?.toString().trim().isNotEmpty == true
-        ? json['variant_name'].toString()
-        : 'Variant #$parsedId';
+            ? json['variant_label'].toString()
+            : json['label']?.toString().trim().isNotEmpty == true
+                ? json['label'].toString()
+                : json['name']?.toString().trim().isNotEmpty == true
+                    ? json['name'].toString()
+                    : json['variant_name']?.toString().trim().isNotEmpty == true
+                        ? json['variant_name'].toString()
+                        : 'Variant #$parsedId';
 
     return ExchangeVariant(
       id: parsedId,
@@ -2864,12 +2867,12 @@ class ExchangeVariant {
   }
 }
 
-class OrderDetailPage extends StatefulWidget {
+class AdminOrderDetailPage extends StatefulWidget {
   final Order order;
   final bool isCoachProductOrder;
   final int? selectedItemId;
 
-  const OrderDetailPage({
+  const AdminOrderDetailPage({
     super.key,
     required this.order,
     this.isCoachProductOrder = false,
@@ -2877,16 +2880,16 @@ class OrderDetailPage extends StatefulWidget {
   });
 
   @override
-  State<OrderDetailPage> createState() => _OrderDetailPageState();
+  State<AdminOrderDetailPage> createState() => _AdminOrderDetailPageState();
 }
 
-class _OrderDetailPageState extends State<OrderDetailPage> {
+class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   late Order _order;
   bool _isRefreshing = false;
   String? _fetchError;
   bool _hasTriggeredReviewPopup = false;
   Map<int, bool> _reviewCheckedStatus = {};
-  Map<int, ReviewModel?> _existingReviews = {}; // Store existing reviews
+  Map<int, ReviewModel?> _existingReviews = {};
 
   final TextEditingController _customReasonController = TextEditingController();
 
@@ -2902,6 +2905,9 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   OrderItem? _selectedReturnItem;
   ExchangeVariant? _selectedExchangeVariant;
   List<ExchangeVariant> _exchangeVariants = [];
+
+  bool _isCancellingOrderItem = false;
+  OrderItem? _selectedCancelItem;
 
   final Map<int, RefundRequestModel> _refundByItemId = {};
 
@@ -2931,7 +2937,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           .where((option) => option['value'] != 'return')
           .toList();
     }
-
     return _refundRemarkOptions
         .where((option) => option['value'] != 'cod_return')
         .toList();
@@ -2939,15 +2944,34 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
   OrderItem get _openedItem {
     if (widget.selectedItemId != null) {
-      final matched = _order.items.where(
-        (item) => item.id == widget.selectedItemId,
-      );
+      final matched =
+          _order.items.where((item) => item.id == widget.selectedItemId);
       if (matched.isNotEmpty) return matched.first;
     }
-
     return _order.items.isNotEmpty
         ? _order.items.first
         : throw Exception('No order item found');
+  }
+
+  List<OrderItem> get _otherItemsInOrder {
+    return _order.items.where((item) => item.id != _openedItem.id).toList();
+  }
+
+  String _getOpenedItemStatus() {
+    final itemStatus = _openedItem.status.trim();
+    if (itemStatus.isNotEmpty) return itemStatus.toUpperCase();
+    return _order.status.trim().toUpperCase();
+  }
+
+  bool get _canCancelOrderItem {
+    if (_order.items.isEmpty) return false;
+    if (widget.isCoachProductOrder) return false;
+    return _getOpenedItemStatus() == 'PLACED';
+  }
+
+  void _resetCancelOrderForm() {
+    _selectedCancelItem = _canCancelOrderItem ? _openedItem : null;
+    _isCancellingOrderItem = false;
   }
 
   RefundRequestModel? get _openedItemRefund {
@@ -2964,7 +2988,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         : _order.status.trim().toUpperCase();
 
     final alreadyRequested = _refundByItemId.containsKey(_openedItem.id);
-
     return status == 'DELIVERED' && !alreadyRequested;
   }
 
@@ -2972,13 +2995,13 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   void initState() {
     super.initState();
     _order = widget.order;
-
     _fetchOrderDetail();
-
     if (!widget.isCoachProductOrder) {
       _fetchRefundRequests();
     }
   }
+
+  // ── API calls ─────────────────────────────────────────────────────────────
 
   Future<void> _fetchOrderDetail() async {
     setState(() {
@@ -3016,9 +3039,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         final orderJson = jsonResponse['data'] ?? jsonResponse;
-        if (orderJson['seller_breakdown'] != null) {
-          print("SELLER BREAKDOWN DATA: ${orderJson['seller_breakdown']}");
-        }
         setState(() {
           _order = Order.fromJson(orderJson);
           _isRefreshing = false;
@@ -3026,7 +3046,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
         await _fetchRefundRequests();
 
-        // After order is loaded, check reviews for all items
         if (!widget.isCoachProductOrder) {
           await _checkAllReviews();
           _checkAndShowReviewPopup();
@@ -3049,18 +3068,14 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   Future<void> _fetchRefundRequests() async {
     if (widget.isCoachProductOrder) return;
 
-    setState(() {
-      _isLoadingRefunds = true;
-    });
+    setState(() => _isLoadingRefunds = true);
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
 
       if (token == null) {
-        setState(() {
-          _isLoadingRefunds = false;
-        });
+        setState(() => _isLoadingRefunds = false);
         return;
       }
 
@@ -3077,7 +3092,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-
         List<dynamic> refundList = [];
 
         if (decoded is Map<String, dynamic>) {
@@ -3094,13 +3108,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         }
 
         final Map<int, RefundRequestModel> temp = {};
-
         for (final item in refundList) {
           if (item is Map<String, dynamic>) {
             final refund = RefundRequestModel.fromJson(item);
-            if (refund.item > 0) {
-              temp[refund.item] = refund;
-            }
+            if (refund.item > 0) temp[refund.item] = refund;
           }
         }
 
@@ -3111,15 +3122,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           _isLoadingRefunds = false;
         });
       } else {
-        setState(() {
-          _isLoadingRefunds = false;
-        });
+        setState(() => _isLoadingRefunds = false);
       }
     } catch (e) {
       print("ERROR FETCHING REFUNDS: $e");
-      setState(() {
-        _isLoadingRefunds = false;
-      });
+      setState(() => _isLoadingRefunds = false);
     }
   }
 
@@ -3148,8 +3155,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
       final response = await http.get(
         Uri.parse(
-          '$api/api/myskates/products/exchange/variant/${item.product}/',
-        ),
+            '$api/api/myskates/products/exchange/variant/${item.product}/'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -3161,7 +3167,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-
         List<dynamic> variantList = [];
 
         if (decoded is List) {
@@ -3202,37 +3207,31 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     }
   }
 
-  // Check all products in the order for existing reviews
+  // ── Review helpers ────────────────────────────────────────────────────────
+
   Future<void> _checkAllReviews() async {
     for (var item in _order.items) {
       if (!_reviewCheckedStatus.containsKey(item.product)) {
         final review = await _getExistingReview(item.product);
-        if (review != null) {
-          _existingReviews[item.product] = review;
-        }
+        if (review != null) _existingReviews[item.product] = review;
         _reviewCheckedStatus[item.product] = true;
       }
     }
-    setState(() {}); // Refresh to show/hide the review icon
+    setState(() {});
   }
 
   Future<void> _refreshReviews() async {
     _reviewCheckedStatus.clear();
     _existingReviews.clear();
     await _checkAllReviews();
-
-    if (mounted) {
-      setState(() {});
-    }
+    if (mounted) setState(() {});
   }
 
-  // Get existing review for a product
   Future<ReviewModel?> _getExistingReview(int productId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
       final userId = prefs.getInt('user_id') ?? prefs.getInt('id');
-
       if (token == null || userId == null) return null;
 
       final response = await http.get(
@@ -3252,15 +3251,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           reviews = jsonData['data'];
         }
 
-        // Find review by current user
         final userReview = reviews.firstWhere(
           (review) => (review['user'] ?? 0) == userId,
           orElse: () => null,
         );
 
-        if (userReview != null) {
-          return ReviewModel.fromJson(userReview);
-        }
+        if (userReview != null) return ReviewModel.fromJson(userReview);
       }
     } catch (e) {
       print("Error getting existing review: $e");
@@ -3268,18 +3264,14 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     return null;
   }
 
-  // Check if user has existing review (for popup logic)
   Future<bool> _hasUserReviewed(int productId) async {
     return _existingReviews.containsKey(productId) &&
         _existingReviews[productId] != null;
   }
 
-  // Check if ANY product in the order has a review
-  bool get _hasAnyReview {
-    return _existingReviews.values.any((review) => review != null);
-  }
+  bool get _hasAnyReview =>
+      _existingReviews.values.any((review) => review != null);
 
-  // Get the first product that has a review (for navigation)
   OrderItem? _getFirstReviewedProduct() {
     for (var item in _order.items) {
       if (_existingReviews.containsKey(item.product) &&
@@ -3290,26 +3282,432 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     return null;
   }
 
-  // Check and show review popup for items without review
   Future<void> _checkAndShowReviewPopup() async {
-    // Only proceed if order is delivered and popup hasn't been triggered yet
     if (_order.status.toLowerCase() == 'delivered' &&
         !_hasTriggeredReviewPopup) {
-      // Check each item in the order
       for (var item in _order.items) {
         final hasReview = await _hasUserReviewed(item.product);
-
-        // If no review found for this product, show the popup
         if (!hasReview) {
           _hasTriggeredReviewPopup = true;
           _showReviewDialog(item);
-          break; // Only show one popup at a time
+          break;
         }
       }
     }
   }
 
-  String _getRefundLabel(String value, List<Map<String, String>> options) {
+  void _showReviewDialog(OrderItem item) {
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return ReviewDialog(
+              productId: item.product,
+              productTitle: item.productTitle,
+              variantId: item.variantId,
+              variantLabel: item.variantLabel,
+              productImage: item.productImage,
+              variantImage: item.variantImage,
+              hasReview: false,
+            );
+          },
+        ).then((_) async => await _refreshReviews());
+      }
+    });
+  }
+
+  void _navigateToReviewScreen(OrderItem item, {ReviewModel? existingReview}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductReviewPage(
+          productId: item.product,
+          productTitle: item.productTitle,
+          productImage: item.productImage,
+          variantId: item.variantId,
+          variantLabel: item.variantLabel,
+          variantImage: item.variantImage,
+        ),
+      ),
+    ).then((_) async => await _refreshReviews());
+  }
+
+  // ── Cancel order ──────────────────────────────────────────────────────────
+
+  Future<void> _showCancelOrderBottomSheet() async {
+    if (_order.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No products available in this order')),
+      );
+      return;
+    }
+    if (!_canCancelOrderItem) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This product cannot be cancelled'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    _resetCancelOrderForm();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) {
+        return StatefulBuilder(
+          builder: (context, bottomSheetSetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF0E0E0E),
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 42,
+                            height: 4,
+                            margin: const EdgeInsets.only(bottom: 18),
+                            decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent.withOpacity(0.14),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(Icons.cancel_outlined,
+                                  color: Colors.redAccent),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Cancel Product',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(height: 3),
+                                  Text(
+                                    'Confirm the selected product cancellation',
+                                    style: TextStyle(
+                                        color: Colors.white54, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: _isCancellingOrderItem
+                                  ? null
+                                  : () => Navigator.pop(context),
+                              icon: const Icon(Icons.close,
+                                  color: Colors.white70),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Product',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.07),
+                            borderRadius: BorderRadius.circular(15),
+                            border: Border.all(
+                                color: Colors.white.withOpacity(0.12)),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<OrderItem>(
+                              value: _selectedCancelItem,
+                              isExpanded: true,
+                              dropdownColor: const Color(0xFF161616),
+                              icon: const Icon(Icons.keyboard_arrow_down,
+                                  color: Colors.white70),
+                              style:
+                                  const TextStyle(color: Colors.white),
+                              onChanged: null,
+                              items: [_openedItem].map((item) {
+                                return DropdownMenuItem<OrderItem>(
+                                  value: item,
+                                  child: Text(
+                                    '${item.productTitle}${item.variantLabel.isNotEmpty ? ' - ${item.variantLabel}' : ''}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        color: Colors.white),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                                color:
+                                    Colors.redAccent.withOpacity(0.22)),
+                          ),
+                          child: const Text(
+                            'Cancellation is allowed only while the selected product is in Placed status.',
+                            style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                height: 1.4),
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed: _isCancellingOrderItem
+                                ? null
+                                : () =>
+                                    _confirmAndSubmitCancelOrderItem(
+                                        bottomSheetSetState),
+                            icon: _isCancellingOrderItem
+                                ? const SizedBox.shrink()
+                                : const Icon(Icons.cancel_outlined),
+                            label: _isCancellingOrderItem
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2.2),
+                                  )
+                                : const Text(
+                                    'Cancel Selected Product',
+                                    style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.redAccent,
+                              disabledBackgroundColor:
+                                  Colors.redAccent.withOpacity(0.35),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(16)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmAndSubmitCancelOrderItem(
+      StateSetter bottomSheetSetState) async {
+    if (_selectedCancelItem == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a product to cancel')),
+      );
+      return;
+    }
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF111111),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded,
+                  color: Colors.redAccent, size: 24),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Confirm Cancellation',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Are you sure you want to cancel this product?\n\n${_selectedCancelItem!.productTitle}${_selectedCancelItem!.variantLabel.isNotEmpty ? '\n${_selectedCancelItem!.variantLabel}' : ''}\n\nThis action cannot be undone.',
+            style: const TextStyle(
+                color: Colors.white70, fontSize: 14, height: 1.45),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('No, Go Back',
+                  style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Yes, Cancel',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _submitCancelOrderItem(bottomSheetSetState);
+    }
+  }
+
+  Future<void> _submitCancelOrderItem(
+      StateSetter bottomSheetSetState) async {
+    if (_selectedCancelItem == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a product to cancel')),
+      );
+      return;
+    }
+
+    bottomSheetSetState(() => _isCancellingOrderItem = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("access");
+
+      if (token == null) {
+        bottomSheetSetState(() => _isCancellingOrderItem = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authentication token missing')),
+        );
+        return;
+      }
+
+      final Map<String, dynamic> requestBody = {
+        'order': _order.id,
+        'order_id': _order.id,
+        'product': _selectedCancelItem!.product,
+        'product_id': _selectedCancelItem!.product,
+      };
+
+      final response = await http.post(
+        Uri.parse(
+            '$api/api/myskates/orders/${_order.id}/cancel/${_selectedCancelItem!.product}/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print("ADMIN CANCEL ORDER ITEM API STATUS: ${response.statusCode}");
+      print("ADMIN CANCEL ORDER ITEM RESPONSE: ${response.body}");
+
+      Map<String, dynamic>? decoded;
+      try {
+        final parsed = jsonDecode(response.body);
+        if (parsed is Map<String, dynamic>) decoded = parsed;
+      } catch (_) {}
+
+      final String responseMessage =
+          decoded?['message']?.toString() ??
+          decoded?['error']?.toString() ??
+          decoded?['detail']?.toString() ??
+          '';
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (!mounted) return;
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(responseMessage.isNotEmpty
+                ? responseMessage
+                : 'Product cancelled successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        await _fetchOrderDetail();
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(responseMessage.isNotEmpty
+                ? responseMessage
+                : 'Failed to cancel product'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      print("ADMIN CANCEL ORDER ITEM ERROR: $e");
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      if (mounted) bottomSheetSetState(() => _isCancellingOrderItem = false);
+    }
+  }
+
+  // ── Return / Exchange ─────────────────────────────────────────────────────
+
+  String _getRefundLabel(
+      String value, List<Map<String, String>> options) {
     final matched = options.where((option) => option['value'] == value);
     if (matched.isEmpty) return value;
     return matched.first['label'] ?? value;
@@ -3329,43 +3727,33 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   Future<void> _submitReturnExchangeRequest(
-    StateSetter bottomSheetSetState,
-  ) async {
+      StateSetter bottomSheetSetState) async {
     if (_selectedReturnItem == null) {
-      bottomSheetSetState(() {
-        _returnExchangeErrorMessage = 'Please select a product';
-      });
+      bottomSheetSetState(
+          () => _returnExchangeErrorMessage = 'Please select a product');
       return;
     }
-
     if (_selectedRefundRemark == null) {
-      bottomSheetSetState(() {
-        _returnExchangeErrorMessage = 'Please select return or exchange';
-      });
+      bottomSheetSetState(() =>
+          _returnExchangeErrorMessage = 'Please select return or exchange');
       return;
     }
-
     if (_selectedReasonType == null) {
-      bottomSheetSetState(() {
-        _returnExchangeErrorMessage = 'Please select a reason';
-      });
+      bottomSheetSetState(
+          () => _returnExchangeErrorMessage = 'Please select a reason');
       return;
     }
 
     final customReason = _customReasonController.text.trim();
-
     if (_selectedReasonType == 'other' && customReason.isEmpty) {
-      bottomSheetSetState(() {
-        _returnExchangeErrorMessage = 'Please enter reason';
-      });
+      bottomSheetSetState(
+          () => _returnExchangeErrorMessage = 'Please enter reason');
       return;
     }
-
     if (_selectedRefundRemark == 'exchange' &&
         _selectedExchangeVariant == null) {
-      bottomSheetSetState(() {
-        _returnExchangeErrorMessage = 'Please select exchange variant';
-      });
+      bottomSheetSetState(() =>
+          _returnExchangeErrorMessage = 'Please select exchange variant');
       return;
     }
 
@@ -3379,10 +3767,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       final token = prefs.getString("access");
 
       if (token == null) {
-        bottomSheetSetState(() {
-          _isSubmittingReturnExchange = false;
-        });
-
+        bottomSheetSetState(() => _isSubmittingReturnExchange = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Authentication token missing')),
         );
@@ -3396,7 +3781,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         'reason_type': _selectedReasonType,
         'reason': _selectedReasonType == 'other'
             ? customReason
-            : _getRefundLabel(_selectedReasonType!, _refundReasonTypeOptions),
+            : _getRefundLabel(
+                _selectedReasonType!, _refundReasonTypeOptions),
       };
 
       if (_selectedRefundRemark == 'exchange' &&
@@ -3414,22 +3800,15 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       );
 
       print("RETURN EXCHANGE API STATUS: ${response.statusCode}");
-      print("RETURN EXCHANGE REQUEST BODY: ${jsonEncode(requestBody)}");
       print("RETURN EXCHANGE RESPONSE: ${response.body}");
 
       Map<String, dynamic>? decoded;
-
       try {
         final parsed = jsonDecode(response.body);
-        if (parsed is Map<String, dynamic>) {
-          decoded = parsed;
-        }
-      } catch (_) {
-        decoded = null;
-      }
+        if (parsed is Map<String, dynamic>) decoded = parsed;
+      } catch (_) {}
 
       final bool apiStatus = decoded?['status'] == true;
-
       final String responseMessage =
           decoded?['message']?.toString() ??
           decoded?['error']?.toString() ??
@@ -3439,90 +3818,374 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       if ((response.statusCode == 200 || response.statusCode == 201) &&
           apiStatus) {
         if (!mounted) return;
-
         Navigator.pop(context);
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              responseMessage.isNotEmpty
-                  ? responseMessage
-                  : 'Return/Exchange request submitted successfully',
-            ),
+            content: Text(responseMessage.isNotEmpty
+                ? responseMessage
+                : 'Return/Exchange request submitted successfully'),
             backgroundColor: Colors.green,
           ),
         );
-
         await _fetchRefundRequests();
         await _fetchOrderDetail();
       } else {
         if (!mounted) return;
-
-        bottomSheetSetState(() {
-          _returnExchangeErrorMessage = responseMessage;
-        });
+        bottomSheetSetState(
+            () => _returnExchangeErrorMessage = responseMessage);
       }
     } catch (e) {
       print("ERROR SUBMITTING RETURN EXCHANGE REQUEST: $e");
-
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+        SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.redAccent),
       );
     } finally {
       if (mounted) {
-        bottomSheetSetState(() {
-          _isSubmittingReturnExchange = false;
-        });
+        bottomSheetSetState(() => _isSubmittingReturnExchange = false);
       }
     }
   }
 
-  // Show review dialog
-  void _showReviewDialog(OrderItem item) {
-    // Add a small delay to ensure the page is fully loaded
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return ReviewDialog(
-              productId: item.product,
-              productTitle: item.productTitle,
-              variantId: item.variantId,
-              variantLabel: item.variantLabel,
-              productImage: item.productImage,
-              variantImage: item.variantImage,
-              hasReview: false,
+  void _showReturnExchangeBottomSheet() {
+    _resetReturnExchangeForm();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, bottomSheetSetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom),
+              child: Container(
+                constraints: BoxConstraints(
+                    maxHeight:
+                        MediaQuery.of(context).size.height * 0.88),
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 22),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF071412),
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(26)),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 44,
+                          height: 4,
+                          decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        'Return / Exchange Request',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(_openedItem.productTitle,
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 13)),
+                      if (_openedItem.variantLabel.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(_openedItem.variantLabel,
+                            style: const TextStyle(
+                                color: Colors.white54, fontSize: 12)),
+                      ],
+                      const SizedBox(height: 18),
+                      const Text('Select Type',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children:
+                            _availableRefundRemarkOptions.map((option) {
+                          final selected =
+                              _selectedRefundRemark == option['value'];
+                          return ChoiceChip(
+                            selected: selected,
+                            label: Text(option['label']!),
+                            selectedColor: Colors.tealAccent,
+                            backgroundColor: Colors.white10,
+                            labelStyle: TextStyle(
+                              color: selected
+                                  ? Colors.black
+                                  : Colors.white70,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            onSelected: (_) async {
+                              bottomSheetSetState(() {
+                                _selectedRefundRemark = option['value'];
+                                _selectedExchangeVariant = null;
+                                _exchangeVariants = [];
+                                _exchangeVariantErrorMessage = null;
+                                _returnExchangeErrorMessage = null;
+                              });
+                              if (option['value'] == 'exchange') {
+                                await _fetchExchangeVariants(
+                                  item: _openedItem,
+                                  bottomSheetSetState:
+                                      bottomSheetSetState,
+                                );
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 18),
+                      const Text('Reason',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 10),
+                      Column(
+                        children:
+                            _refundReasonTypeOptions.map((option) {
+                          final selected =
+                              _selectedReasonType == option['value'];
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? Colors.tealAccent.withOpacity(0.14)
+                                  : Colors.white.withOpacity(0.06),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: selected
+                                    ? Colors.tealAccent.withOpacity(0.45)
+                                    : Colors.white.withOpacity(0.10),
+                              ),
+                            ),
+                            child: RadioListTile<String>(
+                              value: option['value']!,
+                              groupValue: _selectedReasonType,
+                              activeColor: Colors.tealAccent,
+                              title: Text(option['label']!,
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 13)),
+                              onChanged: (value) {
+                                bottomSheetSetState(() {
+                                  _selectedReasonType = value;
+                                  _returnExchangeErrorMessage = null;
+                                });
+                              },
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      if (_selectedReasonType == 'other') ...[
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _customReasonController,
+                          maxLines: 3,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Enter your reason',
+                            hintStyle:
+                                const TextStyle(color: Colors.white38),
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.06),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(
+                                  color: Colors.white.withOpacity(0.10)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(
+                                  color: Colors.white.withOpacity(0.10)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                  color: Colors.tealAccent),
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (_selectedRefundRemark == 'exchange') ...[
+                        const SizedBox(height: 18),
+                        const Text('Select Exchange Variant',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 10),
+                        if (_isLoadingExchangeVariants)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(18),
+                              child: CircularProgressIndicator(
+                                  color: Colors.tealAccent),
+                            ),
+                          )
+                        else if (_exchangeVariantErrorMessage != null)
+                          Text(_exchangeVariantErrorMessage!,
+                              style: const TextStyle(
+                                  color: Colors.redAccent, fontSize: 13))
+                        else
+                          Column(
+                            children:
+                                _exchangeVariants.map((variant) {
+                              final selected =
+                                  _selectedExchangeVariant?.id ==
+                                      variant.id;
+                              return GestureDetector(
+                                onTap: () {
+                                  bottomSheetSetState(() {
+                                    _selectedExchangeVariant = variant;
+                                    _returnExchangeErrorMessage = null;
+                                  });
+                                },
+                                child: Container(
+                                  margin:
+                                      const EdgeInsets.only(bottom: 10),
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: selected
+                                        ? Colors.tealAccent
+                                            .withOpacity(0.13)
+                                        : Colors.white.withOpacity(0.06),
+                                    borderRadius:
+                                        BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: selected
+                                          ? Colors.tealAccent
+                                          : Colors.white.withOpacity(0.10),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 54,
+                                        height: 54,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white10,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        clipBehavior: Clip.antiAlias,
+                                        child: _variantImage(variant),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(variant.label,
+                                                style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight:
+                                                        FontWeight.w700)),
+                                            if (variant.sku != null &&
+                                                variant.sku!
+                                                    .trim()
+                                                    .isNotEmpty)
+                                              Text('SKU: ${variant.sku}',
+                                                  style: const TextStyle(
+                                                      color: Colors.white54,
+                                                      fontSize: 12)),
+                                            if (variant.variantPrice !=
+                                                null)
+                                              Text(
+                                                  '₹${variant.variantPrice}',
+                                                  style: const TextStyle(
+                                                      color:
+                                                          Colors.tealAccent,
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w700)),
+                                          ],
+                                        ),
+                                      ),
+                                      if (selected)
+                                        const Icon(Icons.check_circle,
+                                            color: Colors.tealAccent),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                      ],
+                      if (_returnExchangeErrorMessage != null) ...[
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                                color:
+                                    Colors.redAccent.withOpacity(0.35)),
+                          ),
+                          child: Text(_returnExchangeErrorMessage!,
+                              style: const TextStyle(
+                                  color: Colors.redAccent, fontSize: 13)),
+                        ),
+                      ],
+                      const SizedBox(height: 22),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          onPressed: _isSubmittingReturnExchange
+                              ? null
+                              : () => _submitReturnExchangeRequest(
+                                  bottomSheetSetState),
+                          icon: _isSubmittingReturnExchange
+                              ? const SizedBox.shrink()
+                              : const Icon(Icons.send_rounded),
+                          label: _isSubmittingReturnExchange
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.black,
+                                      strokeWidth: 2.2),
+                                )
+                              : const Text('Submit Request',
+                                  style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.tealAccent,
+                            disabledBackgroundColor:
+                                Colors.tealAccent.withOpacity(0.35),
+                            foregroundColor: Colors.black,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             );
           },
-        ).then((_) async {
-          await _refreshReviews();
-        });
-      }
-    });
+        );
+      },
+    );
   }
 
-  // Navigate to review screen for a specific product
-  void _navigateToReviewScreen(OrderItem item, {ReviewModel? existingReview}) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ProductReviewPage(
-          productId: item.product,
-          productTitle: item.productTitle,
-          productImage: item.productImage,
-          variantId: item.variantId,
-          variantLabel: item.variantLabel,
-          variantImage: item.variantImage,
-        ),
-      ),
-    ).then((_) async {
-      await _refreshReviews();
-    });
-  }
+  // ── UI helpers ────────────────────────────────────────────────────────────
 
   Color _getStatusColor(String status) {
     switch (status.toUpperCase()) {
@@ -3541,9 +4204,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     }
   }
 
-  double _amount(String value) {
-    return double.tryParse(value) ?? 0.0;
-  }
+  double _amount(String value) => double.tryParse(value) ?? 0.0;
 
   Widget _glassWrap({required Widget child, EdgeInsets? padding}) {
     return ClipRRect(
@@ -3582,24 +4243,14 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
               '$api${item.productImage}',
               fit: BoxFit.cover,
               gaplessPlayback: true,
-              errorBuilder: (_, __, ___) => Container(
-                color: Colors.transparent,
-                child: const Icon(
+              errorBuilder: (_, __, ___) => const Icon(
                   Icons.image_not_supported,
                   color: Colors.white38,
-                  size: 30,
-                ),
-              ),
+                  size: 30),
             );
           }
-          return Container(
-            color: Colors.transparent,
-            child: const Icon(
-              Icons.image_not_supported,
-              color: Colors.white38,
-              size: 30,
-            ),
-          );
+          return const Icon(Icons.image_not_supported,
+              color: Colors.white38, size: 30);
         },
       );
     } else if (item.productImage != null) {
@@ -3607,48 +4258,50 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         '$api${item.productImage}',
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => Container(
-          color: Colors.transparent,
-          child: const Icon(
+        errorBuilder: (_, __, ___) => const Icon(
             Icons.image_not_supported,
             color: Colors.white38,
-            size: 30,
-          ),
-        ),
+            size: 30),
       );
     } else {
-      return Container(
-        color: Colors.transparent,
-        child: const Icon(
-          Icons.image_not_supported,
-          color: Colors.white38,
-          size: 30,
-        ),
-      );
+      return const Icon(Icons.image_not_supported,
+          color: Colors.white38, size: 30);
     }
   }
 
-  Widget _pricingRow(String label, String value, {bool isDiscount = false}) {
-    final amount = double.tryParse(value) ?? 0;
+  Widget _variantImage(ExchangeVariant variant) {
+    final imagePath = variant.image ?? variant.productImage;
+    if (imagePath == null || imagePath.trim().isEmpty) {
+      return const Icon(Icons.image_not_supported_outlined,
+          color: Colors.white38);
+    }
+    final imageUrl =
+        imagePath.startsWith('http') ? imagePath : '$api$imagePath';
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => const Icon(
+          Icons.image_not_supported_outlined,
+          color: Colors.white38),
+    );
+  }
 
+  Widget _pricingRow(String label, String value,
+      {bool isDiscount = false}) {
+    final amount = double.tryParse(value) ?? 0;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          child: Text(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500)),
         ),
-
         const SizedBox(width: 12),
-
         SizedBox(
           width: 110,
           child: Text(
@@ -3659,837 +4312,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             style: TextStyle(
               color: isDiscount ? Colors.redAccent : Colors.white,
               fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildOrderItemCard({required OrderItem item, required bool isLast}) {
-    final itemPrice = double.tryParse(item.productPrice) ?? item.displayTotal;
-    final hasSellerInfo =
-        widget.isCoachProductOrder &&
-        ((item.productUserType ?? '').isNotEmpty ||
-            (item.coachName ?? '').isNotEmpty ||
-            (item.coachPhone ?? '').isNotEmpty);
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.08),
-                    width: 0.8,
-                  ),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: _buildProductImage(item),
-              ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.productTitle.isEmpty
-                          ? 'Unnamed Product'
-                          : item.productTitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w700,
-                        height: 1.25,
-                      ),
-                    ),
-
-                    if (item.variantLabel.isNotEmpty) ...[
-                      const SizedBox(height: 5),
-                      Text(
-                        item.variantLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.tealAccent.withOpacity(0.9),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 8),
-
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        _smallInfoChip(
-                          icon: Icons.shopping_bag_outlined,
-                          text: 'Qty ${item.quantity}',
-                          color: Colors.white70,
-                          backgroundColor: Colors.white.withOpacity(0.06),
-                          borderColor: Colors.white.withOpacity(0.10),
-                        ),
-
-                        if ((item.productUserType ?? '').isNotEmpty)
-                          _smallInfoChip(
-                            icon: Icons.storefront_rounded,
-                            text: item.productUserType!,
-                            color: Colors.tealAccent,
-                            backgroundColor: Colors.tealAccent.withOpacity(
-                              0.10,
-                            ),
-                            borderColor: Colors.tealAccent.withOpacity(0.22),
-                          ),
-                      ],
-                    ),
-
-                    if (hasSellerInfo) ...[
-                      const SizedBox(height: 8),
-                      _compactSellerDetails(item),
-                    ],
-
-                    if (_existingReviews.containsKey(item.product) &&
-                        _existingReviews[item.product] != null) ...[
-                      const SizedBox(height: 8),
-                      _smallInfoChip(
-                        icon: Icons.star_rounded,
-                        text:
-                            'Reviewed ${_existingReviews[item.product]!.rating}★',
-                        color: Colors.greenAccent,
-                        backgroundColor: Colors.greenAccent.withOpacity(0.10),
-                        borderColor: Colors.greenAccent.withOpacity(0.25),
-                      ),
-                    ],
-                    if (_existingReviews.containsKey(item.product) &&
-                        _existingReviews[item.product] != null) ...[
-                      const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: () {
-                          _navigateToReviewScreen(
-                            item,
-                            existingReview: _existingReviews[item.product],
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.greenAccent.withOpacity(0.10),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.greenAccent.withOpacity(0.25),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.rate_review_rounded,
-                                color: Colors.greenAccent,
-                                size: 15,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                'View Review ${_existingReviews[item.product]!.rating}★',
-                                style: const TextStyle(
-                                  color: Colors.greenAccent,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
-              SizedBox(
-                width: 86,
-                child: Text(
-                  '₹${itemPrice.toStringAsFixed(2)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(
-                    color: Colors.tealAccent,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        if (!isLast)
-          Divider(
-            color: Colors.white.withOpacity(0.08),
-            height: 1,
-            thickness: 0.8,
-          ),
-      ],
-    );
-  }
-
-  Widget _smallInfoChip({
-    required IconData icon,
-    required String text,
-    required Color color,
-    required Color backgroundColor,
-    required Color borderColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: borderColor, width: 0.8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _compactSellerDetails(OrderItem item) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(
-        color: const Color(0xFF021F1D).withOpacity(0.55),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.tealAccent.withOpacity(0.18),
-          width: 0.8,
-        ),
-      ),
-      child: Column(
-        children: [
-          if ((item.coachName ?? '').isNotEmpty)
-            _sellerMiniRow(
-              icon: Icons.person_outline_rounded,
-              label: 'Coach',
-              value: item.coachName!,
-            ),
-
-          if ((item.coachName ?? '').isNotEmpty &&
-              (item.coachPhone ?? '').isNotEmpty)
-            const SizedBox(height: 5),
-
-          if ((item.coachPhone ?? '').isNotEmpty)
-            _sellerMiniRow(
-              icon: Icons.phone_outlined,
-              label: 'Phone',
-              value: item.coachPhone!,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReturnExchangeStatusCard() {
-    final refund = _openedItemRefund;
-
-    if (refund == null) return const SizedBox.shrink();
-
-    Color statusColor;
-
-    switch (refund.status.toLowerCase()) {
-      case 'approved':
-        statusColor = Colors.green;
-        break;
-      case 'rejected':
-        statusColor = Colors.redAccent;
-        break;
-      default:
-        statusColor = Colors.orangeAccent;
-    }
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: statusColor.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: statusColor.withOpacity(0.35)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.assignment_turned_in_outlined,
-            color: statusColor,
-            size: 22,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${refund.remark.toUpperCase()} request already submitted',
-                  style: TextStyle(
-                    color: statusColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'Status: ${refund.status}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-                if (refund.reason.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Reason: ${refund.reason}',
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReturnExchangeButton() {
-    if (_isLoadingRefunds) {
-      return Container(
-        width: double.infinity,
-        margin: const EdgeInsets.only(top: 12),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.06),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.10)),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                color: Colors.tealAccent,
-                strokeWidth: 2,
-              ),
-            ),
-            SizedBox(width: 10),
-            Text(
-              'Checking return/exchange status...',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_openedItemRefund != null) {
-      return _buildReturnExchangeStatusCard();
-    }
-
-    if (!_canRequestReturnExchange) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 12),
-      child: ElevatedButton.icon(
-        onPressed: _showReturnExchangeBottomSheet,
-        icon: const Icon(Icons.assignment_return_outlined, size: 20),
-        label: const Text(
-          'Return / Exchange',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.tealAccent,
-          foregroundColor: Colors.black,
-          elevation: 0,
-          minimumSize: const Size(double.infinity, 54),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showReturnExchangeBottomSheet() {
-    _resetReturnExchangeForm();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, bottomSheetSetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: Container(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.88,
-                ),
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 22),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF071412),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 44,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.white24,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      const Text(
-                        'Return / Exchange Request',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _openedItem.productTitle,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                        ),
-                      ),
-                      if (_openedItem.variantLabel.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          _openedItem.variantLabel,
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 18),
-
-                      const Text(
-                        'Select Type',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: _availableRefundRemarkOptions.map((option) {
-                          final selected =
-                              _selectedRefundRemark == option['value'];
-
-                          return ChoiceChip(
-                            selected: selected,
-                            label: Text(option['label']!),
-                            selectedColor: Colors.tealAccent,
-                            backgroundColor: Colors.white10,
-                            labelStyle: TextStyle(
-                              color: selected ? Colors.black : Colors.white70,
-                              fontWeight: FontWeight.w700,
-                            ),
-                            onSelected: (_) async {
-                              bottomSheetSetState(() {
-                                _selectedRefundRemark = option['value'];
-                                _selectedExchangeVariant = null;
-                                _exchangeVariants = [];
-                                _exchangeVariantErrorMessage = null;
-                                _returnExchangeErrorMessage = null;
-                              });
-
-                              if (option['value'] == 'exchange') {
-                                await _fetchExchangeVariants(
-                                  item: _openedItem,
-                                  bottomSheetSetState: bottomSheetSetState,
-                                );
-                              }
-                            },
-                          );
-                        }).toList(),
-                      ),
-
-                      const SizedBox(height: 18),
-                      const Text(
-                        'Reason',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-
-                      Column(
-                        children: _refundReasonTypeOptions.map((option) {
-                          final selected =
-                              _selectedReasonType == option['value'];
-
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? Colors.tealAccent.withOpacity(0.14)
-                                  : Colors.white.withOpacity(0.06),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: selected
-                                    ? Colors.tealAccent.withOpacity(0.45)
-                                    : Colors.white.withOpacity(0.10),
-                              ),
-                            ),
-                            child: RadioListTile<String>(
-                              value: option['value']!,
-                              groupValue: _selectedReasonType,
-                              activeColor: Colors.tealAccent,
-                              title: Text(
-                                option['label']!,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              onChanged: (value) {
-                                bottomSheetSetState(() {
-                                  _selectedReasonType = value;
-                                  _returnExchangeErrorMessage = null;
-                                });
-                              },
-                            ),
-                          );
-                        }).toList(),
-                      ),
-
-                      if (_selectedReasonType == 'other') ...[
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _customReasonController,
-                          maxLines: 3,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            hintText: 'Enter your reason',
-                            hintStyle: const TextStyle(color: Colors.white38),
-                            filled: true,
-                            fillColor: Colors.white.withOpacity(0.06),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color: Colors.white.withOpacity(0.10),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color: Colors.white.withOpacity(0.10),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(
-                                color: Colors.tealAccent,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-
-                      if (_selectedRefundRemark == 'exchange') ...[
-                        const SizedBox(height: 18),
-                        const Text(
-                          'Select Exchange Variant',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-
-                        if (_isLoadingExchangeVariants)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(18),
-                              child: CircularProgressIndicator(
-                                color: Colors.tealAccent,
-                              ),
-                            ),
-                          )
-                        else if (_exchangeVariantErrorMessage != null)
-                          Text(
-                            _exchangeVariantErrorMessage!,
-                            style: const TextStyle(
-                              color: Colors.redAccent,
-                              fontSize: 13,
-                            ),
-                          )
-                        else
-                          Column(
-                            children: _exchangeVariants.map((variant) {
-                              final selected =
-                                  _selectedExchangeVariant?.id == variant.id;
-
-                              return GestureDetector(
-                                onTap: () {
-                                  bottomSheetSetState(() {
-                                    _selectedExchangeVariant = variant;
-                                    _returnExchangeErrorMessage = null;
-                                  });
-                                },
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 10),
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: selected
-                                        ? Colors.tealAccent.withOpacity(0.13)
-                                        : Colors.white.withOpacity(0.06),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: selected
-                                          ? Colors.tealAccent
-                                          : Colors.white.withOpacity(0.10),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 54,
-                                        height: 54,
-                                        decoration: BoxDecoration(
-                                          color: Colors.white10,
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        clipBehavior: Clip.antiAlias,
-                                        child: _variantImage(variant),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              variant.label,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            if (variant.sku != null &&
-                                                variant.sku!.trim().isNotEmpty)
-                                              Text(
-                                                'SKU: ${variant.sku}',
-                                                style: const TextStyle(
-                                                  color: Colors.white54,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            if (variant.variantPrice != null)
-                                              Text(
-                                                '₹${variant.variantPrice}',
-                                                style: const TextStyle(
-                                                  color: Colors.tealAccent,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                      if (selected)
-                                        const Icon(
-                                          Icons.check_circle,
-                                          color: Colors.tealAccent,
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                      ],
-
-                      if (_returnExchangeErrorMessage != null) ...[
-                        const SizedBox(height: 14),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.redAccent.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: Colors.redAccent.withOpacity(0.35),
-                            ),
-                          ),
-                          child: Text(
-                            _returnExchangeErrorMessage!,
-                            style: const TextStyle(
-                              color: Colors.redAccent,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 22),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton.icon(
-                          onPressed: _isSubmittingReturnExchange
-                              ? null
-                              : () => _submitReturnExchangeRequest(
-                                  bottomSheetSetState,
-                                ),
-                          icon: _isSubmittingReturnExchange
-                              ? const SizedBox.shrink()
-                              : const Icon(Icons.send_rounded),
-                          label: _isSubmittingReturnExchange
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.black,
-                                    strokeWidth: 2.2,
-                                  ),
-                                )
-                              : const Text(
-                                  'Submit Request',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.tealAccent,
-                            disabledBackgroundColor: Colors.tealAccent
-                                .withOpacity(0.35),
-                            foregroundColor: Colors.black,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _variantImage(ExchangeVariant variant) {
-    final imagePath = variant.image ?? variant.productImage;
-
-    if (imagePath == null || imagePath.trim().isEmpty) {
-      return const Icon(
-        Icons.image_not_supported_outlined,
-        color: Colors.white38,
-      );
-    }
-
-    final imageUrl = imagePath.startsWith('http')
-        ? imagePath
-        : '$api$imagePath';
-
-    return Image.network(
-      imageUrl,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) {
-        return const Icon(
-          Icons.image_not_supported_outlined,
-          color: Colors.white38,
-        );
-      },
-    );
-  }
-
-  Widget _sellerMiniRow({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, size: 13, color: Colors.tealAccent.withOpacity(0.9)),
-        const SizedBox(width: 6),
-        Text(
-          '$label: ',
-          style: const TextStyle(
-            color: Colors.white38,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 11.5,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -4512,14 +4334,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
-              ),
-              Text(
-                value,
-                style: TextStyle(color: Colors.white, fontSize: valueSize),
-              ),
+              Text(label,
+                  style: const TextStyle(
+                      color: Colors.white54, fontSize: 12)),
+              Text(value,
+                  style:
+                      TextStyle(color: Colors.white, fontSize: valueSize)),
             ],
           ),
         ),
@@ -4541,23 +4361,385 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
-              ),
+              Text(label,
+                  style: const TextStyle(
+                      color: Colors.white54, fontSize: 12)),
               const SizedBox(height: 2),
-              ...lines.map(
-                (line) => Text(
-                  line,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                ),
-              ),
+              ...lines.map((line) => Text(line,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 14))),
             ],
           ),
         ),
       ],
     );
   }
+
+  // ── Item card (student-style) ─────────────────────────────────────────────
+
+  Widget _buildOrderDetailItemCard(OrderItem item) {
+    final itemStatus =
+        item.status.trim().isNotEmpty ? item.status : _order.status;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () {
+        if (!widget.isCoachProductOrder &&
+            _order.status.toLowerCase() == 'delivered') {
+          _navigateToReviewScreen(item,
+              existingReview: _existingReviews[item.product]);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(16),
+          border:
+              Border.all(color: Colors.white.withOpacity(0.07)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Product image
+            Container(
+              width: 74,
+              height: 74,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: Colors.white.withOpacity(0.05),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: _buildProductImage(item),
+              ),
+            ),
+            const SizedBox(width: 14),
+
+            // Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title
+                  Text(
+                    item.productTitle.isEmpty
+                        ? 'Unnamed Product'
+                        : item.productTitle,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+
+                  // Variant label
+                  if (item.variantLabel.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.tealAccent.withOpacity(0.14),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        item.variantLabel,
+                        style: const TextStyle(
+                          color: Colors.tealAccent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 8),
+
+                  // Status badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(itemStatus)
+                          .withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _getStatusColor(itemStatus)
+                            .withOpacity(0.35),
+                      ),
+                    ),
+                    child: Text(
+                      itemStatus,
+                      style: TextStyle(
+                        color: _getStatusColor(itemStatus),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Coach / seller
+                  if (item.coachName != null &&
+                      item.coachName!.trim().isNotEmpty) ...[
+                    Row(
+                      children: [
+                        const Icon(Icons.storefront_outlined,
+                            color: Colors.white54, size: 14),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            'Seller: ${item.coachName}',
+                            style: const TextStyle(
+                              color: Colors.white60,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+
+                  // if (item.coachPhone != null &&
+                  //     item.coachPhone!.trim().isNotEmpty) ...[
+                  //   Row(
+                  //     children: [
+                  //       const Icon(Icons.phone_outlined,
+                  //           color: Colors.white54, size: 14),
+                  //       const SizedBox(width: 5),
+                  //       Text(
+                  //         item.coachPhone!,
+                  //         style: const TextStyle(
+                  //             color: Colors.white60, fontSize: 12),
+                  //       ),
+                  //     ],
+                  //   ),
+                  //   const SizedBox(height: 4),
+                  // ],
+
+                  // Coach order extra info
+                  if (widget.isCoachProductOrder &&
+                      (item.productUserType ?? '').isNotEmpty) ...[
+                    Text(
+                      'Seller Type: ${item.productUserType}',
+                      style: const TextStyle(
+                          color: Colors.tealAccent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+
+                  // Qty
+                  Text(
+                    'Qty: ${item.quantity}',
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 13),
+                  ),
+
+                  // Reviewed badge
+                  // if (_existingReviews.containsKey(item.product) &&
+                  //     _existingReviews[item.product] != null) ...[
+                  //   const SizedBox(height: 8),
+                  //   Container(
+                  //     padding: const EdgeInsets.symmetric(
+                  //         horizontal: 8, vertical: 4),
+                  //     decoration: BoxDecoration(
+                  //       color: Colors.green.withOpacity(0.2),
+                  //       borderRadius: BorderRadius.circular(12),
+                  //       border: Border.all(
+                  //           color: Colors.green.withOpacity(0.5)),
+                  //     ),
+                  //     child: Row(
+                  //       mainAxisSize: MainAxisSize.min,
+                  //       children: [
+                  //         const Icon(Icons.star,
+                  //             color: Colors.amber, size: 12),
+                  //         const SizedBox(width: 4),
+                  //         Text(
+                  //           'Reviewed (${_existingReviews[item.product]!.rating}★)',
+                  //           style: const TextStyle(
+                  //               color: Colors.green, fontSize: 10),
+                  //         ),
+                  //       ],
+                  //     ),
+                  //   ),
+                  // ],
+                ],
+              ),
+            ),
+
+            // Price
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 82,
+              child: Text(
+                '₹${(double.tryParse(item.productPrice) ?? item.displayTotal).toStringAsFixed(2)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  color: Colors.tealAccent,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Action button builders ────────────────────────────────────────────────
+
+  Widget _buildReturnExchangeButton() {
+    if (_isLoadingRefunds) {
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 2),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.10)),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                  color: Colors.tealAccent, strokeWidth: 2),
+            ),
+            SizedBox(width: 10),
+            Text('Checking return/exchange status...',
+                style: TextStyle(color: Colors.white70, fontSize: 13)),
+          ],
+        ),
+      );
+    }
+
+    if (_openedItemRefund != null) {
+      return _buildReturnExchangeStatusCard();
+    }
+
+    if (!_canRequestReturnExchange) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 2),
+      child: ElevatedButton.icon(
+        onPressed: _showReturnExchangeBottomSheet,
+        icon: const Icon(Icons.assignment_return_outlined, size: 20),
+        label: const Text('Return / Exchange',
+            style:
+                TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.tealAccent,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          minimumSize: const Size(double.infinity, 54),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReturnExchangeStatusCard() {
+    final refund = _openedItemRefund;
+    if (refund == null) return const SizedBox.shrink();
+
+    Color statusColor;
+    switch (refund.status.toLowerCase()) {
+      case 'approved':
+        statusColor = Colors.green;
+        break;
+      case 'rejected':
+        statusColor = Colors.redAccent;
+        break;
+      default:
+        statusColor = Colors.orangeAccent;
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 2),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: statusColor.withOpacity(0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.assignment_turned_in_outlined,
+              color: statusColor, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${refund.remark.toUpperCase()} request already submitted',
+                  style: TextStyle(
+                      color: statusColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 5),
+                Text('Status: ${refund.status}',
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 12)),
+                if (refund.reason.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text('Reason: ${refund.reason}',
+                      style: const TextStyle(
+                          color: Colors.white54, fontSize: 12)),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCancelOrderButton() {
+    if (!_canCancelOrderItem) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 2),
+      child: ElevatedButton.icon(
+        onPressed: _showCancelOrderBottomSheet,
+        icon: const Icon(Icons.cancel_outlined, size: 20),
+        label: const Text('Cancel Product',
+            style:
+                TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.redAccent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          minimumSize: const Size(double.infinity, 54),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16)),
+        ),
+      ),
+    );
+  }
+
+  // ── Shimmer ───────────────────────────────────────────────────────────────
 
   Widget _buildDetailShimmer() {
     return Shimmer.fromColors(
@@ -4575,32 +4757,26 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      width: 180,
-                      height: 16,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                    ),
+                        width: 180,
+                        height: 16,
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(6))),
                     Container(
-                      width: 80,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                    ),
+                        width: 80,
+                        height: 28,
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(25))),
                   ],
                 ),
                 const SizedBox(height: 16),
                 Container(
-                  width: 220,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                ),
+                    width: 220,
+                    height: 14,
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6))),
               ],
             ),
           ),
@@ -4611,13 +4787,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 160,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                ),
+                    width: 160,
+                    height: 16,
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6))),
                 const SizedBox(height: 20),
                 ...List.generate(
                   3,
@@ -4626,119 +4800,31 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     child: Row(
                       children: [
                         Container(
-                          width: 18,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4))),
                         const SizedBox(width: 12),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Container(
-                              width: 60,
-                              height: 11,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
+                                width: 60,
+                                height: 11,
+                                decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius:
+                                        BorderRadius.circular(4))),
                             const SizedBox(height: 6),
                             Container(
-                              width: 160,
-                              height: 14,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
+                                width: 160,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius:
+                                        BorderRadius.circular(4))),
                           ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          _glassWrap(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 100,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Container(
-                      width: 70,
-                      height: 70,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            height: 15,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            width: 80,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Container(height: 1, color: Colors.white),
-                const SizedBox(height: 16),
-                ...List.generate(
-                  3,
-                  (_) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          width: 80,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                        Container(
-                          width: 60,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
                         ),
                       ],
                     ),
@@ -4752,9 +4838,110 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     );
   }
 
+  // ── Receipt / bank row helpers ────────────────────────────────────────────
+
+  Widget _receiptRow(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style:
+                  const TextStyle(color: Colors.white54, fontSize: 12)),
+          Text(value,
+              style: TextStyle(
+                  color: valueColor ?? Colors.white70,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  Widget _receiptRowWithIcon(
+    String label,
+    String value, {
+    required IconData icon,
+    required Color valueColor,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: Colors.tealAccent, size: 14),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: const TextStyle(
+                      color: Colors.white54, fontSize: 12)),
+            ],
+          ),
+          Text(value,
+              style: TextStyle(
+                  color: valueColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  Widget _bankRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(label,
+                style: const TextStyle(
+                    color: Colors.white38, fontSize: 12)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _hasAnyBankDetail(SellerBankDetails bank) {
+    return bank.accountHolderName.isNotEmpty ||
+        bank.bankName.isNotEmpty ||
+        bank.branchName.isNotEmpty ||
+        bank.accountNumber.isNotEmpty ||
+        bank.ifscCode.isNotEmpty ||
+        bank.upiId.isNotEmpty;
+  }
+
+  bool _isSellerAdmin(SellerBreakdown seller) {
+    if (seller.items.isEmpty) return false;
+    for (var sellerItem in seller.items) {
+      try {
+        final matchingOrderItem = _order.items.firstWhere(
+            (orderItem) =>
+                orderItem.productTitle == sellerItem.productTitle);
+        final userType =
+            matchingOrderItem.productUserType?.toLowerCase() ?? '';
+        if (userType == 'admin' || userType == 'sadmin') return true;
+      } catch (_) {
+        continue;
+      }
+    }
+    return false;
+  }
+
+  // ── BUILD ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    // Get the first product that has a review for the icon navigation
     final reviewedProduct = _getFirstReviewedProduct();
     final hasReview = _hasAnyReview && reviewedProduct != null;
 
@@ -4763,7 +4950,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF001F1D), Color(0xFF003A36), Colors.black],
+            colors: [
+              Color(0xFF001F1D),
+              Color(0xFF003A36),
+              Colors.black,
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomCenter,
           ),
@@ -4779,19 +4970,16 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header with Review Icon
+
+                  // ── AppBar row ───────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 4,
-                    ),
+                        horizontal: 4, vertical: 4),
                     child: Row(
                       children: [
                         IconButton(
-                          icon: const Icon(
-                            Icons.arrow_back,
-                            color: Colors.white,
-                          ),
+                          icon: const Icon(Icons.arrow_back_ios_new,
+                              color: Colors.white),
                           onPressed: () => Navigator.pop(context),
                         ),
                         const SizedBox(width: 6),
@@ -4805,58 +4993,35 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             ),
                           ),
                         ),
-                        // if (_hasAnyReview)
-                        //   IconButton(
-                        //     tooltip: "View Review",
-                        //     icon: const Icon(
-                        //       Icons.rate_review_rounded,
-                        //       color: Colors.tealAccent,
-                        //     ),
-                        //     onPressed: () {
-                        //       final reviewedItem = _getFirstReviewedProduct();
-
-                        //       if (reviewedItem != null) {
-                        //         _navigateToReviewScreen(
-                        //           reviewedItem,
-                        //           existingReview:
-                        //               _existingReviews[reviewedItem.product],
-                        //         );
-                        //       }
-                        //     },
-                        //   ),
-                        // Review Icon - shows only if order is delivered and has review
                         if (_order.status.toLowerCase() == 'delivered' &&
                             hasReview &&
                             reviewedProduct != null)
                           Container(
                             margin: const EdgeInsets.only(right: 8),
                             child: GestureDetector(
-                              onTap: () {
-                                _navigateToReviewScreen(
-                                  reviewedProduct,
-                                  existingReview:
-                                      _existingReviews[reviewedProduct.product],
-                                );
-                              },
+                              onTap: () => _navigateToReviewScreen(
+                                reviewedProduct,
+                                existingReview: _existingReviews[
+                                    reviewedProduct.product],
+                              ),
                               child: Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: Colors.tealAccent.withOpacity(0.2),
+                                  color:
+                                      Colors.tealAccent.withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: Colors.tealAccent.withOpacity(0.5),
-                                  ),
+                                      color: Colors.tealAccent
+                                          .withOpacity(0.5)),
                                 ),
-                                child: Row(
+                                child: const Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(
-                                      Icons.rate_review,
-                                      color: Colors.tealAccent,
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Text(
+                                    Icon(Icons.rate_review,
+                                        color: Colors.tealAccent,
+                                        size: 18),
+                                    SizedBox(width: 4),
+                                    Text(
                                       'Review',
                                       style: TextStyle(
                                         color: Colors.tealAccent,
@@ -4874,17 +5039,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(
-                              color: Colors.tealAccent,
-                              strokeWidth: 2,
-                            ),
+                                color: Colors.tealAccent, strokeWidth: 2),
                           ),
                         if (_fetchError != null && !_isRefreshing)
                           IconButton(
-                            icon: const Icon(
-                              Icons.refresh_rounded,
-                              color: Colors.orangeAccent,
-                              size: 20,
-                            ),
+                            icon: const Icon(Icons.refresh_rounded,
+                                color: Colors.orangeAccent, size: 20),
                             tooltip: 'Retry',
                             onPressed: _fetchOrderDetail,
                           ),
@@ -4892,106 +5052,70 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     ),
                   ),
 
+                  // Fetch-error banner
                   if (_fetchError != null && !_isRefreshing) ...[
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
+                          horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
                         color: Colors.red.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: Colors.red.withOpacity(0.3),
-                          width: 0.5,
-                        ),
+                            color: Colors.red.withOpacity(0.3),
+                            width: 0.5),
                       ),
-                      child: Row(
+                      child: const Row(
                         children: [
-                          const Icon(
-                            Icons.warning_amber_rounded,
-                            color: Colors.orangeAccent,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          const Expanded(
+                          Icon(Icons.warning_amber_rounded,
+                              color: Colors.orangeAccent, size: 16),
+                          SizedBox(width: 8),
+                          Expanded(
                             child: Text(
                               'Could not refresh order. Showing cached data.',
                               style: TextStyle(
-                                color: Colors.orangeAccent,
-                                fontSize: 12,
-                              ),
+                                  color: Colors.orangeAccent,
+                                  fontSize: 12),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ],
+
                   const SizedBox(height: 16),
+
+                  // ── Shimmer or content ───────────────────────────────────
                   if (_isRefreshing && _order.items.isEmpty)
                     _buildDetailShimmer()
                   else ...[
+
+                    // Card 1 – Order summary
                     _glassWrap(
                       padding: const EdgeInsets.all(20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Order #${_order.orderNo}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _getStatusColor(
-                                    _order.status,
-                                  ).withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(25),
-                                  border: Border.all(
-                                    color: _getStatusColor(
-                                      _order.status,
-                                    ).withOpacity(0.5),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Text(
-                                  _order.status,
-                                  style: TextStyle(
-                                    color: _getStatusColor(_order.status),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          Text(
+                            'Order #${_order.orderNo}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const SizedBox(height: 16),
                           Row(
                             children: [
-                              const Icon(
-                                Icons.calendar_today,
-                                color: Colors.tealAccent,
-                                size: 16,
-                              ),
+                              const Icon(Icons.calendar_today_outlined,
+                                  color: Colors.tealAccent, size: 16),
                               const SizedBox(width: 8),
-                              Text(
-                                'Ordered on: ${DateFormat('dd MMM yyyy, hh:mm a').format(_order.createdAt)}',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 14,
+                              Expanded(
+                                child: Text(
+                                  'Ordered on: ${DateFormat('dd MMM yyyy, hh:mm a').format(_order.createdAt)}',
+                                  style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 14),
                                 ),
                               ),
                             ],
@@ -5000,18 +5124,14 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                const Icon(
-                                  Icons.update_rounded,
-                                  color: Colors.tealAccent,
-                                  size: 16,
-                                ),
+                                const Icon(Icons.update_rounded,
+                                    color: Colors.tealAccent, size: 16),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Updated: ${DateFormat('dd MMM yyyy, hh:mm a').format(_order.updatedAt)}',
                                   style: const TextStyle(
-                                    color: Colors.white38,
-                                    fontSize: 12,
-                                  ),
+                                      color: Colors.white38,
+                                      fontSize: 12),
                                 ),
                               ],
                             ),
@@ -5019,8 +5139,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                         ],
                       ),
                     ),
+
                     const SizedBox(height: 16),
-                    // Customer Information
+
+                    // Card 2 – Customer information
                     _glassWrap(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -5036,16 +5158,14 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                           ),
                           const SizedBox(height: 16),
                           _infoRow(
-                            icon: Icons.person_outline,
-                            label: 'Name',
-                            value: _order.fullName,
-                          ),
+                              icon: Icons.person_outline,
+                              label: 'Name',
+                              value: _order.fullName),
                           const SizedBox(height: 12),
                           _infoRow(
-                            icon: Icons.phone_outlined,
-                            label: 'Phone',
-                            value: _order.phone,
-                          ),
+                              icon: Icons.phone_outlined,
+                              label: 'Phone',
+                              value: _order.phone),
                           const SizedBox(height: 12),
                           _infoRowMultiline(
                             icon: Icons.location_on_outlined,
@@ -5059,7 +5179,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                         ],
                       ),
                     ),
+
                     const SizedBox(height: 16),
+
+                    // Card 3 – Payment information
                     _glassWrap(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -5103,305 +5226,69 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                         ],
                       ),
                     ),
+
                     const SizedBox(height: 16),
-                    // Order Items + Pricing
+
+                    // Card 4 – Items + pricing
                     _glassWrap(
                       padding: const EdgeInsets.all(20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Order Items',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                '${_order.items.length} item${_order.items.length == 1 ? '' : 's'}',
-                                style: const TextStyle(
-                                  color: Colors.white38,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
+
+                          // Selected item
+                          const Text(
+                            'Selected Item',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const SizedBox(height: 16),
-                          ..._order.items.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final item = entry.value;
-                            final isLast = index == _order.items.length - 1;
+                          _buildOrderDetailItemCard(_openedItem),
 
-                            return Column(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      // PRODUCT IMAGE
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(10),
-                                        child: Container(
-                                          width: 58,
-                                          height: 58,
-                                          color: Colors.white.withOpacity(0.06),
-                                          child: _buildProductImage(item),
-                                        ),
-                                      ),
-
-                                      const SizedBox(width: 12),
-
-                                      // LEFT CONTENT
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              item.productTitle,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                                height: 1.25,
-                                              ),
-                                            ),
-
-                                            if (item
-                                                .variantLabel
-                                                .isNotEmpty) ...[
-                                              const SizedBox(height: 5),
-                                              Text(
-                                                item.variantLabel,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  color: Colors.tealAccent,
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ],
-
-                                            const SizedBox(height: 8),
-
-                                            Row(
-                                              children: [
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 4,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.white
-                                                        .withOpacity(0.07),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                    border: Border.all(
-                                                      color: Colors.white
-                                                          .withOpacity(0.08),
-                                                    ),
-                                                  ),
-                                                  child: Text(
-                                                    'Qty: ${item.quantity}',
-                                                    style: const TextStyle(
-                                                      color: Colors.white70,
-                                                      fontSize: 11,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-
-                                            if (widget.isCoachProductOrder) ...[
-                                              const SizedBox(height: 8),
-                                              Align(
-                                                alignment: Alignment.centerLeft,
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      'Seller Type: ${item.productUserType ?? '-'}',
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      textAlign: TextAlign.left,
-                                                      style: const TextStyle(
-                                                        color:
-                                                            Colors.tealAccent,
-                                                        fontSize: 11,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
-                                                    ),
-
-                                                    if (item.coachName !=
-                                                            null &&
-                                                        item
-                                                            .coachName!
-                                                            .isNotEmpty) ...[
-                                                      const SizedBox(height: 3),
-                                                      Text(
-                                                        'Coach: ${item.coachName}',
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                        textAlign:
-                                                            TextAlign.left,
-                                                        style: const TextStyle(
-                                                          color: Colors.white70,
-                                                          fontSize: 11,
-                                                        ),
-                                                      ),
-                                                    ],
-
-                                                    if (item.coachPhone !=
-                                                            null &&
-                                                        item
-                                                            .coachPhone!
-                                                            .isNotEmpty) ...[
-                                                      const SizedBox(height: 3),
-                                                      Text(
-                                                        'Phone: ${item.coachPhone}',
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                        textAlign:
-                                                            TextAlign.left,
-                                                        style: const TextStyle(
-                                                          color: Colors.white70,
-                                                          fontSize: 11,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-
-                                      const SizedBox(width: 10),
-
-                                      // RIGHT PRICE COLUMN - FIXED WIDTH TO ALIGN WITH SUBTOTAL
-                                      SizedBox(
-                                        width: 82,
-                                        child: Text(
-                                          '₹${(double.tryParse(item.productPrice) ?? 0).toStringAsFixed(2)}',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          textAlign: TextAlign.right,
-                                          style: const TextStyle(
-                                            color: Colors.tealAccent,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                if (_existingReviews.containsKey(
-                                      item.product,
-                                    ) &&
-                                    _existingReviews[item.product] != null)
-                                  Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(
-                                        left: 70,
-                                        bottom: 8,
-                                      ),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.green.withOpacity(0.2),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          border: Border.all(
-                                            color: Colors.green.withOpacity(
-                                              0.5,
-                                            ),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(
-                                              Icons.star,
-                                              color: Colors.amber,
-                                              size: 12,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'Reviewed (${_existingReviews[item.product]!.rating}★)',
-                                              style: const TextStyle(
-                                                color: Colors.green,
-                                                fontSize: 10,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                if (!isLast)
-                                  Divider(
-                                    color: Colors.white.withOpacity(0.08),
-                                    height: 1,
-                                  ),
-                              ],
-                            );
-                          }).toList(),
-
-                          const Divider(color: Colors.white24, height: 24),
-
-                          _pricingRow('Subtotal', _order.total),
-                          if (double.parse(_order.discountTotal) > 0) ...[
-                            const SizedBox(height: 5),
+                          // Other items
+                          if (_otherItemsInOrder.isNotEmpty) ...[
+                            const Divider(
+                                color: Colors.white24, height: 30),
+                            const Text(
+                              'Other items in this order',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            ..._otherItemsInOrder.map(
+                                (item) =>
+                                    _buildOrderDetailItemCard(item)),
                           ],
+
+                          // Pricing breakdown
+                          const Divider(
+                              color: Colors.white24, height: 26),
+                          _pricingRow('Subtotal', _order.total),
                           if (double.parse(_order.platformFee) > 0) ...[
                             const SizedBox(height: 8),
-                            _pricingRow('Platform Fee', _order.platformFee),
-                          ],
-                          if (double.parse(_order.convenienceFee) > 0) ...[
-                            const SizedBox(height: 8),
                             _pricingRow(
-                              'Convenience Fee',
-                              _order.convenienceFee,
-                            ),
+                                'Platform Fee', _order.platformFee),
                           ],
-                          if (double.parse(_order.shipmentcharge) > 0) ...[
+                          if (double.parse(_order.convenienceFee) >
+                              0) ...[
                             const SizedBox(height: 8),
-                            _pricingRow(
-                              'Shipment Charge',
-                              _order.shipmentcharge,
-                            ),
+                            _pricingRow('Convenience Fee',
+                                _order.convenienceFee),
                           ],
-                          if (double.parse(_order.couponDiscount) > 0) ...[
+                          if (double.parse(_order.shipmentcharge) >
+                              0) ...[
+                            const SizedBox(height: 8),
+                            _pricingRow('Shipment Charge',
+                                _order.shipmentcharge),
+                          ],
+                          if (double.parse(_order.couponDiscount) >
+                              0) ...[
                             const SizedBox(height: 8),
                             _pricingRow(
                               _order.couponName != null
@@ -5411,787 +5298,684 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               isDiscount: true,
                             ),
                           ],
-                          const Divider(color: Colors.white24, height: 24),
 
-                          if (double.parse(_order.finalPayable) !=
-                              double.parse(_order.total)) ...[
-                            const SizedBox(height: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.tealAccent.withOpacity(0.07),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.tealAccent.withOpacity(0.2),
-                                  width: 0.5,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Final Payable',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    '₹${double.parse(_order.finalPayable).toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      color: Colors.tealAccent,
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          const SizedBox(height: 14),
+
+                          // Total highlight
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 14),
+                            decoration: BoxDecoration(
+                              color:
+                                  Colors.tealAccent.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                  color: Colors.tealAccent
+                                      .withOpacity(0.25)),
                             ),
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Total',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  '₹${double.parse(_order.finalPayable).toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    color: Colors.tealAccent,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
 
-                            if (!widget.isCoachProductOrder) ...[
-                              const SizedBox(height: 16),
-                              _buildReturnExchangeButton(),
-                            ],
-                            if (widget.isCoachProductOrder &&
-                                _order.sellerBreakdown.isNotEmpty) ...[
-                              const SizedBox(height: 24),
-
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: Colors.amber.withOpacity(0.15),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
+                          // Seller breakdown (coach orders only)
+                          if (widget.isCoachProductOrder &&
+                              _order.sellerBreakdown.isNotEmpty) ...[
+                            const SizedBox(height: 24),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color:
+                                        Colors.amber.withOpacity(0.15),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
                                       Icons.payments_outlined,
                                       color: Colors.amber,
-                                      size: 16,
-                                    ),
+                                      size: 16),
+                                ),
+                                const SizedBox(width: 10),
+                                const Text(
+                                  'Seller payment summary',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                  const SizedBox(width: 10),
-                                  const Text(
-                                    'Seller payment summary',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-
-                              ..._order.sellerBreakdown.asMap().entries.map((
-                                entry,
-                              ) {
-                                final index = entry.key;
-                                final seller = entry.value;
-                                final bank = seller.bankDetails;
-                                final initials = seller.coachName.isNotEmpty
-                                    ? seller.coachName
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            ..._order.sellerBreakdown
+                                .asMap()
+                                .entries
+                                .map((entry) {
+                              final index = entry.key;
+                              final seller = entry.value;
+                              final bank = seller.bankDetails;
+                              final initials =
+                                  seller.coachName.isNotEmpty
+                                      ? seller.coachName
                                           .trim()
                                           .split(' ')
                                           .take(2)
-                                          .map((w) => w[0].toUpperCase())
+                                          .map((w) =>
+                                              w[0].toUpperCase())
                                           .join()
-                                    : 'S${index + 1}';
+                                      : 'S${index + 1}';
 
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF0D1F1D),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.08),
-                                    ),
-                                  ),
-                                  clipBehavior: Clip.antiAlias,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      // ── Seller header row ──
-                                      Padding(
-                                        padding: const EdgeInsets.all(14),
-                                        child: Row(
-                                          children: [
-                                            CircleAvatar(
-                                              radius: 18,
-                                              backgroundColor: Colors.tealAccent
-                                                  .withOpacity(0.15),
-                                              child: Text(
-                                                initials,
-                                                style: const TextStyle(
-                                                  color: Colors.tealAccent,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
+                              return Container(
+                                margin:
+                                    const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0D1F1D),
+                                  borderRadius:
+                                      BorderRadius.circular(16),
+                                  border: Border.all(
+                                      color: Colors.white
+                                          .withOpacity(0.08)),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.all(14),
+                                      child: Row(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 18,
+                                            backgroundColor:
+                                                Colors.tealAccent
+                                                    .withOpacity(0.15),
+                                            child: Text(
+                                              initials,
+                                              style: const TextStyle(
+                                                color: Colors.tealAccent,
+                                                fontSize: 13,
+                                                fontWeight:
+                                                    FontWeight.w600,
                                               ),
                                             ),
-                                            const SizedBox(width: 10),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    seller.coachName.isEmpty
-                                                        ? 'Seller ${index + 1}'
-                                                        : seller.coachName,
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                  if (seller
-                                                      .coachPhone
-                                                      .isNotEmpty)
-                                                    Text(
-                                                      seller.coachPhone,
-                                                      style: const TextStyle(
-                                                        color: Colors.white54,
-                                                        fontSize: 12,
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                            ),
-                                            Column(
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
                                               crossAxisAlignment:
-                                                  CrossAxisAlignment.end,
+                                                  CrossAxisAlignment
+                                                      .start,
                                               children: [
-                                                const Text(
-                                                  'net payable',
-                                                  style: TextStyle(
-                                                    color: Colors.white38,
-                                                    fontSize: 10,
-                                                  ),
-                                                ),
                                                 Text(
-                                                  '₹${_amount(seller.sellerpayableTotal).toStringAsFixed(2)}',
+                                                  seller.coachName
+                                                          .isEmpty
+                                                      ? 'Seller ${index + 1}'
+                                                      : seller.coachName,
                                                   style: const TextStyle(
-                                                    color: Colors.greenAccent,
-                                                    fontSize: 17,
-                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white,
+                                                    fontSize: 14,
+                                                    fontWeight:
+                                                        FontWeight.w600,
                                                   ),
                                                 ),
+                                                if (seller.coachPhone
+                                                    .isNotEmpty)
+                                                  Text(
+                                                    seller.coachPhone,
+                                                    style: const TextStyle(
+                                                        color:
+                                                            Colors.white54,
+                                                        fontSize: 12),
+                                                  ),
                                               ],
                                             ),
-                                          ],
-                                        ),
+                                          ),
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
+                                            children: [
+                                              const Text('net payable',
+                                                  style: TextStyle(
+                                                      color:
+                                                          Colors.white38,
+                                                      fontSize: 10)),
+                                              Text(
+                                                '₹${_amount(seller.sellerpayableTotal).toStringAsFixed(2)}',
+                                                style: const TextStyle(
+                                                  color:
+                                                      Colors.greenAccent,
+                                                  fontSize: 17,
+                                                  fontWeight:
+                                                      FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
-
-                                      const Divider(
+                                    ),
+                                    const Divider(
                                         color: Colors.white10,
-                                        height: 1,
-                                      ),
-
-                                      Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          14,
-                                          12,
-                                          14,
-                                          0,
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Text(
-                                              'ITEMS',
+                                        height: 1),
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                          14, 12, 14, 0),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text('ITEMS',
                                               style: TextStyle(
                                                 color: Colors.white38,
                                                 fontSize: 10,
                                                 letterSpacing: 1.0,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-
-                                            ...seller.items.asMap().entries.map((
-                                              e,
-                                            ) {
-                                              final isLast =
-                                                  e.key ==
-                                                  seller.items.length - 1;
-                                              final item = e.value;
-                                              return Column(
-                                                children: [
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          top: 8,
-                                                        ),
-                                                    child: Row(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Expanded(
-                                                          child: Column(
-                                                            crossAxisAlignment:
-                                                                CrossAxisAlignment
-                                                                    .start,
-                                                            children: [
-                                                              Text(
-                                                                item.productTitle,
-                                                                maxLines: 2,
-                                                                overflow:
-                                                                    TextOverflow
-                                                                        .ellipsis,
-                                                                style: const TextStyle(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  fontSize: 15,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w600,
-                                                                ),
-                                                              ),
-                                                              const SizedBox(
-                                                                height: 2,
-                                                              ),
-                                                            ],
+                                              )),
+                                          const SizedBox(height: 8),
+                                          ...seller.items
+                                              .asMap()
+                                              .entries
+                                              .map((e) {
+                                            final isLast = e.key ==
+                                                seller.items.length - 1;
+                                            final si = e.value;
+                                            return Column(
+                                              children: [
+                                                Padding(
+                                                  padding: const EdgeInsets
+                                                      .only(top: 8),
+                                                  child: Row(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Expanded(
+                                                        child: Text(
+                                                          si.productTitle,
+                                                          maxLines: 2,
+                                                          overflow:
+                                                              TextOverflow
+                                                                  .ellipsis,
+                                                          style: const TextStyle(
+                                                            color:
+                                                                Colors.white,
+                                                            fontSize: 15,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600,
                                                           ),
                                                         ),
-                                                        const SizedBox(
-                                                          width: 8,
-                                                        ),
-                                                        Column(
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .end,
-                                                          children: [
-                                                            Text(
-                                                              '₹${_amount(item.itemTotal).toStringAsFixed(2)}',
-                                                              style:
-                                                                  const TextStyle(
-                                                                    color: Colors
-                                                                        .white,
-                                                                    fontSize:
-                                                                        13,
-                                                                  ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ],
-                                                    ),
+                                                      ),
+                                                      const SizedBox(
+                                                          width: 8),
+                                                      Text(
+                                                        '₹${_amount(si.itemTotal).toStringAsFixed(2)}',
+                                                        style: const TextStyle(
+                                                            color:
+                                                                Colors.white,
+                                                            fontSize: 13),
+                                                      ),
+                                                    ],
                                                   ),
-                                                  // Only show Product Charge if seller is NOT admin
-                                                  if (!_isSellerAdmin(
-                                                    seller,
-                                                  )) ...[
-                                                    _receiptRow(
-                                                      'Product Charge (${_order.productPercentage}%)',
-                                                      '− ₹${_amount(item.percentageAmount).toStringAsFixed(2)}',
-                                                      valueColor:
-                                                          Colors.redAccent,
-                                                    ),
-                                                    const SizedBox(height: 5),
-                                                  ],
-                                                  // Show Shipping Charge for all sellers (including admin)
-                                                  _receiptRowWithIcon(
-                                                    'Shipping Charge',
-                                                    '+ ₹${_amount(item.productShippingCharge).toStringAsFixed(2)}',
-                                                    icon: Icons.local_shipping,
-                                                    valueColor: Colors.green,
-                                                  ),
-                                                  const SizedBox(height: 5),
+                                                ),
+                                                if (!_isSellerAdmin(
+                                                    seller)) ...[
                                                   _receiptRow(
-                                                    'Seller Payable',
-                                                    '₹${_amount(item.sellerPayable).toStringAsFixed(2)}',
+                                                    'Product Charge (${_order.productPercentage}%)',
+                                                    '− ₹${_amount(si.percentageAmount).toStringAsFixed(2)}',
                                                     valueColor:
                                                         Colors.redAccent,
                                                   ),
-                                                  const SizedBox(height: 5),
-                                                  if (!isLast &&
-                                                      !_isSellerAdmin(seller))
-                                                    const Divider(
-                                                      color: Colors.white10,
-                                                      height: 1,
-                                                    ),
-                                                  if (!isLast &&
-                                                      _isSellerAdmin(seller))
-                                                    const Divider(
-                                                      color: Colors.white10,
-                                                      height: 1,
-                                                    ),
+                                                  const SizedBox(
+                                                      height: 5),
                                                 ],
-                                              );
-                                            }).toList(),
-                                          ],
-                                        ),
+                                                _receiptRowWithIcon(
+                                                  'Shipping Charge',
+                                                  '+ ₹${_amount(si.productShippingCharge).toStringAsFixed(2)}',
+                                                  icon: Icons
+                                                      .local_shipping,
+                                                  valueColor:
+                                                      Colors.green,
+                                                ),
+                                                const SizedBox(height: 5),
+                                                _receiptRow(
+                                                  'Seller Payable',
+                                                  '₹${_amount(si.sellerPayable).toStringAsFixed(2)}',
+                                                  valueColor:
+                                                      Colors.redAccent,
+                                                ),
+                                                const SizedBox(height: 5),
+                                                if (!isLast)
+                                                  const Divider(
+                                                      color: Colors.white10,
+                                                      height: 1),
+                                              ],
+                                            );
+                                          }).toList(),
+                                        ],
                                       ),
-
-                                      Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          14,
-                                          4,
-                                          14,
-                                          14,
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            const Divider(
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                          14, 4, 14, 14),
+                                      child: Column(
+                                        children: [
+                                          const Divider(
                                               color: Colors.white10,
-                                              height: 20,
-                                            ),
+                                              height: 20),
+                                          _receiptRow(
+                                            'Subtotal',
+                                            '₹${_amount(seller.sellerDiscountedTotal).toStringAsFixed(2)}',
+                                          ),
+                                          if (!_isSellerAdmin(seller))
                                             _receiptRow(
-                                              'Subtotal',
-                                              '₹${_amount(seller.sellerDiscountedTotal).toStringAsFixed(2)}',
-                                            ),
-                                            // Only show Product Charge if seller is NOT admin
-                                            if (!_isSellerAdmin(seller)) ...[
-                                              _receiptRow(
-                                                'Product Charge (${_order.productPercentage}%)',
-                                                '− ₹${_amount(seller.sellerPercentageTotal).toStringAsFixed(2)}',
-                                                valueColor: Colors.redAccent,
-                                              ),
-                                            ],
-                                            _receiptRow(
-                                              'Total Shipment',
-                                              '+ ₹${_amount(seller.sellershipmenttotal).toStringAsFixed(2)}',
+                                              'Product Charge (${_order.productPercentage}%)',
+                                              '− ₹${_amount(seller.sellerPercentageTotal).toStringAsFixed(2)}',
                                               valueColor: Colors.redAccent,
                                             ),
-                                            const Divider(
+                                          _receiptRow(
+                                            'Total Shipment',
+                                            '+ ₹${_amount(seller.sellershipmenttotal).toStringAsFixed(2)}',
+                                            valueColor: Colors.redAccent,
+                                          ),
+                                          const Divider(
                                               color: Colors.white10,
-                                              height: 16,
-                                            ),
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              children: [
-                                                const Text(
-                                                  'Net payable',
+                                              height: 16),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment
+                                                    .spaceBetween,
+                                            children: [
+                                              const Text('Net payable',
                                                   style: TextStyle(
                                                     color: Colors.white,
                                                     fontSize: 13,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
+                                                    fontWeight:
+                                                        FontWeight.w600,
+                                                  )),
+                                              Text(
+                                                '₹${_amount(seller.sellerpayableTotal).toStringAsFixed(2)}',
+                                                style: const TextStyle(
+                                                  color: Colors.greenAccent,
+                                                  fontSize: 15,
+                                                  fontWeight:
+                                                      FontWeight.w600,
                                                 ),
-                                                Text(
-                                                  '₹${_amount(seller.sellerpayableTotal).toStringAsFixed(2)}',
-                                                  style: const TextStyle(
-                                                    color: Colors.greenAccent,
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-
-                                      if (bank != null &&
-                                          _hasAnyBankDetail(bank)) ...[
-                                        Container(
-                                          width: double.infinity,
-                                          color: Colors.white.withOpacity(0.04),
-                                          padding: const EdgeInsets.fromLTRB(
-                                            14,
-                                            12,
-                                            14,
-                                            14,
+                                              ),
+                                            ],
                                           ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              const Text(
-                                                'BANK DETAILS',
+                                        ],
+                                      ),
+                                    ),
+                                    if (bank != null &&
+                                        _hasAnyBankDetail(bank)) ...[
+                                      Container(
+                                        width: double.infinity,
+                                        color: Colors.white
+                                            .withOpacity(0.04),
+                                        padding:
+                                            const EdgeInsets.fromLTRB(
+                                                14, 12, 14, 14),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('BANK DETAILS',
                                                 style: TextStyle(
                                                   color: Colors.white38,
                                                   fontSize: 10,
                                                   letterSpacing: 1.0,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 10),
-                                              if (bank
-                                                  .accountHolderName
-                                                  .isNotEmpty)
-                                                _bankRow(
-                                                  'Account holder',
-                                                  bank.accountHolderName,
-                                                ),
-                                              if (bank.bankName.isNotEmpty)
-                                                _bankRow('Bank', bank.bankName),
-                                              if (bank.branchName.isNotEmpty)
-                                                _bankRow(
-                                                  'Branch',
-                                                  bank.branchName,
-                                                ),
-                                              if (bank.accountNumber.isNotEmpty)
-                                                _bankRow(
-                                                  'Account no.',
-                                                  bank.accountNumber,
-                                                ),
-                                              if (bank.ifscCode.isNotEmpty)
-                                                _bankRow('IFSC', bank.ifscCode),
-                                              if (bank.upiId.isNotEmpty)
-                                                _bankRow('UPI', bank.upiId),
-                                            ],
-                                          ),
+                                                )),
+                                            const SizedBox(height: 10),
+                                            if (bank.accountHolderName
+                                                .isNotEmpty)
+                                              _bankRow('Account holder',
+                                                  bank.accountHolderName),
+                                            if (bank.bankName.isNotEmpty)
+                                              _bankRow(
+                                                  'Bank', bank.bankName),
+                                            if (bank
+                                                .branchName.isNotEmpty)
+                                              _bankRow('Branch',
+                                                  bank.branchName),
+                                            if (bank.accountNumber
+                                                .isNotEmpty)
+                                              _bankRow('Account no.',
+                                                  bank.accountNumber),
+                                            if (bank.ifscCode.isNotEmpty)
+                                              _bankRow(
+                                                  'IFSC', bank.ifscCode),
+                                            if (bank.upiId.isNotEmpty)
+                                              _bankRow('UPI', bank.upiId),
+                                          ],
                                         ),
-                                      ],
+                                      ),
                                     ],
-                                  ),
-                                );
-                              }).toList(),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
 
-                              if (_order.summary != null) ...[
-                                const SizedBox(height: 12),
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF0D1F1D),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.08),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Container(
-                                            width: 28,
-                                            height: 28,
-                                            decoration: BoxDecoration(
-                                              color: Colors.amber.withOpacity(
-                                                0.15,
-                                              ),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(
+                            // Order totals summary
+                            if (_order.summary != null) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0D1F1D),
+                                  borderRadius:
+                                      BorderRadius.circular(16),
+                                  border: Border.all(
+                                      color: Colors.white
+                                          .withOpacity(0.08)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 28,
+                                          height: 28,
+                                          decoration: BoxDecoration(
+                                            color: Colors.amber
+                                                .withOpacity(0.15),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
                                               Icons.bar_chart_rounded,
                                               color: Colors.amber,
-                                              size: 15,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          const Text(
-                                            'ORDER TOTALS',
+                                              size: 15),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Text('ORDER TOTALS',
                                             style: TextStyle(
                                               color: Colors.white,
                                               fontSize: 13,
                                               fontWeight: FontWeight.w600,
                                               letterSpacing: 0.5,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 14),
-                                      const Divider(
+                                            )),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 14),
+                                    const Divider(
                                         color: Colors.white10,
-                                        height: 1,
-                                      ),
-                                      const SizedBox(height: 12),
-
-                                      // Total
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Container(
-                                                width: 6,
-                                                height: 6,
-                                                decoration: const BoxDecoration(
-                                                  color: Colors.green,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              const Text(
-                                                'Total',
-                                                style: TextStyle(
+                                        height: 1),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Row(children: [
+                                          Container(
+                                              width: 6,
+                                              height: 6,
+                                              decoration:
+                                                  const BoxDecoration(
+                                                      color: Colors.green,
+                                                      shape:
+                                                          BoxShape.circle)),
+                                          const SizedBox(width: 8),
+                                          const Text('Total',
+                                              style: TextStyle(
                                                   color: Colors.white54,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          Text(
-                                            '+ ₹${_amount(_order.summary!.finalPayable).toStringAsFixed(2)}',
-                                            style: const TextStyle(
+                                                  fontSize: 12)),
+                                        ]),
+                                        Text(
+                                          '+ ₹${_amount(_order.summary!.finalPayable).toStringAsFixed(2)}',
+                                          style: const TextStyle(
                                               color: Colors.green,
                                               fontSize: 13,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-
-                                      // Product Percentage collected
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Container(
-                                                width: 6,
-                                                height: 6,
-                                                decoration: const BoxDecoration(
-                                                  color: Colors.green,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              const Text(
-                                                'Product Percentage collected',
-                                                style: TextStyle(
+                                              fontWeight:
+                                                  FontWeight.w500),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Row(children: [
+                                          Container(
+                                              width: 6,
+                                              height: 6,
+                                              decoration:
+                                                  const BoxDecoration(
+                                                      color: Colors.green,
+                                                      shape:
+                                                          BoxShape.circle)),
+                                          const SizedBox(width: 8),
+                                          const Text(
+                                              'Product % collected',
+                                              style: TextStyle(
                                                   color: Colors.white54,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          Text(
-                                            '+ ₹${_amount(_order.summary!.totalPercentageAmount).toStringAsFixed(2)}',
-                                            style: const TextStyle(
+                                                  fontSize: 12)),
+                                        ]),
+                                        Text(
+                                          '+ ₹${_amount(_order.summary!.totalPercentageAmount).toStringAsFixed(2)}',
+                                          style: const TextStyle(
                                               color: Colors.green,
                                               fontSize: 13,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-
-                                      // Total payout to sellers
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Container(
-                                                width: 6,
-                                                height: 6,
-                                                decoration: const BoxDecoration(
-                                                  color: Colors.redAccent,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              const Text(
-                                                'Total payout to sellers',
-                                                style: TextStyle(
+                                              fontWeight:
+                                                  FontWeight.w500),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Row(children: [
+                                          Container(
+                                              width: 6,
+                                              height: 6,
+                                              decoration:
+                                                  const BoxDecoration(
+                                                      color:
+                                                          Colors.redAccent,
+                                                      shape:
+                                                          BoxShape.circle)),
+                                          const SizedBox(width: 8),
+                                          const Text(
+                                              'Total payout to sellers',
+                                              style: TextStyle(
                                                   color: Colors.white54,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          Text(
-                                            ' - ₹${_amount(_order.summary!.totalSellerPayable).toStringAsFixed(2)}',
-                                            style: const TextStyle(
+                                                  fontSize: 12)),
+                                        ]),
+                                        Text(
+                                          ' - ₹${_amount(_order.summary!.totalSellerPayable).toStringAsFixed(2)}',
+                                          style: const TextStyle(
                                               color: Colors.redAccent,
                                               fontSize: 13,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 12),
-
-                                      // Seller Details Section
-                                      if (_order
-                                          .summary!
-                                          .sellerPayableBreakdown
-                                          .isNotEmpty) ...[
-                                        const Divider(
-                                          color: Colors.white10,
-                                          height: 1,
+                                              fontWeight:
+                                                  FontWeight.w500),
                                         ),
-                                        const SizedBox(height: 10),
-                                        const Text(
-                                          'SELLER BREAKDOWN',
+                                      ],
+                                    ),
+                                    if (_order.summary!
+                                        .sellerPayableBreakdown
+                                        .isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      const Divider(
+                                          color: Colors.white10,
+                                          height: 1),
+                                      const SizedBox(height: 10),
+                                      const Text('SELLER BREAKDOWN',
                                           style: TextStyle(
                                             color: Colors.white38,
                                             fontSize: 10,
                                             letterSpacing: 1.0,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 10),
-                                        ..._order
-                                            .summary!
-                                            .sellerPayableBreakdown
-                                            .map(
-                                              (seller) => Padding(
-                                                padding: const EdgeInsets.only(
-                                                  bottom: 8,
-                                                ),
+                                          )),
+                                      const SizedBox(height: 10),
+                                      ..._order
+                                          .summary!.sellerPayableBreakdown
+                                          .map((seller) => Padding(
+                                                padding:
+                                                    const EdgeInsets.only(
+                                                        bottom: 8),
                                                 child: Row(
                                                   mainAxisAlignment:
                                                       MainAxisAlignment
                                                           .spaceBetween,
                                                   children: [
-                                                    Row(
-                                                      children: [
-                                                        Container(
+                                                    Row(children: [
+                                                      Container(
                                                           width: 6,
                                                           height: 6,
                                                           decoration: BoxDecoration(
-                                                            color:
-                                                                seller.userType ==
-                                                                    'admin'
-                                                                ? Colors.orange
-                                                                : Colors
-                                                                      .tealAccent,
-                                                            shape:
-                                                                BoxShape.circle,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 8,
-                                                        ),
-                                                        Text(
-                                                          seller.name,
-                                                          style:
-                                                              const TextStyle(
-                                                                color: Colors
-                                                                    .white70,
-                                                                fontSize: 12,
-                                                              ),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 6,
-                                                        ),
-                                                        Container(
-                                                          padding:
-                                                              const EdgeInsets.symmetric(
-                                                                horizontal: 6,
-                                                                vertical: 2,
-                                                              ),
-                                                          decoration: BoxDecoration(
-                                                            color:
-                                                                seller.userType ==
-                                                                    'admin'
-                                                                ? Colors.orange
-                                                                      .withOpacity(
-                                                                        0.2,
-                                                                      )
-                                                                : Colors
-                                                                      .tealAccent
-                                                                      .withOpacity(
-                                                                        0.2,
-                                                                      ),
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  4,
-                                                                ),
-                                                          ),
-                                                          child: Text(
-                                                            seller.userType,
-                                                            style: TextStyle(
-                                                              color:
-                                                                  seller.userType ==
+                                                              color: seller.userType ==
                                                                       'admin'
                                                                   ? Colors
-                                                                        .orange
+                                                                      .orange
                                                                   : Colors
-                                                                        .tealAccent,
-                                                              fontSize: 9,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w500,
-                                                            ),
+                                                                      .tealAccent,
+                                                              shape: BoxShape
+                                                                  .circle)),
+                                                      const SizedBox(
+                                                          width: 8),
+                                                      Text(seller.name,
+                                                          style: const TextStyle(
+                                                              color: Colors
+                                                                  .white70,
+                                                              fontSize:
+                                                                  12)),
+                                                      const SizedBox(
+                                                          width: 6),
+                                                      Container(
+                                                        padding: const EdgeInsets
+                                                            .symmetric(
+                                                            horizontal: 6,
+                                                            vertical: 2),
+                                                        decoration: BoxDecoration(
+                                                          color: seller.userType ==
+                                                                  'admin'
+                                                              ? Colors.orange
+                                                                  .withOpacity(
+                                                                      0.2)
+                                                              : Colors
+                                                                  .tealAccent
+                                                                  .withOpacity(
+                                                                      0.2),
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(
+                                                                      4),
+                                                        ),
+                                                        child: Text(
+                                                          seller.userType,
+                                                          style: TextStyle(
+                                                            color: seller.userType ==
+                                                                    'admin'
+                                                                ? Colors
+                                                                    .orange
+                                                                : Colors
+                                                                    .tealAccent,
+                                                            fontSize: 9,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w500,
                                                           ),
                                                         ),
-                                                      ],
-                                                    ),
+                                                      ),
+                                                    ]),
                                                     Text(
                                                       '₹${_amount(seller.sellerPayableTotal).toStringAsFixed(2)}',
                                                       style: const TextStyle(
-                                                        color: Colors.white70,
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                      ),
+                                                          color:
+                                                              Colors.white70,
+                                                          fontSize: 12,
+                                                          fontWeight:
+                                                              FontWeight
+                                                                  .w500),
                                                     ),
                                                   ],
                                                 ),
-                                              ),
-                                            )
-                                            .toList(),
-                                        const SizedBox(height: 8),
-                                        const Divider(
+                                              ))
+                                          .toList(),
+                                      const SizedBox(height: 8),
+                                      const Divider(
                                           color: Colors.white10,
-                                          height: 1,
-                                        ),
-                                        const SizedBox(height: 12),
-                                      ],
-
-                                      // Total profit
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 10,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.greenAccent.withOpacity(
-                                            0.07,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                          border: Border.all(
+                                          height: 1),
+                                      const SizedBox(height: 12),
+                                    ],
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.greenAccent
+                                            .withOpacity(0.07),
+                                        borderRadius:
+                                            BorderRadius.circular(10),
+                                        border: Border.all(
                                             color: Colors.greenAccent
                                                 .withOpacity(0.2),
-                                            width: 0.5,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            const Text(
-                                              'Total profit',
+                                            width: 0.5),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text('Total profit',
                                               style: TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w600,
-                                              ),
+                                              )),
+                                          Text(
+                                            '₹${_amount(_order.summary!.totalProfit).toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              color: Colors.greenAccent,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
                                             ),
-                                            Text(
-                                              '₹${_amount(_order.summary!.totalProfit).toStringAsFixed(2)}',
-                                              style: const TextStyle(
-                                                color: Colors.greenAccent,
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ],
                           ],
                         ],
                       ),
                     ),
+
+                    const SizedBox(height: 16),
+
+                    // Action buttons
+                    _buildCancelOrderButton(),
+                    if (_canCancelOrderItem && _canRequestReturnExchange)
+                      const SizedBox(height: 12),
+                    if (!widget.isCoachProductOrder)
+                      _buildReturnExchangeButton(),
+
+                    const SizedBox(height: 30),
                   ],
-                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -6200,129 +5984,9 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       ),
     );
   }
-
-  Widget _receiptRowWithIcon(
-    String label,
-    String value, {
-    required IconData icon,
-    required Color valueColor,
-    bool isPositive = true,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: Colors.tealAccent, size: 14),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
-              ),
-            ],
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              color: valueColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  bool _isSellerAdmin(SellerBreakdown seller) {
-    if (seller.items.isEmpty) return false;
-
-    // Check if any item in this seller's breakdown belongs to an admin
-    for (var sellerItem in seller.items) {
-      // Find matching order item by product title
-
-      try {
-        final matchingOrderItem = _order.items.firstWhere(
-          (orderItem) => orderItem.productTitle == sellerItem.productTitle,
-        );
-
-        final userType = matchingOrderItem.productUserType?.toLowerCase() ?? '';
-        print(
-          "Seller: ${seller.coachName}, Product: ${sellerItem.productTitle}, UserType: $userType",
-        );
-        if (userType == 'admin' || userType == 'sadmin') {
-          return true;
-        }
-      } catch (e) {
-        // No matching item found, continue to next seller item
-        continue;
-      }
-    }
-
-    return false;
-  }
-
-  Widget _receiptRow(String label, String value, {Color? valueColor}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              color: valueColor ?? Colors.white70,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _bankRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: const TextStyle(color: Colors.white38, fontSize: 12),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  bool _hasAnyBankDetail(SellerBankDetails bank) {
-    return bank.accountHolderName.isNotEmpty ||
-        bank.bankName.isNotEmpty ||
-        bank.branchName.isNotEmpty ||
-        bank.accountNumber.isNotEmpty ||
-        bank.ifscCode.isNotEmpty ||
-        bank.upiId.isNotEmpty;
-  }
 }
+
+// ==================== REVIEW DIALOG ====================
 
 class ReviewDialog extends StatelessWidget {
   final int productId;
@@ -6347,7 +6011,8 @@ class ReviewDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 0,
       backgroundColor: Colors.transparent,
       child: Container(
@@ -6392,29 +6057,22 @@ class ReviewDialog extends StatelessWidget {
             Text(
               productTitle,
               style: TextStyle(
-                fontSize: 16,
-                color: Colors.white.withOpacity(0.7),
-              ),
+                  fontSize: 16,
+                  color: Colors.white.withOpacity(0.7)),
               textAlign: TextAlign.center,
             ),
             if (variantLabel.isNotEmpty) ...[
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
+                    horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.tealAccent.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
-                  variantLabel,
-                  style: const TextStyle(
-                    color: Colors.tealAccent,
-                    fontSize: 12,
-                  ),
-                ),
+                child: Text(variantLabel,
+                    style: const TextStyle(
+                        color: Colors.tealAccent, fontSize: 12)),
               ),
             ],
             const SizedBox(height: 20),
@@ -6423,9 +6081,8 @@ class ReviewDialog extends StatelessWidget {
                   ? 'You have already reviewed this product. Would you like to update your review?'
                   : 'Would you like to share your experience with this product?',
               style: TextStyle(
-                fontSize: 14,
-                color: Colors.white.withOpacity(0.6),
-              ),
+                  fontSize: 14,
+                  color: Colors.white.withOpacity(0.6)),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 25),
@@ -6435,16 +6092,17 @@ class ReviewDialog extends StatelessWidget {
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                        side: BorderSide(
+                            color: Colors.white.withOpacity(0.2)),
                       ),
                     ),
-                    child: const Text(
-                      'Maybe Later',
-                      style: TextStyle(fontSize: 16, color: Colors.white70),
-                    ),
+                    child: const Text('Maybe Later',
+                        style: TextStyle(
+                            fontSize: 16, color: Colors.white70)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -6468,10 +6126,10 @@ class ReviewDialog extends StatelessWidget {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.tealAccent,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     child: Text(
                       hasReview ? 'Update Review' : 'Write a Review',
@@ -6491,6 +6149,8 @@ class ReviewDialog extends StatelessWidget {
     );
   }
 }
+
+// ==================== REVIEW MODEL ====================
 
 class ReviewModel {
   final int id;
