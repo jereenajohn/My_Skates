@@ -149,28 +149,182 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
         .replaceAll(' ', '');
   }
 
+  Map<String, dynamic>? _getActiveOfferFromProductItem(
+    Map<String, dynamic> item,
+  ) {
+    final offers = item["offer_details"];
+
+    if (offers == null) {
+      return null;
+    }
+
+    // Case 1: API returns offer_details as object/map
+    if (offers is Map) {
+      final Map<String, dynamic> offerMap = Map<String, dynamic>.from(offers);
+
+      final dynamic activeValue = offerMap["is_active"];
+
+      final bool isActive =
+          activeValue == true ||
+          activeValue.toString().toLowerCase() == "true" ||
+          activeValue.toString() == "1";
+
+      if (isActive) {
+        return offerMap;
+      }
+
+      return null;
+    }
+
+    // Case 2: API returns offer_details as list
+    if (offers is List && offers.isNotEmpty) {
+      for (final offer in offers) {
+        if (offer is Map) {
+          final Map<String, dynamic> offerMap = Map<String, dynamic>.from(
+            offer,
+          );
+
+          final dynamic activeValue = offerMap["is_active"];
+
+          final bool isActive =
+              activeValue == true ||
+              activeValue.toString().toLowerCase() == "true" ||
+              activeValue.toString() == "1";
+
+          if (isActive) {
+            return offerMap;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  String _getOfferTitleFromProductItem(Map<String, dynamic> item) {
+    final offer = _getActiveOfferFromProductItem(item);
+
+    if (offer == null) return "";
+
+    final title = offer["title"]?.toString().trim() ?? "";
+    final message = offer["message"]?.toString().trim() ?? "";
+
+    if (title.isNotEmpty && title.toLowerCase() != "null") return title;
+    if (message.isNotEmpty && message.toLowerCase() != "null") return message;
+
+    return "";
+  }
+
+  int _toInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
+  String _getVariantOfferTitle(Map<String, dynamic> variant) {
+    final offers = product?["offer_details"];
+
+    if (offers == null) return "";
+
+    final int productId = _toInt(product?["id"]);
+    final int variantId = _toInt(variant["id"]);
+
+    final List<Map<String, dynamic>> activeOffers = [];
+
+    if (offers is Map) {
+      activeOffers.add(Map<String, dynamic>.from(offers));
+    } else if (offers is List) {
+      for (final offer in offers) {
+        if (offer is Map) {
+          activeOffers.add(Map<String, dynamic>.from(offer));
+        }
+      }
+    }
+
+    for (final offer in activeOffers) {
+      final dynamic activeValue = offer["is_active"];
+
+      final bool isActive =
+          activeValue == true ||
+          activeValue.toString().toLowerCase() == "true" ||
+          activeValue.toString() == "1";
+
+      if (!isActive) continue;
+
+      final List eligibleProductIds = offer["eligible_product_ids"] ?? [];
+      final List eligibleVariantIds = offer["eligible_variant_ids"] ?? [];
+
+      final bool isProductEligible = eligibleProductIds
+          .map((e) => _toInt(e))
+          .contains(productId);
+
+      final bool isVariantEligible = eligibleVariantIds
+          .map((e) => _toInt(e))
+          .contains(variantId);
+
+      if (isProductEligible || isVariantEligible) {
+        final String title = offer["title"]?.toString().trim() ?? "";
+        final String message = offer["message"]?.toString().trim() ?? "";
+
+        if (title.isNotEmpty && title.toLowerCase() != "null") {
+          return title;
+        }
+
+        if (message.isNotEmpty && message.toLowerCase() != "null") {
+          return message;
+        }
+      }
+    }
+
+    return "";
+  }
+
   Map<String, dynamic>? _getActiveOffer() {
     final offers = product?["offer_details"];
 
     debugPrint("PRODUCT OFFER DETAILS: $offers");
 
-    if (offers == null || offers is! List || offers.isEmpty) {
+    if (offers == null) {
       return null;
     }
 
-    for (final offer in offers) {
-      if (offer is Map) {
-        final Map<String, dynamic> offerMap = Map<String, dynamic>.from(offer);
+    // Case 1: offer_details is object/map
+    if (offers is Map) {
+      final Map<String, dynamic> offerMap = Map<String, dynamic>.from(offers);
 
-        final dynamic activeValue = offerMap["is_active"];
+      final dynamic activeValue = offerMap["is_active"];
 
-        final bool isActive =
-            activeValue == true ||
-            activeValue.toString().toLowerCase() == "true" ||
-            activeValue.toString() == "1";
+      final bool isActive =
+          activeValue == true ||
+          activeValue.toString().toLowerCase() == "true" ||
+          activeValue.toString() == "1";
 
-        if (isActive) {
-          return offerMap;
+      if (isActive) {
+        return offerMap;
+      }
+
+      return null;
+    }
+
+    // Case 2: offer_details is list
+    if (offers is List && offers.isNotEmpty) {
+      for (final offer in offers) {
+        if (offer is Map) {
+          final Map<String, dynamic> offerMap = Map<String, dynamic>.from(
+            offer,
+          );
+
+          final dynamic activeValue = offerMap["is_active"];
+
+          final bool isActive =
+              activeValue == true ||
+              activeValue.toString().toLowerCase() == "true" ||
+              activeValue.toString() == "1";
+
+          if (isActive) {
+            return offerMap;
+          }
         }
       }
     }
@@ -197,6 +351,38 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
 
   bool _hasActiveOffer() {
     return _getOfferTitle().isNotEmpty;
+  }
+
+  Widget _compactOfferRibbonBadgeFromTitle(String title) {
+    final String cleanTitle = title.trim();
+
+    if (cleanTitle.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return ClipPath(
+      clipper: _ExactOfferRibbonClipper(),
+      child: Container(
+        height: 24,
+        width: 92,
+        padding: const EdgeInsets.fromLTRB(8, 0, 16, 0),
+        alignment: Alignment.centerLeft,
+        color: const Color.fromARGB(255, 55, 210, 194),
+        child: Text(
+          _formatOfferText(cleanTitle),
+          maxLines: 1,
+          overflow: TextOverflow.clip,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            fontFamily: 'Poppins',
+            height: 1,
+            letterSpacing: -0.2,
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _offerRibbonBadgeFromTitle(String title) {
@@ -987,6 +1173,10 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                 final double discount =
                     double.tryParse(item["discount"]?.toString() ?? "0") ?? 0.0;
                 final bool wishlisted = item["is_in_wishlist"] == true;
+                final String similarOfferTitle = _getOfferTitleFromProductItem(
+                  item,
+                );
+                final bool hasSimilarOffer = similarOfferTitle.isNotEmpty;
 
                 return GestureDetector(
                   onTap: () async {
@@ -1091,6 +1281,14 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                       ),
                                     ],
                                   ),
+                                ),
+                              ),
+                            if (hasSimilarOffer)
+                              Positioned(
+                                top: discount > 0 ? 48 : 8,
+                                left: 8,
+                                child: _compactOfferRibbonBadgeFromTitle(
+                                  similarOfferTitle,
                                 ),
                               ),
 
@@ -1570,10 +1768,15 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
               const Divider(color: Colors.white24),
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                   itemCount: approvedReviews.length,
                   itemBuilder: (context, index) {
-                    return ReviewCard(review: approvedReviews[index]);
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        bottom: index == approvedReviews.length - 1 ? 0 : 16,
+                      ),
+                      child: ReviewCard(review: approvedReviews[index]),
+                    );
                   },
                 ),
               ),
@@ -1581,6 +1784,58 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
           ),
         );
       },
+    );
+  }
+
+  Widget _compactInfoTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.09),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.24)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 15),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10.2,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.48),
+                    fontSize: 9.4,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2186,27 +2441,87 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                   right: 18,
                                   bottom: 18,
                                   child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              "Tap image to zoom",
-                                              style: TextStyle(
-                                                color: Colors.white.withOpacity(
-                                                  0.58,
-                                                ),
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                                fontFamily: 'Poppins',
-                                              ),
+                                        child: Text(
+                                          "Tap image to zoom",
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(
+                                              0.58,
                                             ),
-                                          ],
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            fontFamily: 'Poppins',
+                                          ),
                                         ),
                                       ),
+
+                                      if (totalReviews > 0) ...[
+                                        const SizedBox(width: 10),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 7,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(
+                                              0.68,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.amberAccent
+                                                  .withOpacity(0.35),
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(
+                                                  0.28,
+                                                ),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 5),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(
+                                                Icons.star_rounded,
+                                                color: Colors.amberAccent,
+                                                size: 17,
+                                              ),
+                                              const SizedBox(width: 5),
+                                              Text(
+                                                averageRating.toStringAsFixed(
+                                                  1,
+                                                ),
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w900,
+                                                  fontFamily: 'Poppins',
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                "($totalReviews)",
+                                                style: TextStyle(
+                                                  color: Colors.white
+                                                      .withOpacity(0.64),
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontFamily: 'Poppins',
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -2217,327 +2532,242 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
 
                         // ================= PRODUCT INFO CARD =================
                         // ================= PRODUCT INFO CARD =================
+                        // ================= PRODUCT INFO CARD =================
                         Container(
                           margin: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(28),
+                            borderRadius: BorderRadius.circular(22),
                             gradient: const LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [Color(0xFF111C1A), Color(0xFF090D0C)],
+                              colors: [Color(0xFF111C1A), Color(0xFF070A09)],
                             ),
                             border: Border.all(color: Colors.white10),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.32),
-                                blurRadius: 22,
-                                offset: const Offset(0, 12),
+                                color: Colors.black.withOpacity(0.28),
+                                blurRadius: 18,
+                                offset: const Offset(0, 8),
                               ),
                             ],
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  18,
-                                  18,
-                                  18,
-                                  0,
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      displayTitle,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        height: 1.18,
+                                        fontWeight: FontWeight.w900,
+                                        fontFamily: 'Poppins',
+                                        letterSpacing: -0.25,
+                                      ),
+                                    ),
+                                  ),
+                                  if (hasDiscount) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.redAccent.withOpacity(
+                                          0.16,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: Colors.redAccent.withOpacity(
+                                            0.40,
+                                          ),
+                                        ),
+                                      ),
                                       child: Text(
-                                        displayTitle,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
+                                        "${_getDiscountPercentage()}% OFF",
                                         style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 22,
-                                          height: 1.22,
+                                          color: Colors.redAccent,
+                                          fontSize: 10,
                                           fontWeight: FontWeight.w900,
                                           fontFamily: 'Poppins',
-                                          letterSpacing: -0.35,
                                         ),
                                       ),
                                     ),
-                                    if (hasDiscount) ...[
-                                      const SizedBox(width: 12),
+                                  ],
+                                ],
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      "₹${discountedPrice.toStringAsFixed(2)}",
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.tealAccent,
+                                        fontSize: 27,
+                                        fontFamily: 'Poppins',
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -0.8,
+                                      ),
+                                    ),
+                                  ),
+                                  if (hasDiscount) ...[
+                                    const SizedBox(width: 8),
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 5),
+                                      child: Text(
+                                        "₹${originalPrice.toStringAsFixed(2)}",
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.42),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          fontFamily: 'Poppins',
+                                          decoration:
+                                              TextDecoration.lineThrough,
+                                          decorationColor: Colors.white
+                                              .withOpacity(0.5),
+                                          decorationThickness: 1.4,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+
+                              if (hasDiscount) ...[
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.savings_outlined,
+                                      color: Colors.greenAccent,
+                                      size: 15,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Expanded(
+                                      child: Text(
+                                        "You save ₹${savedAmount.toStringAsFixed(2)} on this product",
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.greenAccent,
+                                          fontSize: 11.2,
+                                          fontWeight: FontWeight.w700,
+                                          fontFamily: 'Poppins',
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+
+                              if (seller.isNotEmpty || hasActiveOffer) ...[
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    if (seller.isNotEmpty)
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 7,
+                                          horizontal: 9,
+                                          vertical: 6,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Colors.redAccent.withOpacity(
-                                            0.16,
+                                          color: Colors.white.withOpacity(
+                                            0.045,
                                           ),
                                           borderRadius: BorderRadius.circular(
                                             14,
                                           ),
                                           border: Border.all(
-                                            color: Colors.redAccent.withOpacity(
-                                              0.42,
+                                            color: Colors.white.withOpacity(
+                                              0.075,
                                             ),
                                           ),
                                         ),
-                                        child: Text(
-                                          "${_getDiscountPercentage()}% OFF",
-                                          style: const TextStyle(
-                                            color: Colors.redAccent,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w900,
-                                            fontFamily: 'Poppins',
-                                            letterSpacing: 0.2,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-
-                              if (seller.isNotEmpty) ...[
-                                const SizedBox(height: 10),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 18,
-                                  ),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 11,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.045),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: Colors.white.withOpacity(0.075),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          height: 28,
-                                          width: 28,
-                                          decoration: BoxDecoration(
-                                            color: Colors.tealAccent
-                                                .withOpacity(0.12),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.storefront_rounded,
-                                            color: Colors.tealAccent,
-                                            size: 15,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 9),
-                                        Expanded(
-                                          child: Text(
-                                            "Sold by $seller",
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color: Colors.white.withOpacity(
-                                                0.68,
-                                              ),
-                                              fontSize: 12.5,
-                                              fontWeight: FontWeight.w600,
-                                              fontFamily: 'Poppins',
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.storefront_rounded,
+                                              color: Colors.tealAccent,
+                                              size: 14,
                                             ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-
-                              if (hasActiveOffer) ...[
-                                const SizedBox(height: 14),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 18,
-                                  ),
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 13,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          Colors.orangeAccent.withOpacity(0.22),
-                                          Colors.amberAccent.withOpacity(0.12),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(18),
-                                      border: Border.all(
-                                        color: Colors.orangeAccent.withOpacity(
-                                          0.42,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          height: 34,
-                                          width: 34,
-                                          decoration: BoxDecoration(
-                                            color: Colors.orangeAccent
-                                                .withOpacity(0.18),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.card_giftcard_rounded,
-                                            color: Colors.orangeAccent,
-                                            size: 18,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 11),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              const Text(
-                                                "Active Offer",
-                                                style: TextStyle(
-                                                  color: Colors.orangeAccent,
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w800,
-                                                  fontFamily: 'Poppins',
-                                                ),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                offerTitle,
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 13.5,
-                                                  fontWeight: FontWeight.w800,
-                                                  fontFamily: 'Poppins',
-                                                  height: 1.25,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-
-                              const SizedBox(height: 18),
-
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 18,
-                                ),
-                                child: Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.28),
-                                    borderRadius: BorderRadius.circular(22),
-                                    border: Border.all(
-                                      color: Colors.tealAccent.withOpacity(
-                                        0.18,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "Special Price",
-                                        style: TextStyle(
-                                          color: Colors.white.withOpacity(0.48),
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w600,
-                                          fontFamily: 'Poppins',
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              "₹${discountedPrice.toStringAsFixed(2)}",
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                color: Colors.tealAccent,
-                                                fontSize: 34,
-                                                fontFamily: 'Poppins',
-                                                fontWeight: FontWeight.w900,
-                                                letterSpacing: -1.0,
-                                              ),
-                                            ),
-                                          ),
-                                          if (hasDiscount) ...[
-                                            const SizedBox(width: 10),
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                bottom: 6,
+                                            const SizedBox(width: 5),
+                                            ConstrainedBox(
+                                              constraints: const BoxConstraints(
+                                                maxWidth: 190,
                                               ),
                                               child: Text(
-                                                "₹${originalPrice.toStringAsFixed(2)}",
+                                                "Seller : $seller",
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: TextStyle(
                                                   color: Colors.white
-                                                      .withOpacity(0.42),
-                                                  fontSize: 14.5,
-                                                  fontWeight: FontWeight.w700,
+                                                      .withOpacity(0.68),
+                                                  fontSize: 11.2,
+                                                  fontWeight: FontWeight.w600,
                                                   fontFamily: 'Poppins',
-                                                  decoration: TextDecoration
-                                                      .lineThrough,
-                                                  decorationColor: Colors.white
-                                                      .withOpacity(0.5),
-                                                  decorationThickness: 1.5,
                                                 ),
                                               ),
                                             ),
                                           ],
-                                        ],
+                                        ),
                                       ),
-                                      if (hasDiscount) ...[
-                                        const SizedBox(height: 12),
-                                        Row(
+
+                                    if (hasActiveOffer)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 9,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orangeAccent
+                                              .withOpacity(0.13),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.orangeAccent
+                                                .withOpacity(0.34),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Container(
-                                              height: 30,
-                                              width: 30,
-                                              decoration: BoxDecoration(
-                                                color: Colors.greenAccent
-                                                    .withOpacity(0.13),
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: const Icon(
-                                                Icons.savings_outlined,
-                                                color: Colors.greenAccent,
-                                                size: 17,
-                                              ),
+                                            const Icon(
+                                              Icons.card_giftcard_rounded,
+                                              color: Colors.orangeAccent,
+                                              size: 14,
                                             ),
-                                            const SizedBox(width: 9),
-                                            Expanded(
+                                            const SizedBox(width: 5),
+                                            ConstrainedBox(
+                                              constraints: const BoxConstraints(
+                                                maxWidth: 190,
+                                              ),
                                               child: Text(
-                                                "You save ₹${savedAmount.toStringAsFixed(2)} on this product",
+                                                offerTitle,
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: const TextStyle(
-                                                  color: Colors.greenAccent,
-                                                  fontSize: 12.5,
+                                                  color: Colors.orangeAccent,
+                                                  fontSize: 11.2,
                                                   fontWeight: FontWeight.w800,
                                                   fontFamily: 'Poppins',
                                                 ),
@@ -2545,234 +2775,51 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                             ),
                                           ],
                                         ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 16),
-
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  18,
-                                  0,
-                                  18,
-                                  18,
-                                ),
-                                child: Row(
-                                  children: [
-                                    if (totalReviews > 0)
-                                      Expanded(
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 11,
-                                            vertical: 12,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.amberAccent
-                                                .withOpacity(0.10),
-                                            borderRadius: BorderRadius.circular(
-                                              18,
-                                            ),
-                                            border: Border.all(
-                                              color: Colors.amberAccent
-                                                  .withOpacity(0.28),
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.star_rounded,
-                                                color: Colors.amberAccent,
-                                                size: 18,
-                                              ),
-                                              const SizedBox(width: 7),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      "${averageRating.toStringAsFixed(1)} Rating",
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: const TextStyle(
-                                                        color:
-                                                            Colors.amberAccent,
-                                                        fontSize: 11.5,
-                                                        fontWeight:
-                                                            FontWeight.w900,
-                                                        fontFamily: 'Poppins',
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 2),
-                                                    Text(
-                                                      "$totalReviews reviews",
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: TextStyle(
-                                                        color: Colors.white
-                                                            .withOpacity(0.48),
-                                                        fontSize: 10.5,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                        fontFamily: 'Poppins',
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
                                       ),
-
-                                    if (totalReviews > 0)
-                                      const SizedBox(width: 10),
-
-                                    Expanded(
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 11,
-                                          vertical: 12,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.tealAccent.withOpacity(
-                                            0.10,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            18,
-                                          ),
-                                          border: Border.all(
-                                            color: Colors.tealAccent
-                                                .withOpacity(0.28),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.verified_user_outlined,
-                                              color: Colors.tealAccent,
-                                              size: 18,
-                                            ),
-                                            const SizedBox(width: 7),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  const Text(
-                                                    "Quality",
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: TextStyle(
-                                                      color: Colors.tealAccent,
-                                                      fontSize: 11.5,
-                                                      fontWeight:
-                                                          FontWeight.w900,
-                                                      fontFamily: 'Poppins',
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    "Assured",
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: TextStyle(
-                                                      color: Colors.white
-                                                          .withOpacity(0.48),
-                                                      fontSize: 10.5,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                      fontFamily: 'Poppins',
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-
-                                    if (_getShipmentCharge() != null) ...[
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 11,
-                                            vertical: 12,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.tealAccent
-                                                .withOpacity(0.10),
-                                            borderRadius: BorderRadius.circular(
-                                              18,
-                                            ),
-                                            border: Border.all(
-                                              color: Colors.tealAccent
-                                                  .withOpacity(0.28),
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.local_shipping_outlined,
-                                                color: Colors.tealAccent,
-                                                size: 18,
-                                              ),
-                                              const SizedBox(width: 7),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    const Text(
-                                                      "Delivery",
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: TextStyle(
-                                                        color:
-                                                            Colors.tealAccent,
-                                                        fontSize: 11.5,
-                                                        fontWeight:
-                                                            FontWeight.w900,
-                                                        fontFamily: 'Poppins',
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 2),
-                                                    Text(
-                                                      _isFreeShipping()
-                                                          ? "Free"
-                                                          : "₹${_getShipmentCharge()!.toStringAsFixed(2)}",
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: TextStyle(
-                                                        color: Colors.white
-                                                            .withOpacity(0.48),
-                                                        fontSize: 10.5,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                        fontFamily: 'Poppins',
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
                                   ],
                                 ),
+                              ],
+
+                              const SizedBox(height: 12),
+
+                              Row(
+                                children: [
+                                  if (totalReviews > 0) ...[
+                                    Expanded(
+                                      child: _compactInfoTile(
+                                        icon: Icons.star_rounded,
+                                        title:
+                                            "${averageRating.toStringAsFixed(1)} Rating",
+                                        subtitle: "$totalReviews reviews",
+                                        color: Colors.amberAccent,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+
+                                  Expanded(
+                                    child: _compactInfoTile(
+                                      icon: Icons.verified_user_outlined,
+                                      title: "Quality",
+                                      subtitle: "Assured",
+                                      color: Colors.tealAccent,
+                                    ),
+                                  ),
+
+                                  if (_getShipmentCharge() != null) ...[
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _compactInfoTile(
+                                        icon: Icons.local_shipping_outlined,
+                                        title: "Delivery",
+                                        subtitle: _isFreeShipping()
+                                            ? "Free"
+                                            : "₹${_getShipmentCharge()!.toStringAsFixed(2)}",
+                                        color: Colors.tealAccent,
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ],
                           ),
@@ -2826,6 +2873,14 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                 final String imageUrl = _buildImageUrl(
                                   rawVariantImage,
                                 );
+                                final String variantOfferTitle =
+                                    _getVariantOfferTitle(
+                                      Map<String, dynamic>.from(variant),
+                                    );
+
+                                final bool hasVariantOffer =
+                                    variantOfferTitle.isNotEmpty &&
+                                    !isOutOfStock;
 
                                 return GestureDetector(
                                   onTap: isOutOfStock
@@ -2931,6 +2986,21 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                                                 },
                                                           ),
                                                   ),
+
+                                                  if (hasVariantOffer)
+                                                    Positioned(
+                                                      top: 8,
+                                                      left: 0,
+                                                      child: Transform.scale(
+                                                        scale: 0.72,
+                                                        alignment: Alignment
+                                                            .centerLeft,
+                                                        child:
+                                                            _compactOfferRibbonBadgeFromTitle(
+                                                              variantOfferTitle,
+                                                            ),
+                                                      ),
+                                                    ),
                                                   if (isOutOfStock)
                                                     Positioned.fill(
                                                       child: Container(
@@ -2999,6 +3069,7 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                                 fontFamily: 'Poppins',
                                               ),
                                             ),
+
                                             const Spacer(),
                                             Text(
                                               "₹${variant["price"] ?? product!["base_price"]}",
@@ -3078,16 +3149,17 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                                 ),
                                 const SizedBox(height: 16),
                                 ...approvedReviews
-                                    .take(3)
+                                    .take(1)
                                     .map(
                                       (review) => Padding(
                                         padding: const EdgeInsets.only(
-                                          bottom: 12,
+                                          bottom: 18,
                                         ),
                                         child: ReviewCard(review: review),
                                       ),
                                     ),
-                                if (approvedReviews.length > 3)
+
+                                if (approvedReviews.length > 1)
                                   Center(
                                     child: TextButton.icon(
                                       onPressed: () => _showAllReviewsDialog(),
