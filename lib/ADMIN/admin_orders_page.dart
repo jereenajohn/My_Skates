@@ -251,6 +251,7 @@ class SellerBreakdown {
   final String sellerpayableTotal;
   final SellerBankDetails? bankDetails;
   final List<SellerBreakdownItem> items;
+  final String coachPaymentStatus;
 
   SellerBreakdown({
     required this.coachId,
@@ -262,6 +263,7 @@ class SellerBreakdown {
     required this.sellershipmenttotal,
     required this.sellerpayableTotal,
     required this.sellerPayable,
+    required this.coachPaymentStatus,
     this.bankDetails,
     required this.items,
   });
@@ -279,6 +281,8 @@ class SellerBreakdown {
       sellerPayable: json['seller_payable']?.toString() ?? '0',
       sellershipmenttotal: json['seller_shipping_total']?.toString() ?? '0',
       sellerpayableTotal: json['seller_payable_total']?.toString() ?? '0',
+      coachPaymentStatus:
+          json['coach_payment_status']?.toString().toUpperCase() ?? 'PENDING',
       bankDetails: json['bank_details'] == null
           ? null
           : SellerBankDetails.fromJson(json['bank_details']),
@@ -581,6 +585,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
       }
 
       String endpoint;
+
 
       if (_selectedView == OrderViewType.allOrders) {
         endpoint = '$api/api/myskates/all/orders/';
@@ -2155,6 +2160,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                   ),
                 ),
                 const SizedBox(width: 8),
+
                 // Status badge — tappable in My Sold Orders only, read-only in All Orders & My Orders
                 // GestureDetector(
                 //   onTap: _selectedView == OrderViewType.mySoldOrders
@@ -2196,7 +2202,6 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                 //     ),
                 //   ),
                 // ),
-                
               ],
             ),
 
@@ -2760,7 +2765,6 @@ class _Admin_order_pageState extends State<Admin_order_page> {
   }
 }
 
-
 // ==================== ORDER DETAIL PAGE ====================
 
 class RefundRequestModel {
@@ -2837,14 +2841,14 @@ class ExchangeVariant {
 
     final String parsedLabel =
         json['variant_label']?.toString().trim().isNotEmpty == true
-            ? json['variant_label'].toString()
-            : json['label']?.toString().trim().isNotEmpty == true
-                ? json['label'].toString()
-                : json['name']?.toString().trim().isNotEmpty == true
-                    ? json['name'].toString()
-                    : json['variant_name']?.toString().trim().isNotEmpty == true
-                        ? json['variant_name'].toString()
-                        : 'Variant #$parsedId';
+        ? json['variant_label'].toString()
+        : json['label']?.toString().trim().isNotEmpty == true
+        ? json['label'].toString()
+        : json['name']?.toString().trim().isNotEmpty == true
+        ? json['name'].toString()
+        : json['variant_name']?.toString().trim().isNotEmpty == true
+        ? json['variant_name'].toString()
+        : 'Variant #$parsedId';
 
     return ExchangeVariant(
       id: parsedId,
@@ -2897,6 +2901,8 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   bool _isLoadingRefunds = false;
   bool _isLoadingExchangeVariants = false;
 
+  final Set<int> _updatingSellerPaymentIds = {};
+
   String? _selectedRefundRemark;
   String? _selectedReasonType;
   String? _returnExchangeErrorMessage;
@@ -2944,8 +2950,9 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
   OrderItem get _openedItem {
     if (widget.selectedItemId != null) {
-      final matched =
-          _order.items.where((item) => item.id == widget.selectedItemId);
+      final matched = _order.items.where(
+        (item) => item.id == widget.selectedItemId,
+      );
       if (matched.isNotEmpty) return matched.first;
     }
     return _order.items.isNotEmpty
@@ -3130,6 +3137,145 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     }
   }
 
+  Color _getSellerPaymentStatusColor(String status) {
+    switch (status.trim().toUpperCase()) {
+      case 'PENDING':
+        return Colors.orangeAccent;
+      case 'PROCESSING':
+        return Colors.blueAccent;
+      case 'PAID':
+        return Colors.greenAccent;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getSellerPaymentStatusLabel(String status) {
+    switch (status.trim().toUpperCase()) {
+      case 'PENDING':
+        return 'Pending';
+      case 'PROCESSING':
+        return 'Processing';
+      case 'PAID':
+        return 'Paid';
+      default:
+        return status.isEmpty ? 'Pending' : status;
+    }
+  }
+
+Future<void> _updateSellerPaymentStatus({
+  required int sellerId,
+  required String status,
+}) async {
+  if (_updatingSellerPaymentIds.contains(sellerId)) return;
+
+  final cleanStatus = status.trim().toUpperCase();
+
+  if (!['PENDING', 'PROCESSING', 'PAID'].contains(cleanStatus)) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Invalid seller payment status'),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+    return;
+  }
+
+  setState(() => _updatingSellerPaymentIds.add(sellerId));
+
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access');
+
+    if (token == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Authentication token missing'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final uri = Uri.parse(
+      '$api/api/myskates/coach/payment/status/${_order.id}/$sellerId/',
+    );
+
+    final requestBody = {
+      'coach_payment_status': cleanStatus,
+    };
+
+    final response = await http.patch(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(requestBody),
+    );
+
+    print("SELLER PAYMENT STATUS API: $uri");
+    print("SELLER PAYMENT STATUS BODY: ${jsonEncode(requestBody)}");
+    print("SELLER PAYMENT STATUS CODE: ${response.statusCode}");
+    print("SELLER PAYMENT STATUS RESPONSE: ${response.body}");
+
+    Map<String, dynamic>? decoded;
+    try {
+      final parsed = jsonDecode(response.body);
+      if (parsed is Map<String, dynamic>) decoded = parsed;
+    } catch (_) {}
+
+    final msg =
+        decoded?['message']?.toString() ??
+        decoded?['error']?.toString() ??
+        decoded?['detail']?.toString() ??
+        decoded?['non_field_errors']?.toString() ??
+        decoded?['coach_payment_status']?.toString() ??
+        '';
+
+    if (!mounted) return;
+
+    if (response.statusCode == 200 || response.statusCode == 202) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            msg.isNotEmpty
+                ? msg
+                : 'Seller payment status updated successfully',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      await _fetchOrderDetail();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            msg.isNotEmpty
+                ? msg
+                : 'Failed to update seller payment status',
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error: $e'),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _updatingSellerPaymentIds.remove(sellerId));
+    }
+  }
+}
+
   Future<void> _fetchExchangeVariants({
     required OrderItem item,
     required StateSetter bottomSheetSetState,
@@ -3155,7 +3301,8 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
       final response = await http.get(
         Uri.parse(
-            '$api/api/myskates/products/exchange/variant/${item.product}/'),
+          '$api/api/myskates/products/exchange/variant/${item.product}/',
+        ),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -3364,12 +3511,12 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
           builder: (context, bottomSheetSetState) {
             return Padding(
               padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom),
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
               child: Container(
                 decoration: const BoxDecoration(
                   color: Color(0xFF0E0E0E),
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(28)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
                 ),
                 child: SafeArea(
                   top: false,
@@ -3399,8 +3546,10 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                 color: Colors.redAccent.withOpacity(0.14),
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              child: const Icon(Icons.cancel_outlined,
-                                  color: Colors.redAccent),
+                              child: const Icon(
+                                Icons.cancel_outlined,
+                                color: Colors.redAccent,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             const Expanded(
@@ -3419,7 +3568,9 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                   Text(
                                     'Confirm the selected product cancellation',
                                     style: TextStyle(
-                                        color: Colors.white54, fontSize: 12),
+                                      color: Colors.white54,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -3428,8 +3579,10 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                               onPressed: _isCancellingOrderItem
                                   ? null
                                   : () => Navigator.pop(context),
-                              icon: const Icon(Icons.close,
-                                  color: Colors.white70),
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white70,
+                              ),
                             ),
                           ],
                         ),
@@ -3437,29 +3590,31 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                         const Text(
                           'Product',
                           style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700),
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Container(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.07),
                             borderRadius: BorderRadius.circular(15),
                             border: Border.all(
-                                color: Colors.white.withOpacity(0.12)),
+                              color: Colors.white.withOpacity(0.12),
+                            ),
                           ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<OrderItem>(
                               value: _selectedCancelItem,
                               isExpanded: true,
                               dropdownColor: const Color(0xFF161616),
-                              icon: const Icon(Icons.keyboard_arrow_down,
-                                  color: Colors.white70),
-                              style:
-                                  const TextStyle(color: Colors.white),
+                              icon: const Icon(
+                                Icons.keyboard_arrow_down,
+                                color: Colors.white70,
+                              ),
+                              style: const TextStyle(color: Colors.white),
                               onChanged: null,
                               items: [_openedItem].map((item) {
                                 return DropdownMenuItem<OrderItem>(
@@ -3468,8 +3623,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                     '${item.productTitle}${item.variantLabel.isNotEmpty ? ' - ${item.variantLabel}' : ''}',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        color: Colors.white),
+                                    style: const TextStyle(color: Colors.white),
                                   ),
                                 );
                               }).toList(),
@@ -3484,15 +3638,16 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                             color: Colors.redAccent.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                                color:
-                                    Colors.redAccent.withOpacity(0.22)),
+                              color: Colors.redAccent.withOpacity(0.22),
+                            ),
                           ),
                           child: const Text(
                             'Cancellation is allowed only while the selected product is in Placed status.',
                             style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                                height: 1.4),
+                              color: Colors.white70,
+                              fontSize: 12,
+                              height: 1.4,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 22),
@@ -3502,9 +3657,9 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                           child: ElevatedButton.icon(
                             onPressed: _isCancellingOrderItem
                                 ? null
-                                : () =>
-                                    _confirmAndSubmitCancelOrderItem(
-                                        bottomSheetSetState),
+                                : () => _confirmAndSubmitCancelOrderItem(
+                                    bottomSheetSetState,
+                                  ),
                             icon: _isCancellingOrderItem
                                 ? const SizedBox.shrink()
                                 : const Icon(Icons.cancel_outlined),
@@ -3513,24 +3668,26 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                     width: 22,
                                     height: 22,
                                     child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2.2),
+                                      color: Colors.white,
+                                      strokeWidth: 2.2,
+                                    ),
                                   )
                                 : const Text(
                                     'Cancel Selected Product',
                                     style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.redAccent,
-                              disabledBackgroundColor:
-                                  Colors.redAccent.withOpacity(0.35),
+                              disabledBackgroundColor: Colors.redAccent
+                                  .withOpacity(0.35),
                               foregroundColor: Colors.white,
                               elevation: 0,
                               shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(16)),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
                             ),
                           ),
                         ),
@@ -3547,7 +3704,8 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   }
 
   Future<void> _confirmAndSubmitCancelOrderItem(
-      StateSetter bottomSheetSetState) async {
+    StateSetter bottomSheetSetState,
+  ) async {
     if (_selectedCancelItem == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a product to cancel')),
@@ -3561,20 +3719,25 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: const Color(0xFF111111),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
           title: const Row(
             children: [
-              Icon(Icons.warning_amber_rounded,
-                  color: Colors.redAccent, size: 24),
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.redAccent,
+                size: 24,
+              ),
               SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Confirm Cancellation',
                   style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold),
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -3582,14 +3745,19 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
           content: Text(
             'Are you sure you want to cancel this product?\n\n${_selectedCancelItem!.productTitle}${_selectedCancelItem!.variantLabel.isNotEmpty ? '\n${_selectedCancelItem!.variantLabel}' : ''}\n\nThis action cannot be undone.',
             style: const TextStyle(
-                color: Colors.white70, fontSize: 14, height: 1.45),
+              color: Colors.white70,
+              fontSize: 14,
+              height: 1.45,
+            ),
           ),
           actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('No, Go Back',
-                  style: TextStyle(color: Colors.white54)),
+              child: const Text(
+                'No, Go Back',
+                style: TextStyle(color: Colors.white54),
+              ),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(dialogContext, true),
@@ -3598,10 +3766,13 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: const Text('Yes, Cancel',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Yes, Cancel',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         );
@@ -3613,8 +3784,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     }
   }
 
-  Future<void> _submitCancelOrderItem(
-      StateSetter bottomSheetSetState) async {
+  Future<void> _submitCancelOrderItem(StateSetter bottomSheetSetState) async {
     if (_selectedCancelItem == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a product to cancel')),
@@ -3645,7 +3815,8 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
       final response = await http.post(
         Uri.parse(
-            '$api/api/myskates/orders/${_order.id}/cancel/${_selectedCancelItem!.product}/'),
+          '$api/api/myskates/orders/${_order.id}/cancel/${_selectedCancelItem!.product}/',
+        ),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -3673,9 +3844,11 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(responseMessage.isNotEmpty
-                ? responseMessage
-                : 'Product cancelled successfully'),
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Product cancelled successfully',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -3684,9 +3857,11 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(responseMessage.isNotEmpty
-                ? responseMessage
-                : 'Failed to cancel product'),
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Failed to cancel product',
+            ),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -3695,9 +3870,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       print("ADMIN CANCEL ORDER ITEM ERROR: $e");
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.redAccent),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
       );
     } finally {
       if (mounted) bottomSheetSetState(() => _isCancellingOrderItem = false);
@@ -3706,8 +3879,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
   // ── Return / Exchange ─────────────────────────────────────────────────────
 
-  String _getRefundLabel(
-      String value, List<Map<String, String>> options) {
+  String _getRefundLabel(String value, List<Map<String, String>> options) {
     final matched = options.where((option) => option['value'] == value);
     if (matched.isEmpty) return value;
     return matched.first['label'] ?? value;
@@ -3727,33 +3899,39 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   }
 
   Future<void> _submitReturnExchangeRequest(
-      StateSetter bottomSheetSetState) async {
+    StateSetter bottomSheetSetState,
+  ) async {
     if (_selectedReturnItem == null) {
       bottomSheetSetState(
-          () => _returnExchangeErrorMessage = 'Please select a product');
+        () => _returnExchangeErrorMessage = 'Please select a product',
+      );
       return;
     }
     if (_selectedRefundRemark == null) {
-      bottomSheetSetState(() =>
-          _returnExchangeErrorMessage = 'Please select return or exchange');
+      bottomSheetSetState(
+        () => _returnExchangeErrorMessage = 'Please select return or exchange',
+      );
       return;
     }
     if (_selectedReasonType == null) {
       bottomSheetSetState(
-          () => _returnExchangeErrorMessage = 'Please select a reason');
+        () => _returnExchangeErrorMessage = 'Please select a reason',
+      );
       return;
     }
 
     final customReason = _customReasonController.text.trim();
     if (_selectedReasonType == 'other' && customReason.isEmpty) {
       bottomSheetSetState(
-          () => _returnExchangeErrorMessage = 'Please enter reason');
+        () => _returnExchangeErrorMessage = 'Please enter reason',
+      );
       return;
     }
     if (_selectedRefundRemark == 'exchange' &&
         _selectedExchangeVariant == null) {
-      bottomSheetSetState(() =>
-          _returnExchangeErrorMessage = 'Please select exchange variant');
+      bottomSheetSetState(
+        () => _returnExchangeErrorMessage = 'Please select exchange variant',
+      );
       return;
     }
 
@@ -3781,8 +3959,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
         'reason_type': _selectedReasonType,
         'reason': _selectedReasonType == 'other'
             ? customReason
-            : _getRefundLabel(
-                _selectedReasonType!, _refundReasonTypeOptions),
+            : _getRefundLabel(_selectedReasonType!, _refundReasonTypeOptions),
       };
 
       if (_selectedRefundRemark == 'exchange' &&
@@ -3821,9 +3998,11 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(responseMessage.isNotEmpty
-                ? responseMessage
-                : 'Return/Exchange request submitted successfully'),
+            content: Text(
+              responseMessage.isNotEmpty
+                  ? responseMessage
+                  : 'Return/Exchange request submitted successfully',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -3832,15 +4011,14 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       } else {
         if (!mounted) return;
         bottomSheetSetState(
-            () => _returnExchangeErrorMessage = responseMessage);
+          () => _returnExchangeErrorMessage = responseMessage,
+        );
       }
     } catch (e) {
       print("ERROR SUBMITTING RETURN EXCHANGE REQUEST: $e");
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.redAccent),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
       );
     } finally {
       if (mounted) {
@@ -3861,16 +4039,16 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
           builder: (context, bottomSheetSetState) {
             return Padding(
               padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom),
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
               child: Container(
                 constraints: BoxConstraints(
-                    maxHeight:
-                        MediaQuery.of(context).size.height * 0.88),
+                  maxHeight: MediaQuery.of(context).size.height * 0.88,
+                ),
                 padding: const EdgeInsets.fromLTRB(18, 16, 18, 22),
                 decoration: const BoxDecoration(
                   color: Color(0xFF071412),
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(26)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
                 ),
                 child: SingleChildScrollView(
                   child: Column(
@@ -3881,39 +4059,51 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                           width: 44,
                           height: 4,
                           decoration: BoxDecoration(
-                              color: Colors.white24,
-                              borderRadius: BorderRadius.circular(8)),
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 18),
                       const Text(
                         'Return / Exchange Request',
                         style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold),
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 6),
-                      Text(_openedItem.productTitle,
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 13)),
+                      Text(
+                        _openedItem.productTitle,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
+                      ),
                       if (_openedItem.variantLabel.isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        Text(_openedItem.variantLabel,
-                            style: const TextStyle(
-                                color: Colors.white54, fontSize: 12)),
+                        Text(
+                          _openedItem.variantLabel,
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                       const SizedBox(height: 18),
-                      const Text('Select Type',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700)),
+                      const Text(
+                        'Select Type',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 10,
                         runSpacing: 10,
-                        children:
-                            _availableRefundRemarkOptions.map((option) {
+                        children: _availableRefundRemarkOptions.map((option) {
                           final selected =
                               _selectedRefundRemark == option['value'];
                           return ChoiceChip(
@@ -3922,9 +4112,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                             selectedColor: Colors.tealAccent,
                             backgroundColor: Colors.white10,
                             labelStyle: TextStyle(
-                              color: selected
-                                  ? Colors.black
-                                  : Colors.white70,
+                              color: selected ? Colors.black : Colors.white70,
                               fontWeight: FontWeight.w700,
                             ),
                             onSelected: (_) async {
@@ -3938,8 +4126,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                               if (option['value'] == 'exchange') {
                                 await _fetchExchangeVariants(
                                   item: _openedItem,
-                                  bottomSheetSetState:
-                                      bottomSheetSetState,
+                                  bottomSheetSetState: bottomSheetSetState,
                                 );
                               }
                             },
@@ -3947,14 +4134,16 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                         }).toList(),
                       ),
                       const SizedBox(height: 18),
-                      const Text('Reason',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700)),
+                      const Text(
+                        'Reason',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       Column(
-                        children:
-                            _refundReasonTypeOptions.map((option) {
+                        children: _refundReasonTypeOptions.map((option) {
                           final selected =
                               _selectedReasonType == option['value'];
                           return Container(
@@ -3974,9 +4163,13 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                               value: option['value']!,
                               groupValue: _selectedReasonType,
                               activeColor: Colors.tealAccent,
-                              title: Text(option['label']!,
-                                  style: const TextStyle(
-                                      color: Colors.white, fontSize: 13)),
+                              title: Text(
+                                option['label']!,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                ),
+                              ),
                               onChanged: (value) {
                                 bottomSheetSetState(() {
                                   _selectedReasonType = value;
@@ -3995,54 +4188,62 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
                             hintText: 'Enter your reason',
-                            hintStyle:
-                                const TextStyle(color: Colors.white38),
+                            hintStyle: const TextStyle(color: Colors.white38),
                             filled: true,
                             fillColor: Colors.white.withOpacity(0.06),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
                               borderSide: BorderSide(
-                                  color: Colors.white.withOpacity(0.10)),
+                                color: Colors.white.withOpacity(0.10),
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
                               borderSide: BorderSide(
-                                  color: Colors.white.withOpacity(0.10)),
+                                color: Colors.white.withOpacity(0.10),
+                              ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
                               borderSide: const BorderSide(
-                                  color: Colors.tealAccent),
+                                color: Colors.tealAccent,
+                              ),
                             ),
                           ),
                         ),
                       ],
                       if (_selectedRefundRemark == 'exchange') ...[
                         const SizedBox(height: 18),
-                        const Text('Select Exchange Variant',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700)),
+                        const Text(
+                          'Select Exchange Variant',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         const SizedBox(height: 10),
                         if (_isLoadingExchangeVariants)
                           const Center(
                             child: Padding(
                               padding: EdgeInsets.all(18),
                               child: CircularProgressIndicator(
-                                  color: Colors.tealAccent),
+                                color: Colors.tealAccent,
+                              ),
                             ),
                           )
                         else if (_exchangeVariantErrorMessage != null)
-                          Text(_exchangeVariantErrorMessage!,
-                              style: const TextStyle(
-                                  color: Colors.redAccent, fontSize: 13))
+                          Text(
+                            _exchangeVariantErrorMessage!,
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 13,
+                            ),
+                          )
                         else
                           Column(
-                            children:
-                                _exchangeVariants.map((variant) {
+                            children: _exchangeVariants.map((variant) {
                               final selected =
-                                  _selectedExchangeVariant?.id ==
-                                      variant.id;
+                                  _selectedExchangeVariant?.id == variant.id;
                               return GestureDetector(
                                 onTap: () {
                                   bottomSheetSetState(() {
@@ -4051,16 +4252,13 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                   });
                                 },
                                 child: Container(
-                                  margin:
-                                      const EdgeInsets.only(bottom: 10),
+                                  margin: const EdgeInsets.only(bottom: 10),
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
                                     color: selected
-                                        ? Colors.tealAccent
-                                            .withOpacity(0.13)
+                                        ? Colors.tealAccent.withOpacity(0.13)
                                         : Colors.white.withOpacity(0.06),
-                                    borderRadius:
-                                        BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
                                       color: selected
                                           ? Colors.tealAccent
@@ -4074,8 +4272,9 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                         height: 54,
                                         decoration: BoxDecoration(
                                           color: Colors.white10,
-                                          borderRadius:
-                                              BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                         clipBehavior: Clip.antiAlias,
                                         child: _variantImage(variant),
@@ -4086,35 +4285,39 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Text(variant.label,
-                                                style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight:
-                                                        FontWeight.w700)),
+                                            Text(
+                                              variant.label,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
                                             if (variant.sku != null &&
-                                                variant.sku!
-                                                    .trim()
-                                                    .isNotEmpty)
-                                              Text('SKU: ${variant.sku}',
-                                                  style: const TextStyle(
-                                                      color: Colors.white54,
-                                                      fontSize: 12)),
-                                            if (variant.variantPrice !=
-                                                null)
+                                                variant.sku!.trim().isNotEmpty)
                                               Text(
-                                                  '₹${variant.variantPrice}',
-                                                  style: const TextStyle(
-                                                      color:
-                                                          Colors.tealAccent,
-                                                      fontSize: 12,
-                                                      fontWeight:
-                                                          FontWeight.w700)),
+                                                'SKU: ${variant.sku}',
+                                                style: const TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            if (variant.variantPrice != null)
+                                              Text(
+                                                '₹${variant.variantPrice}',
+                                                style: const TextStyle(
+                                                  color: Colors.tealAccent,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
                                           ],
                                         ),
                                       ),
                                       if (selected)
-                                        const Icon(Icons.check_circle,
-                                            color: Colors.tealAccent),
+                                        const Icon(
+                                          Icons.check_circle,
+                                          color: Colors.tealAccent,
+                                        ),
                                     ],
                                   ),
                                 ),
@@ -4131,12 +4334,16 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                             color: Colors.redAccent.withOpacity(0.12),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                                color:
-                                    Colors.redAccent.withOpacity(0.35)),
+                              color: Colors.redAccent.withOpacity(0.35),
+                            ),
                           ),
-                          child: Text(_returnExchangeErrorMessage!,
-                              style: const TextStyle(
-                                  color: Colors.redAccent, fontSize: 13)),
+                          child: Text(
+                            _returnExchangeErrorMessage!,
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 13,
+                            ),
+                          ),
                         ),
                       ],
                       const SizedBox(height: 22),
@@ -4147,7 +4354,8 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                           onPressed: _isSubmittingReturnExchange
                               ? null
                               : () => _submitReturnExchangeRequest(
-                                  bottomSheetSetState),
+                                  bottomSheetSetState,
+                                ),
                           icon: _isSubmittingReturnExchange
                               ? const SizedBox.shrink()
                               : const Icon(Icons.send_rounded),
@@ -4156,21 +4364,26 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                   width: 22,
                                   height: 22,
                                   child: CircularProgressIndicator(
-                                      color: Colors.black,
-                                      strokeWidth: 2.2),
+                                    color: Colors.black,
+                                    strokeWidth: 2.2,
+                                  ),
                                 )
-                              : const Text('Submit Request',
+                              : const Text(
+                                  'Submit Request',
                                   style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold)),
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.tealAccent,
-                            disabledBackgroundColor:
-                                Colors.tealAccent.withOpacity(0.35),
+                            disabledBackgroundColor: Colors.tealAccent
+                                .withOpacity(0.35),
                             foregroundColor: Colors.black,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16)),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                           ),
                         ),
                       ),
@@ -4244,13 +4457,17 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
               fit: BoxFit.cover,
               gaplessPlayback: true,
               errorBuilder: (_, __, ___) => const Icon(
-                  Icons.image_not_supported,
-                  color: Colors.white38,
-                  size: 30),
+                Icons.image_not_supported,
+                color: Colors.white38,
+                size: 30,
+              ),
             );
           }
-          return const Icon(Icons.image_not_supported,
-              color: Colors.white38, size: 30);
+          return const Icon(
+            Icons.image_not_supported,
+            color: Colors.white38,
+            size: 30,
+          );
         },
       );
     } else if (item.productImage != null) {
@@ -4259,47 +4476,55 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
         fit: BoxFit.cover,
         gaplessPlayback: true,
         errorBuilder: (_, __, ___) => const Icon(
-            Icons.image_not_supported,
-            color: Colors.white38,
-            size: 30),
+          Icons.image_not_supported,
+          color: Colors.white38,
+          size: 30,
+        ),
       );
     } else {
-      return const Icon(Icons.image_not_supported,
-          color: Colors.white38, size: 30);
+      return const Icon(
+        Icons.image_not_supported,
+        color: Colors.white38,
+        size: 30,
+      );
     }
   }
 
   Widget _variantImage(ExchangeVariant variant) {
     final imagePath = variant.image ?? variant.productImage;
     if (imagePath == null || imagePath.trim().isEmpty) {
-      return const Icon(Icons.image_not_supported_outlined,
-          color: Colors.white38);
+      return const Icon(
+        Icons.image_not_supported_outlined,
+        color: Colors.white38,
+      );
     }
-    final imageUrl =
-        imagePath.startsWith('http') ? imagePath : '$api$imagePath';
+    final imageUrl = imagePath.startsWith('http')
+        ? imagePath
+        : '$api$imagePath';
     return Image.network(
       imageUrl,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => const Icon(
-          Icons.image_not_supported_outlined,
-          color: Colors.white38),
+      errorBuilder: (_, __, ___) =>
+          const Icon(Icons.image_not_supported_outlined, color: Colors.white38),
     );
   }
 
-  Widget _pricingRow(String label, String value,
-      {bool isDiscount = false}) {
+  Widget _pricingRow(String label, String value, {bool isDiscount = false}) {
     final amount = double.tryParse(value) ?? 0;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: Text(label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500)),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
         const SizedBox(width: 12),
         SizedBox(
@@ -4334,12 +4559,14 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label,
-                  style: const TextStyle(
-                      color: Colors.white54, fontSize: 12)),
-              Text(value,
-                  style:
-                      TextStyle(color: Colors.white, fontSize: valueSize)),
+              Text(
+                label,
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+              Text(
+                value,
+                style: TextStyle(color: Colors.white, fontSize: valueSize),
+              ),
             ],
           ),
         ),
@@ -4361,13 +4588,17 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label,
-                  style: const TextStyle(
-                      color: Colors.white54, fontSize: 12)),
+              Text(
+                label,
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
               const SizedBox(height: 2),
-              ...lines.map((line) => Text(line,
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 14))),
+              ...lines.map(
+                (line) => Text(
+                  line,
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                ),
+              ),
             ],
           ),
         ),
@@ -4378,16 +4609,19 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   // ── Item card (student-style) ─────────────────────────────────────────────
 
   Widget _buildOrderDetailItemCard(OrderItem item) {
-    final itemStatus =
-        item.status.trim().isNotEmpty ? item.status : _order.status;
+    final itemStatus = item.status.trim().isNotEmpty
+        ? item.status
+        : _order.status;
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () {
         if (!widget.isCoachProductOrder &&
             _order.status.toLowerCase() == 'delivered') {
-          _navigateToReviewScreen(item,
-              existingReview: _existingReviews[item.product]);
+          _navigateToReviewScreen(
+            item,
+            existingReview: _existingReviews[item.product],
+          );
         }
       },
       child: Container(
@@ -4396,8 +4630,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.04),
           borderRadius: BorderRadius.circular(16),
-          border:
-              Border.all(color: Colors.white.withOpacity(0.07)),
+          border: Border.all(color: Colors.white.withOpacity(0.07)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4439,7 +4672,9 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.tealAccent.withOpacity(0.14),
                         borderRadius: BorderRadius.circular(8),
@@ -4460,14 +4695,14 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                   // Status badge
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(itemStatus)
-                          .withOpacity(0.14),
+                      color: _getStatusColor(itemStatus).withOpacity(0.14),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: _getStatusColor(itemStatus)
-                            .withOpacity(0.35),
+                        color: _getStatusColor(itemStatus).withOpacity(0.35),
                       ),
                     ),
                     child: Text(
@@ -4487,8 +4722,11 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                       item.coachName!.trim().isNotEmpty) ...[
                     Row(
                       children: [
-                        const Icon(Icons.storefront_outlined,
-                            color: Colors.white54, size: 14),
+                        const Icon(
+                          Icons.storefront_outlined,
+                          color: Colors.white54,
+                          size: 14,
+                        ),
                         const SizedBox(width: 5),
                         Expanded(
                           child: Text(
@@ -4530,9 +4768,10 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                     Text(
                       'Seller Type: ${item.productUserType}',
                       style: const TextStyle(
-                          color: Colors.tealAccent,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600),
+                        color: Colors.tealAccent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 4),
                   ],
@@ -4540,8 +4779,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                   // Qty
                   Text(
                     'Qty: ${item.quantity}',
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 13),
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
 
                   // Reviewed badge
@@ -4598,6 +4836,151 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     );
   }
 
+  Widget _buildSellerPaymentStatusDropdown(SellerBreakdown seller) {
+    const choices = ['PENDING', 'PROCESSING', 'PAID'];
+
+    final raw = _order.sellerBreakdown
+        .firstWhere((s) => s.coachId == seller.coachId, orElse: () => seller)
+        .sellerPayable;
+    final currentStatus = choices.contains(seller.coachPaymentStatus)
+        ? seller.coachPaymentStatus
+        : 'PENDING';
+
+    final selected = currentStatus;
+    final color = _getSellerPaymentStatusColor(selected);
+    final isUpdating = _updatingSellerPaymentIds.contains(seller.coachId);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.account_balance_wallet_outlined,
+                color: color,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Seller Payment Status',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (isUpdating)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    color: Colors.tealAccent,
+                    strokeWidth: 2,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.20),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.10)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: selected,
+                isExpanded: true,
+                dropdownColor: const Color(0xFF101010),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white70,
+                ),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+                onChanged: isUpdating
+                    ? null
+                    : (String? value) {
+                        if (value == null || value == selected) return;
+                        _updateSellerPaymentStatus(
+                          sellerId: seller.coachId,
+                          status: value,
+                        );
+                      },
+                selectedItemBuilder: (context) => choices.map((s) {
+                  final c = _getSellerPaymentStatusColor(s);
+                  return Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: c,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _getSellerPaymentStatusLabel(s),
+                        style: TextStyle(
+                          color: c,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+                items: choices.map((s) {
+                  final c = _getSellerPaymentStatusColor(s);
+                  return DropdownMenuItem<String>(
+                    value: s,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: c,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _getSellerPaymentStatusLabel(s),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Action button builders ────────────────────────────────────────────────
 
   Widget _buildReturnExchangeButton() {
@@ -4618,11 +5001,15 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
               width: 18,
               height: 18,
               child: CircularProgressIndicator(
-                  color: Colors.tealAccent, strokeWidth: 2),
+                color: Colors.tealAccent,
+                strokeWidth: 2,
+              ),
             ),
             SizedBox(width: 10),
-            Text('Checking return/exchange status...',
-                style: TextStyle(color: Colors.white70, fontSize: 13)),
+            Text(
+              'Checking return/exchange status...',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
           ],
         ),
       );
@@ -4640,16 +5027,18 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       child: ElevatedButton.icon(
         onPressed: _showReturnExchangeBottomSheet,
         icon: const Icon(Icons.assignment_return_outlined, size: 20),
-        label: const Text('Return / Exchange',
-            style:
-                TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+        label: const Text(
+          'Return / Exchange',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.tealAccent,
           foregroundColor: Colors.black,
           elevation: 0,
           minimumSize: const Size(double.infinity, 54),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
       ),
     );
@@ -4683,8 +5072,11 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.assignment_turned_in_outlined,
-              color: statusColor, size: 22),
+          Icon(
+            Icons.assignment_turned_in_outlined,
+            color: statusColor,
+            size: 22,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -4693,19 +5085,22 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                 Text(
                   '${refund.remark.toUpperCase()} request already submitted',
                   style: TextStyle(
-                      color: statusColor,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold),
+                    color: statusColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 5),
-                Text('Status: ${refund.status}',
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 12)),
+                Text(
+                  'Status: ${refund.status}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
                 if (refund.reason.isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text('Reason: ${refund.reason}',
-                      style: const TextStyle(
-                          color: Colors.white54, fontSize: 12)),
+                  Text(
+                    'Reason: ${refund.reason}',
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
                 ],
               ],
             ),
@@ -4724,16 +5119,18 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       child: ElevatedButton.icon(
         onPressed: _showCancelOrderBottomSheet,
         icon: const Icon(Icons.cancel_outlined, size: 20),
-        label: const Text('Cancel Product',
-            style:
-                TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+        label: const Text(
+          'Cancel Product',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.redAccent,
           foregroundColor: Colors.white,
           elevation: 0,
           minimumSize: const Size(double.infinity, 54),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
       ),
     );
@@ -4757,26 +5154,32 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                        width: 180,
-                        height: 16,
-                        decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(6))),
+                      width: 180,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
                     Container(
-                        width: 80,
-                        height: 28,
-                        decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(25))),
+                      width: 80,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 Container(
-                    width: 220,
-                    height: 14,
-                    decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(6))),
+                  width: 220,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
               ],
             ),
           ),
@@ -4787,11 +5190,13 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                    width: 160,
-                    height: 16,
-                    decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(6))),
+                  width: 160,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
                 const SizedBox(height: 20),
                 ...List.generate(
                   3,
@@ -4800,30 +5205,34 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                     child: Row(
                       children: [
                         Container(
-                            width: 18,
-                            height: 18,
-                            decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(4))),
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
                         const SizedBox(width: 12),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Container(
-                                width: 60,
-                                height: 11,
-                                decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius:
-                                        BorderRadius.circular(4))),
+                              width: 60,
+                              height: 11,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
                             const SizedBox(height: 6),
                             Container(
-                                width: 160,
-                                height: 14,
-                                decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius:
-                                        BorderRadius.circular(4))),
+                              width: 160,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -4846,14 +5255,18 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style:
-                  const TextStyle(color: Colors.white54, fontSize: 12)),
-          Text(value,
-              style: TextStyle(
-                  color: valueColor ?? Colors.white70,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor ?? Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -4874,16 +5287,20 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
             children: [
               Icon(icon, color: Colors.tealAccent, size: 14),
               const SizedBox(width: 6),
-              Text(label,
-                  style: const TextStyle(
-                      color: Colors.white54, fontSize: 12)),
+              Text(
+                label,
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
             ],
           ),
-          Text(value,
-              style: TextStyle(
-                  color: valueColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500)),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -4896,16 +5313,20 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
         children: [
           SizedBox(
             width: 100,
-            child: Text(label,
-                style: const TextStyle(
-                    color: Colors.white38, fontSize: 12)),
+            child: Text(
+              label,
+              style: const TextStyle(color: Colors.white38, fontSize: 12),
+            ),
           ),
           Expanded(
-            child: Text(value,
-                style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500)),
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
         ],
       ),
@@ -4926,10 +5347,9 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     for (var sellerItem in seller.items) {
       try {
         final matchingOrderItem = _order.items.firstWhere(
-            (orderItem) =>
-                orderItem.productTitle == sellerItem.productTitle);
-        final userType =
-            matchingOrderItem.productUserType?.toLowerCase() ?? '';
+          (orderItem) => orderItem.productTitle == sellerItem.productTitle,
+        );
+        final userType = matchingOrderItem.productUserType?.toLowerCase() ?? '';
         if (userType == 'admin' || userType == 'sadmin') return true;
       } catch (_) {
         continue;
@@ -4950,11 +5370,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Color(0xFF001F1D),
-              Color(0xFF003A36),
-              Colors.black,
-            ],
+            colors: [Color(0xFF001F1D), Color(0xFF003A36), Colors.black],
             begin: Alignment.topLeft,
             end: Alignment.bottomCenter,
           ),
@@ -4970,16 +5386,19 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
                   // ── AppBar row ───────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 4, vertical: 4),
+                      horizontal: 4,
+                      vertical: 4,
+                    ),
                     child: Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.arrow_back_ios_new,
-                              color: Colors.white),
+                          icon: const Icon(
+                            Icons.arrow_back_ios_new,
+                            color: Colors.white,
+                          ),
                           onPressed: () => Navigator.pop(context),
                         ),
                         const SizedBox(width: 6),
@@ -5001,25 +5420,26 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                             child: GestureDetector(
                               onTap: () => _navigateToReviewScreen(
                                 reviewedProduct,
-                                existingReview: _existingReviews[
-                                    reviewedProduct.product],
+                                existingReview:
+                                    _existingReviews[reviewedProduct.product],
                               ),
                               child: Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color:
-                                      Colors.tealAccent.withOpacity(0.2),
+                                  color: Colors.tealAccent.withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                      color: Colors.tealAccent
-                                          .withOpacity(0.5)),
+                                    color: Colors.tealAccent.withOpacity(0.5),
+                                  ),
                                 ),
                                 child: const Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.rate_review,
-                                        color: Colors.tealAccent,
-                                        size: 18),
+                                    Icon(
+                                      Icons.rate_review,
+                                      color: Colors.tealAccent,
+                                      size: 18,
+                                    ),
                                     SizedBox(width: 4),
                                     Text(
                                       'Review',
@@ -5039,12 +5459,17 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(
-                                color: Colors.tealAccent, strokeWidth: 2),
+                              color: Colors.tealAccent,
+                              strokeWidth: 2,
+                            ),
                           ),
                         if (_fetchError != null && !_isRefreshing)
                           IconButton(
-                            icon: const Icon(Icons.refresh_rounded,
-                                color: Colors.orangeAccent, size: 20),
+                            icon: const Icon(
+                              Icons.refresh_rounded,
+                              color: Colors.orangeAccent,
+                              size: 20,
+                            ),
                             tooltip: 'Retry',
                             onPressed: _fetchOrderDetail,
                           ),
@@ -5057,25 +5482,32 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.red.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                            color: Colors.red.withOpacity(0.3),
-                            width: 0.5),
+                          color: Colors.red.withOpacity(0.3),
+                          width: 0.5,
+                        ),
                       ),
                       child: const Row(
                         children: [
-                          Icon(Icons.warning_amber_rounded,
-                              color: Colors.orangeAccent, size: 16),
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.orangeAccent,
+                            size: 16,
+                          ),
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Could not refresh order. Showing cached data.',
                               style: TextStyle(
-                                  color: Colors.orangeAccent,
-                                  fontSize: 12),
+                                color: Colors.orangeAccent,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                         ],
@@ -5089,7 +5521,6 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                   if (_isRefreshing && _order.items.isEmpty)
                     _buildDetailShimmer()
                   else ...[
-
                     // Card 1 – Order summary
                     _glassWrap(
                       padding: const EdgeInsets.all(20),
@@ -5107,15 +5538,19 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                           const SizedBox(height: 16),
                           Row(
                             children: [
-                              const Icon(Icons.calendar_today_outlined,
-                                  color: Colors.tealAccent, size: 16),
+                              const Icon(
+                                Icons.calendar_today_outlined,
+                                color: Colors.tealAccent,
+                                size: 16,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   'Ordered on: ${DateFormat('dd MMM yyyy, hh:mm a').format(_order.createdAt)}',
                                   style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 14),
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ),
                             ],
@@ -5124,14 +5559,18 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                const Icon(Icons.update_rounded,
-                                    color: Colors.tealAccent, size: 16),
+                                const Icon(
+                                  Icons.update_rounded,
+                                  color: Colors.tealAccent,
+                                  size: 16,
+                                ),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Updated: ${DateFormat('dd MMM yyyy, hh:mm a').format(_order.updatedAt)}',
                                   style: const TextStyle(
-                                      color: Colors.white38,
-                                      fontSize: 12),
+                                    color: Colors.white38,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ],
                             ),
@@ -5158,14 +5597,16 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                           ),
                           const SizedBox(height: 16),
                           _infoRow(
-                              icon: Icons.person_outline,
-                              label: 'Name',
-                              value: _order.fullName),
+                            icon: Icons.person_outline,
+                            label: 'Name',
+                            value: _order.fullName,
+                          ),
                           const SizedBox(height: 12),
                           _infoRow(
-                              icon: Icons.phone_outlined,
-                              label: 'Phone',
-                              value: _order.phone),
+                            icon: Icons.phone_outlined,
+                            label: 'Phone',
+                            value: _order.phone,
+                          ),
                           const SizedBox(height: 12),
                           _infoRowMultiline(
                             icon: Icons.location_on_outlined,
@@ -5235,7 +5676,6 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-
                           // Selected item
                           const Text(
                             'Selected Item',
@@ -5250,8 +5690,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
                           // Other items
                           if (_otherItemsInOrder.isNotEmpty) ...[
-                            const Divider(
-                                color: Colors.white24, height: 30),
+                            const Divider(color: Colors.white24, height: 30),
                             const Text(
                               'Other items in this order',
                               style: TextStyle(
@@ -5262,33 +5701,32 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                             ),
                             const SizedBox(height: 16),
                             ..._otherItemsInOrder.map(
-                                (item) =>
-                                    _buildOrderDetailItemCard(item)),
+                              (item) => _buildOrderDetailItemCard(item),
+                            ),
                           ],
 
                           // Pricing breakdown
-                          const Divider(
-                              color: Colors.white24, height: 26),
+                          const Divider(color: Colors.white24, height: 26),
                           _pricingRow('Subtotal', _order.total),
                           if (double.parse(_order.platformFee) > 0) ...[
                             const SizedBox(height: 8),
+                            _pricingRow('Platform Fee', _order.platformFee),
+                          ],
+                          if (double.parse(_order.convenienceFee) > 0) ...[
+                            const SizedBox(height: 8),
                             _pricingRow(
-                                'Platform Fee', _order.platformFee),
+                              'Convenience Fee',
+                              _order.convenienceFee,
+                            ),
                           ],
-                          if (double.parse(_order.convenienceFee) >
-                              0) ...[
+                          if (double.parse(_order.shipmentcharge) > 0) ...[
                             const SizedBox(height: 8),
-                            _pricingRow('Convenience Fee',
-                                _order.convenienceFee),
+                            _pricingRow(
+                              'Shipment Charge',
+                              _order.shipmentcharge,
+                            ),
                           ],
-                          if (double.parse(_order.shipmentcharge) >
-                              0) ...[
-                            const SizedBox(height: 8),
-                            _pricingRow('Shipment Charge',
-                                _order.shipmentcharge),
-                          ],
-                          if (double.parse(_order.couponDiscount) >
-                              0) ...[
+                          if (double.parse(_order.couponDiscount) > 0) ...[
                             const SizedBox(height: 8),
                             _pricingRow(
                               _order.couponName != null
@@ -5304,18 +5742,18 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                           // Total highlight
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 14),
+                              horizontal: 14,
+                              vertical: 14,
+                            ),
                             decoration: BoxDecoration(
-                              color:
-                                  Colors.tealAccent.withOpacity(0.08),
+                              color: Colors.tealAccent.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                  color: Colors.tealAccent
-                                      .withOpacity(0.25)),
+                                color: Colors.tealAccent.withOpacity(0.25),
+                              ),
                             ),
                             child: Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text(
                                   'Total',
@@ -5347,14 +5785,14 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                   width: 32,
                                   height: 32,
                                   decoration: BoxDecoration(
-                                    color:
-                                        Colors.amber.withOpacity(0.15),
+                                    color: Colors.amber.withOpacity(0.15),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
-                                      Icons.payments_outlined,
-                                      color: Colors.amber,
-                                      size: 16),
+                                    Icons.payments_outlined,
+                                    color: Colors.amber,
+                                    size: 16,
+                                  ),
                                 ),
                                 const SizedBox(width: 10),
                                 const Text(
@@ -5368,39 +5806,33 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            ..._order.sellerBreakdown
-                                .asMap()
-                                .entries
-                                .map((entry) {
+                            ..._order.sellerBreakdown.asMap().entries.map((
+                              entry,
+                            ) {
                               final index = entry.key;
                               final seller = entry.value;
                               final bank = seller.bankDetails;
-                              final initials =
-                                  seller.coachName.isNotEmpty
-                                      ? seller.coachName
-                                          .trim()
-                                          .split(' ')
-                                          .take(2)
-                                          .map((w) =>
-                                              w[0].toUpperCase())
-                                          .join()
-                                      : 'S${index + 1}';
+                              final initials = seller.coachName.isNotEmpty
+                                  ? seller.coachName
+                                        .trim()
+                                        .split(' ')
+                                        .take(2)
+                                        .map((w) => w[0].toUpperCase())
+                                        .join()
+                                  : 'S${index + 1}';
 
                               return Container(
-                                margin:
-                                    const EdgeInsets.only(bottom: 12),
+                                margin: const EdgeInsets.only(bottom: 12),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF0D1F1D),
-                                  borderRadius:
-                                      BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
-                                      color: Colors.white
-                                          .withOpacity(0.08)),
+                                    color: Colors.white.withOpacity(0.08),
+                                  ),
                                 ),
                                 clipBehavior: Clip.antiAlias,
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Padding(
                                       padding: const EdgeInsets.all(14),
@@ -5408,16 +5840,14 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                         children: [
                                           CircleAvatar(
                                             radius: 18,
-                                            backgroundColor:
-                                                Colors.tealAccent
-                                                    .withOpacity(0.15),
+                                            backgroundColor: Colors.tealAccent
+                                                .withOpacity(0.15),
                                             child: Text(
                                               initials,
                                               style: const TextStyle(
                                                 color: Colors.tealAccent,
                                                 fontSize: 13,
-                                                fontWeight:
-                                                    FontWeight.w600,
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                           ),
@@ -5425,29 +5855,27 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                           Expanded(
                                             child: Column(
                                               crossAxisAlignment:
-                                                  CrossAxisAlignment
-                                                      .start,
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                  seller.coachName
-                                                          .isEmpty
+                                                  seller.coachName.isEmpty
                                                       ? 'Seller ${index + 1}'
                                                       : seller.coachName,
                                                   style: const TextStyle(
                                                     color: Colors.white,
                                                     fontSize: 14,
-                                                    fontWeight:
-                                                        FontWeight.w600,
+                                                    fontWeight: FontWeight.w600,
                                                   ),
                                                 ),
-                                                if (seller.coachPhone
+                                                if (seller
+                                                    .coachPhone
                                                     .isNotEmpty)
                                                   Text(
                                                     seller.coachPhone,
                                                     style: const TextStyle(
-                                                        color:
-                                                            Colors.white54,
-                                                        fontSize: 12),
+                                                      color: Colors.white54,
+                                                      fontSize: 12,
+                                                    ),
                                                   ),
                                               ],
                                             ),
@@ -5456,19 +5884,19 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.end,
                                             children: [
-                                              const Text('net payable',
-                                                  style: TextStyle(
-                                                      color:
-                                                          Colors.white38,
-                                                      fontSize: 10)),
+                                              const Text(
+                                                'net payable',
+                                                style: TextStyle(
+                                                  color: Colors.white38,
+                                                  fontSize: 10,
+                                                ),
+                                              ),
                                               Text(
                                                 '₹${_amount(seller.sellerpayableTotal).toStringAsFixed(2)}',
                                                 style: const TextStyle(
-                                                  color:
-                                                      Colors.greenAccent,
+                                                  color: Colors.greenAccent,
                                                   fontSize: 17,
-                                                  fontWeight:
-                                                      FontWeight.w600,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
                                               ),
                                             ],
@@ -5476,35 +5904,52 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                         ],
                                       ),
                                     ),
+                                    // After seller name/phone row, before the Divider:
+                                    if (widget.isCoachProductOrder)
+                                      _buildSellerPaymentStatusDropdown(seller),
                                     const Divider(
-                                        color: Colors.white10,
-                                        height: 1),
+                                      color: Colors.white10,
+                                      height: 1,
+                                    ),
+                                    const Divider(
+                                      color: Colors.white10,
+                                      height: 1,
+                                    ),
+
                                     Padding(
                                       padding: const EdgeInsets.fromLTRB(
-                                          14, 12, 14, 0),
+                                        14,
+                                        12,
+                                        14,
+                                        0,
+                                      ),
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          const Text('ITEMS',
-                                              style: TextStyle(
-                                                color: Colors.white38,
-                                                fontSize: 10,
-                                                letterSpacing: 1.0,
-                                              )),
+                                          const Text(
+                                            'ITEMS',
+                                            style: TextStyle(
+                                              color: Colors.white38,
+                                              fontSize: 10,
+                                              letterSpacing: 1.0,
+                                            ),
+                                          ),
                                           const SizedBox(height: 8),
-                                          ...seller.items
-                                              .asMap()
-                                              .entries
-                                              .map((e) {
-                                            final isLast = e.key ==
+                                          ...seller.items.asMap().entries.map((
+                                            e,
+                                          ) {
+                                            final isLast =
+                                                e.key ==
                                                 seller.items.length - 1;
                                             final si = e.value;
                                             return Column(
                                               children: [
                                                 Padding(
-                                                  padding: const EdgeInsets
-                                                      .only(top: 8),
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        top: 8,
+                                                      ),
                                                   child: Row(
                                                     crossAxisAlignment:
                                                         CrossAxisAlignment
@@ -5514,62 +5959,59 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                                         child: Text(
                                                           si.productTitle,
                                                           maxLines: 2,
-                                                          overflow:
-                                                              TextOverflow
-                                                                  .ellipsis,
-                                                          style: const TextStyle(
-                                                            color:
-                                                                Colors.white,
-                                                            fontSize: 15,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w600,
-                                                          ),
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          style:
+                                                              const TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize: 15,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
                                                         ),
                                                       ),
-                                                      const SizedBox(
-                                                          width: 8),
+                                                      const SizedBox(width: 8),
                                                       Text(
                                                         '₹${_amount(si.itemTotal).toStringAsFixed(2)}',
                                                         style: const TextStyle(
-                                                            color:
-                                                                Colors.white,
-                                                            fontSize: 13),
+                                                          color: Colors.white,
+                                                          fontSize: 13,
+                                                        ),
                                                       ),
                                                     ],
                                                   ),
                                                 ),
                                                 if (!_isSellerAdmin(
-                                                    seller)) ...[
+                                                  seller,
+                                                )) ...[
                                                   _receiptRow(
                                                     'Product Charge (${_order.productPercentage}%)',
                                                     '− ₹${_amount(si.percentageAmount).toStringAsFixed(2)}',
                                                     valueColor:
                                                         Colors.redAccent,
                                                   ),
-                                                  const SizedBox(
-                                                      height: 5),
+                                                  const SizedBox(height: 5),
                                                 ],
                                                 _receiptRowWithIcon(
                                                   'Shipping Charge',
                                                   '+ ₹${_amount(si.productShippingCharge).toStringAsFixed(2)}',
-                                                  icon: Icons
-                                                      .local_shipping,
-                                                  valueColor:
-                                                      Colors.green,
+                                                  icon: Icons.local_shipping,
+                                                  valueColor: Colors.green,
                                                 ),
                                                 const SizedBox(height: 5),
                                                 _receiptRow(
                                                   'Seller Payable',
                                                   '₹${_amount(si.sellerPayable).toStringAsFixed(2)}',
-                                                  valueColor:
-                                                      Colors.redAccent,
+                                                  valueColor: Colors.redAccent,
                                                 ),
                                                 const SizedBox(height: 5),
                                                 if (!isLast)
                                                   const Divider(
-                                                      color: Colors.white10,
-                                                      height: 1),
+                                                    color: Colors.white10,
+                                                    height: 1,
+                                                  ),
                                               ],
                                             );
                                           }).toList(),
@@ -5578,12 +6020,17 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                     ),
                                     Padding(
                                       padding: const EdgeInsets.fromLTRB(
-                                          14, 4, 14, 14),
+                                        14,
+                                        4,
+                                        14,
+                                        14,
+                                      ),
                                       child: Column(
                                         children: [
                                           const Divider(
-                                              color: Colors.white10,
-                                              height: 20),
+                                            color: Colors.white10,
+                                            height: 20,
+                                          ),
                                           _receiptRow(
                                             'Subtotal',
                                             '₹${_amount(seller.sellerDiscountedTotal).toStringAsFixed(2)}',
@@ -5600,27 +6047,27 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                             valueColor: Colors.redAccent,
                                           ),
                                           const Divider(
-                                              color: Colors.white10,
-                                              height: 16),
+                                            color: Colors.white10,
+                                            height: 16,
+                                          ),
                                           Row(
                                             mainAxisAlignment:
-                                                MainAxisAlignment
-                                                    .spaceBetween,
+                                                MainAxisAlignment.spaceBetween,
                                             children: [
-                                              const Text('Net payable',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 13,
-                                                    fontWeight:
-                                                        FontWeight.w600,
-                                                  )),
+                                              const Text(
+                                                'Net payable',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
                                               Text(
                                                 '₹${_amount(seller.sellerpayableTotal).toStringAsFixed(2)}',
                                                 style: const TextStyle(
                                                   color: Colors.greenAccent,
                                                   fontSize: 15,
-                                                  fontWeight:
-                                                      FontWeight.w600,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
                                               ),
                                             ],
@@ -5632,40 +6079,47 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                         _hasAnyBankDetail(bank)) ...[
                                       Container(
                                         width: double.infinity,
-                                        color: Colors.white
-                                            .withOpacity(0.04),
-                                        padding:
-                                            const EdgeInsets.fromLTRB(
-                                                14, 12, 14, 14),
+                                        color: Colors.white.withOpacity(0.04),
+                                        padding: const EdgeInsets.fromLTRB(
+                                          14,
+                                          12,
+                                          14,
+                                          14,
+                                        ),
                                         child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            const Text('BANK DETAILS',
-                                                style: TextStyle(
-                                                  color: Colors.white38,
-                                                  fontSize: 10,
-                                                  letterSpacing: 1.0,
-                                                )),
+                                            const Text(
+                                              'BANK DETAILS',
+                                              style: TextStyle(
+                                                color: Colors.white38,
+                                                fontSize: 10,
+                                                letterSpacing: 1.0,
+                                              ),
+                                            ),
                                             const SizedBox(height: 10),
-                                            if (bank.accountHolderName
-                                                .isNotEmpty)
-                                              _bankRow('Account holder',
-                                                  bank.accountHolderName),
-                                            if (bank.bankName.isNotEmpty)
-                                              _bankRow(
-                                                  'Bank', bank.bankName),
                                             if (bank
-                                                .branchName.isNotEmpty)
-                                              _bankRow('Branch',
-                                                  bank.branchName),
-                                            if (bank.accountNumber
+                                                .accountHolderName
                                                 .isNotEmpty)
-                                              _bankRow('Account no.',
-                                                  bank.accountNumber),
-                                            if (bank.ifscCode.isNotEmpty)
                                               _bankRow(
-                                                  'IFSC', bank.ifscCode),
+                                                'Account holder',
+                                                bank.accountHolderName,
+                                              ),
+                                            if (bank.bankName.isNotEmpty)
+                                              _bankRow('Bank', bank.bankName),
+                                            if (bank.branchName.isNotEmpty)
+                                              _bankRow(
+                                                'Branch',
+                                                bank.branchName,
+                                              ),
+                                            if (bank.accountNumber.isNotEmpty)
+                                              _bankRow(
+                                                'Account no.',
+                                                bank.accountNumber,
+                                              ),
+                                            if (bank.ifscCode.isNotEmpty)
+                                              _bankRow('IFSC', bank.ifscCode),
                                             if (bank.upiId.isNotEmpty)
                                               _bankRow('UPI', bank.upiId),
                                           ],
@@ -5684,15 +6138,13 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF0D1F1D),
-                                  borderRadius:
-                                      BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
-                                      color: Colors.white
-                                          .withOpacity(0.08)),
+                                    color: Colors.white.withOpacity(0.08),
+                                  ),
                                 ),
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
                                       children: [
@@ -5700,56 +6152,66 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                           width: 28,
                                           height: 28,
                                           decoration: BoxDecoration(
-                                            color: Colors.amber
-                                                .withOpacity(0.15),
+                                            color: Colors.amber.withOpacity(
+                                              0.15,
+                                            ),
                                             shape: BoxShape.circle,
                                           ),
                                           child: const Icon(
-                                              Icons.bar_chart_rounded,
-                                              color: Colors.amber,
-                                              size: 15),
+                                            Icons.bar_chart_rounded,
+                                            color: Colors.amber,
+                                            size: 15,
+                                          ),
                                         ),
                                         const SizedBox(width: 8),
-                                        const Text('ORDER TOTALS',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                              letterSpacing: 0.5,
-                                            )),
+                                        const Text(
+                                          'ORDER TOTALS',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     const SizedBox(height: 14),
                                     const Divider(
-                                        color: Colors.white10,
-                                        height: 1),
+                                      color: Colors.white10,
+                                      height: 1,
+                                    ),
                                     const SizedBox(height: 12),
                                     Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Row(children: [
-                                          Container(
+                                        Row(
+                                          children: [
+                                            Container(
                                               width: 6,
                                               height: 6,
-                                              decoration:
-                                                  const BoxDecoration(
-                                                      color: Colors.green,
-                                                      shape:
-                                                          BoxShape.circle)),
-                                          const SizedBox(width: 8),
-                                          const Text('Total',
+                                              decoration: const BoxDecoration(
+                                                color: Colors.green,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            const Text(
+                                              'Total',
                                               style: TextStyle(
-                                                  color: Colors.white54,
-                                                  fontSize: 12)),
-                                        ]),
+                                                color: Colors.white54,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                         Text(
                                           '+ ₹${_amount(_order.summary!.finalPayable).toStringAsFixed(2)}',
                                           style: const TextStyle(
-                                              color: Colors.green,
-                                              fontSize: 13,
-                                              fontWeight:
-                                                  FontWeight.w500),
+                                            color: Colors.green,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -5758,29 +6220,33 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Row(children: [
-                                          Container(
+                                        Row(
+                                          children: [
+                                            Container(
                                               width: 6,
                                               height: 6,
-                                              decoration:
-                                                  const BoxDecoration(
-                                                      color: Colors.green,
-                                                      shape:
-                                                          BoxShape.circle)),
-                                          const SizedBox(width: 8),
-                                          const Text(
+                                              decoration: const BoxDecoration(
+                                                color: Colors.green,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            const Text(
                                               'Product % collected',
                                               style: TextStyle(
-                                                  color: Colors.white54,
-                                                  fontSize: 12)),
-                                        ]),
+                                                color: Colors.white54,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                         Text(
                                           '+ ₹${_amount(_order.summary!.totalPercentageAmount).toStringAsFixed(2)}',
                                           style: const TextStyle(
-                                              color: Colors.green,
-                                              fontSize: 13,
-                                              fontWeight:
-                                                  FontWeight.w500),
+                                            color: Colors.green,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -5789,162 +6255,182 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Row(children: [
-                                          Container(
+                                        Row(
+                                          children: [
+                                            Container(
                                               width: 6,
                                               height: 6,
-                                              decoration:
-                                                  const BoxDecoration(
-                                                      color:
-                                                          Colors.redAccent,
-                                                      shape:
-                                                          BoxShape.circle)),
-                                          const SizedBox(width: 8),
-                                          const Text(
+                                              decoration: const BoxDecoration(
+                                                color: Colors.redAccent,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            const Text(
                                               'Total payout to sellers',
                                               style: TextStyle(
-                                                  color: Colors.white54,
-                                                  fontSize: 12)),
-                                        ]),
+                                                color: Colors.white54,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                         Text(
                                           ' - ₹${_amount(_order.summary!.totalSellerPayable).toStringAsFixed(2)}',
                                           style: const TextStyle(
-                                              color: Colors.redAccent,
-                                              fontSize: 13,
-                                              fontWeight:
-                                                  FontWeight.w500),
+                                            color: Colors.redAccent,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                         ),
                                       ],
                                     ),
-                                    if (_order.summary!
+                                    if (_order
+                                        .summary!
                                         .sellerPayableBreakdown
                                         .isNotEmpty) ...[
                                       const SizedBox(height: 12),
                                       const Divider(
-                                          color: Colors.white10,
-                                          height: 1),
+                                        color: Colors.white10,
+                                        height: 1,
+                                      ),
                                       const SizedBox(height: 10),
-                                      const Text('SELLER BREAKDOWN',
-                                          style: TextStyle(
-                                            color: Colors.white38,
-                                            fontSize: 10,
-                                            letterSpacing: 1.0,
-                                          )),
+                                      const Text(
+                                        'SELLER BREAKDOWN',
+                                        style: TextStyle(
+                                          color: Colors.white38,
+                                          fontSize: 10,
+                                          letterSpacing: 1.0,
+                                        ),
+                                      ),
                                       const SizedBox(height: 10),
-                                      ..._order
-                                          .summary!.sellerPayableBreakdown
-                                          .map((seller) => Padding(
-                                                padding:
-                                                    const EdgeInsets.only(
-                                                        bottom: 8),
-                                                child: Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment
-                                                          .spaceBetween,
-                                                  children: [
-                                                    Row(children: [
+                                      ..._order.summary!.sellerPayableBreakdown
+                                          .map(
+                                            (seller) => Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 8,
+                                              ),
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  Row(
+                                                    children: [
                                                       Container(
-                                                          width: 6,
-                                                          height: 6,
-                                                          decoration: BoxDecoration(
-                                                              color: seller.userType ==
-                                                                      'admin'
-                                                                  ? Colors
-                                                                      .orange
-                                                                  : Colors
-                                                                      .tealAccent,
-                                                              shape: BoxShape
-                                                                  .circle)),
-                                                      const SizedBox(
-                                                          width: 8),
-                                                      Text(seller.name,
-                                                          style: const TextStyle(
-                                                              color: Colors
-                                                                  .white70,
-                                                              fontSize:
-                                                                  12)),
-                                                      const SizedBox(
-                                                          width: 6),
-                                                      Container(
-                                                        padding: const EdgeInsets
-                                                            .symmetric(
-                                                            horizontal: 6,
-                                                            vertical: 2),
+                                                        width: 6,
+                                                        height: 6,
                                                         decoration: BoxDecoration(
-                                                          color: seller.userType ==
+                                                          color:
+                                                              seller.userType ==
                                                                   'admin'
                                                               ? Colors.orange
-                                                                  .withOpacity(
-                                                                      0.2)
                                                               : Colors
-                                                                  .tealAccent
-                                                                  .withOpacity(
-                                                                      0.2),
+                                                                    .tealAccent,
+                                                          shape:
+                                                              BoxShape.circle,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        seller.name,
+                                                        style: const TextStyle(
+                                                          color: Colors.white70,
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 6),
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 6,
+                                                              vertical: 2,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color:
+                                                              seller.userType ==
+                                                                  'admin'
+                                                              ? Colors.orange
+                                                                    .withOpacity(
+                                                                      0.2,
+                                                                    )
+                                                              : Colors
+                                                                    .tealAccent
+                                                                    .withOpacity(
+                                                                      0.2,
+                                                                    ),
                                                           borderRadius:
-                                                              BorderRadius
-                                                                  .circular(
-                                                                      4),
+                                                              BorderRadius.circular(
+                                                                4,
+                                                              ),
                                                         ),
                                                         child: Text(
                                                           seller.userType,
                                                           style: TextStyle(
-                                                            color: seller.userType ==
+                                                            color:
+                                                                seller.userType ==
                                                                     'admin'
-                                                                ? Colors
-                                                                    .orange
+                                                                ? Colors.orange
                                                                 : Colors
-                                                                    .tealAccent,
+                                                                      .tealAccent,
                                                             fontSize: 9,
                                                             fontWeight:
-                                                                FontWeight
-                                                                    .w500,
+                                                                FontWeight.w500,
                                                           ),
                                                         ),
                                                       ),
-                                                    ]),
-                                                    Text(
-                                                      '₹${_amount(seller.sellerPayableTotal).toStringAsFixed(2)}',
-                                                      style: const TextStyle(
-                                                          color:
-                                                              Colors.white70,
-                                                          fontSize: 12,
-                                                          fontWeight:
-                                                              FontWeight
-                                                                  .w500),
+                                                    ],
+                                                  ),
+                                                  Text(
+                                                    '₹${_amount(seller.sellerPayableTotal).toStringAsFixed(2)}',
+                                                    style: const TextStyle(
+                                                      color: Colors.white70,
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w500,
                                                     ),
-                                                  ],
-                                                ),
-                                              ))
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          )
                                           .toList(),
                                       const SizedBox(height: 8),
                                       const Divider(
-                                          color: Colors.white10,
-                                          height: 1),
+                                        color: Colors.white10,
+                                        height: 1,
+                                      ),
                                       const SizedBox(height: 12),
                                     ],
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 10),
+                                        horizontal: 12,
+                                        vertical: 10,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: Colors.greenAccent
-                                            .withOpacity(0.07),
-                                        borderRadius:
-                                            BorderRadius.circular(10),
+                                        color: Colors.greenAccent.withOpacity(
+                                          0.07,
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
                                         border: Border.all(
-                                            color: Colors.greenAccent
-                                                .withOpacity(0.2),
-                                            width: 0.5),
+                                          color: Colors.greenAccent.withOpacity(
+                                            0.2,
+                                          ),
+                                          width: 0.5,
+                                        ),
                                       ),
                                       child: Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
                                         children: [
-                                          const Text('Total profit',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                              )),
+                                          const Text(
+                                            'Total profit',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
                                           Text(
                                             '₹${_amount(_order.summary!.totalProfit).toStringAsFixed(2)}',
                                             style: const TextStyle(
@@ -6011,8 +6497,7 @@ class ReviewDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 0,
       backgroundColor: Colors.transparent,
       child: Container(
@@ -6057,22 +6542,29 @@ class ReviewDialog extends StatelessWidget {
             Text(
               productTitle,
               style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white.withOpacity(0.7)),
+                fontSize: 16,
+                color: Colors.white.withOpacity(0.7),
+              ),
               textAlign: TextAlign.center,
             ),
             if (variantLabel.isNotEmpty) ...[
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 4),
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.tealAccent.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(variantLabel,
-                    style: const TextStyle(
-                        color: Colors.tealAccent, fontSize: 12)),
+                child: Text(
+                  variantLabel,
+                  style: const TextStyle(
+                    color: Colors.tealAccent,
+                    fontSize: 12,
+                  ),
+                ),
               ),
             ],
             const SizedBox(height: 20),
@@ -6081,8 +6573,9 @@ class ReviewDialog extends StatelessWidget {
                   ? 'You have already reviewed this product. Would you like to update your review?'
                   : 'Would you like to share your experience with this product?',
               style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white.withOpacity(0.6)),
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.6),
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 25),
@@ -6092,17 +6585,16 @@ class ReviewDialog extends StatelessWidget {
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
                     style: TextButton.styleFrom(
-                      padding:
-                          const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                            color: Colors.white.withOpacity(0.2)),
+                        side: BorderSide(color: Colors.white.withOpacity(0.2)),
                       ),
                     ),
-                    child: const Text('Maybe Later',
-                        style: TextStyle(
-                            fontSize: 16, color: Colors.white70)),
+                    child: const Text(
+                      'Maybe Later',
+                      style: TextStyle(fontSize: 16, color: Colors.white70),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -6126,10 +6618,10 @@ class ReviewDialog extends StatelessWidget {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.tealAccent,
-                      padding:
-                          const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: Text(
                       hasReview ? 'Update Review' : 'Write a Review',
