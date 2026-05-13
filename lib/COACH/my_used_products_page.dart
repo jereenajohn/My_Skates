@@ -547,198 +547,191 @@ class _MyUsedProductsPageState extends State<MyUsedProductsPage> {
 
   Widget _productCard(Map<String, dynamic> p) {
     final bool isSold = p['status'] == "sold";
+    
     final bool hasDiscount = (p['discount'] ?? 0) > 0;
 
     // ✅ Safe image URL
     final String imageUrl = p['image']?.toString() ?? "";
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          slideRightToLeftRoute(UsedProductBigView(productId: p['id'])),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.22),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white10, width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.25),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(20),
-                  ),
-                  child: SizedBox(
-                    height: 150,
-                    width: double.infinity,
-                    child: imageUrl.isNotEmpty
-                        ? Image.network(
-                            imageUrl,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-
-                              return const ColoredBox(
-                                color: Colors.white10,
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    color: Colors.tealAccent,
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                              );
-                            },
-                            errorBuilder: (_, __, ___) => const ColoredBox(
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.22),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white10, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+                child: SizedBox(
+                  height: 150,
+                  width: double.infinity,
+                  child: imageUrl.isNotEmpty
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+    
+                            return const ColoredBox(
                               color: Colors.white10,
                               child: Center(
-                                child: Icon(
-                                  Icons.broken_image,
-                                  color: Colors.grey,
+                                child: CircularProgressIndicator(
+                                  color: Colors.tealAccent,
+                                  strokeWidth: 2,
                                 ),
                               ),
-                            ),
-                          )
-                        : const ColoredBox(
+                            );
+                          },
+                          errorBuilder: (_, __, ___) => const ColoredBox(
                             color: Colors.white10,
                             child: Center(
                               child: Icon(
-                                Icons.image_not_supported,
+                                Icons.broken_image,
                                 color: Colors.grey,
                               ),
                             ),
                           ),
-                  ),
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSold
-                          ? Colors.redAccent.withOpacity(0.85)
-                          : Colors.tealAccent.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      isSold ? "Sold" : "Active",
-                      style: TextStyle(
-                        color: isSold ? Colors.white : Colors.black,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Poppins',
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text(
-                  p['title'],
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'Poppins',
-                    height: 1.3,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 3),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Text(
-                p['category_name'],
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.45),
-                  fontSize: 11.5,
-                  fontFamily: 'Poppins',
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Text(
-                p['description']?.toString().isNotEmpty == true
-                    ? p['description']
-                    : "No description",
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 11.5,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-              child: hasDiscount
-                  ? Row(
-                      children: [
-                        Text(
-                          "₹${p['price'].toStringAsFixed(0)}",
-                          style: const TextStyle(
-                            color: Colors.white38,
-                            fontSize: 11.5,
-                            decoration: TextDecoration.lineThrough,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            "₹${p['final_price'].toStringAsFixed(0)}",
-                            style: const TextStyle(
-                              color: Colors.tealAccent,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Poppins',
-                              letterSpacing: 0.2,
+                        )
+                      : const ColoredBox(
+                          color: Colors.white10,
+                          child: Center(
+                            child: Icon(
+                              Icons.image_not_supported,
+                              color: Colors.grey,
                             ),
                           ),
                         ),
-                      ],
-                    )
-                  : Text(
-                      "₹${p['price'].toStringAsFixed(0)}",
-                      style: const TextStyle(
-                        color: Colors.tealAccent,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Poppins',
-                        letterSpacing: 0.2,
-                      ),
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSold
+                        ? Colors.redAccent.withOpacity(0.85)
+                        : Colors.tealAccent.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    isSold ? "Sold" : "Active",
+                    style: TextStyle(
+                      color: isSold ? Colors.white : Colors.black,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
                     ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Text(
+                p['title'],
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Poppins',
+                  height: 1.3,
+                ),
+              ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 3),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              p['category_name'],
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.45),
+                fontSize: 11.5,
+                fontFamily: 'Poppins',
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              p['description']?.toString().isNotEmpty == true
+                  ? p['description']
+                  : "No description",
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 11.5,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+            child: hasDiscount
+                ? Row(
+                    children: [
+                      Text(
+                        "₹${p['price'].toStringAsFixed(0)}",
+                        style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11.5,
+                          decoration: TextDecoration.lineThrough,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          "₹${p['final_price'].toStringAsFixed(0)}",
+                          style: const TextStyle(
+                            color: Colors.tealAccent,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Poppins',
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Text(
+                    "₹${p['price'].toStringAsFixed(0)}",
+                    style: const TextStyle(
+                      color: Colors.tealAccent,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }
