@@ -896,14 +896,14 @@ bool priceDetailsLoading = false;
 Map<String, dynamic>? usedProductPriceDetails;
 
 Map<String, dynamic>? selectedCheckoutAddress;
-String selectedPaymentMethod = "COD";
+
 
 final TextEditingController checkoutNoteController = TextEditingController();
 
-final List<String> paymentMethods = [
-  "COD",
-  "ONLINE",
-];
+List<Map<String, dynamic>> availablePaymentMethods = [];
+int? selectedPaymentId;
+String selectedPaymentCode = "";
+String selectedPaymentName = "";
 
 late Razorpay _razorpay;
 String? usedRazorpayOrderId;
@@ -1007,6 +1007,23 @@ void dispose() {
               "attribute_value": data["attribute_value"],
             };
 
+            final List rawMethods = data["payment_methods"] ?? [];
+final List<Map<String, dynamic>> parsedMethods = rawMethods
+    .map<Map<String, dynamic>>((m) => {
+          "id": m["id"],
+          "name": m["name"]?.toString() ?? "",
+          "code": _inferPaymentCode(m["name"]?.toString() ?? ""),
+        })
+    .toList();
+
+availablePaymentMethods = parsedMethods;
+
+if (parsedMethods.isNotEmpty) {
+  selectedPaymentId = parsedMethods.first["id"];
+  selectedPaymentCode = parsedMethods.first["code"];
+  selectedPaymentName = parsedMethods.first["name"];
+}
+
             detailLoading = false;
             detailError = false;
           });
@@ -1032,6 +1049,12 @@ void dispose() {
     }
   }
 
+
+String _inferPaymentCode(String name) {
+  final lower = name.toLowerCase();
+  if (lower.contains("cod") || lower.contains("cash")) return "COD";
+  return "ONLINE";
+}
 
   String _readAddressValue(Map<String, dynamic> address, List<String> keys) {
   for (final key in keys) {
@@ -1244,7 +1267,7 @@ Map<String, dynamic>? _buildUsedProductCheckoutBody({
 }
 
 Future<void> checkoutUsedProduct() async {
-  final body = _buildUsedProductCheckoutBody(paymentMethod: "COD");
+ final body = _buildUsedProductCheckoutBody(paymentMethod: selectedPaymentCode);
   if (body == null) return;
 
   setState(() => checkoutLoading = true);
@@ -1295,7 +1318,7 @@ Future<void> checkoutUsedProduct() async {
 }
 
 Future<void> createUsedProductRazorpayOrder() async {
-  final body = _buildUsedProductCheckoutBody(paymentMethod: "ONLINE");
+ final body = _buildUsedProductCheckoutBody(paymentMethod: selectedPaymentCode);
   if (body == null) return;
 
   setState(() => checkoutLoading = true);
@@ -1818,45 +1841,7 @@ const SizedBox(height: 18),
 
                         const SizedBox(height: 10),
 
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.055),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.1),
-                            ),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: selectedPaymentMethod,
-                              dropdownColor: const Color(0xFF111111),
-                              iconEnabledColor: Colors.tealAccent,
-                              isExpanded: true,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontFamily: 'Poppins',
-                                fontSize: 14,
-                              ),
-                              items: paymentMethods.map((method) {
-                                return DropdownMenuItem<String>(
-                                  value: method,
-                                  child: Text(
-                                    method == "COD"
-                                        ? "Cash on Delivery"
-                                        : "Online Payment",
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
-                                if (value == null) return;
-
-                                selectedPaymentMethod = value;
-                                sheetSetState(() {});
-                              },
-                            ),
-                          ),
-                        ),
+                        _usedProductPaymentMethodSection(sheetSetState),
 
                         const SizedBox(height: 18),
 
@@ -1917,7 +1902,7 @@ const SizedBox(height: 18),
                     onPressed: checkoutLoading
                         ? null
                         : () async {
-                            if (selectedPaymentMethod == "COD") {
+                            if (selectedPaymentCode == "COD") {
                               await checkoutUsedProduct();
                             } else {
                               await createUsedProductRazorpayOrder();
@@ -1945,7 +1930,7 @@ const SizedBox(height: 18),
                             ),
                           )
                         : Text(
-                            selectedPaymentMethod == "COD"
+                            selectedPaymentCode == "COD"
                                 ? "Place Order"
                                 : "Pay Now",
                             style: const TextStyle(
@@ -2411,6 +2396,144 @@ const SizedBox(height: 18),
       ),
     );
   }
+
+  Widget _usedProductPaymentMethodSection(StateSetter sheetSetState) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // const Text(
+      //   "Payment Method",
+      //   style: TextStyle(
+      //     color: Colors.white,
+      //     fontSize: 15.5,
+      //     fontWeight: FontWeight.w700,
+      //     fontFamily: 'Poppins',
+      //   ),
+      // ),
+      const SizedBox(height: 10),
+      if (availablePaymentMethods.isEmpty)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: Colors.redAccent.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.redAccent.withOpacity(0.20)),
+          ),
+          child: const Text(
+            "No payment methods available for this product",
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontFamily: "Poppins",
+            ),
+          ),
+        )
+      else
+        ...availablePaymentMethods.map((method) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _usedProductPaymentTile(
+              id: method["id"],
+              code: method["code"],
+              title: method["name"],
+              sheetSetState: sheetSetState,
+            ),
+          );
+        }).toList(),
+    ],
+  );
+}
+
+Widget _usedProductPaymentTile({
+  required int id,
+  required String code,
+  required String title,
+  required StateSetter sheetSetState,
+}) {
+  final bool selected = selectedPaymentCode == code;
+  final IconData icon = code == "COD"
+      ? Icons.payments_outlined
+      : Icons.credit_card_rounded;
+
+  return InkWell(
+    borderRadius: BorderRadius.circular(18),
+    onTap: () {
+      setState(() {
+        selectedPaymentId = id;
+        selectedPaymentCode = code;
+        selectedPaymentName = title;
+      });
+      sheetSetState(() {});
+    },
+    child: Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: selected
+            ? Colors.tealAccent.withOpacity(0.12)
+            : Colors.white.withOpacity(0.055),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: selected
+              ? Colors.tealAccent.withOpacity(0.85)
+              : Colors.white.withOpacity(0.1),
+          width: selected ? 1.2 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 40,
+            width: 40,
+            decoration: BoxDecoration(
+              color: selected
+                  ? Colors.tealAccent.withOpacity(0.17)
+                  : Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(icon, color: Colors.tealAccent, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13.2,
+                    fontWeight: FontWeight.w800,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  code == "COD"
+                      ? "Pay when your order arrives"
+                      : "Secure online payment via Razorpay",
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 10.6,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Icon(
+            selected
+                ? Icons.radio_button_checked_rounded
+                : Icons.radio_button_off_rounded,
+            color: Colors.tealAccent,
+            size: 21,
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   Widget _sellerAndStatusSection({required Map<String, dynamic> product}) {
     return Row(
