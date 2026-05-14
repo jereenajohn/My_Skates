@@ -88,16 +88,44 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
   bool isAttributeLoading = false;
   bool isAttributeValueLoading = false;
 
+  List paymentMethods = [];
+  List<String> selectedPaymentMethods = [];
+
   @override
   void initState() {
     super.initState();
     fetchAttributes();
     fetchAllAttributeValues();
+    fetchPaymentMethods();
   }
 
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString("access");
+  }
+
+  Future<void> fetchPaymentMethods() async {
+    try {
+      final token = await getToken();
+      if (token == null) return;
+
+      final response = await http.get(
+        Uri.parse("$api/api/myskates/payment/methods/view/"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      print("PAYMENT METHOD STATUS: ${response.statusCode}");
+      print("PAYMENT METHOD BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        setState(() {
+          paymentMethods = decoded["data"] ?? [];
+        });
+      }
+    } catch (e) {
+      print("Payment method fetch error: $e");
+    }
   }
 
   Future<void> fetchAttributes() async {
@@ -222,35 +250,11 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
         );
       });
     }
-  } //gg
+  } 
 
   Future<void> submitUsedProduct() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
-
-    if (selectedAttributeGroups.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please select at least one attribute"),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    final hasEmptyValues = selectedAttributeGroups.any(
-      (group) => group.values.isEmpty,
-    );
-
-    if (hasEmptyValues) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please select values for all selected attributes"),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
 
     if (selectedImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -261,6 +265,18 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
       );
       return;
     }
+
+    if (selectedPaymentMethods.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please select at least one payment method"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    HttpClient? client;
 
     try {
       setState(() {
@@ -279,18 +295,48 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
         return;
       }
 
-      final request = http.MultipartRequest(
-        "POST",
-        Uri.parse("$api/api/myskates/used/products/view/"),
+      final uri = Uri.parse("$api/api/myskates/used/products/view/");
+      client = HttpClient();
+      final request = await client.postUrl(uri);
+
+      request.headers.set(HttpHeaders.authorizationHeader, "Bearer $token");
+      request.headers.set(HttpHeaders.acceptHeader, "application/json");
+
+      final boundary =
+          "----FlutterFormBoundary${DateTime.now().microsecondsSinceEpoch}";
+      request.headers.set(
+        HttpHeaders.contentTypeHeader,
+        "multipart/form-data; boundary=$boundary",
       );
 
-      request.headers["Authorization"] = "Bearer $token";
-      request.headers["Accept"] = "application/json";
+      void writeField(String name, String value) {
+        request.write("--$boundary\r\n");
+        request.write('Content-Disposition: form-data; name="$name"\r\n\r\n');
+        request.write(value);
+        request.write("\r\n");
+      }
 
-      request.fields["title"] = titleController.text.trim();
-      request.fields["description"] = descriptionController.text.trim();
-      request.fields["price"] = priceController.text.trim();
-      request.fields["discount"] = discountController.text.trim();
+      request.write("--$boundary\r\n");
+      request.write('Content-Disposition: form-data; name="title"\r\n\r\n');
+      request.write(titleController.text.trim());
+      request.write("\r\n");
+
+      request.write("--$boundary\r\n");
+      request.write(
+        'Content-Disposition: form-data; name="description"\r\n\r\n',
+      );
+      request.write(descriptionController.text.trim());
+      request.write("\r\n");
+
+      request.write("--$boundary\r\n");
+      request.write('Content-Disposition: form-data; name="price"\r\n\r\n');
+      request.write(priceController.text.trim());
+      request.write("\r\n");
+
+      request.write("--$boundary\r\n");
+      request.write('Content-Disposition: form-data; name="discount"\r\n\r\n');
+      request.write(discountController.text.trim());
+      request.write("\r\n");
 
       final List<Map<String, dynamic>> attributesPayload = [];
 
@@ -303,37 +349,81 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
         }
       }
 
-      request.fields["attributes"] = jsonEncode(attributesPayload);
+      request.write("--$boundary\r\n");
+      request.write(
+        'Content-Disposition: form-data; name="attributes"\r\n\r\n',
+      );
+      request.write(jsonEncode(attributesPayload));
+      request.write("\r\n");
 
-      request.fields["return_policy_days"] =
-          returnPolicyController.text.trim().isEmpty
-          ? "0"
-          : returnPolicyController.text.trim();
+      request.write("--$boundary\r\n");
+      request.write(
+        'Content-Disposition: form-data; name="return_policy_days"\r\n\r\n',
+      );
+      request.write(
+        returnPolicyController.text.trim().isEmpty
+            ? "0"
+            : returnPolicyController.text.trim(),
+      );
+      request.write("\r\n");
 
-      request.fields["shipment_charge"] =
-          shipmentChargeController.text.trim().isEmpty
-          ? "0"
-          : shipmentChargeController.text.trim();
+      request.write("--$boundary\r\n");
+      request.write(
+        'Content-Disposition: form-data; name="shipment_charge"\r\n\r\n',
+      );
+      request.write(
+        shipmentChargeController.text.trim().isEmpty
+            ? "0"
+            : shipmentChargeController.text.trim(),
+      );
+      request.write("\r\n");
 
-      request.fields["status"] = selectedStatus;
+      request.write("--$boundary\r\n");
+      request.write('Content-Disposition: form-data; name="status"\r\n\r\n');
+      request.write(selectedStatus);
+      request.write("\r\n");
 
       if (categoryController.text.trim().isNotEmpty) {
-        request.fields["category"] = categoryController.text.trim();
+        request.write("--$boundary\r\n");
+        request.write(
+          'Content-Disposition: form-data; name="category"\r\n\r\n',
+        );
+        request.write(categoryController.text.trim());
+        request.write("\r\n");
       }
+
+      // FIXED PART: send repeated payment_methods keys exactly as backend expects
+      for (final paymentMethodId in selectedPaymentMethods) {
+        request.write("--$boundary\r\n");
+        request.write(
+          'Content-Disposition: form-data; name="payment_methods"\r\n\r\n',
+        );
+        request.write(paymentMethodId);
+        request.write("\r\n");
+      }
+
+      print("POST PAYMENT METHODS: $selectedPaymentMethods");
 
       for (final image in selectedImages) {
-        request.files.add(
-          await http.MultipartFile.fromPath("images", image.path),
+        final fileName = image.path.split(Platform.pathSeparator).last;
+        final bytes = await image.readAsBytes();
+
+        request.write("--$boundary\r\n");
+        request.write(
+          'Content-Disposition: form-data; name="images"; filename="$fileName"\r\n',
         );
+        request.write("Content-Type: application/octet-stream\r\n\r\n");
+        request.add(bytes);
+        request.write("\r\n");
       }
 
-      print("POST ATTRIBUTES: ${request.fields["attributes"]}");
+      request.write("--$boundary--\r\n");
 
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final response = await request.close();
+      final responseBody = await response.transform(utf8.decoder).join();
 
       print("ADD USED PRODUCT STATUS: ${response.statusCode}");
-      print("ADD USED PRODUCT BODY: ${response.body}");
+      print("ADD USED PRODUCT BODY: $responseBody");
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (!mounted) return;
@@ -351,7 +441,7 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Failed: ${response.body}"),
+            content: Text("Failed: $responseBody"),
             backgroundColor: Colors.red,
           ),
         );
@@ -365,6 +455,8 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
         SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
       );
     } finally {
+      client?.close(force: true);
+
       if (mounted) {
         setState(() {
           isSubmitting = false;
@@ -421,6 +513,154 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPaymentMethodDropdown() {
+    final selectedNames = paymentMethods
+        .where((item) => selectedPaymentMethods.contains(item["id"].toString()))
+        .map((item) => "${item["name"]} (${item["code"]})")
+        .join(", ");
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: GestureDetector(
+        onTap: _showPaymentMethodBottomSheet,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white10,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white24),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  selectedPaymentMethods.isEmpty
+                      ? "Select Payment Methods"
+                      : selectedNames,
+                  style: TextStyle(
+                    color: selectedPaymentMethods.isEmpty
+                        ? Colors.white70
+                        : Colors.white,
+                    fontSize: 14,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Icon(Icons.keyboard_arrow_down, color: Color(0xFF00AFA5)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPaymentMethodBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.black,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, sheetSetState) {
+            final activePaymentMethods = paymentMethods
+                .where((item) => item["is_active"] == true)
+                .toList();
+
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 45,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 18),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const Text(
+                    "Select Payment Methods",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (activePaymentMethods.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Text(
+                        "No active payment methods available",
+                        style: TextStyle(color: Colors.white54),
+                      ),
+                    )
+                  else
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: activePaymentMethods.map((item) {
+                          final id = item["id"].toString();
+                          final isSelected = selectedPaymentMethods.contains(
+                            id,
+                          );
+
+                          return CheckboxListTile(
+                            value: isSelected,
+                            activeColor: const Color(0xFF00AFA5),
+                            checkColor: Colors.white,
+                            title: Text(
+                              "${item["name"]} (${item["code"]})",
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            onChanged: (value) {
+                              sheetSetState(() {
+                                setState(() {
+                                  if (value == true) {
+                                    selectedPaymentMethods.add(id);
+                                  } else {
+                                    selectedPaymentMethods.remove(id);
+                                  }
+                                });
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00AFA5),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        "Done",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1021,7 +1261,7 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
               ),
 
               buildAttributeDropdowns(),
-
+              _buildPaymentMethodDropdown(),
               buildField(
                 "Return Policy Days",
                 returnPolicyController,

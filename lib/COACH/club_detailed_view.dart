@@ -125,21 +125,22 @@ class _ClubViewState extends State<ClubView> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _checkUserRole();
-    fetchClubDetails();
-    fetchClubEvents();
-    fetchFollowersCount();
-    _fetchClubRequestStatus();
-    fetchClubFeeds();
+void initState() {
+  super.initState();
+  _checkUserRole();
+  fetchClubDetails();
+  fetchClubEvents();
+  fetchFollowersCount();
+  fetchClubFeeds();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  _fetchClubRequestStatus().then((_) {
+    if (mounted) {
       _checkUserRating();
-    });
+    }
+  });
 
-    print("Club ID: ${widget.clubid}");
-  }
+  print("Club ID: ${widget.clubid}");
+}
 
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -535,7 +536,7 @@ class _ClubViewState extends State<ClubView> {
           if (userRating['approval_status'] == 'pending') {
             _showPendingRatingMessage();
           }
-        } else if (!_isCoach) {
+        } else if (!_isCoach && _clubRequestStatus == 'approved') {
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
               _showRatingPopup();
@@ -5105,7 +5106,7 @@ class ClubReviewsViewPage extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                             Text(
+                            Text(
                               "Average Rating: ${avg.toStringAsFixed(1)} / 5",
                               style: const TextStyle(
                                 color: Colors.white,
