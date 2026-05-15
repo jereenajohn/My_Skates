@@ -122,7 +122,7 @@ class _UsedProductBigViewState extends State<UsedProductBigView> {
                   child: Image.network(
                     imageUrl,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(
+                    errorBuilder: (_, _, _) => const Icon(
                       Icons.broken_image,
                       color: Colors.white54,
                       size: 60,
@@ -355,7 +355,7 @@ class _UsedProductBigViewState extends State<UsedProductBigView> {
                 child: Image.network(
                   product!["image"],
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Container(
+                  errorBuilder: (_, _, _) => Container(
                     color: Colors.black26,
                     child: const Icon(
                       Icons.broken_image,

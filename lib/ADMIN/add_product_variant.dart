@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
-import 'package:my_skates/ADMIN/update_product.dart';
 import 'package:my_skates/ADMIN/update_product_variant.dart';
-import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/api.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/services.dart';
 
 class variant extends StatefulWidget {
   var productId;
@@ -419,7 +414,7 @@ class _variantState extends State<variant> {
                             crossAxisSpacing: 12,
                             childAspectRatio: 0.72,
                           ),
-                      itemBuilder: (_, __) => _variantSkeletonCard(),
+                      itemBuilder: (_, _) => _variantSkeletonCard(),
                     ),
                   ] else if (variants.isNotEmpty) ...[
                     Align(
@@ -522,7 +517,7 @@ class _variantState extends State<variant> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         decoration: _dec(label),
         dropdownColor: Colors.black,
         style: const TextStyle(color: Colors.white),
@@ -725,7 +720,7 @@ class _variantState extends State<variant> {
 
   Widget _attributeDropdown() {
     return DropdownButtonFormField<String>(
-      value: activeAttributeId,
+      initialValue: activeAttributeId,
       decoration: _dec("Select Attribute"),
       dropdownColor: Colors.black,
       style: const TextStyle(color: Colors.white),
@@ -818,7 +813,7 @@ class _variantState extends State<variant> {
               });
             },
           );
-        }).toList(),
+        }),
 
         const SizedBox(height: 10),
 
@@ -942,7 +937,7 @@ class _variantState extends State<variant> {
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }

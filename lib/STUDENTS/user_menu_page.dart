@@ -4,8 +4,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/view_all_events.dart';
-import 'package:my_skates/COACH/coach_settings.dart';
-import 'package:my_skates/COACH/coach_timeline_page.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/student_list.dart';
 import 'package:my_skates/STUDENTS/student_training_page.dart';
@@ -325,7 +323,7 @@ class _UserMenuPageState extends State<UserMenuPage>
             ),
           ),
           AnimatedSlide(
-            offset: const Offset(0.05, 0),
+            offset: Offset(0.05, 0),
             duration: Duration(milliseconds: 200),
             child: Icon(
               Icons.arrow_forward_ios,

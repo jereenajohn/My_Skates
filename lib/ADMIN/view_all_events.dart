@@ -541,7 +541,7 @@ class _EventsState extends State<Events> {
                                 final ImagePicker picker = ImagePicker();
                                 final images = await picker.pickMultiImage();
 
-                                if (images == null || images.isEmpty) return;
+                                if (images.isEmpty) return;
 
                                 if (images.length > remainingSlots) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -1265,7 +1265,7 @@ class _EventImageSliderState extends State<EventImageSlider> {
                             child: Image.network(
                               widget.images[index],
                               fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Icon(
+                              errorBuilder: (_, _, _) => const Icon(
                                 Icons.broken_image,
                                 color: Colors.white54,
                                 size: 60,
@@ -1360,7 +1360,7 @@ class _EventImageSliderState extends State<EventImageSlider> {
                     image,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       color: Colors.white10,
                       alignment: Alignment.center,
                       child: const Icon(

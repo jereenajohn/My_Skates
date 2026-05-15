@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:my_skates/COACH/club_followers_page.dart';
 import 'package:my_skates/COACH/club_rating_approval.dart';
-import 'package:my_skates/COACH/club_reviews_viewpage.dart';
 import 'package:my_skates/COACH/coach_add_events.dart';
 import 'package:my_skates/api.dart';
 import 'package:http/http.dart' as http;
@@ -96,15 +95,15 @@ class _ClubViewState extends State<ClubView> {
   Map<int, bool> _likedPosts = {};
   Map<int, int> _likeCounts = {};
 
-  bool _isLoadingLikes = false;
+  final bool _isLoadingLikes = false;
 
-  Map<int, List<dynamic>> _postComments = {};
+  final Map<int, List<dynamic>> _postComments = {};
   Map<int, int> _commentCounts = {};
-  bool _isLoadingComments = false;
+  final bool _isLoadingComments = false;
   int? _expandedCommentPostId;
 
-  Map<int, bool> _repostedPosts = {};
-  Map<int, int> _repostCounts = {};
+  final Map<int, bool> _repostedPosts = {};
+  final Map<int, int> _repostCounts = {};
 
   bool get _canViewFullClubPage {
     return _isCoach || widget.isApproved || _clubRequestStatus == "approved";
@@ -1277,7 +1276,7 @@ void initState() {
       final url = Uri.parse("$api/api/myskates/club/feed/$postId/comment/");
       final body = {
         "comment": text,
-        if (userId != null) "user": userId,
+        "user": ?userId,
         "feed": postId,
       };
 
@@ -3683,14 +3682,14 @@ void initState() {
                   children: [
                     GestureDetector(
                       onTap: () {
-                        if (imagePath != null && imagePath!.isNotEmpty) {
+                        if (imagePath != null && imagePath.isNotEmpty) {
                           _openProfileImageViewer("$api$imagePath");
                         }
                       },
                       child: CircleAvatar(
                         radius: 40,
                         backgroundImage:
-                            (imagePath != null && imagePath!.isNotEmpty)
+                            (imagePath != null && imagePath.isNotEmpty)
                             ? NetworkImage("$api$imagePath")
                             : const AssetImage("lib/assets/placeholder.png")
                                   as ImageProvider,
@@ -4100,7 +4099,7 @@ void initState() {
                         ...mediaImages
                             .take(10)
                             .map((img) => _mediaItem(img))
-                            .toList(),
+                            ,
 
                         GestureDetector(
                           onTap: () {
@@ -4178,7 +4177,7 @@ void initState() {
                         ..._recentRatings
                             .take(1)
                             .map((rating) => _buildSingleReview(rating))
-                            .toList(),
+                            ,
 
                         if (_recentRatings.length > 1)
                           Center(
@@ -4252,12 +4251,12 @@ void initState() {
                   heroTag: "media_btn",
                   backgroundColor: const Color(0xFF00AFA5),
                   elevation: 5,
+                  onPressed: _openAddMediaSheet,
                   child: const Icon(
                     Icons.add_photo_alternate_rounded,
                     color: Color.fromARGB(255, 252, 252, 252),
                     size: 30,
                   ),
-                  onPressed: _openAddMediaSheet,
                 ),
                 const SizedBox(height: 12),
 
@@ -4314,8 +4313,7 @@ void initState() {
             colorScheme: const ColorScheme.dark(
               primary: Color(0xFF00AFA5),
               onSurface: Colors.white,
-            ),
-            dialogBackgroundColor: Colors.black,
+            ), dialogTheme: DialogThemeData(backgroundColor: Colors.black),
           ),
           child: child!,
         );
@@ -4341,8 +4339,7 @@ void initState() {
             colorScheme: const ColorScheme.dark(
               primary: Color(0xFF00AFA5),
               onSurface: Colors.white,
-            ),
-            dialogBackgroundColor: Colors.black,
+            ), dialogTheme: DialogThemeData(backgroundColor: Colors.black),
           ),
           child: child!,
         );
@@ -4797,14 +4794,14 @@ class RatingPopup extends StatefulWidget {
   final bool isUpdate;
 
   const RatingPopup({
-    Key? key,
+    super.key,
     required this.clubId,
     required this.onSubmit,
     required this.onSkip,
     this.initialRating,
     this.initialReview,
     this.isUpdate = false,
-  }) : super(key: key);
+  });
 
   @override
   State<RatingPopup> createState() => _RatingPopupState();
@@ -5008,10 +5005,10 @@ class ClubReviewsViewPage extends StatelessWidget {
   final String clubName;
 
   const ClubReviewsViewPage({
-    Key? key,
+    super.key,
     required this.clubId,
     required this.clubName,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -5198,7 +5195,7 @@ class ClubReviewsViewPage extends StatelessWidget {
                   ),
                 ),
 
-                ...reviews.map((review) => _buildReviewCard(review)).toList(),
+                ...reviews.map((review) => _buildReviewCard(review)),
               ],
             );
           },

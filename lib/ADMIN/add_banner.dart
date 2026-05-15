@@ -1,11 +1,7 @@
 import 'dart:convert';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:my_skates/COACH/location.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:my_skates/api.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';

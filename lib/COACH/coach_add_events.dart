@@ -471,7 +471,7 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
                                 final ImagePicker picker = ImagePicker();
                                 final images = await picker.pickMultiImage();
 
-                                if (images == null || images.isEmpty) return;
+                                if (images.isEmpty) return;
 
                                 if (images.length > remainingSlots) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -780,7 +780,7 @@ class _CoachAddEventsState extends State<CoachAddEvents> {
                                 final ImagePicker picker = ImagePicker();
                                 final images = await picker.pickMultiImage();
 
-                                if (images == null || images.isEmpty) return;
+                                if (images.isEmpty) return;
 
                                 int availableSlots = 2 - pickedImages.length;
 

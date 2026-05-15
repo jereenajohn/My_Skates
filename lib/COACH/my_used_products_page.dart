@@ -1,11 +1,9 @@
 import 'dart:convert';
-import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/COACH/add_used_product_page.dart';
 import 'package:my_skates/COACH/update_used_product_page.dart';
-import 'package:my_skates/COACH/used_product_big_view.dart';
 import 'package:my_skates/api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
@@ -595,7 +593,7 @@ class _MyUsedProductsPageState extends State<MyUsedProductsPage> {
                               ),
                             );
                           },
-                          errorBuilder: (_, __, ___) => const ColoredBox(
+                          errorBuilder: (_, _, _) => const ColoredBox(
                             color: Colors.white10,
                             child: Center(
                               child: Icon(
@@ -747,7 +745,7 @@ class _MyUsedProductsPageState extends State<MyUsedProductsPage> {
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemBuilder: (_, __) {
+      itemBuilder: (_, _) {
         return Shimmer.fromColors(
           baseColor: const Color(0xFF001A18),
           highlightColor: const Color(0xFF00AFA5).withOpacity(0.25),

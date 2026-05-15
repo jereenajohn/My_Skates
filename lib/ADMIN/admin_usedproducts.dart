@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:my_skates/ADMIN/admin_orders_page.dart';
 import 'package:my_skates/COACH/used_product_my_order_detail_page.dart'
     as my_used_detail;
 import 'package:my_skates/COACH/used_product_sold_order_detail_page.dart';
@@ -1549,7 +1548,7 @@ class _UsedProductOrdersPageState extends State<UsedProductOrdersPage> {
         width: 46,
         height: 46,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _listImageFallback(),
+        errorBuilder: (_, _, _) => _listImageFallback(),
       ),
     );
   }
@@ -2592,7 +2591,7 @@ class _CoachUsedProductOrderDetailPageState
                                     width: 58,
                                     height: 58,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
+                                    errorBuilder: (_, _, _) =>
                                         _detailImageFallback(),
                                   )
                                 : _detailImageFallback(),
@@ -2658,7 +2657,7 @@ class _CoachUsedProductOrderDetailPageState
                       Divider(color: Colors.white.withOpacity(0.07), height: 1),
                   ],
                 );
-              }).toList(),
+              }),
 
               const Divider(color: Colors.white24, height: 24),
 
@@ -2972,7 +2971,7 @@ class _CoachUsedProductOrderDetailPageState
                                       ),
                                   ],
                                 );
-                              }).toList(),
+                              }),
                             ],
                           ),
                         ),
@@ -3058,7 +3057,7 @@ class _CoachUsedProductOrderDetailPageState
                       ],
                     ),
                   );
-                }).toList(),
+                }),
 
                 // Order summary / profit card
                 if (order.summary != null) ...[

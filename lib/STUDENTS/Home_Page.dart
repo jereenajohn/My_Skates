@@ -6,8 +6,6 @@ import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/view_all_events.dart';
 import 'package:my_skates/COACH/club_detailed_view.dart';
 import 'package:my_skates/COACH/club_list.dart';
-import 'package:my_skates/COACH/coach_details_page.dart';
-import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/COACH/used_products.dart';
 // import 'package:my_skates/STUDENTS/bottomnavigation_student.dart';
 import 'package:my_skates/STUDENTS/products.dart';
@@ -605,7 +603,7 @@ class _HomePageState extends State<HomePage> {
                     child: Image.network(
                       imageUrl,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) {
+                      errorBuilder: (_, _, _) {
                         return Container(
                           height: 260,
                           width: double.infinity,
@@ -719,7 +717,7 @@ class _HomePageState extends State<HomePage> {
 
         ...homeFeeds.map((feed) {
           return buildHomeFeedCard(feed);
-        }).toList(),
+        }),
       ],
     );
   }
@@ -981,7 +979,7 @@ class _HomePageState extends State<HomePage> {
                                   Image.network(
                                     imageUrl,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) {
+                                    errorBuilder: (_, _, _) {
                                       return Container(
                                         color: Colors.white10,
                                         child: const Center(
@@ -1433,7 +1431,7 @@ class _HomePageState extends State<HomePage> {
 
       // userData ??= data.isNotEmpty ? data[0] : {};
 
-      if (userData!.isNotEmpty) {
+      if (userData.isNotEmpty) {
         print("API USERNAME: ${userData["u_name"]}");
         print("API FIRST NAME: ${userData["first_name"]}");
         print("API LAST NAME: ${userData["last_name"]}");
@@ -2322,8 +2320,9 @@ class _HomePageState extends State<HomePage> {
                                             fit: BoxFit.cover,
                                             loadingBuilder:
                                                 (context, child, progress) {
-                                                  if (progress == null)
+                                                  if (progress == null) {
                                                     return child;
+                                                  }
                                                   return Container(
                                                     color: Colors.grey.shade900,
                                                     alignment: Alignment.center,
@@ -2925,7 +2924,7 @@ class _EventImageSliderState extends State<EventImageSlider> {
                     widget.images[index],
                     fit: BoxFit.cover,
                     width: double.infinity,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       color: Colors.black26,
                       alignment: Alignment.center,
                       child: const Icon(
@@ -3215,7 +3214,7 @@ void showImagePopup(BuildContext context, String imageUrl) {
                   child: Image.network(
                     imageUrl,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(
+                    errorBuilder: (_, _, _) => const Icon(
                       Icons.broken_image,
                       color: Colors.white54,
                       size: 60,
@@ -3760,7 +3759,7 @@ Widget buildTrainingSessionRow({
                     width: 90,
                     height: 90,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                    errorBuilder: (_, _, _) => _imagePlaceholder(),
                   )
                 : _imagePlaceholder(),
           ),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:my_skates/ADMIN/products_by_user.dart';
 import 'package:my_skates/api.dart';
 import 'dart:convert';
@@ -612,7 +611,7 @@ class _UpdateProductState extends State<UpdateProduct> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         decoration: _dec(label),
         dropdownColor: Colors.black,
         style: const TextStyle(color: Colors.white),

@@ -520,7 +520,7 @@ class _AddChatSupportQuestionsState extends State<AddChatSupportQuestions> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
 
               const SizedBox(height: 40),
             ],

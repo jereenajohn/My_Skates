@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:my_skates/COACH/club_detailed_view.dart';
 import 'package:my_skates/COACH/coach_clubs_to_approve_request.dart';
 import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
