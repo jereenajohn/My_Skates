@@ -20,15 +20,29 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   // Store IDs only - same as first page
-  String? gender;            // "male", "female", "other"
-  String? selectedCountry;   // ID
-  String? selectedState;     // ID
-  String? selectedDistrict;  // ID
+  String? gender; // "male", "female", "other"
+  String? selectedCountry; // ID
+  String? selectedState; // ID
+  String? selectedDistrict; // ID
+
+  bool showCountryDropdown = false;
+  bool showStateDropdown = false;
+  bool showDistrictDropdown = false;
 
   List<Map<String, dynamic>> countryList = [];
   List<Map<String, dynamic>> stateList = [];
   List<Map<String, dynamic>> allDistricts = [];
   List<Map<String, dynamic>> districtList = [];
+
+  // Search controllers for dropdowns
+  final TextEditingController countrySearchController = TextEditingController();
+  final TextEditingController stateSearchController = TextEditingController();
+  final TextEditingController districtSearchController =
+      TextEditingController();
+
+  List<Map<String, dynamic>> filteredCountryList = [];
+  List<Map<String, dynamic>> filteredStateList = [];
+  List<Map<String, dynamic>> filteredDistrictList = [];
 
   File? profileImage;
   String? profileNetworkImage;
@@ -89,6 +103,9 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
     ageCtrl.dispose();
     zipCtrl.dispose();
     instaCtrl.dispose();
+    countrySearchController.dispose();
+    stateSearchController.dispose();
+    districtSearchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -150,11 +167,19 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
 
     // Filter districts based on selected state ID - using name comparison as in first page
     if (selectedState != null) {
-      String stateName = stateList
-          .firstWhere((s) => s["id"].toString() == selectedState)["name"];
+      String stateName = stateList.firstWhere(
+        (s) => s["id"].toString() == selectedState,
+      )["name"];
 
-      districtList = allDistricts.where((d) => d["state"] == stateName).toList();
+      districtList = allDistricts
+          .where((d) => d["state"] == stateName)
+          .toList();
     }
+
+    // Initialize filtered lists
+    filteredCountryList = List.from(countryList);
+    filteredStateList = List.from(stateList);
+    filteredDistrictList = List.from(districtList);
 
     setState(() {});
   }
@@ -369,9 +394,7 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
       final res = await http.patch(
         Uri.parse("$api/api/myskates/username/set/"),
         headers: headers,
-        body: jsonEncode({
-          "u_name": trimmed,
-        }),
+        body: jsonEncode({"u_name": trimmed}),
       );
 
       print("Username set response: ${res.statusCode} - ${res.body}");
@@ -435,8 +458,10 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
 
       if (res.statusCode == 200) {
         List data = jsonDecode(res.body);
-        countryList =
-            data.map((e) => {"id": e["id"], "name": e["name"]}).toList();
+        countryList = data
+            .map((e) => {"id": e["id"], "name": e["name"]})
+            .toList();
+        filteredCountryList = List.from(countryList);
       }
     } catch (e) {
       print("Error fetching countries: $e");
@@ -458,8 +483,10 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
 
       if (res.statusCode == 200) {
         List data = jsonDecode(res.body);
-        stateList =
-            data.map((e) => {"id": e["id"], "name": e["name"]}).toList();
+        stateList = data
+            .map((e) => {"id": e["id"], "name": e["name"]})
+            .toList();
+        filteredStateList = List.from(stateList);
       }
     } catch (e) {
       print("Error fetching states: $e");
@@ -607,7 +634,247 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
     }
   }
 
-  // ---------------- USERNAME UI METHOD ----------------
+  // ---------------- SEARCHABLE DROPDOWN WIDGET ----------------
+
+  Widget _buildSearchableDropdown({
+    required String label,
+    required String? selectedValue,
+    required List<Map<String, dynamic>> items,
+    required List<Map<String, dynamic>> filteredItems,
+    required TextEditingController searchController,
+    required bool showDropdown,
+    required Function(bool) onToggleDropdown,
+    required Function(String?) onSelected,
+    required Function(String) onSearchChanged,
+    bool isOptional = false,
+  }) {
+    String getSelectedName() {
+      if (selectedValue == null || selectedValue.isEmpty) return '';
+
+      final item = items.firstWhere(
+        (item) => item["id"].toString() == selectedValue,
+        orElse: () => {},
+      );
+
+      return item.isNotEmpty ? item["name"].toString() : '';
+    }
+
+    final selectedName = getSelectedName();
+    final hasValue = selectedName.isNotEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: showDropdown ? Colors.teal : Colors.white24,
+            width: showDropdown ? 1.4 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                FocusScope.of(context).unfocus();
+
+                setState(() {
+                  searchController.clear();
+                  onSearchChanged('');
+                });
+
+                onToggleDropdown(!showDropdown);
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 15,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: showDropdown
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isOptional ? "$label (Optional)" : label,
+                                  style: const TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                TextField(
+                                  controller: searchController,
+                                  autofocus: true,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                  cursorColor: Colors.teal,
+                                  decoration: InputDecoration(
+                                    hintText: "Search $label",
+                                    hintStyle: TextStyle(
+                                      color: Colors.white.withOpacity(0.45),
+                                      fontSize: 14,
+                                    ),
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                  onChanged: onSearchChanged,
+                                ),
+                              ],
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isOptional ? "$label (Optional)" : label,
+                                  style: const TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  hasValue ? selectedName : "Select $label",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: hasValue
+                                        ? Colors.white
+                                        : Colors.white.withOpacity(0.45),
+                                    fontSize: 14,
+                                    fontWeight: hasValue
+                                        ? FontWeight.w500
+                                        : FontWeight.w400,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+
+                    const SizedBox(width: 8),
+
+                    if (showDropdown && searchController.text.isNotEmpty)
+                      GestureDetector(
+                        onTap: () {
+                          searchController.clear();
+                          onSearchChanged('');
+                        },
+                        child: Icon(
+                          Icons.close_rounded,
+                          color: Colors.white.withOpacity(0.6),
+                          size: 20,
+                        ),
+                      )
+                    else
+                      AnimatedRotation(
+                        turns: showDropdown ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 180),
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: showDropdown
+                              ? Colors.tealAccent
+                              : Colors.white.withOpacity(0.7),
+                          size: 24,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            if (showDropdown) ...[
+              const Divider(height: 1, color: Colors.white12),
+
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 260),
+                child: filteredItems.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 28),
+                        child: Center(
+                          child: Text(
+                            "No results found",
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Scrollbar(
+                        thumbVisibility: true,
+                        thickness: 3,
+                        radius: const Radius.circular(8),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          padding: EdgeInsets.zero,
+                          itemCount: filteredItems.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1, color: Colors.white10),
+                          itemBuilder: (context, index) {
+                            final item = filteredItems[index];
+                            final itemId = item["id"].toString();
+                            final isSelected = selectedValue == itemId;
+
+                            return InkWell(
+                              onTap: () {
+                                onSelected(itemId);
+                                onToggleDropdown(false);
+                                searchController.clear();
+                                onSearchChanged('');
+                                FocusScope.of(context).unfocus();
+                              },
+                              child: Container(
+                                color: isSelected
+                                    ? Colors.teal.withOpacity(0.14)
+                                    : Colors.transparent,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 14,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        item["name"].toString(),
+                                        style: TextStyle(
+                                          color: isSelected
+                                              ? Colors.tealAccent
+                                              : Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w600
+                                              : FontWeight.w400,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isSelected)
+                                      const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.tealAccent,
+                                        size: 20,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildUsernameField() {
     return Padding(
@@ -639,8 +906,8 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
                 color: isUsernameValid
                     ? Colors.green
                     : usernameError != null
-                        ? Colors.redAccent
-                        : Colors.white24,
+                    ? Colors.redAccent
+                    : Colors.white24,
                 width: isUsernameValid || usernameError != null ? 1.5 : 1,
               ),
             ),
@@ -840,27 +1107,30 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
                   child: CircularProgressIndicator(color: Colors.teal),
                 )
               : _errorMessage != null
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _errorMessage!,
-                            style: const TextStyle(color: Colors.white),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 20),
-                          ElevatedButton(
-                            onPressed: loadAllData,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.teal,
-                            ),
-                            child: const Text("Retry"),
-                          ),
-                        ],
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _errorMessage!,
+                        style: const TextStyle(color: Colors.white),
+                        textAlign: TextAlign.center,
                       ),
-                    )
-                  : SingleChildScrollView(
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: loadAllData,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal,
+                        ),
+                        child: const Text("Retry"),
+                      ),
+                    ],
+                  ),
+                )
+              : Stack(
+                  children: [
+                    // SingleChildScrollView first (background content)
+                    SingleChildScrollView(
                       controller: _scrollController,
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
                       child: Form(
@@ -888,12 +1158,13 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
                                     (profileImage != null
                                             ? FileImage(profileImage!)
                                             : (profileNetworkImage != null
-                                                ? NetworkImage(
-                                                    profileNetworkImage!,
-                                                  )
-                                                : null))
+                                                  ? NetworkImage(
+                                                      profileNetworkImage!,
+                                                    )
+                                                  : null))
                                         as ImageProvider<Object>?,
-                                child: profileImage == null &&
+                                child:
+                                    profileImage == null &&
                                         profileNetworkImage == null
                                     ? const Text(
                                         "Upload",
@@ -924,12 +1195,13 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
                             ),
 
                             _inputField("Phone", phoneCtrl, readOnly: true),
-                            _inputField("Email", emailCtrl),
+                            _inputField("Email", emailCtrl, isOptional: true),
                             _inputField(
                               "Alt Phone",
                               altPhoneCtrl,
                               isNumber: true,
                               maxLength: 10,
+                              isOptional: true,
                             ),
 
                             // Gender and DOB
@@ -944,8 +1216,7 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
                                       {"id": "female", "name": "Female"},
                                       {"id": "other", "name": "Other"},
                                     ],
-                                    onChange: (v) =>
-                                        setState(() => gender = v),
+                                    onChange: (v) => setState(() => gender = v),
                                   ),
                                 ),
                                 const SizedBox(width: 15),
@@ -953,73 +1224,136 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
                               ],
                             ),
 
-                            // Zip Code and Country
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _inputField(
-                                    "Zip Code",
-                                    zipCtrl,
-                                    isNumber: true,
-                                  ),
-                                ),
-                                const SizedBox(width: 15),
-                                Expanded(
-                                  child: _dropdownField(
-                                    label: "Country",
-                                    value: selectedCountry,
-                                    items: countryList,
-                                    onChange: (v) {
-                                      selectedCountry = v;
-                                      setState(() {});
-                                    },
-                                  ),
-                                ),
-                              ],
+                            _inputField("Zip Code", zipCtrl, isNumber: true),
+
+                            _buildSearchableDropdown(
+                              label: "Country",
+                              selectedValue: selectedCountry,
+                              items: countryList,
+                              filteredItems: filteredCountryList,
+                              searchController: countrySearchController,
+                              showDropdown: showCountryDropdown,
+                              onToggleDropdown: (value) {
+                                setState(() {
+                                  showCountryDropdown = value;
+                                  showStateDropdown = false;
+                                  showDistrictDropdown = false;
+                                });
+                              },
+                              onSelected: (value) {
+                                setState(() {
+                                  selectedCountry = value;
+                                });
+                              },
+                              onSearchChanged: (query) {
+                                setState(() {
+                                  final search = query.trim().toLowerCase();
+
+                                  filteredCountryList = countryList.where((
+                                    item,
+                                  ) {
+                                    return item["name"]
+                                        .toString()
+                                        .toLowerCase()
+                                        .contains(search);
+                                  }).toList();
+                                });
+                              },
                             ),
 
-                            // State and District - Updated to match first page pattern
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _dropdownField(
-                                    label: "State",
-                                    value: selectedState,
-                                    items: stateList,
-                                    onChange: (v) {
-                                      selectedState = v;
+                            _buildSearchableDropdown(
+                              label: "State",
+                              selectedValue: selectedState,
+                              items: stateList,
+                              filteredItems: filteredStateList,
+                              searchController: stateSearchController,
+                              showDropdown: showStateDropdown,
+                              onToggleDropdown: (value) {
+                                setState(() {
+                                  showCountryDropdown = false;
+                                  showStateDropdown = value;
+                                  showDistrictDropdown = false;
+                                });
+                              },
+                              onSelected: (value) {
+                                setState(() {
+                                  selectedState = value;
 
-                                      // Filter districts based on selected state ID - using name comparison as in first page
-                                      String stateName = stateList.firstWhere(
-                                        (s) => s["id"].toString() == v,
-                                      )["name"];
+                                  final matchedState = stateList.firstWhere(
+                                    (s) => s["id"].toString() == value,
+                                    orElse: () => {},
+                                  );
 
-                                      districtList = allDistricts
-                                          .where((d) =>
-                                              d["state"] == stateName)
-                                          .toList();
+                                  if (matchedState.isNotEmpty) {
+                                    districtList = allDistricts.where((d) {
+                                      return d["state"] == matchedState["name"];
+                                    }).toList();
 
-                                      selectedDistrict = null;
-                                      setState(() {});
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 15),
-                                Expanded(
-                                  child: _dropdownField(
-                                    label: "District",
-                                    value: selectedDistrict,
-                                    items: districtList,
-                                    onChange: (v) {
-                                      selectedDistrict = v;
-                                      setState(() {});
-                                    },
-                                  ),
-                                ),
-                              ],
+                                    filteredDistrictList = List.from(
+                                      districtList,
+                                    );
+                                  } else {
+                                    districtList = [];
+                                    filteredDistrictList = [];
+                                  }
+
+                                  selectedDistrict = null;
+                                  districtSearchController.clear();
+                                });
+                              },
+                              onSearchChanged: (query) {
+                                setState(() {
+                                  final search = query.trim().toLowerCase();
+
+                                  filteredStateList = stateList.where((item) {
+                                    return item["name"]
+                                        .toString()
+                                        .toLowerCase()
+                                        .contains(search);
+                                  }).toList();
+                                });
+                              },
                             ),
 
-                            _inputField("Instagram", instaCtrl),
+                            _buildSearchableDropdown(
+                              label: "District",
+                              selectedValue: selectedDistrict,
+                              items: districtList,
+                              filteredItems: filteredDistrictList,
+                              searchController: districtSearchController,
+                              showDropdown: showDistrictDropdown,
+                              onToggleDropdown: (value) {
+                                setState(() {
+                                  showCountryDropdown = false;
+                                  showStateDropdown = false;
+                                  showDistrictDropdown = value;
+                                });
+                              },
+                              onSelected: (value) {
+                                setState(() {
+                                  selectedDistrict = value;
+                                });
+                              },
+                              onSearchChanged: (query) {
+                                setState(() {
+                                  final search = query.trim().toLowerCase();
+
+                                  filteredDistrictList = districtList.where((
+                                    item,
+                                  ) {
+                                    return item["name"]
+                                        .toString()
+                                        .toLowerCase()
+                                        .contains(search);
+                                  }).toList();
+                                });
+                              },
+                            ),
+                            _inputField(
+                              "Instagram",
+                              instaCtrl,
+                              isOptional: true,
+                            ),
 
                             const SizedBox(height: 30),
 
@@ -1036,8 +1370,9 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
                                         }
 
                                         if (dob == null) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             const SnackBar(
                                               content: Text(
                                                 "Date of Birth is required",
@@ -1048,8 +1383,9 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
                                         }
 
                                         if (!isUsernameValid) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             const SnackBar(
                                               content: Text(
                                                 "Please choose a valid username",
@@ -1064,7 +1400,8 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.teal,
                                   padding: const EdgeInsets.symmetric(
-                                      vertical: 15),
+                                    vertical: 15,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
@@ -1093,6 +1430,39 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
                         ),
                       ),
                     ),
+                    // Back Arrow Button
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          onPressed: () {
+                            print("Back button pressed");
+                            if (Navigator.of(context).canPop()) {
+                              Navigator.of(context).pop();
+                            } else {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const HomePage(),
+                                ),
+                              );
+                            }
+                          },
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );
@@ -1106,6 +1476,7 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
     bool readOnly = false,
     bool isNumber = false,
     int? maxLength,
+    bool isOptional = false,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -1119,18 +1490,25 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
           if (maxLength != null) LengthLimitingTextInputFormatter(maxLength),
         ],
         style: TextStyle(color: readOnly ? Colors.white70 : Colors.white),
-        decoration: _dec(label).copyWith(
+        decoration: _dec(label, isOptional: isOptional).copyWith(
           fillColor: readOnly ? Colors.black26 : const Color(0xFF1E1E1E),
         ),
         validator: (v) {
           final value = v?.trim() ?? "";
+
+          // Skip validation if field is optional and empty
+          if (isOptional && value.isEmpty) return null;
+
+          // For phone field which is readOnly, skip validation if empty
+          if (readOnly && value.isEmpty) return null;
+
           if (value.isEmpty) return "$label is required";
 
-          if (label == "Email") {
+          if (label == "Email" && value.isNotEmpty) {
             final regex = RegExp(r"^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}$");
             if (!regex.hasMatch(value)) return "Enter valid email";
           }
-          if (label == "Alt Phone" && value.length != 10) {
+          if (label == "Alt Phone" && value.isNotEmpty && value.length != 10) {
             return "Alt Phone must be 10 digits";
           }
 
@@ -1140,9 +1518,9 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
     );
   }
 
-  InputDecoration _dec(String label) {
+  InputDecoration _dec(String label, {bool isOptional = false}) {
     return InputDecoration(
-      labelText: label,
+      labelText: isOptional ? "$label (Optional)" : label,
       labelStyle: const TextStyle(color: Colors.white60),
       floatingLabelStyle: const TextStyle(color: Colors.white60),
       filled: true,
@@ -1172,12 +1550,13 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
     required String? value,
     required List<Map<String, dynamic>> items,
     required Function(String?) onChange,
+    bool isOptional = false,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: DropdownButtonFormField<String>(
-        initialValue: value,
-        decoration: _dec(label),
+        value: value,
+        decoration: _dec(label, isOptional: isOptional),
         dropdownColor: Colors.black,
         style: const TextStyle(color: Colors.white),
         items: items.map((e) {
@@ -1187,8 +1566,14 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
           );
         }).toList(),
         onChanged: onChange,
-        validator: (v) =>
-            v == null || v.isEmpty ? "$label is required" : null,
+        validator: (v) {
+          // Skip validation if optional and no value selected
+          if (isOptional && (v == null || v.isEmpty)) {
+            return null;
+          }
+          // Otherwise, require selection
+          return (v == null || v.isEmpty) ? "$label is required" : null;
+        },
       ),
     );
   }
@@ -1203,8 +1588,7 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
             initialDate: dob ?? DateTime(2005),
             firstDate: DateTime(1950),
             lastDate: DateTime.now(),
-            builder: (c, child) =>
-                Theme(data: ThemeData.dark(), child: child!),
+            builder: (c, child) => Theme(data: ThemeData.dark(), child: child!),
           );
           if (picked != null) setState(() => dob = picked);
         },

@@ -30,6 +30,20 @@ class _ProfilePageState extends State<ProfilePage> {
   List<Map<String, dynamic>> allDistricts = [];
   List<Map<String, dynamic>> districtList = [];
 
+  // Search controllers for dropdowns
+  final TextEditingController countrySearchController = TextEditingController();
+  final TextEditingController stateSearchController = TextEditingController();
+  final TextEditingController districtSearchController =
+      TextEditingController();
+
+  List<Map<String, dynamic>> filteredCountryList = [];
+  List<Map<String, dynamic>> filteredStateList = [];
+  List<Map<String, dynamic>> filteredDistrictList = [];
+
+  bool showCountryDropdown = false;
+  bool showStateDropdown = false;
+  bool showDistrictDropdown = false;
+
   File? profileImage;
   String? profileNetworkImage;
   final ImagePicker _picker = ImagePicker();
@@ -87,6 +101,9 @@ class _ProfilePageState extends State<ProfilePage> {
     ageCtrl.dispose();
     zipCtrl.dispose();
     instaCtrl.dispose();
+    countrySearchController.dispose();
+    stateSearchController.dispose();
+    districtSearchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -133,7 +150,7 @@ class _ProfilePageState extends State<ProfilePage> {
       if (d.isNotEmpty) selectedDistrict = d["id"].toString();
     }
 
-    // Filter districts based on selected state ID
+    // Filter districts based on selected state
     if (selectedState != null) {
       final stateName = stateList.firstWhere(
         (s) => s["id"].toString() == selectedState,
@@ -143,6 +160,11 @@ class _ProfilePageState extends State<ProfilePage> {
           .where((d) => d["state"] == stateName)
           .toList();
     }
+
+    // Initialize filtered lists
+    filteredCountryList = List.from(countryList);
+    filteredStateList = List.from(stateList);
+    filteredDistrictList = List.from(districtList);
 
     setState(() {});
   }
@@ -175,6 +197,7 @@ class _ProfilePageState extends State<ProfilePage> {
         countryList = data
             .map((e) => {"id": e["id"], "name": e["name"]})
             .toList();
+        filteredCountryList = List.from(countryList);
       }
     } catch (e) {}
   }
@@ -194,6 +217,7 @@ class _ProfilePageState extends State<ProfilePage> {
         stateList = data
             .map((e) => {"id": e["id"], "name": e["name"]})
             .toList();
+        filteredStateList = List.from(stateList);
       }
     } catch (e) {}
   }
@@ -470,7 +494,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
       final currentUsername = usernameCtrl.text.trim().toLowerCase();
 
-      // Update username only if it changed
       if (isUsernameValid && currentUsername.isNotEmpty) {
         if (currentUsername != _originalUsername) {
           print("Attempting to update username to: $currentUsername");
@@ -543,7 +566,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         );
 
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const HomePage()),
         );
@@ -559,7 +582,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // ---------------- USERNAME UI METHOD ----------------
+  // ---------------- USERNAME UI ----------------
 
   Widget _buildUsernameField() {
     return Padding(
@@ -728,11 +751,11 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     if (isUsernameValid && usernameCtrl.text.isNotEmpty) {
-      return Row(
+      return const Row(
         children: [
-          const Icon(Icons.check_circle, color: Colors.green, size: 16),
-          const SizedBox(width: 8),
-          const Text(
+          Icon(Icons.check_circle, color: Colors.green, size: 16),
+          SizedBox(width: 8),
+          Text(
             "Username available",
             style: TextStyle(
               color: Colors.green,
@@ -772,7 +795,244 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // ---------------- UI ----------------
+  // ---------------- SEARCHABLE DROPDOWN ----------------
+  Widget _buildSearchableDropdown({
+    required String label,
+    required String? selectedValue,
+    required List<Map<String, dynamic>> items,
+    required List<Map<String, dynamic>> filteredItems,
+    required TextEditingController searchController,
+    required bool showDropdown,
+    required Function(bool) onToggleDropdown,
+    required Function(String?) onSelected,
+    required Function(String) onSearchChanged,
+    bool isOptional = false,
+  }) {
+    String getSelectedName() {
+      if (selectedValue == null || selectedValue.isEmpty) return '';
+
+      final item = items.firstWhere(
+        (item) => item["id"].toString() == selectedValue,
+        orElse: () => {},
+      );
+
+      return item.isNotEmpty ? item["name"].toString() : '';
+    }
+
+    final selectedName = getSelectedName();
+    final hasValue = selectedName.isNotEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: showDropdown ? Colors.teal : Colors.white24,
+            width: showDropdown ? 1.4 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                FocusScope.of(context).unfocus();
+
+                setState(() {
+                  searchController.clear();
+                  onSearchChanged('');
+                });
+
+                onToggleDropdown(!showDropdown);
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 15,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: showDropdown
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isOptional ? "$label (Optional)" : label,
+                                  style: const TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                TextField(
+                                  controller: searchController,
+                                  autofocus: true,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                  cursorColor: Colors.teal,
+                                  decoration: InputDecoration(
+                                    hintText: "Search $label",
+                                    hintStyle: TextStyle(
+                                      color: Colors.white.withOpacity(0.45),
+                                      fontSize: 14,
+                                    ),
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                  onChanged: onSearchChanged,
+                                ),
+                              ],
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isOptional ? "$label (Optional)" : label,
+                                  style: const TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  hasValue ? selectedName : "Select $label",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: hasValue
+                                        ? Colors.white
+                                        : Colors.white.withOpacity(0.45),
+                                    fontSize: 14,
+                                    fontWeight: hasValue
+                                        ? FontWeight.w500
+                                        : FontWeight.w400,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (showDropdown && searchController.text.isNotEmpty)
+                      GestureDetector(
+                        onTap: () {
+                          searchController.clear();
+                          onSearchChanged('');
+                        },
+                        child: Icon(
+                          Icons.close_rounded,
+                          color: Colors.white.withOpacity(0.6),
+                          size: 20,
+                        ),
+                      )
+                    else
+                      AnimatedRotation(
+                        turns: showDropdown ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 180),
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: showDropdown
+                              ? Colors.tealAccent
+                              : Colors.white.withOpacity(0.7),
+                          size: 24,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            if (showDropdown) ...[
+              const Divider(height: 1, color: Colors.white12),
+
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 260),
+                child: filteredItems.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 28),
+                        child: Center(
+                          child: Text(
+                            "No results found",
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Scrollbar(
+                        thumbVisibility: true,
+                        thickness: 3,
+                        radius: const Radius.circular(8),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          padding: EdgeInsets.zero,
+                          itemCount: filteredItems.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1, color: Colors.white10),
+                          itemBuilder: (context, index) {
+                            final item = filteredItems[index];
+                            final itemId = item["id"].toString();
+                            final isSelected = selectedValue == itemId;
+
+                            return InkWell(
+                              onTap: () {
+                                onSelected(itemId);
+                                onToggleDropdown(false);
+                                searchController.clear();
+                                onSearchChanged('');
+                                FocusScope.of(context).unfocus();
+                              },
+                              child: Container(
+                                color: isSelected
+                                    ? Colors.teal.withOpacity(0.14)
+                                    : Colors.transparent,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 14,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        item["name"].toString(),
+                                        style: TextStyle(
+                                          color: isSelected
+                                              ? Colors.tealAccent
+                                              : Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w600
+                                              : FontWeight.w400,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isSelected)
+                                      const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.tealAccent,
+                                        size: 20,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -790,219 +1050,340 @@ class _ProfilePageState extends State<ProfilePage> {
               ? const Center(
                   child: CircularProgressIndicator(color: Colors.teal),
                 )
-              : SingleChildScrollView(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(20),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 20),
-
-                        GestureDetector(
-                          onTap: () async {
-                            final pick = await _picker.pickImage(
-                              source: ImageSource.gallery,
-                            );
-                            if (pick != null) {
-                              setState(() {
-                                profileImage = File(pick.path);
-                              });
-                            }
-                          },
-                          child: CircleAvatar(
-                            radius: 70,
-                            backgroundColor: Colors.white24,
-                            backgroundImage: profileImage != null
-                                ? FileImage(profileImage!)
-                                : (profileNetworkImage != null
-                                          ? NetworkImage(profileNetworkImage!)
-                                          : null)
-                                      as ImageProvider<Object>?,
-                            child: profileImage == null && profileNetworkImage == null
-                                ? const Text(
-                                    "Upload",
-                                    style: TextStyle(color: Colors.white),
-                                  )
-                                : null,
-                          ),
-                        ),
-
-                        const SizedBox(height: 30),
-
-                        // USERNAME FIELD
-                        _buildUsernameField(),
-
-                        const SizedBox(height: 10),
-
-                        Row(
+              : Stack(
+                  children: [
+                    SingleChildScrollView(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(20),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
                           children: [
-                            Expanded(child: _inputField("First Name", firstCtrl)),
-                            const SizedBox(width: 15),
-                            Expanded(child: _inputField("Last Name", lastCtrl)),
-                          ],
-                        ),
+                            const SizedBox(height: 20),
 
-                        _inputField("Phone", phoneCtrl, readOnly: true),
-                        _inputField("Email", emailCtrl),
-                        _inputField(
-                          "Alt Phone",
-                          altPhoneCtrl,
-                          isNumber: true,
-                          maxLength: 10,
-                        ),
-
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _dropdownField(
-                                label: "Gender",
-                                value: gender,
-                                items: const [
-                                  {"id": "male", "name": "Male"},
-                                  {"id": "female", "name": "Female"},
-                                  {"id": "other", "name": "Other"},
-                                ],
-                                onChange: (v) => setState(() => gender = v),
+                            // Profile Image
+                            GestureDetector(
+                              onTap: () async {
+                                final pick = await _picker.pickImage(
+                                  source: ImageSource.gallery,
+                                );
+                                if (pick != null) {
+                                  setState(() {
+                                    profileImage = File(pick.path);
+                                  });
+                                }
+                              },
+                              child: CircleAvatar(
+                                radius: 70,
+                                backgroundColor: Colors.white24,
+                                backgroundImage: profileImage != null
+                                    ? FileImage(profileImage!)
+                                    : (profileNetworkImage != null
+                                              ? NetworkImage(
+                                                  profileNetworkImage!,
+                                                )
+                                              : null)
+                                          as ImageProvider<Object>?,
+                                child:
+                                    profileImage == null &&
+                                        profileNetworkImage == null
+                                    ? const Text(
+                                        "Upload",
+                                        style: TextStyle(color: Colors.white),
+                                      )
+                                    : null,
                               ),
                             ),
-                            const SizedBox(width: 15),
-                            Expanded(child: _dobPicker()),
-                          ],
-                        ),
 
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _inputField("Zip Code", zipCtrl, isNumber: true),
-                            ),
-                            const SizedBox(width: 15),
-                            Expanded(
-                              child: _dropdownField(
-                                label: "Country",
-                                value: selectedCountry,
-                                items: countryList,
-                                onChange: (v) {
-                                  selectedCountry = v;
-                                  setState(() {});
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
+                            const SizedBox(height: 30),
 
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _dropdownField(
-                                label: "State",
-                                value: selectedState,
-                                items: stateList,
-                                onChange: (v) {
-                                  selectedState = v;
+                            // Username
+                            _buildUsernameField(),
+
+                            const SizedBox(height: 10),
+
+                            // Name
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _inputField("First Name", firstCtrl),
+                                ),
+                                const SizedBox(width: 15),
+                                Expanded(
+                                  child: _inputField("Last Name", lastCtrl),
+                                ),
+                              ],
+                            ),
+
+                            _inputField("Phone", phoneCtrl, readOnly: true),
+                            _inputField("Email", emailCtrl, isOptional: true),
+                            _inputField(
+                              "Alt Phone",
+                              altPhoneCtrl,
+                              isNumber: true,
+                              maxLength: 10,
+                              isOptional: true,
+                            ),
+
+                            // Gender + DOB
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _dropdownField(
+                                    label: "Gender",
+                                    value: gender,
+                                    items: const [
+                                      {"id": "male", "name": "Male"},
+                                      {"id": "female", "name": "Female"},
+                                      {"id": "other", "name": "Other"},
+                                    ],
+                                    onChange: (v) => setState(() => gender = v),
+                                  ),
+                                ),
+                                const SizedBox(width: 15),
+                                Expanded(child: _dobPicker()),
+                              ],
+                            ),
+
+                            _inputField("Zip Code", zipCtrl, isNumber: true),
+
+                            _buildSearchableDropdown(
+                              label: "Country",
+                              selectedValue: selectedCountry,
+                              items: countryList,
+                              filteredItems: filteredCountryList,
+                              searchController: countrySearchController,
+                              showDropdown: showCountryDropdown,
+                              onToggleDropdown: (value) {
+                                setState(() {
+                                  showCountryDropdown = value;
+                                  showStateDropdown = false;
+                                  showDistrictDropdown = false;
+                                });
+                              },
+                              onSelected: (value) {
+                                setState(() {
+                                  selectedCountry = value;
+                                });
+                              },
+                              onSearchChanged: (query) {
+                                setState(() {
+                                  final search = query.trim().toLowerCase();
+
+                                  filteredCountryList = countryList.where((
+                                    item,
+                                  ) {
+                                    return item["name"]
+                                        .toString()
+                                        .toLowerCase()
+                                        .contains(search);
+                                  }).toList();
+                                });
+                              },
+                            ),
+
+                            _buildSearchableDropdown(
+                              label: "State",
+                              selectedValue: selectedState,
+                              items: stateList,
+                              filteredItems: filteredStateList,
+                              searchController: stateSearchController,
+                              showDropdown: showStateDropdown,
+                              onToggleDropdown: (value) {
+                                setState(() {
+                                  showCountryDropdown = false;
+                                  showStateDropdown = value;
+                                  showDistrictDropdown = false;
+                                });
+                              },
+                              onSelected: (value) {
+                                setState(() {
+                                  selectedState = value;
 
                                   final matchedState = stateList.firstWhere(
-                                    (s) => s["id"].toString() == v,
+                                    (s) => s["id"].toString() == value,
                                     orElse: () => {},
                                   );
 
                                   if (matchedState.isNotEmpty) {
-                                    districtList = allDistricts
-                                        .where(
-                                          (d) =>
-                                              d["state"] ==
-                                              matchedState["name"],
-                                        )
-                                        .toList();
+                                    districtList = allDistricts.where((d) {
+                                      return d["state"] == matchedState["name"];
+                                    }).toList();
+
+                                    filteredDistrictList = List.from(
+                                      districtList,
+                                    );
+                                  } else {
+                                    districtList = [];
+                                    filteredDistrictList = [];
                                   }
 
                                   selectedDistrict = null;
-                                  setState(() {});
+                                  districtSearchController.clear();
+                                });
+                              },
+                              onSearchChanged: (query) {
+                                setState(() {
+                                  final search = query.trim().toLowerCase();
+
+                                  filteredStateList = stateList.where((item) {
+                                    return item["name"]
+                                        .toString()
+                                        .toLowerCase()
+                                        .contains(search);
+                                  }).toList();
+                                });
+                              },
+                            ),
+
+                            _buildSearchableDropdown(
+                              label: "District",
+                              selectedValue: selectedDistrict,
+                              items: districtList,
+                              filteredItems: filteredDistrictList,
+                              searchController: districtSearchController,
+                              showDropdown: showDistrictDropdown,
+                              onToggleDropdown: (value) {
+                                setState(() {
+                                  showCountryDropdown = false;
+                                  showStateDropdown = false;
+                                  showDistrictDropdown = value;
+                                });
+                              },
+                              onSelected: (value) {
+                                setState(() {
+                                  selectedDistrict = value;
+                                });
+                              },
+                              onSearchChanged: (query) {
+                                setState(() {
+                                  final search = query.trim().toLowerCase();
+
+                                  filteredDistrictList = districtList.where((
+                                    item,
+                                  ) {
+                                    return item["name"]
+                                        .toString()
+                                        .toLowerCase()
+                                        .contains(search);
+                                  }).toList();
+                                });
+                              },
+                            ),
+
+                            _inputField(
+                              "Instagram",
+                              instaCtrl,
+                              isOptional: true,
+                            ),
+
+                            const SizedBox(height: 30),
+
+                            // Submit Button
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  if (!_formKey.currentState!.validate()) {
+                                    return;
+                                  }
+
+                                  if (dob == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          "Date of Birth is required",
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  if (!isUsernameValid) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          "Please choose a valid username",
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  submitProfile();
                                 },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.teal,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 15,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Text(
+                                        "Update Profile",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                        ),
+                                      ),
                               ),
                             ),
-                            const SizedBox(width: 15),
-                            Expanded(
-                              child: _dropdownField(
-                                label: "District",
-                                value: selectedDistrict,
-                                items: districtList,
-                                onChange: (v) {
-                                  selectedDistrict = v;
-                                  setState(() {});
-                                },
-                              ),
-                            ),
+
+                            const SizedBox(height: 50),
                           ],
                         ),
+                      ),
+                    ),
 
-                        _inputField("Instagram", instaCtrl),
-
-                        const SizedBox(height: 30),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              if (!_formKey.currentState!.validate()) return;
-
-                              if (dob == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Date of Birth is required"),
-                                  ),
-                                );
-                                return;
-                              }
-
-                              if (!isUsernameValid) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      "Please choose a valid username",
-                                    ),
-                                  ),
-                                );
-                                return;
-                              }
-
-                              submitProfile();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.teal,
-                              padding: const EdgeInsets.symmetric(vertical: 15),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Text(
-                                    "Update Profile",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                    ),
-                                  ),
+                    // Back Button
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          onPressed: () {
+                            if (Navigator.of(context).canPop()) {
+                              Navigator.of(context).pop();
+                            } else {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const HomePage(),
+                                ),
+                              );
+                            }
+                          },
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                            size: 28,
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
         ),
       ),
     );
   }
 
-  // ---------------- REUSABLE ----------------
+  // ---------------- REUSABLE WIDGETS ----------------
 
   Widget _inputField(
     String label,
@@ -1010,6 +1391,7 @@ class _ProfilePageState extends State<ProfilePage> {
     bool readOnly = false,
     bool isNumber = false,
     int? maxLength,
+    bool isOptional = false,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -1023,18 +1405,20 @@ class _ProfilePageState extends State<ProfilePage> {
           if (maxLength != null) LengthLimitingTextInputFormatter(maxLength),
         ],
         style: TextStyle(color: readOnly ? Colors.white70 : Colors.white),
-        decoration: _dec(label).copyWith(
+        decoration: _dec(label, isOptional: isOptional).copyWith(
           fillColor: readOnly ? Colors.black26 : const Color(0xFF1E1E1E),
         ),
         validator: (v) {
           final value = v?.trim() ?? "";
-          if (value.isEmpty) return "$label is required";
 
-          if (label == "Email") {
+          if (isOptional && value.isEmpty) return null;
+          if (readOnly && value.isEmpty) return null;
+
+          if (label == "Email" && value.isNotEmpty) {
             final regex = RegExp(r"^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}$");
             if (!regex.hasMatch(value)) return "Enter valid email";
           }
-          if (label == "Alt Phone" && value.length != 10) {
+          if (label == "Alt Phone" && value.isNotEmpty && value.length != 10) {
             return "Alt Phone must be 10 digits";
           }
 
@@ -1044,9 +1428,9 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  InputDecoration _dec(String label) {
+  InputDecoration _dec(String label, {bool isOptional = false}) {
     return InputDecoration(
-      labelText: label,
+      labelText: isOptional ? "$label (Optional)" : label,
       labelStyle: const TextStyle(color: Colors.white60),
       floatingLabelStyle: const TextStyle(color: Colors.white60),
       filled: true,
@@ -1076,6 +1460,7 @@ class _ProfilePageState extends State<ProfilePage> {
     required String? value,
     required List<Map<String, dynamic>> items,
     required Function(String?) onChange,
+    bool isOptional = false,
   }) {
     final String? safeValue =
         (value != null && items.any((e) => e["id"].toString() == value))
@@ -1085,8 +1470,8 @@ class _ProfilePageState extends State<ProfilePage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: DropdownButtonFormField<String>(
-        initialValue: safeValue,
-        decoration: _dec(label),
+        value: safeValue,
+        decoration: _dec(label, isOptional: isOptional),
         dropdownColor: Colors.black,
         style: const TextStyle(color: Colors.white),
         items: items.map((e) {
@@ -1096,7 +1481,10 @@ class _ProfilePageState extends State<ProfilePage> {
           );
         }).toList(),
         onChanged: onChange,
-        validator: (v) => v == null || v.isEmpty ? "$label is required" : null,
+        validator: (v) {
+          if (isOptional && (v == null || v.isEmpty)) return null;
+          return (v == null || v.isEmpty) ? "$label is required" : null;
+        },
       ),
     );
   }

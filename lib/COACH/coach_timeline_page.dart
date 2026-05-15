@@ -1457,11 +1457,11 @@ class _FeedCard extends StatelessWidget {
                         ),
 
                         const Spacer(),
-                        _ActionButton(
-                          icon: Icons.share_outlined,
-                          label: "",
-                          onTap: () => _shareFeed(context, actualFeedId),
-                        ),
+                        // _ActionButton(
+                        //   icon: Icons.share_outlined,
+                        //   label: "",
+                        //   onTap: () => _shareFeed(context, actualFeedId),
+                        // ),
                       ],
                     ),
                   ],
