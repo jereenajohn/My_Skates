@@ -12,6 +12,7 @@ import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/wishlist.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
+import 'package:my_skates/STUDENTS/offer_page.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -50,6 +51,9 @@ class _UserProductssState extends State<UserProducts> {
   bool paginationLoading = false;
   Timer? _searchDebounce;
   String currentSearchQuery = "";
+  List<Map<String, dynamic>> offerPreviewProducts = [];
+  String offerSectionName = "";
+  bool offerPreviewLoading = false;
 
   final List<Map<String, dynamic>> priceRanges = [
     {'label': 'Rs. 499 and Below', 'min': 0, 'max': 499},
@@ -72,16 +76,16 @@ class _UserProductssState extends State<UserProducts> {
     _scrollController.addListener(() {
       if (!_scrollController.hasClients) return;
 
-   if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 300 &&
-    isAllCategorySelected &&
-    !_isPriceFilterActive &&
-    currentSearchQuery.trim().isEmpty &&
-    allProductsNextUrl != null &&
-    !paginationLoading &&
-    !productsLoading) {
-  getAllApprovedProducts(loadMore: true);
-}
+      if (_scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent - 300 &&
+          isAllCategorySelected &&
+          !_isPriceFilterActive &&
+          currentSearchQuery.trim().isEmpty &&
+          allProductsNextUrl != null &&
+          !paginationLoading &&
+          !productsLoading) {
+        getAllApprovedProducts(loadMore: true);
+      }
     });
 
     Future.delayed(const Duration(milliseconds: 200), () {
@@ -109,7 +113,11 @@ class _UserProductssState extends State<UserProducts> {
   }
 
   Future<void> loadInitialData() async {
-    await Future.wait([getbanner(), getProductCategories()]);
+    await Future.wait([
+      getbanner(),
+      getProductCategories(),
+      getOfferPreviewProducts(),
+    ]);
 
     await getAllApprovedProducts();
 
@@ -122,6 +130,7 @@ class _UserProductssState extends State<UserProducts> {
   Future<void> refreshAllData() async {
     await getbanner();
     await getProductCategories();
+    await getOfferPreviewProducts();
 
     if (isAllCategorySelected) {
       await getAllApprovedProducts();
@@ -172,6 +181,70 @@ class _UserProductssState extends State<UserProducts> {
         .replaceAll(' GET ', 'G')
         .replaceAll(' FREE', 'FREE')
         .replaceAll(' ', '');
+  }
+
+  Future<void> getOfferPreviewProducts() async {
+    if (!mounted) return;
+
+    setState(() {
+      offerPreviewLoading = true;
+    });
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    try {
+      final response = await http.get(
+        Uri.parse('$api/api/myskates/approved/offer/products/view/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      debugPrint("OFFER PREVIEW STATUS: ${response.statusCode}");
+      debugPrint("OFFER PREVIEW BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+
+        String offerName = "";
+        List<dynamic> dataList = [];
+
+        if (decoded is Map && decoded["results"] is Map) {
+          final results = decoded["results"];
+
+          offerName = (results["offer_name"] ?? "").toString();
+
+          if (results["data"] is List) {
+            dataList = results["data"];
+          }
+        } else if (decoded is Map && decoded["data"] is List) {
+          offerName = (decoded["offer_name"] ?? "").toString();
+          dataList = decoded["data"];
+        }
+
+        final mappedProducts = dataList
+            .take(4)
+            .map<Map<String, dynamic>>((item) => _mapProductData(item))
+            .toList();
+
+        if (!mounted) return;
+
+        setState(() {
+          offerSectionName = offerName;
+          offerPreviewProducts = mappedProducts;
+        });
+      }
+    } catch (e) {
+      debugPrint("Offer preview fetch error: $e");
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      offerPreviewLoading = false;
+    });
   }
 
   Future<void> getbanner() async {
@@ -714,55 +787,55 @@ class _UserProductssState extends State<UserProducts> {
     );
   }
 
-void _applyPriceFilter(BuildContext context) {
-  if (_selectedPriceRange == null) {
+  void _applyPriceFilter(BuildContext context) {
+    if (_selectedPriceRange == null) {
+      Navigator.pop(context);
+      return;
+    }
+
+    final selectedRange = priceRanges.firstWhere(
+      (range) => range['label'] == _selectedPriceRange,
+    );
+
+    final double minPrice = _toDouble(selectedRange['min']);
+
+    final double maxPrice = selectedRange['max'] == double.infinity
+        ? double.infinity
+        : _toDouble(selectedRange['max']);
+
+    final List<Map<String, dynamic>> sourceList = List.from(_allProducts);
+
+    final filteredProducts = sourceList.where((product) {
+      double finalPrice = _toDouble(product['discounted_price']);
+
+      if (finalPrice <= 0) {
+        finalPrice = _toDouble(product['price']);
+      }
+
+      if (finalPrice <= 0) {
+        finalPrice = _toDouble(product['base_price']);
+      }
+
+      if (maxPrice == double.infinity) {
+        return finalPrice >= minPrice;
+      }
+
+      return finalPrice >= minPrice && finalPrice <= maxPrice;
+    }).toList();
+
+    setState(() {
+      _isPriceFilterActive = true;
+      products = filteredProducts;
+
+      // Important: stop All category pagination while local price filter is active
+      if (isAllCategorySelected) {
+        allProductsNextUrl = null;
+        paginationLoading = false;
+      }
+    });
+
     Navigator.pop(context);
-    return;
   }
-
-  final selectedRange = priceRanges.firstWhere(
-    (range) => range['label'] == _selectedPriceRange,
-  );
-
-  final double minPrice = _toDouble(selectedRange['min']);
-
-  final double maxPrice = selectedRange['max'] == double.infinity
-      ? double.infinity
-      : _toDouble(selectedRange['max']);
-
-  final List<Map<String, dynamic>> sourceList = List.from(_allProducts);
-
-  final filteredProducts = sourceList.where((product) {
-    double finalPrice = _toDouble(product['discounted_price']);
-
-    if (finalPrice <= 0) {
-      finalPrice = _toDouble(product['price']);
-    }
-
-    if (finalPrice <= 0) {
-      finalPrice = _toDouble(product['base_price']);
-    }
-
-    if (maxPrice == double.infinity) {
-      return finalPrice >= minPrice;
-    }
-
-    return finalPrice >= minPrice && finalPrice <= maxPrice;
-  }).toList();
-
-  setState(() {
-    _isPriceFilterActive = true;
-    products = filteredProducts;
-
-    // Important: stop All category pagination while local price filter is active
-    if (isAllCategorySelected) {
-      allProductsNextUrl = null;
-      paginationLoading = false;
-    }
-  });
-
-  Navigator.pop(context);
-}
 
   void _clearPriceFilter() {
     setState(() {
@@ -1187,6 +1260,168 @@ void _applyPriceFilter(BuildContext context) {
           ),
         );
       },
+    );
+  }
+
+  Widget _offerPreviewSection() {
+    if (offerPreviewLoading) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 18),
+          Shimmer.fromColors(
+            baseColor: Colors.grey.shade900,
+            highlightColor: Colors.grey.shade800,
+            child: Container(
+              height: 26,
+              width: 190,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade900,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 4,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisExtent: 295,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            itemBuilder: (_, __) {
+              return Shimmer.fromColors(
+                baseColor: Colors.grey.shade900,
+                highlightColor: Colors.grey.shade800,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade900,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      );
+    }
+
+    if (offerPreviewProducts.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final String title = offerSectionName.trim().isEmpty
+        ? "Offer Products"
+        : offerSectionName.trim();
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          slideRightToLeftRoute(OfferProductsPage(initialOfferName: title)),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(top: 18),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.22),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: Colors.tealAccent.withOpacity(0.22)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.20),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.tealAccent.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(
+                      color: Colors.tealAccent.withOpacity(0.35),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.local_offer_rounded,
+                    color: Colors.tealAccent,
+                    size: 21,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'Poppins',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Row(
+                  children: const [
+                    Text(
+                      "View All",
+                      style: TextStyle(
+                        color: Colors.tealAccent,
+                        fontFamily: 'Poppins',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(width: 3),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      color: Colors.tealAccent,
+                      size: 13,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: offerPreviewProducts.length > 4
+                  ? 4
+                  : offerPreviewProducts.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisExtent: 295,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemBuilder: (context, index) {
+                final product = offerPreviewProducts[index];
+                return IgnorePointer(
+                  ignoring: false,
+                  child: _productCard(product),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1676,17 +1911,21 @@ void _applyPriceFilter(BuildContext context) {
 
                                 const SizedBox(height: 15),
 
-                                Text(
-                                  selectedCategoryName.isEmpty
-                                      ? "Products"
-                                      : "$selectedCategoryName Products",
-                                  style: const TextStyle(
-                                    fontFamily: 'Poppins',
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
+                                // _offerPreviewSection(),
+
+                                // const SizedBox(height: 15),
+
+                                // Text(
+                                //   selectedCategoryName.isEmpty
+                                //       ? "Products"
+                                //       : "$selectedCategoryName Products",
+                                //   style: const TextStyle(
+                                //     fontFamily: 'Poppins',
+                                //     color: Colors.white,
+                                //     fontSize: 15,
+                                //     fontWeight: FontWeight.w500,
+                                //   ),
+                                // ),
 
                                 const SizedBox(height: 18),
 
