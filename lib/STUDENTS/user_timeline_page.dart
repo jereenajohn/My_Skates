@@ -601,7 +601,7 @@ Future<List<Map<String, dynamic>>> fetchAchievements() async {
 class _FeedCard extends StatelessWidget {
   final dynamic feed;
   const _FeedCard({required this.feed});
-    String _fullImageUrl(dynamic value) {
+  String _fullImageUrl(dynamic value) {
     final url = (value ?? "").toString();
 
     if (url.isEmpty) return "";
@@ -623,7 +623,6 @@ class _FeedCard extends StatelessWidget {
     //  PRODUCTION DEEP LINK
     final String deepLink = "https://myskates.app/feed/$feedId";
     // (for now you can use ngrok if needed)
-
 
     final String shareText = [
       if (desc.isNotEmpty) desc,
@@ -1141,11 +1140,11 @@ class _FeedCard extends StatelessWidget {
 
                         const Spacer(),
 
-                        _ActionButton(
-                          icon: Icons.share_outlined,
-                          label: "",
-                          onTap: () => _shareFeed(context, actualFeedId),
-                        ),
+                        // _ActionButton(
+                        //   icon: Icons.share_outlined,
+                        //   label: "",
+                        //   onTap: () => _shareFeed(context, actualFeedId),
+                        // ),
                       ],
                     ),
                   ],
@@ -1244,31 +1243,33 @@ class _FeedCard extends StatelessWidget {
     }
   }
 
-void _openEditSheet(BuildContext context) {
-  final List feedImages = feed["feed_image"] is List ? feed["feed_image"] : [];
+  void _openEditSheet(BuildContext context) {
+    final List feedImages = feed["feed_image"] is List
+        ? feed["feed_image"]
+        : [];
 
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    useSafeArea: true,
-    barrierColor: Colors.black.withOpacity(0.75),
-    builder: (_) => _CreatePostSheet(
-      feedProvider: context.read<CoachFeedProvider>(),
-      isEdit: true,
-      feedId: feed["id"],
-      initialText: feed["description"] ?? "",
-      existingImageUrls: feedImages
-          .map<String>((e) => _fullImageUrl(e["image"]))
-          .where((url) => url.isNotEmpty)
-          .toList(),
-      existingImageIds: feedImages
-          .where((e) => e["id"] != null)
-          .map<int>((e) => int.parse(e["id"].toString()))
-          .toList(),
-    ),
-  );
-}
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      barrierColor: Colors.black.withOpacity(0.75),
+      builder: (_) => _CreatePostSheet(
+        feedProvider: context.read<CoachFeedProvider>(),
+        isEdit: true,
+        feedId: feed["id"],
+        initialText: feed["description"] ?? "",
+        existingImageUrls: feedImages
+            .map<String>((e) => _fullImageUrl(e["image"]))
+            .where((url) => url.isNotEmpty)
+            .toList(),
+        existingImageIds: feedImages
+            .where((e) => e["id"] != null)
+            .map<int>((e) => int.parse(e["id"].toString()))
+            .toList(),
+      ),
+    );
+  }
 }
 
 /* ───────────────────────── MEDIA ───────────────────────── */
@@ -1392,7 +1393,6 @@ class _CreatePostSheet extends StatefulWidget {
     this.existingImageIds = const [],
   });
 
-
   @override
   State<_CreatePostSheet> createState() => _CreatePostSheetState();
 }
@@ -1410,15 +1410,15 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   late final List<String> _allEmojis;
 
   static const Color accentColor = Color(0xFF2EE6A6);
-@override
-void initState() {
-  super.initState();
-  _allEmojis = getAllEmojis();
+  @override
+  void initState() {
+    super.initState();
+    _allEmojis = getAllEmojis();
 
-  controller.text = widget.initialText;
-  networkImages.addAll(widget.existingImageUrls);
-  existingIds.addAll(widget.existingImageIds);
-}
+    controller.text = widget.initialText;
+    networkImages.addAll(widget.existingImageUrls);
+    existingIds.addAll(widget.existingImageIds);
+  }
 
   @override
   void dispose() {
@@ -1587,36 +1587,34 @@ void initState() {
                           scrollDirection: Axis.horizontal,
                           children: [
                             // EXISTING (NETWORK) IMAGES
-                            ...networkImages.asMap().entries.map(
-  (entry) {
-    final index = entry.key;
-    final url = entry.value;
+                            ...networkImages.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final url = entry.value;
 
-    return _imagePreview(
-      Image.network(
-        url,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) {
-          return Container(
-            color: Colors.white10,
-            child: const Icon(
-              Icons.broken_image,
-              color: Colors.white54,
-            ),
-          );
-        },
-      ),
-      onRemove: () {
-        setState(() {
-          networkImages.removeAt(index);
-          if (index < existingIds.length) {
-            existingIds.removeAt(index);
-          }
-        });
-      },
-    );
-  },
-),
+                              return _imagePreview(
+                                Image.network(
+                                  url,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) {
+                                    return Container(
+                                      color: Colors.white10,
+                                      child: const Icon(
+                                        Icons.broken_image,
+                                        color: Colors.white54,
+                                      ),
+                                    );
+                                  },
+                                ),
+                                onRemove: () {
+                                  setState(() {
+                                    networkImages.removeAt(index);
+                                    if (index < existingIds.length) {
+                                      existingIds.removeAt(index);
+                                    }
+                                  });
+                                },
+                              );
+                            }),
 
                             // NEW (LOCAL FILE) IMAGES
                             ...images.map(
@@ -1719,24 +1717,24 @@ void initState() {
   }
 
   ///  ONLY CHANGE: Provider-based submit
-Future<void> _submit() async {
-  setState(() => posting = true);
+  Future<void> _submit() async {
+    setState(() => posting = true);
 
-  if (widget.isEdit && widget.feedId != null) {
-    await widget.feedProvider.updateFeed(
-      widget.feedId!,
-  controller.text,
-  images,
-  existingIds,
-    );
-  } else {
-    await widget.feedProvider.postFeed(controller.text, images);
-  }
+    if (widget.isEdit && widget.feedId != null) {
+      await widget.feedProvider.updateFeed(
+        widget.feedId!,
+        controller.text,
+        images,
+        existingIds,
+      );
+    } else {
+      await widget.feedProvider.postFeed(controller.text, images);
+    }
 
-  if (mounted) {
-    Navigator.pop(context);
+    if (mounted) {
+      Navigator.pop(context);
+    }
   }
-}
 }
 
 class _SportyHandle extends StatelessWidget {
