@@ -54,10 +54,10 @@ class ProductReviewApprovalPage extends StatefulWidget {
   final String? productName;
 
   const ProductReviewApprovalPage({
-    Key? key,
+    super.key,
     required this.productId,
     required this.productName,
-  }) : super(key: key);
+  });
 
   @override
   State<ProductReviewApprovalPage> createState() =>

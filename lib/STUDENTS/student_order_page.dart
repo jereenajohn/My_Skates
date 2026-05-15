@@ -1,8 +1,5 @@
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:my_skates/ADMIN/admin_orders_page.dart';
-import 'package:my_skates/ADMIN/invoice_webview_page.dart';
 import 'package:my_skates/STUDENTS/student_product_review.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -444,7 +441,6 @@ class _Student_order_pageState extends State<Student_order_page> {
           useMaterial3: true,
           brightness: Brightness.dark,
           scaffoldBackgroundColor: const Color(0xFF001A18),
-          dialogBackgroundColor: const Color(0xFF071412),
           canvasColor: const Color(0xFF071412),
           cardColor: const Color(0xFF071412),
 
@@ -589,7 +585,7 @@ class _Student_order_pageState extends State<Student_order_page> {
             ),
           ),
 
-          iconTheme: const IconThemeData(color: Colors.white),
+          iconTheme: const IconThemeData(color: Colors.white), dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF071412)),
         ),
         child: child ?? const SizedBox.shrink(),
       );
@@ -658,7 +654,7 @@ class _Student_order_pageState extends State<Student_order_page> {
               '$api${item.productImage}',
               fit: BoxFit.cover,
               gaplessPlayback: true,
-              errorBuilder: (_, __, ___) => const Icon(
+              errorBuilder: (_, _, _) => const Icon(
                 Icons.image_not_supported,
                 color: Colors.white38,
                 size: 20,
@@ -677,7 +673,7 @@ class _Student_order_pageState extends State<Student_order_page> {
         '$api${item.productImage}',
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const Icon(
+        errorBuilder: (_, _, _) => const Icon(
           Icons.image_not_supported,
           color: Colors.white38,
           size: 20,
@@ -1013,7 +1009,7 @@ class _Student_order_pageState extends State<Student_order_page> {
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -2612,7 +2608,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       imageUrl,
       fit: BoxFit.cover,
       gaplessPlayback: true,
-      errorBuilder: (_, __, ___) {
+      errorBuilder: (_, _, _) {
         return Container(
           color: Colors.white.withOpacity(0.05),
           child: const Icon(
@@ -3300,7 +3296,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
               '$api${item.productImage}',
               fit: BoxFit.cover,
               gaplessPlayback: true,
-              errorBuilder: (_, __, ___) => Container(
+              errorBuilder: (_, _, _) => Container(
                 color: Colors.transparent,
                 child: const Icon(
                   Icons.image_not_supported,
@@ -3325,7 +3321,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         '$api${item.productImage}',
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => Container(
+        errorBuilder: (_, _, _) => Container(
           color: Colors.transparent,
           child: const Icon(
             Icons.image_not_supported,

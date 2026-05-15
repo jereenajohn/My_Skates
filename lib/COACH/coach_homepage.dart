@@ -3,36 +3,25 @@ import 'dart:ui';
 import 'package:my_skates/ADMIN/admin_orders_page.dart';
 import 'package:my_skates/COACH/club_detailed_view.dart';
 import 'package:my_skates/COACH/coach_chat_support.dart';
-import 'package:my_skates/COACH/coach_home_feedcard.dart';
-import 'package:my_skates/COACH/coach_timeline_page.dart';
 import 'package:my_skates/COACH/used_products.dart';
-import 'package:my_skates/Providers/coach_homepage_feed_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/view_all_events.dart';
 import 'package:my_skates/COACH/club_list.dart';
-import 'package:my_skates/COACH/coach_add_events.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/COACH/coach_menu_page.dart';
-import 'package:my_skates/ADMIN/live_tracking.dart';
 import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
-import 'package:my_skates/STUDENTS/products.dart';
-import 'package:my_skates/COACH/training_session_page.dart';
 import 'package:my_skates/STUDENTS/student_list.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
-import 'package:my_skates/STUDENTS/user_settings.dart';
 import 'package:my_skates/bottomnavigation.dart';
 import 'package:shimmer/shimmer.dart';
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:my_skates/widgets/coachfeedcommentsheet.dart';
@@ -1150,7 +1139,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
 
         ...homeFeeds.map((feed) {
           return buildHomeFeedCard(feed);
-        }).toList(),
+        }),
       ],
     );
   }
@@ -1413,7 +1402,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                   Image.network(
                                     imageUrl,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) {
+                                    errorBuilder: (_, _, _) {
                                       return Container(
                                         color: Colors.white10,
                                         child: const Center(
@@ -1611,7 +1600,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                     child: Image.network(
                       imageUrl,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) {
+                      errorBuilder: (_, _, _) {
                         return Container(
                           height: 260,
                           width: double.infinity,
@@ -2146,8 +2135,9 @@ class _CoachHomepageState extends State<CoachHomepage> {
                                           fit: BoxFit.cover,
                                           loadingBuilder:
                                               (context, child, progress) {
-                                                if (progress == null)
+                                                if (progress == null) {
                                                   return child;
+                                                }
                                                 return Container(
                                                   color: Colors.grey.shade900,
                                                   alignment: Alignment.center,
@@ -2589,7 +2579,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                       width: 90,
                       height: 90,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                      errorBuilder: (_, _, _) => _imagePlaceholder(),
                     )
                   : _imagePlaceholder(),
             ),
@@ -2942,7 +2932,7 @@ void showImagePopup(BuildContext context, String imageUrl) {
                   child: Image.network(
                     imageUrl,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(
+                    errorBuilder: (_, _, _) => const Icon(
                       Icons.broken_image,
                       color: Colors.white54,
                       size: 60,
@@ -3188,7 +3178,7 @@ class _EventImageSliderState extends State<EventImageSlider> {
                             child: Image.network(
                               widget.images[index],
                               fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Icon(
+                              errorBuilder: (_, _, _) => const Icon(
                                 Icons.broken_image,
                                 color: Colors.white54,
                                 size: 60,
@@ -3254,7 +3244,7 @@ class _EventImageSliderState extends State<EventImageSlider> {
                     widget.images[index],
                     fit: BoxFit.cover,
                     width: double.infinity,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       color: Colors.white10,
                       alignment: Alignment.center,
                       child: const Icon(
@@ -3877,7 +3867,7 @@ Widget buildTrainingSessionRow({
                     width: 90,
                     height: 90,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                    errorBuilder: (_, _, _) => _imagePlaceholder(),
                   )
                 : _imagePlaceholder(),
           ),

@@ -482,7 +482,7 @@ class _UsedProductSoldOrderDetailPageState
       _imageUrl(item.image),
       fit: BoxFit.cover,
       gaplessPlayback: true,
-      errorBuilder: (_, __, ___) {
+      errorBuilder: (_, _, _) {
         return const Icon(
           Icons.image_not_supported_outlined,
           color: Colors.white38,

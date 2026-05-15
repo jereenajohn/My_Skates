@@ -668,7 +668,7 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<String>(
-        value: selectedStatus,
+        initialValue: selectedStatus,
         dropdownColor: Colors.black,
         style: const TextStyle(color: Colors.white),
         isExpanded: true,
@@ -1176,7 +1176,7 @@ class _AddUsedProductPageState extends State<AddUsedProductPage> {
                 padding: const EdgeInsets.all(10),
                 scrollDirection: Axis.horizontal,
                 itemCount: selectedImages.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
                 itemBuilder: (context, index) {
                   return Stack(
                     children: [

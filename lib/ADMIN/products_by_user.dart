@@ -5,11 +5,9 @@ import 'package:my_skates/ADMIN/add_product.dart';
 import 'package:my_skates/ADMIN/add_product_variant.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/update_product.dart';
-import 'package:my_skates/ADMIN/update_product_variant.dart';
 import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
-import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 
 class ProductsByUser extends StatefulWidget {
   const ProductsByUser({super.key});
@@ -50,7 +48,7 @@ class _ProductsByUserState extends State<ProductsByUser> {
     final token = prefs.getString("access");
 
     var response = await http.delete(
-      Uri.parse("$api/api/myskates/products/update/${id}/"),
+      Uri.parse("$api/api/myskates/products/update/$id/"),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
@@ -181,9 +179,9 @@ class _ProductsByUserState extends State<ProductsByUser> {
       }).toList();
 
       print("MAPPED PRODUCTS: ${products.length}");
-      products.forEach((p) {
+      for (var p in products) {
         print("Product: ${p['title']}, Variants: ${p['variants_count']}");
-      });
+      }
     } else {
       products = [];
     }
@@ -361,7 +359,7 @@ class _ProductsByUserState extends State<ProductsByUser> {
                             padding: const EdgeInsets.only(top: 40),
                             child: Center(
                               child: Text(
-                                "No ${selectedStatus} products found",
+                                "No $selectedStatus products found",
                                 style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 14,
@@ -570,7 +568,7 @@ class _ProductsByUserState extends State<ProductsByUser> {
                       ? Image.network(
                           p['image'],
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
+                          errorBuilder: (_, _, _) => const Icon(
                             Icons.broken_image,
                             color: Colors.grey,
                           ),
@@ -925,7 +923,7 @@ Route _slideLeftToRightRoute(Widget page) {
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemBuilder: (_, __) {
+      itemBuilder: (_, _) {
         return Container(
           decoration: BoxDecoration(
             color: Colors.black.withOpacity(0.25),

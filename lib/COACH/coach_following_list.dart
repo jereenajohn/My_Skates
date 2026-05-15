@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:my_skates/COACH/coach_menu_page.dart';
-import 'package:my_skates/COACH/coach_settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
 
@@ -188,7 +186,7 @@ List<Map<String, dynamic>> filteredFollowing = [];
                       )
                     : ListView.separated(
                         itemCount: filteredFollowing.length,
-                        separatorBuilder: (_, __) =>
+                        separatorBuilder: (_, _) =>
                             const Divider(color: Colors.white12, indent: 80),
                         itemBuilder: (_, i) {
                           final f = filteredFollowing[i];

@@ -5,7 +5,6 @@ import 'package:my_skates/ADMIN/dashboard.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/pending_screen.dart';
 import 'package:my_skates/rejected_screen.dart';
-import 'package:my_skates/waiting_page.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/loginpage.dart';

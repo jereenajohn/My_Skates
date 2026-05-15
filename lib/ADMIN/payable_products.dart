@@ -434,7 +434,7 @@ class _ExpiredReturnPolicyProductsPageState
     return Image.network(
       image,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) {
+      errorBuilder: (_, _, _) {
         return Container(
           color: Colors.white.withOpacity(0.06),
           child: const Icon(
@@ -682,7 +682,7 @@ class _ExpiredReturnPolicyProductsPageState
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       itemCount: 5,
-      itemBuilder: (_, __) {
+      itemBuilder: (_, _) {
         return glassContainer(
           margin: const EdgeInsets.only(bottom: 14),
           padding: const EdgeInsets.all(14),
@@ -859,7 +859,7 @@ class _ExpiredReturnPolicyProductsPageState
               ),
             )
           else
-            ...list.map(buildProductCard).toList(),
+            ...list.map(buildProductCard),
           const SizedBox(height: 20),
         ],
       ),

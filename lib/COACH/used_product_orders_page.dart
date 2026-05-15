@@ -898,7 +898,7 @@ class _CoachUsedProductOrdersPageState extends State<CoachUsedProductOrdersPage>
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),
@@ -1516,7 +1516,7 @@ class _CoachUsedProductOrdersPageState extends State<CoachUsedProductOrdersPage>
         imageUrl,
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const Icon(
+        errorBuilder: (_, _, _) => const Icon(
           Icons.image_not_supported,
           color: Colors.white38,
           size: 24,
@@ -1805,7 +1805,7 @@ class _CoachUsedProductOrdersPageState extends State<CoachUsedProductOrdersPage>
           child: ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
             itemCount: 5,
-            itemBuilder: (_, __) => buildShimmerCard(),
+            itemBuilder: (_, _) => buildShimmerCard(),
           ),
         ),
       ],
@@ -1968,7 +1968,7 @@ class _CoachUsedProductOrdersPageState extends State<CoachUsedProductOrdersPage>
             ),
           )
         else
-          ...filteredList.map(buildOrderCard).toList(),
+          ...filteredList.map(buildOrderCard),
 
         buildPaginationControls(),
 

@@ -430,7 +430,7 @@ class _attributesState extends State<attributes> {
   }
 
   // UNIFORM INPUT FIELD
-  Widget _inputField({int maxLines = 1}) {
+  Widget _inputField() {
     return Container(
       margin: const EdgeInsets.only(top: 8),
       height: 55,

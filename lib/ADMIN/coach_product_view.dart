@@ -1,13 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:my_skates/ADMIN/add_product.dart';
 import 'package:my_skates/ADMIN/cart_view.dart';
 import 'package:my_skates/ADMIN/product_big%20_view.dart';
 // import 'package:my_skates/ADMIN/product_big%20_view.dart';
 import 'package:my_skates/ADMIN/products_by_user.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
-import 'package:my_skates/ADMIN/update_product.dart';
 import 'package:my_skates/ADMIN/wishlist.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/bottomnavigation.dart';
@@ -100,7 +98,7 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
     final token = prefs.getString("access");
 
     var response = await http.delete(
-      Uri.parse("$api/api/myskates/products/update/${id}/"),
+      Uri.parse("$api/api/myskates/products/update/$id/"),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
@@ -1024,8 +1022,9 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
                                                             progress,
                                                           ) {
                                                             if (progress ==
-                                                                null)
+                                                                null) {
                                                               return child;
+                                                            }
                                                             return Container(
                                                               color: Colors
                                                                   .grey
@@ -1495,7 +1494,7 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
                               ? Image.network(
                                   p['image'],
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) =>
+                                  errorBuilder: (_, _, _) =>
                                       const ColoredBox(
                                         color: Colors.white10,
                                         child: Center(
@@ -1692,7 +1691,7 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemBuilder: (_, __) {
+      itemBuilder: (_, _) {
         return Shimmer.fromColors(
           baseColor: const Color(0xFF001A18),
           highlightColor: const Color(0xFF00AFA5).withOpacity(0.25),

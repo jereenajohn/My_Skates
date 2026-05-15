@@ -499,7 +499,7 @@ class _MyordersState extends State<Myorders> {
                                         ],
                                       ),
                                     );
-                                  }).toList(),
+                                  }),
                                 ],
                               ),
                             ),
@@ -528,7 +528,7 @@ class _MyordersState extends State<Myorders> {
                                   child: _buildOrderCard(order),
                                 ),
                               )
-                              .toList(),
+                              ,
                           const SizedBox(height: 20),
                         ],
                       ),
@@ -558,7 +558,7 @@ class _MyordersState extends State<Myorders> {
             children: [
               Expanded(
                 child: Text(
-                  '${order.orderNo}',
+                  order.orderNo,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -665,7 +665,7 @@ class _MyordersState extends State<Myorders> {
                   ),
                 ),
               )
-              .toList(),
+              ,
           if (order.items.length > 1)
             Padding(
               padding: const EdgeInsets.only(top: 4, left: 62),
@@ -720,7 +720,7 @@ class _MyordersState extends State<Myorders> {
               '$api${item.productImage}',
               fit: BoxFit.cover,
               gaplessPlayback: true,
-              errorBuilder: (_, __, ___) => const Icon(
+              errorBuilder: (_, _, _) => const Icon(
                 Icons.image_not_supported,
                 color: Colors.white38,
                 size: 20,
@@ -739,7 +739,7 @@ class _MyordersState extends State<Myorders> {
         '$api${item.productImage}',
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const Icon(
+        errorBuilder: (_, _, _) => const Icon(
           Icons.image_not_supported,
           color: Colors.white38,
           size: 20,
@@ -975,7 +975,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
               '$api${item.productImage}',
               fit: BoxFit.cover,
               gaplessPlayback: true,
-              errorBuilder: (_, __, ___) => Container(
+              errorBuilder: (_, _, _) => Container(
                 color: Colors.transparent,
                 child: const Icon(
                   Icons.image_not_supported,
@@ -1000,7 +1000,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         '$api${item.productImage}',
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => Container(
+        errorBuilder: (_, _, _) => Container(
           color: Colors.transparent,
           child: const Icon(
             Icons.image_not_supported,
@@ -1576,7 +1576,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               ),
                             ),
                           )
-                          .toList(),
+                          ,
 
                       Divider(
                         color: Colors.white.withOpacity(0.12),

@@ -6,8 +6,6 @@ import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/view_all_events.dart';
 import 'package:my_skates/COACH/club_detailed_view.dart';
 import 'package:my_skates/COACH/club_list.dart';
-import 'package:my_skates/COACH/coach_details_page.dart';
-import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/COACH/used_products.dart';
 // import 'package:my_skates/STUDENTS/bottomnavigation_student.dart';
 import 'package:my_skates/STUDENTS/products.dart';
@@ -44,6 +42,9 @@ class _HomePageState extends State<HomePage> {
 
   List clubs = [];
   bool noData = false;
+
+  bool showAllClubs = false;
+  final int initialClubLimit = 5;
 
   List coaches = [];
   bool coachesLoading = true;
@@ -605,7 +606,7 @@ class _HomePageState extends State<HomePage> {
                     child: Image.network(
                       imageUrl,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) {
+                      errorBuilder: (_, _, _) {
                         return Container(
                           height: 260,
                           width: double.infinity,
@@ -719,7 +720,7 @@ class _HomePageState extends State<HomePage> {
 
         ...homeFeeds.map((feed) {
           return buildHomeFeedCard(feed);
-        }).toList(),
+        }),
       ],
     );
   }
@@ -981,7 +982,7 @@ class _HomePageState extends State<HomePage> {
                                   Image.network(
                                     imageUrl,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) {
+                                    errorBuilder: (_, _, _) {
                                       return Container(
                                         color: Colors.white10,
                                         child: const Center(
@@ -1433,7 +1434,7 @@ class _HomePageState extends State<HomePage> {
 
       // userData ??= data.isNotEmpty ? data[0] : {};
 
-      if (userData!.isNotEmpty) {
+      if (userData.isNotEmpty) {
         print("API USERNAME: ${userData["u_name"]}");
         print("API FIRST NAME: ${userData["first_name"]}");
         print("API LAST NAME: ${userData["last_name"]}");
@@ -2332,8 +2333,9 @@ class _HomePageState extends State<HomePage> {
                                             fit: BoxFit.cover,
                                             loadingBuilder:
                                                 (context, child, progress) {
-                                                  if (progress == null)
+                                                  if (progress == null) {
                                                     return child;
+                                                  }
                                                   return Container(
                                                     color: Colors.grey.shade900,
                                                     alignment: Alignment.center,
@@ -2411,20 +2413,81 @@ class _HomePageState extends State<HomePage> {
                             _buildClubShimmer(),
                             const SizedBox(height: 25),
                           ] else if (clubs.isNotEmpty) ...[
-                            const Text(
-                              "Recommended Clubs near you",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  "Recommended Clubs near you",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+
+                                if (clubs.length > initialClubLimit)
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(20),
+                                    onTap: () {
+                                      setState(() {
+                                        showAllClubs = !showAllClubs;
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.tealAccent.withOpacity(
+                                          0.12,
+                                        ),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: Colors.tealAccent.withOpacity(
+                                            0.35,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            showAllClubs
+                                                ? "View Less"
+                                                : "View More",
+                                            style: const TextStyle(
+                                              color: Colors.tealAccent,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            showAllClubs
+                                                ? Icons.keyboard_arrow_up
+                                                : Icons.keyboard_arrow_down,
+                                            color: Colors.tealAccent,
+                                            size: 17,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
+
                             const SizedBox(height: 10),
+
                             SizedBox(
                               height: MediaQuery.of(context).size.height * 0.22,
                               child: ListView.builder(
                                 scrollDirection: Axis.horizontal,
-                                itemCount: clubs.length,
+                                itemCount: showAllClubs
+                                    ? clubs.length
+                                    : clubs.length > initialClubLimit
+                                    ? initialClubLimit
+                                    : clubs.length,
                                 itemBuilder: (_, i) => Padding(
                                   padding: const EdgeInsets.only(right: 12),
                                   child: buildClubCardFromApi(
@@ -2436,6 +2499,7 @@ class _HomePageState extends State<HomePage> {
                                 ),
                               ),
                             ),
+
                             const SizedBox(height: 25),
                           ],
 
@@ -2935,7 +2999,7 @@ class _EventImageSliderState extends State<EventImageSlider> {
                     widget.images[index],
                     fit: BoxFit.cover,
                     width: double.infinity,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       color: Colors.black26,
                       alignment: Alignment.center,
                       child: const Icon(
@@ -3225,7 +3289,7 @@ void showImagePopup(BuildContext context, String imageUrl) {
                   child: Image.network(
                     imageUrl,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(
+                    errorBuilder: (_, _, _) => const Icon(
                       Icons.broken_image,
                       color: Colors.white54,
                       size: 60,
@@ -3770,7 +3834,7 @@ Widget buildTrainingSessionRow({
                     width: 90,
                     height: 90,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                    errorBuilder: (_, _, _) => _imagePlaceholder(),
                   )
                 : _imagePlaceholder(),
           ),

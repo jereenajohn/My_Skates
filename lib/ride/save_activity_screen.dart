@@ -393,7 +393,7 @@ class _SaveActivityScreenState extends State<SaveActivityScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: selectedImages.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
                 itemBuilder: (context, index) {
                   return Stack(
                     children: [

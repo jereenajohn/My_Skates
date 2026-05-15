@@ -490,7 +490,7 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: existingImages.length + selectedImages.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
                 itemBuilder: (context, index) {
                   final bool isExisting = index < existingImages.length;
 
@@ -507,7 +507,7 @@ class _UpdateUsedProductPageState extends State<UpdateUsedProductPage> {
                             height: 160,
                             width: 145,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+                            errorBuilder: (_, _, _) => Container(
                               height: 160,
                               width: 145,
                               color: Colors.white10,
