@@ -38,12 +38,10 @@ void initState() {
     final picker = ImagePicker();
     final files = await picker.pickMultiImage();
 
-    if (files != null) {
-      setState(() {
-        _images.addAll(files.map((e) => File(e.path)));
-      });
+    setState(() {
+      _images.addAll(files.map((e) => File(e.path)));
+    });
     }
-  }
 
   @override
   Widget build(BuildContext context) {

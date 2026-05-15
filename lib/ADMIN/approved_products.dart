@@ -2100,7 +2100,7 @@ class _approvedProductsState extends State<approvedProducts> {
                             const SizedBox(height: 12),
                             ...variants.map((variant) {
                               return _buildDialogVariantCard(product, variant);
-                            }).toList(),
+                            }),
                           ],
                           const SizedBox(height: 18),
                           Row(

@@ -174,10 +174,9 @@ class _AddCouponState extends State<AddCoupon> {
               surface: Colors.black,
               onSurface: Colors.white,
             ),
-            dialogBackgroundColor: Colors.black,
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(foregroundColor: Colors.white),
-            ),
+            ), dialogTheme: DialogThemeData(backgroundColor: Colors.black),
           ),
           child: child!,
         );

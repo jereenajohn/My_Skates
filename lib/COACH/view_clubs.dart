@@ -224,10 +224,10 @@ class _ViewClubsState extends State<ViewClubs> {
                     Navigator.push(
                       context,
                       PageRouteBuilder(
-                        pageBuilder: (_, __, ___) =>
+                        pageBuilder: (_, _, _) =>
                             ClubView(clubid: club["id"]),
                         transitionDuration: const Duration(milliseconds: 250),
-                        transitionsBuilder: (_, animation, __, child) {
+                        transitionsBuilder: (_, animation, _, child) {
                           return FadeTransition(
                             opacity: animation,
                             child: child,

@@ -6,10 +6,10 @@ class Club_reviewspage extends StatelessWidget {
   final List<RatingData> ratings;
 
   const Club_reviewspage({
-    Key? key,
+    super.key,
     required this.clubId,
     required this.ratings,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

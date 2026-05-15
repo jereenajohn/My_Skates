@@ -696,6 +696,7 @@ Future<void> updateFeed(
 ) async {
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString("access");
+
   if (token == null) return;
 
   final req = http.MultipartRequest(
@@ -706,12 +707,12 @@ Future<void> updateFeed(
   req.headers["Authorization"] = "Bearer $token";
   req.fields["description"] = text;
 
-  // Keep old images
+  // Existing images that should remain after update
   if (existingImageIds.isNotEmpty) {
-    req.fields["existing_images"] = existingImageIds.join(",");
+    req.fields["existing_images"] = jsonEncode(existingImageIds);
   }
 
-  // Add new selected images
+  // Newly selected images
   for (final img in newImages) {
     req.files.add(
       await http.MultipartFile.fromPath("images", img.path),
@@ -719,8 +720,10 @@ Future<void> updateFeed(
   }
 
   final response = await req.send();
+  final responseBody = await response.stream.bytesToString();
 
   print("UPDATE FEED STATUS: ${response.statusCode}");
+  print("UPDATE FEED BODY: $responseBody");
 
   await fetchFeeds();
 }

@@ -1176,7 +1176,7 @@ class _CoachProfilePageState extends State<CoachProfilePage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         decoration: _dec(label),
         dropdownColor: Colors.black,
         style: const TextStyle(color: Colors.white),

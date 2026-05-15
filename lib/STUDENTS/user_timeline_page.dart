@@ -372,7 +372,7 @@ class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<CoachProfileProvider>(
-      builder: (_, p, __) {
+      builder: (_, p, _) {
         //  Skeleton instead of spinner
         if (p.loading) {
           return const ProfileHeaderSkeleton();
@@ -535,7 +535,7 @@ class _FeedList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<CoachFeedProvider>(
-      builder: (_, p, __) {
+      builder: (_, p, _) {
         // Skeleton loading
         if (p.loading) {
           return const FeedSkeletonList();
@@ -1384,7 +1384,6 @@ class _CreatePostSheet extends StatefulWidget {
   final List<int> existingImageIds;
 
   const _CreatePostSheet({
-    super.key,
     required this.feedProvider,
     this.isEdit = false,
     this.feedId,
@@ -1597,7 +1596,7 @@ void initState() {
       Image.network(
         url,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) {
+        errorBuilder: (_, _, _) {
           return Container(
             color: Colors.white10,
             child: const Icon(

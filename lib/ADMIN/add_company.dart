@@ -867,8 +867,9 @@ class _AdminCompaniesPageState extends State<AdminCompaniesPage>
   }
 
   Widget _buildFormCard() {
-    if (!_isAddingNew && _editingCompany == null)
+    if (!_isAddingNew && _editingCompany == null) {
       return const SizedBox.shrink();
+    }
 
     final isEditing = _editingCompany != null;
 
@@ -1139,7 +1140,7 @@ class _AdminCompaniesPageState extends State<AdminCompaniesPage>
               ),
             )
           : DropdownButtonFormField<T>(
-              value: value,
+              initialValue: value,
               isExpanded: true,
               dropdownColor: const Color(0xFF1A1A1A),
               style: const TextStyle(color: Colors.white, fontSize: 16),

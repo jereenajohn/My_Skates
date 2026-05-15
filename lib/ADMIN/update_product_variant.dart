@@ -3,9 +3,6 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/coach_product_view.dart';
-import 'package:my_skates/ADMIN/dashboard.dart';
-import 'package:my_skates/COACH/coach_homepage.dart';
-import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/api.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -209,7 +206,7 @@ class _UpdateProductVariantState extends State<UpdateProductVariant> {
       if (selectedState != null) {
         request.fields["category"] = selectedState.toString();
       }
-      print("selectedImages LENGTH: ${selectedImages}");
+      print("selectedImages LENGTH: $selectedImages");
 
       print("Sending DESCRIPTIONnn: ${descriptionCtrl.text}");
 
@@ -527,7 +524,7 @@ class _UpdateProductVariantState extends State<UpdateProductVariant> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         decoration: _dec(label),
         dropdownColor: Colors.black,
         style: const TextStyle(color: Colors.white),
@@ -600,7 +597,7 @@ class _UpdateProductVariantState extends State<UpdateProductVariant> {
             selectedImages.addAll(picked.map((e) => File(e.path)));
           });
           print("Selected Images Count: ${selectedImages.length}");
-          print("Existing Images Count: ${existingImages}");
+          print("Existing Images Count: $existingImages");
           print("Total Images Count: $selectedImages");
         }
       },

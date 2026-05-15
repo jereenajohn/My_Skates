@@ -2,10 +2,8 @@ import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:my_skates/COACH/club_list.dart';
 import 'package:my_skates/COACH/coach_clubs_to_approve_request.dart';
 import 'package:my_skates/COACH/coach_followers_list.dart';
-import 'package:my_skates/COACH/coach_club_requests.dart';
 import 'package:my_skates/COACH/coach_following_list.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/COACH/coach_settings.dart';
@@ -297,7 +295,7 @@ class _CoachMenuPageState extends State<CoachMenuPage>
             ),
           ),
           AnimatedSlide(
-            offset: const Offset(0.05, 0),
+            offset: Offset(0.05, 0),
             duration: Duration(milliseconds: 200),
             child: Icon(
               Icons.arrow_forward_ios,
