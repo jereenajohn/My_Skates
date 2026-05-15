@@ -444,14 +444,14 @@ class _UserSettingsState extends State<UserSettings> {
                         },
                       ),
 
-                    if (_match("Your activity"))
-                      _menuTile(
-                        icon: Icons.show_chart_outlined,
-                        text: "Your activity",
-                        onTap: () {
-                          // keep as-is (no navigation in your original)
-                        },
-                      ),
+                    // if (_match("Your activity"))
+                    //   _menuTile(
+                    //     icon: Icons.show_chart_outlined,
+                    //     text: "Your activity",
+                    //     onTap: () {
+                    //       // keep as-is (no navigation in your original)
+                    //     },
+                    //   ),
 
                     // if (_match("Notifications"))
                     //   _menuTile(

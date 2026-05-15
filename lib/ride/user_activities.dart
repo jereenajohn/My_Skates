@@ -752,7 +752,13 @@ class _UserActivitiesState extends State<UserActivities>
         ),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back, color: Colors.white54),
+          ),
+          SizedBox(height: 12),
           Row(
             children: [
               // Profile avatar
@@ -868,13 +874,13 @@ class _UserActivitiesState extends State<UserActivities>
                 ),
               ),
               // Action icons
-              Row(
-                children: [
-                  _buildActionIcon(Icons.add_rounded),
-                  const SizedBox(width: 8),
-                  _buildActionIcon(Icons.settings),
-                ],
-              ),
+              // Row(
+              //   children: [
+              //     _buildActionIcon(Icons.add_rounded),
+              //     const SizedBox(width: 8),
+              //     _buildActionIcon(Icons.settings),
+              //   ],
+              // ),
             ],
           ),
           const SizedBox(height: 20),
