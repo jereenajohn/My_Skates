@@ -78,7 +78,7 @@ class _UsedProductsState extends State<UsedProducts> {
       final token = prefs.getString("access");
 
       final response = await http.get(
-        Uri.parse('$api/api/myskates/product/banner/'),
+        Uri.parse('$api/api/myskates/product/banner/two/'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

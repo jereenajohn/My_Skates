@@ -80,6 +80,7 @@ class _ClubViewState extends State<ClubView> {
   UserRating? _userRating;
   bool _isLoadingRating = true;
   List<RatingData> _recentRatings = [];
+  Map<int, bool> _expandedReviews = {};
   double _averageRating = 0.0;
 
   bool _isCoach = false;
@@ -124,22 +125,22 @@ class _ClubViewState extends State<ClubView> {
   }
 
   @override
-void initState() {
-  super.initState();
-  _checkUserRole();
-  fetchClubDetails();
-  fetchClubEvents();
-  fetchFollowersCount();
-  fetchClubFeeds();
+  void initState() {
+    super.initState();
+    _checkUserRole();
+    fetchClubDetails();
+    fetchClubEvents();
+    fetchFollowersCount();
+    fetchClubFeeds();
 
-  _fetchClubRequestStatus().then((_) {
-    if (mounted) {
-      _checkUserRating();
-    }
-  });
+    _fetchClubRequestStatus().then((_) {
+      if (mounted) {
+        _checkUserRating();
+      }
+    });
 
-  print("Club ID: ${widget.clubid}");
-}
+    print("Club ID: ${widget.clubid}");
+  }
 
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -1274,11 +1275,7 @@ void initState() {
       if (token == null) return;
 
       final url = Uri.parse("$api/api/myskates/club/feed/$postId/comment/");
-      final body = {
-        "comment": text,
-        "user": ?userId,
-        "feed": postId,
-      };
+      final body = {"comment": text, "user": ?userId, "feed": postId};
 
       final res = await http.post(
         url,
@@ -2530,12 +2527,16 @@ void initState() {
   }
 
   Widget _buildSingleReview(RatingData rating) {
+    final bool isExpanded = _expandedReviews[rating.id] ?? false;
+    final bool hasLongReview = rating.review.trim().length > 110;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white12,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2558,10 +2559,12 @@ void initState() {
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
                       )
                     : null,
               ),
+
               const SizedBox(width: 12),
 
               Expanded(
@@ -2569,11 +2572,12 @@ void initState() {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
                           child: Text(
                             rating.userName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -2581,6 +2585,7 @@ void initState() {
                             ),
                           ),
                         ),
+
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -2591,6 +2596,7 @@ void initState() {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(
                                 Icons.star,
@@ -2614,7 +2620,7 @@ void initState() {
 
                     const SizedBox(height: 6),
 
-                    if (rating.review.isNotEmpty)
+                    if (rating.review.trim().isNotEmpty) ...[
                       Text(
                         rating.review,
                         style: const TextStyle(
@@ -2622,10 +2628,32 @@ void initState() {
                           fontSize: 14,
                           height: 1.4,
                         ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      )
-                    else
+                        maxLines: isExpanded ? null : 3,
+                        overflow: isExpanded
+                            ? TextOverflow.visible
+                            : TextOverflow.ellipsis,
+                      ),
+
+                      if (hasLongReview)
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _expandedReviews[rating.id] = !isExpanded;
+                            });
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 5),
+                            child: Text(
+                              isExpanded ? "See Less" : "See More",
+                              style: const TextStyle(
+                                color: Color(0xFF00AFA5),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ] else
                       const Text(
                         "No review provided",
                         style: TextStyle(
@@ -4096,10 +4124,7 @@ void initState() {
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: [
-                        ...mediaImages
-                            .take(10)
-                            .map((img) => _mediaItem(img))
-                            ,
+                        ...mediaImages.take(10).map((img) => _mediaItem(img)),
 
                         GestureDetector(
                           onTap: () {
@@ -4143,16 +4168,46 @@ void initState() {
                   const SizedBox(height: 15),
 
                   // REVIEWS SECTION
-                  const Text(
-                    "Reviews",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  // REVIEWS SECTION
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Reviews",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      if (_recentRatings.length > 1)
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ClubReviewsViewPage(
+                                  clubId: widget.clubid,
+                                  clubName: clubName,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            "View All (${_recentRatings.length})",
+                            style: const TextStyle(
+                              color: Color(0xFF00AFA5),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
 
-                  // const SizedBox(height: 5),
+                  const SizedBox(height: 10),
+
                   if (_recentRatings.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(20),
@@ -4175,13 +4230,13 @@ void initState() {
                         const SizedBox(height: 16),
 
                         ..._recentRatings
-                            .take(1)
+                            .take(2)
                             .map((rating) => _buildSingleReview(rating))
-                            ,
+                            .toList(),
 
-                        if (_recentRatings.length > 1)
+                        if (_recentRatings.length > 2)
                           Center(
-                            child: TextButton(
+                            child: TextButton.icon(
                               onPressed: () {
                                 Navigator.push(
                                   context,
@@ -4193,12 +4248,17 @@ void initState() {
                                   ),
                                 );
                               },
-                              child: const Text(
+                              icon: const Icon(
+                                Icons.reviews_outlined,
+                                color: Color(0xFF00AFA5),
+                                size: 18,
+                              ),
+                              label: const Text(
                                 "View All Reviews",
                                 style: TextStyle(
                                   color: Color(0xFF00AFA5),
                                   fontSize: 16,
-                                  fontWeight: FontWeight.w500,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -4313,7 +4373,8 @@ void initState() {
             colorScheme: const ColorScheme.dark(
               primary: Color(0xFF00AFA5),
               onSurface: Colors.white,
-            ), dialogTheme: DialogThemeData(backgroundColor: Colors.black),
+            ),
+            dialogTheme: DialogThemeData(backgroundColor: Colors.black),
           ),
           child: child!,
         );
@@ -4339,7 +4400,8 @@ void initState() {
             colorScheme: const ColorScheme.dark(
               primary: Color(0xFF00AFA5),
               onSurface: Colors.white,
-            ), dialogTheme: DialogThemeData(backgroundColor: Colors.black),
+            ),
+            dialogTheme: DialogThemeData(backgroundColor: Colors.black),
           ),
           child: child!,
         );

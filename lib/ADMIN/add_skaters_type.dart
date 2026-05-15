@@ -203,7 +203,7 @@ class _AddSkatersTypeState extends State<AddSkatersType> {
                     const SizedBox(width: 4),
                     const Expanded(
                       child: Text(
-                        "Product Categories",
+                        "Skating styles",
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,

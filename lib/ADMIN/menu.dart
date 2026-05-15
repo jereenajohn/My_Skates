@@ -3,6 +3,7 @@ import 'package:my_skates/ADMIN/add_attributes.dart';
 import 'package:my_skates/ADMIN/add_chat_support_questions.dart';
 import 'package:my_skates/ADMIN/add_product_banner.dart';
 import 'package:my_skates/ADMIN/add_skaters_type.dart';
+import 'package:my_skates/ADMIN/add_used_product_banner.dart';
 import 'package:my_skates/ADMIN/add_values.dart';
 import 'package:my_skates/ADMIN/admin_change_phone_number.dart';
 import 'package:my_skates/ADMIN/payable_products.dart';
@@ -153,6 +154,12 @@ class _MenuPageState extends State<MenuPage> {
                               title: "Product Banners",
                               page: const AddproductBanner(),
                             ),
+                            if (matchesSearch("Used Product Banners"))
+                            sectionTile(
+                              icon: Icons.photo_library,
+                              title: "Used Product Banners",
+                              page: const AddUsedProductBanner(),
+                            ),
                           if (matchesSearch("Product Review Approval"))
                             sectionTile(
                               icon: Icons.shopping_bag,
@@ -169,10 +176,10 @@ class _MenuPageState extends State<MenuPage> {
                       if (showUserSettings) ...[
                         sectionTitle("User Settings"),
                         sectionCard([
-                          if (matchesSearch("Skaters Type"))
+                          if (matchesSearch("Skating styles"))
                             sectionTile(
                               icon: Icons.sports_handball,
-                              title: "Skaters Type",
+                              title: "Skating styles",
                               page: const AddSkatersType(),
                             ),
                           if (matchesSearch("Change Phone Number"))
