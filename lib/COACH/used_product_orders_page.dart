@@ -158,10 +158,12 @@ class CoachUsedProductOrdersPage extends StatefulWidget {
   const CoachUsedProductOrdersPage({super.key});
 
   @override
-  State<CoachUsedProductOrdersPage> createState() => _CoachUsedProductOrdersPageState();
+  State<CoachUsedProductOrdersPage> createState() =>
+      _CoachUsedProductOrdersPageState();
 }
 
-class _CoachUsedProductOrdersPageState extends State<CoachUsedProductOrdersPage> {
+class _CoachUsedProductOrdersPageState
+    extends State<CoachUsedProductOrdersPage> {
   UsedOrderViewType selectedView = UsedOrderViewType.myOrders;
   UsedOrderSortType selectedSort = UsedOrderSortType.latest;
 
@@ -184,7 +186,7 @@ class _CoachUsedProductOrdersPageState extends State<CoachUsedProductOrdersPage>
 
   final List<Map<String, String>> statusOptions = [
     {"value": "PLACED", "label": "Placed"},
-    {"value": "PAID", "label": "Paid"},
+    // {"value": "PAID", "label": "Paid"},
     {"value": "SHIPPED", "label": "Shipped"},
     {"value": "DELIVERED", "label": "Delivered"},
     {"value": "CANCELLED", "label": "Cancelled"},
@@ -949,7 +951,6 @@ class _CoachUsedProductOrdersPageState extends State<CoachUsedProductOrdersPage>
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
-         
           padding: padding,
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.06),

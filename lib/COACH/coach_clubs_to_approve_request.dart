@@ -20,11 +20,36 @@ class _CoachClubsToApproveRequestState
   List clubs = [];
   bool loading = true;
   bool noData = false;
+  String userType = "";
 
   @override
   void initState() {
     super.initState();
+    fetchUserType();
     fetchClubs();
+  }
+
+  Future<void> fetchUserType() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final active = prefs.getString("active") ?? "";
+    final userTypeValue = prefs.getString("user_type") ?? "";
+    final roleValue = prefs.getString("role") ?? "";
+
+    final selectedType = active.isNotEmpty
+        ? active
+        : userTypeValue.isNotEmpty
+        ? userTypeValue
+        : roleValue;
+
+    print("ACTIVE VALUE: $active");
+    print("USER TYPE VALUE: $userTypeValue");
+    print("ROLE VALUE: $roleValue");
+    print("SELECTED USER TYPE: $selectedType");
+
+    setState(() {
+      userType = selectedType.trim().toLowerCase();
+    });
   }
 
   Future<void> fetchClubs() async {
@@ -82,14 +107,16 @@ class _CoachClubsToApproveRequestState
               padding: const EdgeInsets.all(14),
               child: GridView.builder(
                 itemCount: clubs.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 14,
-                  childAspectRatio: 0.75,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: userType.trim().toLowerCase() == "student"
+                      ? 1.05
+                      : 0.82,
                 ),
                 itemBuilder: (context, index) {
-                  return ClubGridCard(club: clubs[index]);
+                  return ClubGridCard(club: clubs[index], userType: userType);
                 },
               ),
             ),
@@ -99,8 +126,9 @@ class _CoachClubsToApproveRequestState
 
 class ClubGridCard extends StatelessWidget {
   final Map club;
+  final String userType;
 
-  const ClubGridCard({super.key, required this.club});
+  const ClubGridCard({super.key, required this.club, this.userType = ""});
 
   @override
   Widget build(BuildContext context) {
@@ -108,9 +136,14 @@ class ClubGridCard extends StatelessWidget {
     final String place = club["place"] ?? "";
     final String image = club["image"] ?? "";
     final String instagram = club["instagram"] ?? "";
-    int id = club["id"] ?? 0;
+    final int id = club["id"] ?? 0;
 
     final String imageUrl = image.isNotEmpty ? "$api$image" : "";
+
+    final String currentUserType = userType.trim().toLowerCase();
+
+    final bool canShowRequests =
+        currentUserType.contains("coach") || currentUserType.contains("admin");
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
@@ -120,18 +153,11 @@ class ClubGridCard extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-
             color: Colors.white.withOpacity(0.08),
             border: Border.all(color: Colors.white.withOpacity(0.18), width: 1),
-            // boxShadow: [
-            //   BoxShadow(
-            //     color: Colors.black.withOpacity(0.4),
-            //     blurRadius: 14,
-            //     offset: const Offset(0, 6),
-            //   ),
-            // ],
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               GestureDetector(
                 onTap: () {
@@ -174,33 +200,40 @@ class ClubGridCard extends StatelessWidget {
                 style: const TextStyle(color: Colors.white54, fontSize: 12),
               ),
 
-              const Spacer(),
-
-              SizedBox(
-                width: double.infinity,
-                height: 34,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00AFA5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+              // const Spacer(),
+              if (canShowRequests) ...[
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  height: 38,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00AFA5),
+                      elevation: 0,
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CoachClubRequests(clubId: id),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "Requests",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => CoachClubRequests(clubId: id),
-                      ),
-                    );
-                  },
-                  child: const Text(
-                    "Requests",
-                    style: TextStyle(color: Colors.white, fontSize: 13),
-                  ),
                 ),
-              ),
-
+              ],
               // if (instagram.isNotEmpty) ...[
               //   const SizedBox(height: 6),
               //   Text(

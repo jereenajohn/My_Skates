@@ -12,10 +12,12 @@ import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/wishlist.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
+import 'package:my_skates/STUDENTS/offer_page.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
+import 'dart:async';
 
 class UserProducts extends StatefulWidget {
   const UserProducts({super.key});
@@ -42,6 +44,16 @@ class _UserProductssState extends State<UserProducts> {
 
   String? _selectedPriceRange;
   bool _isPriceFilterActive = false;
+  final ScrollController _scrollController = ScrollController();
+
+  bool isAllCategorySelected = true;
+  String? allProductsNextUrl;
+  bool paginationLoading = false;
+  Timer? _searchDebounce;
+  String currentSearchQuery = "";
+  List<Map<String, dynamic>> offerPreviewProducts = [];
+  String offerSectionName = "";
+  bool offerPreviewLoading = false;
 
   final List<Map<String, dynamic>> priceRanges = [
     {'label': 'Rs. 499 and Below', 'min': 0, 'max': 499},
@@ -56,9 +68,25 @@ class _UserProductssState extends State<UserProducts> {
   @override
   void initState() {
     super.initState();
+
     _getUserType();
     loadInitialData();
     CartCountNotifier.refreshCartCount();
+
+    _scrollController.addListener(() {
+      if (!_scrollController.hasClients) return;
+
+      if (_scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent - 300 &&
+          isAllCategorySelected &&
+          !_isPriceFilterActive &&
+          currentSearchQuery.trim().isEmpty &&
+          allProductsNextUrl != null &&
+          !paginationLoading &&
+          !productsLoading) {
+        getAllApprovedProducts(loadMore: true);
+      }
+    });
 
     Future.delayed(const Duration(milliseconds: 200), () {
       if (!mounted) return;
@@ -71,6 +99,8 @@ class _UserProductssState extends State<UserProducts> {
   @override
   void dispose() {
     searchController.dispose();
+    _scrollController.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
   }
 
@@ -86,7 +116,10 @@ class _UserProductssState extends State<UserProducts> {
     await Future.wait([
       getbanner(),
       getProductCategories(),
+      getOfferPreviewProducts(),
     ]);
+
+    await getAllApprovedProducts();
 
     if (!mounted) return;
     setState(() {
@@ -97,8 +130,11 @@ class _UserProductssState extends State<UserProducts> {
   Future<void> refreshAllData() async {
     await getbanner();
     await getProductCategories();
+    await getOfferPreviewProducts();
 
-    if (selectedCategoryId != null) {
+    if (isAllCategorySelected) {
+      await getAllApprovedProducts();
+    } else if (selectedCategoryId != null) {
       await getProductsByCategory(selectedCategoryId!);
     }
   }
@@ -145,6 +181,70 @@ class _UserProductssState extends State<UserProducts> {
         .replaceAll(' GET ', 'G')
         .replaceAll(' FREE', 'FREE')
         .replaceAll(' ', '');
+  }
+
+  Future<void> getOfferPreviewProducts() async {
+    if (!mounted) return;
+
+    setState(() {
+      offerPreviewLoading = true;
+    });
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    try {
+      final response = await http.get(
+        Uri.parse('$api/api/myskates/approved/offer/products/view/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      debugPrint("OFFER PREVIEW STATUS: ${response.statusCode}");
+      debugPrint("OFFER PREVIEW BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+
+        String offerName = "";
+        List<dynamic> dataList = [];
+
+        if (decoded is Map && decoded["results"] is Map) {
+          final results = decoded["results"];
+
+          offerName = (results["offer_name"] ?? "").toString();
+
+          if (results["data"] is List) {
+            dataList = results["data"];
+          }
+        } else if (decoded is Map && decoded["data"] is List) {
+          offerName = (decoded["offer_name"] ?? "").toString();
+          dataList = decoded["data"];
+        }
+
+        final mappedProducts = dataList
+            .take(4)
+            .map<Map<String, dynamic>>((item) => _mapProductData(item))
+            .toList();
+
+        if (!mounted) return;
+
+        setState(() {
+          offerSectionName = offerName;
+          offerPreviewProducts = mappedProducts;
+        });
+      }
+    } catch (e) {
+      debugPrint("Offer preview fetch error: $e");
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      offerPreviewLoading = false;
+    });
   }
 
   Future<void> getbanner() async {
@@ -204,28 +304,156 @@ class _UserProductssState extends State<UserProducts> {
 
         final List<Map<String, dynamic>> list = [];
 
+        list.add({"id": null, "name": "All"});
+
         for (var item in parsed) {
-          list.add({
-            "id": item["id"],
-            "name": item["name"] ?? "",
-          });
+          list.add({"id": item["id"], "name": item["name"] ?? ""});
         }
 
         if (!mounted) return;
 
         setState(() {
           categories = list;
+          selectedCategoryId = null;
+          selectedCategoryName = "All";
+          isAllCategorySelected = true;
         });
-
-        if (categories.isNotEmpty && selectedCategoryId == null) {
-          selectedCategoryId = categories.first['id'];
-          selectedCategoryName = categories.first['name'];
-          await getProductsByCategory(selectedCategoryId!);
-        }
       }
     } catch (e) {
       debugPrint("Category fetch error: $e");
     }
+  }
+
+  Map<String, dynamic> _mapProductData(dynamic c) {
+    final double basePrice = _toDouble(c['base_price']);
+    final double price = _toDouble(c['price']);
+    final double discountedPrice = _toDouble(c['discounted_price']);
+    final double discount = _toDouble(c['discount']);
+
+    double finalDiscountedPrice = discountedPrice;
+
+    if (finalDiscountedPrice <= 0) {
+      if (price > 0) {
+        finalDiscountedPrice = price;
+      } else {
+        finalDiscountedPrice = basePrice;
+      }
+    }
+
+    return {
+      'id': c['id'],
+      'title': c['title'] ?? "",
+      'image': _buildImageUrl(c['image']),
+      'category_name': c['category_name'] ?? "",
+      'description': c['description'] ?? "",
+      'approval_status': c['approval_status'] ?? "",
+      'base_price': basePrice.toString(),
+      'price': price.toString(),
+      'discounted_price': finalDiscountedPrice.toString(),
+      'discount': discount.toString(),
+      'is_wishlisted': c['is_in_wishlist'] ?? c['is_wishlisted'] ?? false,
+      'offer_details': c['offer_details'],
+      'created_at': c['created_at'],
+    };
+  }
+
+  Future<void> getAllApprovedProducts({bool loadMore = false}) async {
+    if (loadMore) {
+      if (allProductsNextUrl == null || paginationLoading) return;
+
+      setState(() {
+        paginationLoading = true;
+      });
+    } else {
+      setState(() {
+        productsLoading = true;
+        paginationLoading = false;
+        allProductsNextUrl = null;
+        _selectedPriceRange = null;
+        _isPriceFilterActive = false;
+      });
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    try {
+      Uri uri;
+
+      if (loadMore && allProductsNextUrl != null) {
+        uri = Uri.parse(allProductsNextUrl!);
+      } else {
+        uri = Uri.parse('$api/api/myskates/all/approved/products/view/');
+
+        final Map<String, String> params = {};
+
+        if (currentSearchQuery.trim().isNotEmpty) {
+          params["search"] = currentSearchQuery.trim();
+        }
+
+        if (params.isNotEmpty) {
+          uri = uri.replace(queryParameters: params);
+        }
+      }
+
+      debugPrint("ALL PRODUCTS API: $uri");
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      debugPrint("ALL PRODUCTS STATUS: ${response.statusCode}");
+      debugPrint("ALL PRODUCTS BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+
+        String? nextUrl;
+        List<dynamic> dataList = [];
+
+        if (decoded is Map && decoded["results"] is Map) {
+          nextUrl = decoded["next"]?.toString();
+
+          final results = decoded["results"];
+          if (results["data"] is List) {
+            dataList = results["data"];
+          }
+        } else if (decoded is Map && decoded["data"] is List) {
+          nextUrl = decoded["next"]?.toString();
+          dataList = decoded["data"];
+        }
+
+        final mappedProducts = dataList
+            .map<Map<String, dynamic>>((c) => _mapProductData(c))
+            .toList();
+
+        if (!mounted) return;
+
+        setState(() {
+          allProductsNextUrl = nextUrl;
+
+          if (loadMore) {
+            products.addAll(mappedProducts);
+            _allProducts.addAll(mappedProducts);
+          } else {
+            products = mappedProducts;
+            _allProducts = List.from(mappedProducts);
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("All approved products fetch error: $e");
+    }
+
+    if (!mounted) return;
+    setState(() {
+      productsLoading = false;
+      paginationLoading = false;
+    });
   }
 
   Future<void> getProductsByCategory(int categoryId) async {
@@ -233,9 +461,12 @@ class _UserProductssState extends State<UserProducts> {
 
     setState(() {
       productsLoading = true;
+      paginationLoading = false;
+      allProductsNextUrl = null;
       _selectedPriceRange = null;
       _isPriceFilterActive = false;
       searchController.clear();
+      currentSearchQuery = "";
     });
 
     final prefs = await SharedPreferences.getInstance();
@@ -256,38 +487,11 @@ class _UserProductssState extends State<UserProducts> {
       if (response.statusCode == 200) {
         final List<dynamic> dataList = jsonDecode(response.body);
 
-        final List<Map<String, dynamic>> list = dataList.map<Map<String, dynamic>>((c) {
-          final double basePrice = _toDouble(c['base_price']);
-          final double price = _toDouble(c['price']);
-          final double discountedPrice = _toDouble(c['discounted_price']);
-          final double discount = _toDouble(c['discount']);
-
-          double finalDiscountedPrice = discountedPrice;
-
-          if (finalDiscountedPrice <= 0) {
-            if (price > 0) {
-              finalDiscountedPrice = price;
-            } else {
-              finalDiscountedPrice = basePrice;
-            }
-          }
-
-          return {
-            'id': c['id'],
-            'title': c['title'] ?? "",
-            'image': _buildImageUrl(c['image']),
-            'category_name': c['category_name'] ?? "",
-            'description': c['description'] ?? "",
-            'approval_status': c['approval_status'] ?? "",
-            'base_price': basePrice.toString(),
-            'price': price.toString(),
-            'discounted_price': finalDiscountedPrice.toString(),
-            'discount': discount.toString(),
-            'is_wishlisted': c['is_in_wishlist'] ?? false,
-            'offer_details': c['offer_details'],
-            'created_at': c['created_at'],
-          };
-        }).toList();
+        final List<Map<String, dynamic>> list = dataList
+            .map<Map<String, dynamic>>((c) {
+              return _mapProductData(c);
+            })
+            .toList();
 
         if (!mounted) return;
 
@@ -321,13 +525,8 @@ class _UserProductssState extends State<UserProducts> {
     try {
       final response = await http.post(
         Uri.parse('$api/api/myskates/products/$id/wishlist/'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-        body: {
-          "user": userId.toString(),
-          "product": id.toString(),
-        },
+        headers: {'Authorization': 'Bearer $token'},
+        body: {"user": userId.toString(), "product": id.toString()},
       );
 
       debugPrint('Wishlist status: ${response.statusCode}');
@@ -408,6 +607,18 @@ class _UserProductssState extends State<UserProducts> {
   }
 
   void _searchProducts(String query) {
+    currentSearchQuery = query.trim();
+
+    if (isAllCategorySelected) {
+      _searchDebounce?.cancel();
+
+      _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+        getAllApprovedProducts();
+      });
+
+      return;
+    }
+
     if (query.trim().isEmpty) {
       setState(() {
         products = List.from(_allProducts);
@@ -477,7 +688,8 @@ class _UserProductssState extends State<UserProducts> {
                       itemCount: priceRanges.length,
                       itemBuilder: (context, index) {
                         final range = priceRanges[index];
-                        final isSelected = _selectedPriceRange == range['label'];
+                        final isSelected =
+                            _selectedPriceRange == range['label'];
 
                         return ListTile(
                           leading: Radio<String>(
@@ -496,8 +708,12 @@ class _UserProductssState extends State<UserProducts> {
                           title: Text(
                             range['label'],
                             style: TextStyle(
-                              color: isSelected ? Colors.tealAccent : Colors.white,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                              color: isSelected
+                                  ? Colors.tealAccent
+                                  : Colors.white,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
                               fontFamily: 'Poppins',
                             ),
                           ),
@@ -581,22 +797,41 @@ class _UserProductssState extends State<UserProducts> {
       (range) => range['label'] == _selectedPriceRange,
     );
 
-    double minPrice = _toDouble(selectedRange['min']);
-    double maxPrice = selectedRange['max'] == double.infinity
+    final double minPrice = _toDouble(selectedRange['min']);
+
+    final double maxPrice = selectedRange['max'] == double.infinity
         ? double.infinity
         : _toDouble(selectedRange['max']);
 
-    final filteredProducts = _allProducts.where((product) {
-      final double price = _toDouble(product['discounted_price']);
-      if (maxPrice == double.infinity) {
-        return price >= minPrice;
+    final List<Map<String, dynamic>> sourceList = List.from(_allProducts);
+
+    final filteredProducts = sourceList.where((product) {
+      double finalPrice = _toDouble(product['discounted_price']);
+
+      if (finalPrice <= 0) {
+        finalPrice = _toDouble(product['price']);
       }
-      return price >= minPrice && price <= maxPrice;
+
+      if (finalPrice <= 0) {
+        finalPrice = _toDouble(product['base_price']);
+      }
+
+      if (maxPrice == double.infinity) {
+        return finalPrice >= minPrice;
+      }
+
+      return finalPrice >= minPrice && finalPrice <= maxPrice;
     }).toList();
 
     setState(() {
       _isPriceFilterActive = true;
       products = filteredProducts;
+
+      // Important: stop All category pagination while local price filter is active
+      if (isAllCategorySelected) {
+        allProductsNextUrl = null;
+        paginationLoading = false;
+      }
     });
 
     Navigator.pop(context);
@@ -606,15 +841,25 @@ class _UserProductssState extends State<UserProducts> {
     setState(() {
       _selectedPriceRange = null;
       _isPriceFilterActive = false;
-      products = List.from(_allProducts);
     });
+
+    if (isAllCategorySelected) {
+      getAllApprovedProducts();
+    } else {
+      setState(() {
+        products = List.from(_allProducts);
+      });
+    }
   }
 
-  void _handleUpdateProduct() {
-    Navigator.push(
-      context,
-      slideRightToLeftRoute(Wishlist()),
-    );
+  Future<void> _handleUpdateProduct() async {
+    await Navigator.push(context, slideRightToLeftRoute(const Wishlist()));
+
+    if (isAllCategorySelected) {
+      await getAllApprovedProducts();
+    } else if (selectedCategoryId != null) {
+      await getProductsByCategory(selectedCategoryId!);
+    }
   }
 
   Widget _offerBadge(Map<String, dynamic> p) {
@@ -834,11 +1079,7 @@ class _UserProductssState extends State<UserProducts> {
                     ),
 
                     if (hasOffer)
-                      Positioned(
-                        top: 10,
-                        left: 0,
-                        child: _offerBadge(p),
-                      ),
+                      Positioned(top: 10, left: 0, child: _offerBadge(p)),
 
                     if (hasDiscount)
                       Positioned(
@@ -915,8 +1156,12 @@ class _UserProductssState extends State<UserProducts> {
                             ),
                           ),
                           child: Icon(
-                            isWishlisted ? Icons.favorite : Icons.favorite_border,
-                            color: isWishlisted ? Colors.tealAccent : Colors.white,
+                            isWishlisted
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: isWishlisted
+                                ? Colors.tealAccent
+                                : Colors.white,
                             size: 18,
                           ),
                         ),
@@ -1018,6 +1263,168 @@ class _UserProductssState extends State<UserProducts> {
     );
   }
 
+  Widget _offerPreviewSection() {
+    if (offerPreviewLoading) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 18),
+          Shimmer.fromColors(
+            baseColor: Colors.grey.shade900,
+            highlightColor: Colors.grey.shade800,
+            child: Container(
+              height: 26,
+              width: 190,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade900,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 4,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisExtent: 295,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            itemBuilder: (_, __) {
+              return Shimmer.fromColors(
+                baseColor: Colors.grey.shade900,
+                highlightColor: Colors.grey.shade800,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade900,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      );
+    }
+
+    if (offerPreviewProducts.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final String title = offerSectionName.trim().isEmpty
+        ? "Offer Products"
+        : offerSectionName.trim();
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          slideRightToLeftRoute(OfferProductsPage(initialOfferName: title)),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(top: 18),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.22),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: Colors.tealAccent.withOpacity(0.22)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.20),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.tealAccent.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(
+                      color: Colors.tealAccent.withOpacity(0.35),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.local_offer_rounded,
+                    color: Colors.tealAccent,
+                    size: 21,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'Poppins',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Row(
+                  children: const [
+                    Text(
+                      "View All",
+                      style: TextStyle(
+                        color: Colors.tealAccent,
+                        fontFamily: 'Poppins',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(width: 3),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      color: Colors.tealAccent,
+                      size: 13,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: offerPreviewProducts.length > 4
+                  ? 4
+                  : offerPreviewProducts.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisExtent: 295,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemBuilder: (context, index) {
+                final product = offerPreviewProducts[index];
+                return IgnorePointer(
+                  ignoring: false,
+                  child: _productCard(product),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _bannerSkeleton() {
     return Shimmer.fromColors(
       baseColor: Colors.grey.shade900,
@@ -1087,7 +1494,8 @@ class _UserProductssState extends State<UserProducts> {
     return WillPopScope(
       onWillPop: () async {
         final prefs = await SharedPreferences.getInstance();
-        final userType = prefs.getString("user_type")?.toLowerCase().trim() ?? "";
+        final userType =
+            prefs.getString("user_type")?.toLowerCase().trim() ?? "";
 
         Widget dashboardPage;
 
@@ -1113,14 +1521,8 @@ class _UserProductssState extends State<UserProducts> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF00312D),
-                Color(0xFF000000),
-              ],
-              stops: [
-                0.0,
-                0.35,
-              ],
+              colors: [Color(0xFF00312D), Color(0xFF000000)],
+              stops: [0.0, 0.35],
             ),
           ),
           child: SafeArea(
@@ -1136,13 +1538,16 @@ class _UserProductssState extends State<UserProducts> {
                     edgeOffset: 10,
                     strokeWidth: 3,
                     child: SingleChildScrollView(
+                      controller: _scrollController,
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: AnimatedOpacity(
                         duration: const Duration(milliseconds: 600),
                         opacity: _animatePage ? 1 : 0,
                         child: AnimatedSlide(
                           duration: const Duration(milliseconds: 600),
-                          offset: _animatePage ? Offset.zero : const Offset(0, 0.05),
+                          offset: _animatePage
+                              ? Offset.zero
+                              : const Offset(0, 0.05),
                           curve: Curves.easeOutCubic,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -1152,7 +1557,8 @@ class _UserProductssState extends State<UserProducts> {
                                 const SizedBox(height: 10),
 
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     SizedBox(
                                       height: 50,
@@ -1177,18 +1583,22 @@ class _UserProductssState extends State<UserProducts> {
                                           onPressed: () async {
                                             await Navigator.push(
                                               context,
-                                              slideRightToLeftRoute(const cart()),
+                                              slideRightToLeftRoute(
+                                                const cart(),
+                                              ),
                                             );
                                             CartCountNotifier.refreshCartCount();
                                           },
                                           icon: ValueListenableBuilder<int>(
-                                            valueListenable: CartCountNotifier.cartCount,
+                                            valueListenable:
+                                                CartCountNotifier.cartCount,
                                             builder: (context, count, _) {
                                               return Stack(
                                                 clipBehavior: Clip.none,
                                                 children: [
                                                   const Icon(
-                                                    Icons.shopping_cart_outlined,
+                                                    Icons
+                                                        .shopping_cart_outlined,
                                                     color: Colors.white,
                                                     size: 26,
                                                   ),
@@ -1197,18 +1607,28 @@ class _UserProductssState extends State<UserProducts> {
                                                       right: -2,
                                                       top: -2,
                                                       child: Container(
-                                                        padding: const EdgeInsets.all(4),
-                                                        decoration: const BoxDecoration(
-                                                          color: Colors.redAccent,
-                                                          shape: BoxShape.circle,
-                                                        ),
+                                                        padding:
+                                                            const EdgeInsets.all(
+                                                              4,
+                                                            ),
+                                                        decoration:
+                                                            const BoxDecoration(
+                                                              color: Colors
+                                                                  .redAccent,
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                            ),
                                                         child: Text(
                                                           "$count",
-                                                          style: const TextStyle(
-                                                            color: Colors.white,
-                                                            fontSize: 10,
-                                                            fontWeight: FontWeight.bold,
-                                                          ),
+                                                          style:
+                                                              const TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize: 10,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
                                                         ),
                                                       ),
                                                     ),
@@ -1232,8 +1652,12 @@ class _UserProductssState extends State<UserProducts> {
                                         height: 40,
                                         decoration: BoxDecoration(
                                           color: Colors.black.withOpacity(0.25),
-                                          border: Border.all(color: Colors.white24),
-                                          borderRadius: BorderRadius.circular(30),
+                                          border: Border.all(
+                                            color: Colors.white24,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            30,
+                                          ),
                                         ),
                                         child: TextField(
                                           controller: searchController,
@@ -1255,7 +1679,10 @@ class _UserProductssState extends State<UserProducts> {
                                               fontFamily: 'Poppins',
                                             ),
                                             border: InputBorder.none,
-                                            contentPadding: EdgeInsets.symmetric(vertical: 10),
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                  vertical: 10,
+                                                ),
                                           ),
                                         ),
                                       ),
@@ -1268,8 +1695,12 @@ class _UserProductssState extends State<UserProducts> {
                                         child: Container(
                                           height: 40,
                                           decoration: BoxDecoration(
-                                            color: Colors.black.withOpacity(0.25),
-                                            borderRadius: BorderRadius.circular(30),
+                                            color: Colors.black.withOpacity(
+                                              0.25,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              30,
+                                            ),
                                             border: Border.all(
                                               color: _isPriceFilterActive
                                                   ? Colors.tealAccent
@@ -1277,7 +1708,8 @@ class _UserProductssState extends State<UserProducts> {
                                             ),
                                           ),
                                           child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
                                             children: [
                                               const Text(
                                                 "Price",
@@ -1300,11 +1732,15 @@ class _UserProductssState extends State<UserProducts> {
                                               if (_isPriceFilterActive) ...[
                                                 const SizedBox(width: 4),
                                                 Container(
-                                                  padding: const EdgeInsets.all(3),
-                                                  decoration: const BoxDecoration(
-                                                    color: Colors.tealAccent,
-                                                    shape: BoxShape.circle,
+                                                  padding: const EdgeInsets.all(
+                                                    3,
                                                   ),
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                        color:
+                                                            Colors.tealAccent,
+                                                        shape: BoxShape.circle,
+                                                      ),
                                                   child: const Icon(
                                                     Icons.check,
                                                     color: Colors.black,
@@ -1325,15 +1761,22 @@ class _UserProductssState extends State<UserProducts> {
                                           onTap: () {
                                             Navigator.push(
                                               context,
-                                              slideRightToLeftRoute(ProductsByUser()),
+                                              slideRightToLeftRoute(
+                                                ProductsByUser(),
+                                              ),
                                             );
                                           },
                                           child: Container(
                                             height: 40,
                                             decoration: BoxDecoration(
-                                              color: Colors.black.withOpacity(0.25),
-                                              borderRadius: BorderRadius.circular(30),
-                                              border: Border.all(color: Colors.white24),
+                                              color: Colors.black.withOpacity(
+                                                0.25,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(30),
+                                              border: Border.all(
+                                                color: Colors.white24,
+                                              ),
                                             ),
                                             child: const Center(
                                               child: Text(
@@ -1361,25 +1804,34 @@ class _UserProductssState extends State<UserProducts> {
                                     : Container(
                                         height: 160,
                                         decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(14),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.black.withOpacity(0.25),
+                                              color: Colors.black.withOpacity(
+                                                0.25,
+                                              ),
                                               blurRadius: 8,
                                               offset: const Offset(0, 4),
                                             ),
                                           ],
                                         ),
                                         child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(14),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
                                           child: FlutterCarousel(
                                             options: CarouselOptions(
                                               height: 160,
                                               autoPlay: true,
-                                              autoPlayInterval: const Duration(seconds: 3),
+                                              autoPlayInterval: const Duration(
+                                                seconds: 3,
+                                              ),
                                               viewportFraction: 1,
                                               showIndicator: true,
-                                              slideIndicator: const CircularSlideIndicator(),
+                                              slideIndicator:
+                                                  const CircularSlideIndicator(),
                                             ),
                                             items: banner.map((item) {
                                               return Stack(
@@ -1388,36 +1840,63 @@ class _UserProductssState extends State<UserProducts> {
                                                     child: Image.network(
                                                       item["image"] ?? "",
                                                       fit: BoxFit.cover,
-                                                      loadingBuilder: (context, child, progress) {
-                                                        if (progress == null) return child;
-                                                        return Container(
-                                                          color: Colors.grey.shade900,
-                                                          alignment: Alignment.center,
-                                                          child: const CircularProgressIndicator(),
-                                                        );
-                                                      },
-                                                      errorBuilder: (context, error, stackTrace) {
-                                                        return Container(
-                                                          color: Colors.black,
-                                                          alignment: Alignment.center,
-                                                          child: const Icon(
-                                                            Icons.broken_image,
-                                                            color: Colors.white54,
-                                                            size: 40,
-                                                          ),
-                                                        );
-                                                      },
+                                                      loadingBuilder:
+                                                          (
+                                                            context,
+                                                            child,
+                                                            progress,
+                                                          ) {
+                                                            if (progress ==
+                                                                null)
+                                                              return child;
+                                                            return Container(
+                                                              color: Colors
+                                                                  .grey
+                                                                  .shade900,
+                                                              alignment:
+                                                                  Alignment
+                                                                      .center,
+                                                              child:
+                                                                  const CircularProgressIndicator(),
+                                                            );
+                                                          },
+                                                      errorBuilder:
+                                                          (
+                                                            context,
+                                                            error,
+                                                            stackTrace,
+                                                          ) {
+                                                            return Container(
+                                                              color:
+                                                                  Colors.black,
+                                                              alignment:
+                                                                  Alignment
+                                                                      .center,
+                                                              child: const Icon(
+                                                                Icons
+                                                                    .broken_image,
+                                                                color: Colors
+                                                                    .white54,
+                                                                size: 40,
+                                                              ),
+                                                            );
+                                                          },
                                                     ),
                                                   ),
                                                   Positioned.fill(
                                                     child: Container(
                                                       decoration: BoxDecoration(
                                                         gradient: LinearGradient(
-                                                          begin: Alignment.topCenter,
-                                                          end: Alignment.bottomCenter,
+                                                          begin: Alignment
+                                                              .topCenter,
+                                                          end: Alignment
+                                                              .bottomCenter,
                                                           colors: [
                                                             Colors.transparent,
-                                                            Colors.black.withOpacity(0.6),
+                                                            Colors.black
+                                                                .withOpacity(
+                                                                  0.6,
+                                                                ),
                                                           ],
                                                         ),
                                                       ),
@@ -1432,17 +1911,21 @@ class _UserProductssState extends State<UserProducts> {
 
                                 const SizedBox(height: 15),
 
-                                Text(
-                                  selectedCategoryName.isEmpty
-                                      ? "Products"
-                                      : "$selectedCategoryName Products",
-                                  style: const TextStyle(
-                                    fontFamily: 'Poppins',
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
+                                // _offerPreviewSection(),
+
+                                // const SizedBox(height: 15),
+
+                                // Text(
+                                //   selectedCategoryName.isEmpty
+                                //       ? "Products"
+                                //       : "$selectedCategoryName Products",
+                                //   style: const TextStyle(
+                                //     fontFamily: 'Poppins',
+                                //     color: Colors.white,
+                                //     fontSize: 15,
+                                //     fontWeight: FontWeight.w500,
+                                //   ),
+                                // ),
 
                                 const SizedBox(height: 18),
 
@@ -1452,31 +1935,61 @@ class _UserProductssState extends State<UserProducts> {
                                         scrollDirection: Axis.horizontal,
                                         child: Row(
                                           children: categories.map((cat) {
-                                            final bool isSelected = selectedCategoryId == cat['id'];
+                                            final bool isSelected =
+                                                isAllCategorySelected
+                                                ? cat['id'] == null
+                                                : selectedCategoryId ==
+                                                      cat['id'];
 
                                             return GestureDetector(
                                               onTap: () {
+                                                final bool selectedAll =
+                                                    cat['id'] == null;
+
                                                 setState(() {
-                                                  selectedCategoryId = cat['id'];
-                                                  selectedCategoryName = cat['name'];
+                                                  selectedCategoryId =
+                                                      cat['id'];
+                                                  selectedCategoryName =
+                                                      cat['name'];
+                                                  isAllCategorySelected =
+                                                      selectedAll;
+                                                  searchController.clear();
+                                                  currentSearchQuery = "";
+                                                  _selectedPriceRange = null;
+                                                  _isPriceFilterActive = false;
                                                 });
 
-                                                getProductsByCategory(cat['id']);
+                                                if (selectedAll) {
+                                                  getAllApprovedProducts();
+                                                } else {
+                                                  getProductsByCategory(
+                                                    cat['id'],
+                                                  );
+                                                }
                                               },
                                               child: AnimatedContainer(
-                                                duration: const Duration(milliseconds: 300),
-                                                curve: Curves.easeInOut,
-                                                margin: const EdgeInsets.only(right: 10),
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 20,
-                                                  vertical: 10,
+                                                duration: const Duration(
+                                                  milliseconds: 300,
                                                 ),
+                                                curve: Curves.easeInOut,
+                                                margin: const EdgeInsets.only(
+                                                  right: 10,
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 20,
+                                                      vertical: 10,
+                                                    ),
                                                 decoration: BoxDecoration(
                                                   color: isSelected
                                                       ? Colors.tealAccent
-                                                      : Colors.black.withOpacity(0.25),
-                                                  borderRadius: BorderRadius.circular(30),
-                                                  border: Border.all(color: Colors.white24),
+                                                      : Colors.black
+                                                            .withOpacity(0.25),
+                                                  borderRadius:
+                                                      BorderRadius.circular(30),
+                                                  border: Border.all(
+                                                    color: Colors.white24,
+                                                  ),
                                                 ),
                                                 child: Text(
                                                   cat['name'].toString(),
@@ -1484,7 +1997,9 @@ class _UserProductssState extends State<UserProducts> {
                                                     fontFamily: 'Poppins',
                                                     fontSize: 14,
                                                     fontWeight: FontWeight.w600,
-                                                    color: isSelected ? Colors.black : Colors.white,
+                                                    color: isSelected
+                                                        ? Colors.black
+                                                        : Colors.white,
                                                   ),
                                                 ),
                                               ),
@@ -1495,7 +2010,8 @@ class _UserProductssState extends State<UserProducts> {
 
                                 const SizedBox(height: 20),
 
-                                if (_isPriceFilterActive && _selectedPriceRange != null)
+                                if (_isPriceFilterActive &&
+                                    _selectedPriceRange != null)
                                   Container(
                                     margin: const EdgeInsets.only(bottom: 12),
                                     padding: const EdgeInsets.symmetric(
@@ -1506,11 +2022,14 @@ class _UserProductssState extends State<UserProducts> {
                                       color: Colors.tealAccent.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
-                                        color: Colors.tealAccent.withOpacity(0.3),
+                                        color: Colors.tealAccent.withOpacity(
+                                          0.3,
+                                        ),
                                       ),
                                     ),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Row(
                                           children: [
@@ -1536,7 +2055,8 @@ class _UserProductssState extends State<UserProducts> {
                                           child: Container(
                                             padding: const EdgeInsets.all(2),
                                             decoration: BoxDecoration(
-                                              color: Colors.tealAccent.withOpacity(0.2),
+                                              color: Colors.tealAccent
+                                                  .withOpacity(0.2),
                                               shape: BoxShape.circle,
                                             ),
                                             child: const Icon(
@@ -1554,7 +2074,9 @@ class _UserProductssState extends State<UserProducts> {
                                   _productGridSkeleton()
                                 else if (products.isEmpty)
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 40),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 40,
+                                    ),
                                     child: Center(
                                       child: Column(
                                         children: [
@@ -1576,29 +2098,36 @@ class _UserProductssState extends State<UserProducts> {
                                       ),
                                     ),
                                   )
-                                else
+                                else ...[
                                   GridView.builder(
                                     shrinkWrap: true,
-                                    physics: const NeverScrollableScrollPhysics(),
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
                                     itemCount: products.length,
-                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 2,
-                                      mainAxisExtent: 295,
-                                      crossAxisSpacing: 12,
-                                      mainAxisSpacing: 12,
-                                    ),
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 2,
+                                          mainAxisExtent: 295,
+                                          crossAxisSpacing: 12,
+                                          mainAxisSpacing: 12,
+                                        ),
                                     itemBuilder: (context, index) {
                                       final p = products[index];
 
                                       return TweenAnimationBuilder<double>(
-                                        duration: Duration(milliseconds: 400 + (index * 80)),
+                                        duration: Duration(
+                                          milliseconds: 400 + (index * 80),
+                                        ),
                                         tween: Tween<double>(begin: 0, end: 1),
                                         curve: Curves.easeOut,
                                         builder: (context, value, child) {
                                           return Opacity(
                                             opacity: value,
                                             child: Transform.translate(
-                                              offset: Offset(0, 30 * (1 - value)),
+                                              offset: Offset(
+                                                0,
+                                                30 * (1 - value),
+                                              ),
                                               child: child,
                                             ),
                                           );
@@ -1607,6 +2136,19 @@ class _UserProductssState extends State<UserProducts> {
                                       );
                                     },
                                   ),
+
+                                  if (paginationLoading)
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 18,
+                                      ),
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          color: Colors.tealAccent,
+                                        ),
+                                      ),
+                                    ),
+                                ],
 
                                 const SizedBox(height: 40),
                               ],
