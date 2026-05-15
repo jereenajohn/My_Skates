@@ -45,6 +45,9 @@ class _HomePageState extends State<HomePage> {
   List clubs = [];
   bool noData = false;
 
+  bool showAllClubs = false;
+  final int initialClubLimit = 5;
+
   List coaches = [];
   bool coachesLoading = true;
   bool coachesNoData = false;
@@ -2401,20 +2404,81 @@ class _HomePageState extends State<HomePage> {
                             _buildClubShimmer(),
                             const SizedBox(height: 25),
                           ] else if (clubs.isNotEmpty) ...[
-                            const Text(
-                              "Recommended Clubs near you",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  "Recommended Clubs near you",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+
+                                if (clubs.length > initialClubLimit)
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(20),
+                                    onTap: () {
+                                      setState(() {
+                                        showAllClubs = !showAllClubs;
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.tealAccent.withOpacity(
+                                          0.12,
+                                        ),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: Colors.tealAccent.withOpacity(
+                                            0.35,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            showAllClubs
+                                                ? "View Less"
+                                                : "View More",
+                                            style: const TextStyle(
+                                              color: Colors.tealAccent,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            showAllClubs
+                                                ? Icons.keyboard_arrow_up
+                                                : Icons.keyboard_arrow_down,
+                                            color: Colors.tealAccent,
+                                            size: 17,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
+
                             const SizedBox(height: 10),
+
                             SizedBox(
                               height: MediaQuery.of(context).size.height * 0.22,
                               child: ListView.builder(
                                 scrollDirection: Axis.horizontal,
-                                itemCount: clubs.length,
+                                itemCount: showAllClubs
+                                    ? clubs.length
+                                    : clubs.length > initialClubLimit
+                                    ? initialClubLimit
+                                    : clubs.length,
                                 itemBuilder: (_, i) => Padding(
                                   padding: const EdgeInsets.only(right: 12),
                                   child: buildClubCardFromApi(
@@ -2426,6 +2490,7 @@ class _HomePageState extends State<HomePage> {
                                 ),
                               ),
                             ),
+
                             const SizedBox(height: 25),
                           ],
 
