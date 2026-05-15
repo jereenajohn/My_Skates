@@ -124,22 +124,27 @@ class _ClubViewState extends State<ClubView> {
   }
 
   @override
-void initState() {
-  super.initState();
-  _checkUserRole();
-  fetchClubDetails();
-  fetchClubEvents();
-  fetchFollowersCount();
-  fetchClubFeeds();
+  void initState() {
+    super.initState();
+    _loadClubViewData();
+  }
 
-  _fetchClubRequestStatus().then((_) {
-    if (mounted) {
-      _checkUserRating();
-    }
-  });
+  Future<void> _loadClubViewData() async {
+    await _checkUserRole();
+    await fetchClubDetails();
 
-  print("Club ID: ${widget.clubid}");
-}
+    fetchClubEvents();
+    fetchFollowersCount();
+    fetchClubFeeds();
+
+    _fetchClubRequestStatus().then((_) {
+      if (mounted) {
+        _checkUserRating();
+      }
+    });
+
+    print("Club ID: ${widget.clubid}");
+  }
 
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -1274,11 +1279,7 @@ void initState() {
       if (token == null) return;
 
       final url = Uri.parse("$api/api/myskates/club/feed/$postId/comment/");
-      final body = {
-        "comment": text,
-        "user": ?userId,
-        "feed": postId,
-      };
+      final body = {"comment": text, "user": ?userId, "feed": postId};
 
       final res = await http.post(
         url,
@@ -1530,24 +1531,69 @@ void initState() {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("access");
-      final userId = prefs.getInt("id");
 
-      if (token == null || userId == null) return;
+      if (token == null) {
+        setState(() {
+          clubEvents = [];
+          isEventsLoading = false;
+        });
+        return;
+      }
+
+      final Map<String, dynamic> clubData = club ?? {};
+
+      final dynamic ownerValue =
+          clubData["user"] ??
+          clubData["created_by"] ??
+          clubData["owner"] ??
+          clubData["coach"] ??
+          clubData["admin"];
+
+      final int? eventOwnerId = ownerValue is int
+          ? ownerValue
+          : int.tryParse(ownerValue?.toString() ?? "");
+
+      if (eventOwnerId == null) {
+        print("EVENT OWNER ID NOT FOUND FROM CLUB DATA: $clubData");
+
+        setState(() {
+          clubEvents = [];
+          isEventsLoading = false;
+        });
+        return;
+      }
 
       final url = Uri.parse(
-        "$api/api/myskates/events/view/$userId/${widget.clubid}/",
+        "$api/api/myskates/events/view/$eventOwnerId/${widget.clubid}/",
       );
+
+      print("EVENT FETCH URL: $url");
 
       final response = await http.get(
         url,
         headers: {"Authorization": "Bearer $token"},
       );
 
-      print("Event fetch response: ${response.statusCode} - ${response.body}");
+      print("Event fetch status: ${response.statusCode}");
+      print("Event fetch body: ${response.body}");
 
       if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+
+        List<dynamic> eventsList = [];
+
+        if (decoded is List) {
+          eventsList = decoded;
+        } else if (decoded is Map && decoded["data"] is List) {
+          eventsList = decoded["data"];
+        } else if (decoded is Map && decoded["results"] is List) {
+          eventsList = decoded["results"];
+        } else if (decoded is Map && decoded["events"] is List) {
+          eventsList = decoded["events"];
+        }
+
         setState(() {
-          clubEvents = jsonDecode(response.body);
+          clubEvents = eventsList;
           isEventsLoading = false;
         });
       } else {
@@ -1558,6 +1604,7 @@ void initState() {
       }
     } catch (e) {
       print("Event fetch error: $e");
+
       setState(() {
         clubEvents = [];
         isEventsLoading = false;
@@ -2202,23 +2249,35 @@ void initState() {
   Widget _eventTile(Map event) {
     List<String> images = [];
 
+    // Main image field - currently null in your response
     final mainImage = safeString(event["image"]);
-    if (mainImage.isNotEmpty) {
+    if (mainImage.isNotEmpty && mainImage != "null") {
       images.add(mainImage);
     }
 
+    // Gallery images field - this is where your event images are coming
     if (event["images"] is List) {
-      for (var g in event["images"]) {
-        final img = safeString(g["image"]);
-        if (img.isNotEmpty) images.add(img);
+      for (var imgData in event["images"]) {
+        if (imgData is Map) {
+          final img = safeString(imgData["image"]);
+
+          if (img.isNotEmpty && img != "null") {
+            images.add(img);
+          }
+        }
       }
     }
 
     images = images.map((path) {
-      return path.startsWith("http")
-          ? path
-          : "$api${path.startsWith("/") ? path : "/$path"}";
+      if (path.startsWith("http")) {
+        return path;
+      }
+
+      return Uri.parse(api).resolve(path).toString();
     }).toList();
+
+    print("EVENT ID: ${event["id"]}");
+    print("EVENT IMAGE LIST: $images");
 
     PageController controller = PageController();
     int currentPage = 0;
@@ -2235,12 +2294,12 @@ void initState() {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              /// INSTAGRAM STYLE IMAGE SLIDER
               if (images.isNotEmpty)
                 Column(
                   children: [
                     SizedBox(
                       height: 180,
+                      width: double.infinity,
                       child: PageView.builder(
                         controller: controller,
                         itemCount: images.length,
@@ -2258,6 +2317,42 @@ void initState() {
                                 images[index],
                                 fit: BoxFit.cover,
                                 width: double.infinity,
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                      if (loadingProgress == null) {
+                                        return child;
+                                      }
+
+                                      return Container(
+                                        height: 180,
+                                        width: double.infinity,
+                                        color: Colors.white10,
+                                        child: const Center(
+                                          child: CircularProgressIndicator(
+                                            color: Color(0xFF00AFA5),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                errorBuilder: (context, error, stackTrace) {
+                                  print("EVENT IMAGE LOAD ERROR: $error");
+                                  print(
+                                    "FAILED EVENT IMAGE URL: ${images[index]}",
+                                  );
+
+                                  return Container(
+                                    height: 180,
+                                    width: double.infinity,
+                                    color: Colors.white10,
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.broken_image,
+                                        color: Colors.white54,
+                                        size: 45,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           );
@@ -2267,7 +2362,6 @@ void initState() {
 
                     const SizedBox(height: 6),
 
-                    /// DOT INDICATOR
                     if (images.length > 1)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -2291,7 +2385,6 @@ void initState() {
 
               const SizedBox(height: 12),
 
-              /// EVENT TITLE
               Text(
                 safeString(event["title"]),
                 style: const TextStyle(
@@ -2303,7 +2396,6 @@ void initState() {
 
               const SizedBox(height: 6),
 
-              /// DESCRIPTION
               Text(
                 safeString(event["description"]),
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
@@ -2311,7 +2403,6 @@ void initState() {
 
               const SizedBox(height: 10),
 
-              /// DATE
               Row(
                 children: [
                   const Icon(
@@ -2320,16 +2411,17 @@ void initState() {
                     color: Color(0xFF00AFA5),
                   ),
                   const SizedBox(width: 5),
-                  Text(
-                    "${safeDate(event["from_date"])} → ${safeDate(event["to_date"])}",
-                    style: const TextStyle(color: Colors.white70),
+                  Expanded(
+                    child: Text(
+                      "${safeDate(event["from_date"])} → ${safeDate(event["to_date"])}",
+                      style: const TextStyle(color: Colors.white70),
+                    ),
                   ),
                 ],
               ),
 
               const SizedBox(height: 5),
 
-              /// TIME
               Row(
                 children: [
                   const Icon(
@@ -2338,9 +2430,11 @@ void initState() {
                     color: Color(0xFF00AFA5),
                   ),
                   const SizedBox(width: 5),
-                  Text(
-                    "${safeTime(event["from_time"])} → ${safeTime(event["to_time"])}",
-                    style: const TextStyle(color: Colors.white70),
+                  Expanded(
+                    child: Text(
+                      "${safeTime(event["from_time"])} → ${safeTime(event["to_time"])}",
+                      style: const TextStyle(color: Colors.white70),
+                    ),
                   ),
                 ],
               ),
@@ -4096,10 +4190,7 @@ void initState() {
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: [
-                        ...mediaImages
-                            .take(10)
-                            .map((img) => _mediaItem(img))
-                            ,
+                        ...mediaImages.take(10).map((img) => _mediaItem(img)),
 
                         GestureDetector(
                           onTap: () {
@@ -4176,8 +4267,7 @@ void initState() {
 
                         ..._recentRatings
                             .take(1)
-                            .map((rating) => _buildSingleReview(rating))
-                            ,
+                            .map((rating) => _buildSingleReview(rating)),
 
                         if (_recentRatings.length > 1)
                           Center(
@@ -4206,31 +4296,75 @@ void initState() {
                       ],
                     ),
 
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 25),
 
-                  const Text(
-                    "Events",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Events",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      if (_isCoach || _isMyClub)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.add_circle,
+                            color: Color(0xFF00AFA5),
+                          ),
+                          onPressed: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    CoachAddEvents(clubid: widget.clubid),
+                              ),
+                            );
+
+                            if (result == true) {
+                              fetchClubEvents();
+                            }
+                          },
+                        ),
+                    ],
                   ),
 
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
 
                   if (isEventsLoading)
                     const Center(
-                      child: CircularProgressIndicator(color: Colors.teal),
+                      child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF00AFA5),
+                        ),
+                      ),
                     )
                   else if (clubEvents.isEmpty)
-                    const Text(
-                      "No events found.",
-                      style: TextStyle(color: Colors.white70),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: const Text(
+                        "No events found",
+                        style: TextStyle(color: Colors.white70),
+                      ),
                     )
                   else
                     Column(
                       children: clubEvents.map((event) {
+                        if (_isCoach || _isMyClub) {
+                          return _fancySwipeEventTile(event);
+                        }
+
                         return _eventTile(event);
                       }).toList(),
                     ),
@@ -4313,7 +4447,8 @@ void initState() {
             colorScheme: const ColorScheme.dark(
               primary: Color(0xFF00AFA5),
               onSurface: Colors.white,
-            ), dialogTheme: DialogThemeData(backgroundColor: Colors.black),
+            ),
+            dialogTheme: DialogThemeData(backgroundColor: Colors.black),
           ),
           child: child!,
         );
@@ -4339,7 +4474,8 @@ void initState() {
             colorScheme: const ColorScheme.dark(
               primary: Color(0xFF00AFA5),
               onSurface: Colors.white,
-            ), dialogTheme: DialogThemeData(backgroundColor: Colors.black),
+            ),
+            dialogTheme: DialogThemeData(backgroundColor: Colors.black),
           ),
           child: child!,
         );
