@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:my_skates/ADMIN/add_address.dart';
 import 'package:my_skates/ADMIN/add_attributes.dart';
 import 'package:my_skates/ADMIN/add_values.dart';
 import 'package:my_skates/ADMIN/admin_orders_page.dart';
@@ -10,22 +9,16 @@ import 'package:my_skates/COACH/add_bank_details.dart';
 import 'package:my_skates/COACH/add_club.dart';
 import 'package:my_skates/COACH/add_couch_company.dart';
 import 'package:my_skates/COACH/bank_details_page.dart';
-import 'package:my_skates/COACH/coach_add_events.dart';
 import 'package:my_skates/COACH/coach_change_phone_number.dart';
 import 'package:my_skates/COACH/coach_chat_support.dart';
 import 'package:my_skates/COACH/coach_follow_request.dart';
 import 'package:my_skates/COACH/coach_followers_list.dart';
 import 'package:my_skates/COACH/coach_following_list.dart';
-import 'package:my_skates/COACH/coach_notification_page.dart';
 import 'package:my_skates/COACH/coach_profile_page.dart';
 import 'package:my_skates/COACH/coach_return_products.dart';
-import 'package:my_skates/COACH/myorders.dart';
 import 'package:my_skates/COACH/product_review_approval_page.dart';
 import 'package:my_skates/COACH/used_product_orders_page.dart';
 import 'package:my_skates/COACH/view_clubs.dart';
-import 'package:my_skates/STUDENTS/Home_Page.dart';
-import 'package:my_skates/STUDENTS/products.dart';
-import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 import 'package:my_skates/COACH/add_coach_achievements.dart';
 import 'package:my_skates/loginpage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -38,7 +31,7 @@ class CoachSettings extends StatefulWidget {
 }
 
 class _CoachSettingsState extends State<CoachSettings> {
-  TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   String _searchQuery = "";
 

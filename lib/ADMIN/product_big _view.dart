@@ -1101,14 +1101,14 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             scrollDirection: Axis.horizontal,
-            itemBuilder: (_, __) {
+            itemBuilder: (_, _) {
               return SkeletonBox(
                 height: 245,
                 width: 160,
                 borderRadius: BorderRadius.circular(18),
               );
             },
-            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            separatorBuilder: (_, _) => const SizedBox(width: 14),
             itemCount: 4,
           ),
         ),
@@ -1691,7 +1691,7 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
                           child: Image.network(
                             imageUrl,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Icon(
+                            errorBuilder: (_, _, _) => const Icon(
                               Icons.broken_image,
                               color: Colors.white54,
                               size: 60,
@@ -1870,7 +1870,7 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
             alignment: Alignment.center,
             children: [
               Icon(icon, color: Colors.white, size: 24),
-              if (badge != null) badge,
+              ?badge,
             ],
           ),
         ),
@@ -3296,9 +3296,9 @@ class _big_viewState extends State<big_view> with TickerProviderStateMixin {
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               scrollDirection: Axis.horizontal,
-              itemBuilder: (_, __) =>
+              itemBuilder: (_, _) =>
                   const SkeletonBox(height: 190, width: 150),
-              separatorBuilder: (_, __) => const SizedBox(width: 14),
+              separatorBuilder: (_, _) => const SizedBox(width: 14),
               itemCount: 3,
             ),
           ),

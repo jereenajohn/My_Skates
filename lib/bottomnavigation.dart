@@ -7,7 +7,6 @@ import 'package:my_skates/COACH/coach_event_list.dart';
 import 'package:my_skates/COACH/coach_homepage.dart';
 import 'package:my_skates/STUDENTS/Home_Page.dart';
 import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
-import 'package:my_skates/STUDENTS/user_view_events.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppBottomNav extends StatefulWidget {
@@ -120,7 +119,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
       context,
       PageRouteBuilder(
         opaque: false,
-        pageBuilder: (_, __, ___) => targetPage,
+        pageBuilder: (_, _, _) => targetPage,
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
       ),

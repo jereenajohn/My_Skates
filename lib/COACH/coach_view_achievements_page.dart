@@ -184,7 +184,7 @@ class _CoachViewAchievementsPageState extends State<CoachViewAchievementsPage> {
             return ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: achievements.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (_, index) {
                 final a = achievements[index];
 
@@ -413,7 +413,7 @@ class _AchievementsSkeleton extends StatelessWidget {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: 4,
-      itemBuilder: (_, __) => Container(
+      itemBuilder: (_, _) => Container(
         margin: const EdgeInsets.only(bottom: 12),
         height: 90,
         decoration: BoxDecoration(

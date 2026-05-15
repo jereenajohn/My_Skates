@@ -16,15 +16,12 @@ import 'package:my_skates/ADMIN/add_state.dart';
 import 'package:my_skates/ADMIN/admin_notificationpage.dart';
 import 'package:my_skates/ADMIN/admin_orders_page.dart';
 import 'package:my_skates/ADMIN/admin_usedproducts.dart';
-import 'package:my_skates/ADMIN/approved_products.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/menu.dart';
 import 'package:my_skates/ADMIN/platform_fee.dart';
 import 'package:my_skates/ADMIN/productapprove_tab.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
-import 'package:my_skates/COACH/coach_chat_support.dart';
 import 'package:my_skates/COACH/used_products.dart';
-import 'package:my_skates/STUDENTS/user_connect_coaches.dart';
 import 'package:my_skates/api.dart';
 import 'package:my_skates/STUDENTS/profile_page.dart';
 import 'package:my_skates/bottomnavigation.dart';
@@ -860,8 +857,9 @@ class _DashboardPageState extends State<DashboardPage> {
                                                         child,
                                                         progress,
                                                       ) {
-                                                        if (progress == null)
+                                                        if (progress == null) {
                                                           return child;
+                                                        }
                                                         return Container(
                                                           color: Colors
                                                               .grey

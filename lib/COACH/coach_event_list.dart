@@ -724,7 +724,7 @@ class _CoachEventsState extends State<CoachEvents> {
                             ),
                           );
                         },
-                        errorBuilder: (_, __, ___) => Container(
+                        errorBuilder: (_, _, _) => Container(
                           color: Colors.white10,
                           child: const Center(
                             child: Icon(Icons.broken_image, color: Colors.white54),

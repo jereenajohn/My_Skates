@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:my_skates/COACH/add_coach_achievements.dart';
 import 'package:my_skates/STUDENTS/add_student_achievements.dart';
 import 'package:my_skates/STUDENTS/student_achievements_update.dart';
 import 'package:my_skates/api.dart';
@@ -185,7 +184,7 @@ class _StudentViewAchievementsPageState extends State<StudentViewAchievementsPag
             return ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: achievements.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (_, index) {
                 final a = achievements[index];
 
@@ -414,7 +413,7 @@ class _AchievementsSkeleton extends StatelessWidget {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: 4,
-      itemBuilder: (_, __) => Container(
+      itemBuilder: (_, _) => Container(
         margin: const EdgeInsets.only(bottom: 12),
         height: 90,
         decoration: BoxDecoration(

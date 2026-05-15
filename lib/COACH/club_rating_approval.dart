@@ -41,10 +41,10 @@ class ClubRatingApprovalPage extends StatefulWidget {
   final String clubName;
 
   const ClubRatingApprovalPage({
-    Key? key,
+    super.key,
     required this.clubId,
     required this.clubName,
-  }) : super(key: key);
+  });
 
   @override
   State<ClubRatingApprovalPage> createState() => _ClubRatingApprovalPageState();

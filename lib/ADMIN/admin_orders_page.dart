@@ -1002,7 +1002,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),
@@ -1756,11 +1756,11 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                           if (_selectedView == OrderViewType.myOrders)
                             ...boughtProducts
                                 .map((item) => _buildBoughtProductCard(item))
-                                .toList()
+                                
                           else
                             ...orders
                                 .map((order) => _buildOrderCard(order))
-                                .toList(),
+                                ,
 
                           _buildAllOrdersPagination(),
 
@@ -2315,7 +2315,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                     ),
                   ),
                 )
-                .toList(),
+                ,
 
             if (order.items.length > 2)
               GestureDetector(
@@ -2706,7 +2706,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
               '$api${item.productImage}',
               fit: BoxFit.cover,
               gaplessPlayback: true,
-              errorBuilder: (_, __, ___) => const Icon(
+              errorBuilder: (_, _, _) => const Icon(
                 Icons.image_not_supported,
                 color: Colors.white38,
                 size: 20,
@@ -2725,7 +2725,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
         '$api${item.productImage}',
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const Icon(
+        errorBuilder: (_, _, _) => const Icon(
           Icons.image_not_supported,
           color: Colors.white38,
           size: 20,
@@ -2748,7 +2748,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
         '$api$imagePath',
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const Icon(
+        errorBuilder: (_, _, _) => const Icon(
           Icons.image_not_supported,
           color: Colors.white38,
           size: 24,
@@ -2891,8 +2891,8 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   bool _isRefreshing = false;
   String? _fetchError;
   bool _hasTriggeredReviewPopup = false;
-  Map<int, bool> _reviewCheckedStatus = {};
-  Map<int, ReviewModel?> _existingReviews = {};
+  final Map<int, bool> _reviewCheckedStatus = {};
+  final Map<int, ReviewModel?> _existingReviews = {};
 
   final TextEditingController _customReasonController = TextEditingController();
 
@@ -4448,7 +4448,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
               '$api${item.productImage}',
               fit: BoxFit.cover,
               gaplessPlayback: true,
-              errorBuilder: (_, __, ___) => const Icon(
+              errorBuilder: (_, _, _) => const Icon(
                 Icons.image_not_supported,
                 color: Colors.white38,
                 size: 30,
@@ -4467,7 +4467,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
         '$api${item.productImage}',
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const Icon(
+        errorBuilder: (_, _, _) => const Icon(
           Icons.image_not_supported,
           color: Colors.white38,
           size: 30,
@@ -4496,7 +4496,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     return Image.network(
       imageUrl,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) =>
+      errorBuilder: (_, _, _) =>
           const Icon(Icons.image_not_supported_outlined, color: Colors.white38),
     );
   }
@@ -5405,8 +5405,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                           ),
                         ),
                         if (_order.status.toLowerCase() == 'delivered' &&
-                            hasReview &&
-                            reviewedProduct != null)
+                            hasReview)
                           Container(
                             margin: const EdgeInsets.only(right: 8),
                             child: GestureDetector(
@@ -6006,7 +6005,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                                   ),
                                               ],
                                             );
-                                          }).toList(),
+                                          }),
                                         ],
                                       ),
                                     ),
@@ -6121,7 +6120,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                   ],
                                 ),
                               );
-                            }).toList(),
+                            }),
 
                             // Order totals summary
                             if (_order.summary != null) ...[
@@ -6386,7 +6385,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                               ),
                                             ),
                                           )
-                                          .toList(),
+                                          ,
                                       const SizedBox(height: 8),
                                       const Divider(
                                         color: Colors.white10,
@@ -6476,7 +6475,7 @@ class ReviewDialog extends StatelessWidget {
   final bool hasReview;
 
   const ReviewDialog({
-    Key? key,
+    super.key,
     required this.productId,
     required this.productTitle,
     required this.variantId,
@@ -6484,7 +6483,7 @@ class ReviewDialog extends StatelessWidget {
     this.productImage,
     this.variantImage,
     this.hasReview = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

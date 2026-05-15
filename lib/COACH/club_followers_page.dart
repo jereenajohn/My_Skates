@@ -129,7 +129,7 @@ Future<void> kickFollower(int userId, int index) async {
                 )
               : ListView.separated(
                   itemCount: followers.length,
-                  separatorBuilder: (_, __) => const Divider(
+                  separatorBuilder: (_, _) => const Divider(
                     color: Colors.white12,
                     height: 1,
                   ),

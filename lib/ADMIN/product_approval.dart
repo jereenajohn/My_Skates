@@ -214,7 +214,7 @@ Future<void> submitFinalApproval(
                         ],
                       ),
                     );
-                  }).toList(),
+                  }),
 
                   const SizedBox(height: 16),
                   const Text(
@@ -269,7 +269,7 @@ Future<void> submitFinalApproval(
                           Navigator.pop(productDialogContext);
                         }
 
-                        ScaffoldMessenger.of(this.context).showSnackBar(
+                        ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
                               failedCount == 0
@@ -1019,7 +1019,7 @@ Future<void> submitFinalApproval(
                                       ],
                                     ),
                                   );
-                                }).toList(),
+                                }),
 
                                 const SizedBox(height: 16),
 

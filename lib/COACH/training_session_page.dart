@@ -9,7 +9,7 @@ import 'package:my_skates/COACH/coach_view_training_registered_details.dart';
 import 'package:my_skates/bottomnavigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
-import 'package:latlong2/latlong.dart'; // <-- REQUIRED
+// <-- REQUIRED
 
 import 'map_picker_page.dart';
 
@@ -443,7 +443,7 @@ class _CreateTrainingSessionPageState extends State<CreateTrainingSessionPage> {
                           width: 70,
                           height: 70,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) {
+                          errorBuilder: (_, _, _) {
                             return _imagePlaceholder();
                           },
                         )
@@ -732,7 +732,7 @@ class _CreateTrainingSessionPageState extends State<CreateTrainingSessionPage> {
                       width: 80,
                       height: 80,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                      errorBuilder: (_, _, _) => _imagePlaceholder(),
                     )
                   : _imagePlaceholder(),
             ),

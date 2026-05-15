@@ -770,7 +770,6 @@ Future<void> confirmToggleOfferStatus(Map<String, dynamic> offer) async {
             useMaterial3: true,
             brightness: Brightness.dark,
             scaffoldBackgroundColor: const Color(0xFF001A18),
-            dialogBackgroundColor: const Color(0xFF071412),
             canvasColor: const Color(0xFF071412),
             colorScheme: const ColorScheme.dark(
               primary: Color(0xFF00F5D4),
@@ -826,7 +825,7 @@ Future<void> confirmToggleOfferStatus(Map<String, dynamic> offer) async {
                 foregroundColor: const Color(0xFF00F5D4),
                 textStyle: const TextStyle(fontWeight: FontWeight.w800),
               ),
-            ),
+            ), dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF071412)),
           ),
           child: child ?? const SizedBox.shrink(),
         );
@@ -1048,7 +1047,7 @@ Future<void> confirmToggleOfferStatus(Map<String, dynamic> offer) async {
               ),
               Switch(
                 value: isActive,
-                activeColor: const Color(0xFF00F5D4),
+                activeThumbColor: const Color(0xFF00F5D4),
                 onChanged: (value) {
                   setState(() {
                     isActive = value;
@@ -1546,7 +1545,7 @@ Future<void> confirmToggleOfferStatus(Map<String, dynamic> offer) async {
                                                 width: 68,
                                                 height: 68,
                                                 fit: BoxFit.cover,
-                                                errorBuilder: (_, __, ___) {
+                                                errorBuilder: (_, _, _) {
                                                   return imageFallback(68, 68);
                                                 },
                                               ),
@@ -1916,7 +1915,7 @@ Future<void> confirmToggleOfferStatus(Map<String, dynamic> offer) async {
                                             ),
                                           ),
                                         );
-                                      }).toList(),
+                                      }),
                                       if (variants.length > 3)
                                         GestureDetector(
                                           onTap: () {

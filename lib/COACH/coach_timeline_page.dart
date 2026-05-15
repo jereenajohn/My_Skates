@@ -312,7 +312,7 @@ class _PersonListTile extends StatelessWidget {
                         border: Border.all(color: typeColor.withOpacity(0.5)),
                       ),
                       child: Text(
-                        username.isNotEmpty ? "@${username}" : "USER",
+                        username.isNotEmpty ? "@$username" : "USER",
                         style: TextStyle(
                           color: typeColor,
                           fontSize: 11,
@@ -706,7 +706,7 @@ class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<CoachProfileProvider>(
-      builder: (_, p, __) {
+      builder: (_, p, _) {
         // ✅ Skeleton instead of spinner
         if (p.loading) {
           return const ProfileHeaderSkeleton();
@@ -869,7 +869,7 @@ class _FeedList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<CoachFeedProvider>(
-      builder: (_, p, __) {
+      builder: (_, p, _) {
         // ✅ Skeleton loading
         if (p.loading) {
           return const FeedSkeletonList();
@@ -1606,7 +1606,6 @@ class _CreatePostSheet extends StatefulWidget {
   final List<String> existingImageUrls;
 
   const _CreatePostSheet({
-    super.key,
     required this.feedProvider,
     this.isEdit = false,
     this.feedId,

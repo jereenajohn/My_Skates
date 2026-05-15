@@ -289,7 +289,7 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),
@@ -453,7 +453,7 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
       _imageUrl(image),
       fit: BoxFit.cover,
       gaplessPlayback: true,
-      errorBuilder: (_, __, ___) {
+      errorBuilder: (_, _, _) {
         return const Icon(
           Icons.image_not_supported_outlined,
           color: Colors.white38,
