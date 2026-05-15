@@ -204,14 +204,14 @@ class _ApprovedCoachState extends State<ApprovedCoach> {
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) =>
                                   Container(
-                                width: 60,
-                                height: 60,
-                                color: Colors.grey[900],
-                                child: const Icon(
-                                  Icons.broken_image,
-                                  color: Colors.grey,
-                                ),
-                              ),
+                                    width: 60,
+                                    height: 60,
+                                    color: Colors.grey[900],
+                                    child: const Icon(
+                                      Icons.broken_image,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
                             )
                           : Container(
                               width: 60,
@@ -226,12 +226,125 @@ class _ApprovedCoachState extends State<ApprovedCoach> {
                   ],
                 ),
                 const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    const SizedBox(width: 25),
+
+                    GestureDetector(
+                      onTap: () async {
+                        bool? confirm = await showDialog(
+                          context: context,
+                          barrierDismissible: true,
+                          builder: (context) {
+                            return AlertDialog(
+                              backgroundColor: const Color(0xFF1E1E1E),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              title: const Text(
+                                "Confirm Action",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              content: const Text(
+                                "Are you sure you want to disapprove this coach?",
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context, false);
+                                  },
+                                  child: const Text(
+                                    "Cancel",
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                ),
+
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.redAccent,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.pop(context, true);
+                                  },
+                                  child: const Text(
+                                    "Disapprove",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+
+                        if (confirm == true) {
+                          updatecoach(c['id'], "disapproved");
+                        }
+                      },
+                      child: Container(
+                        height: 30,
+                        width: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            "Disapprove",
+                            style: TextStyle(color: Colors.white, fontSize: 15),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> updatecoach(int id, String status) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    try {
+      var response = await http.put(
+        Uri.parse("$api/api/myskates/coach/approval/$id/"),
+        headers: {"Authorization": "Bearer $token"},
+        body: {"approval_status": status},
+      );
+
+      print("UPDATE STATUS : ${response.statusCode}");
+      print("UPDATE BODY : ${response.body}");
+
+      if (response.statusCode == 200) {
+        // REMOVE CARD INSTANTLY
+        setState(() {
+          coach.removeWhere((item) => item['id'] == id);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              status == "approved" ? "Coach approved" : "Coach disapproved",
+            ),
+            backgroundColor: status == "approved" ? Colors.green : Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print("UPDATE ERROR : $e");
+    }
   }
 
   @override

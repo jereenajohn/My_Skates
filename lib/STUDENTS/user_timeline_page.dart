@@ -2,12 +2,11 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:my_skates/COACH/add_coach_achievements.dart';
-import 'package:my_skates/COACH/coach_view_achievements_page.dart';
 import 'package:my_skates/STUDENTS/add_student_achievements.dart';
 import 'package:my_skates/STUDENTS/student_view_achievements_page.dart';
 import 'package:my_skates/widgets/coach_repost_composer_sheet.dart';
 import 'package:my_skates/widgets/coachfeedcommentsheet.dart';
+import 'package:my_skates/providers/coach_feed_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -15,7 +14,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api.dart';
 import '../providers/coach_profile_provider.dart';
-import 'package:my_skates/providers/coach_feed_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 const Color accentColor = Color(0xFF2EE6A6);
@@ -374,7 +372,7 @@ class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<CoachProfileProvider>(
-      builder: (_, p, __) {
+      builder: (_, p, _) {
         //  Skeleton instead of spinner
         if (p.loading) {
           return const ProfileHeaderSkeleton();
@@ -537,7 +535,7 @@ class _FeedList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<CoachFeedProvider>(
-      builder: (_, p, __) {
+      builder: (_, p, _) {
         // Skeleton loading
         if (p.loading) {
           return const FeedSkeletonList();
@@ -603,6 +601,18 @@ Future<List<Map<String, dynamic>>> fetchAchievements() async {
 class _FeedCard extends StatelessWidget {
   final dynamic feed;
   const _FeedCard({required this.feed});
+    String _fullImageUrl(dynamic value) {
+    final url = (value ?? "").toString();
+
+    if (url.isEmpty) return "";
+
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+
+    return "$api$url";
+  }
+
   Future<void> _shareFeed(BuildContext context, int actualFeedId) async {
     final int feedId = actualFeedId;
 
@@ -613,6 +623,7 @@ class _FeedCard extends StatelessWidget {
     //  PRODUCTION DEEP LINK
     final String deepLink = "https://myskates.app/feed/$feedId";
     // (for now you can use ngrok if needed)
+
 
     final String shareText = [
       if (desc.isNotEmpty) desc,
@@ -1233,24 +1244,31 @@ class _FeedCard extends StatelessWidget {
     }
   }
 
-  void _openEditSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      useSafeArea: true,
-      barrierColor: Colors.black.withOpacity(0.75),
-      builder: (_) => _CreatePostSheet(
-        feedProvider: context.read<CoachFeedProvider>(),
-        isEdit: true,
-        feedId: feed["id"],
-        initialText: feed["description"] ?? "",
-        existingImageUrls: (feed["feed_image"] ?? [])
-            .map<String>((e) => "$api${e["image"]}")
-            .toList(),
-      ),
-    );
-  }
+void _openEditSheet(BuildContext context) {
+  final List feedImages = feed["feed_image"] is List ? feed["feed_image"] : [];
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    useSafeArea: true,
+    barrierColor: Colors.black.withOpacity(0.75),
+    builder: (_) => _CreatePostSheet(
+      feedProvider: context.read<CoachFeedProvider>(),
+      isEdit: true,
+      feedId: feed["id"],
+      initialText: feed["description"] ?? "",
+      existingImageUrls: feedImages
+          .map<String>((e) => _fullImageUrl(e["image"]))
+          .where((url) => url.isNotEmpty)
+          .toList(),
+      existingImageIds: feedImages
+          .where((e) => e["id"] != null)
+          .map<int>((e) => int.parse(e["id"].toString()))
+          .toList(),
+    ),
+  );
+}
 }
 
 /* ───────────────────────── MEDIA ───────────────────────── */
@@ -1363,15 +1381,17 @@ class _CreatePostSheet extends StatefulWidget {
   final int? feedId;
   final String initialText;
   final List<String> existingImageUrls;
+  final List<int> existingImageIds;
 
   const _CreatePostSheet({
-    super.key,
     required this.feedProvider,
     this.isEdit = false,
     this.feedId,
     this.initialText = "",
     this.existingImageUrls = const [],
+    this.existingImageIds = const [],
   });
+
 
   @override
   State<_CreatePostSheet> createState() => _CreatePostSheetState();
@@ -1382,6 +1402,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   final List<File> images = [];
   final picker = ImagePicker();
   final List<String> networkImages = [];
+  final List<int> existingIds = [];
 
   bool posting = false;
   bool showEmojiPicker = false;
@@ -1389,18 +1410,15 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   late final List<String> _allEmojis;
 
   static const Color accentColor = Color(0xFF2EE6A6);
+@override
+void initState() {
+  super.initState();
+  _allEmojis = getAllEmojis();
 
-  @override
-  void initState() {
-    super.initState();
-    _allEmojis = getAllEmojis();
-
-    //  THIS LINE SHOWS DESCRIPTION WHEN EDITING
-    controller.text = widget.initialText;
-
-    //  THIS LINE SHOWS EXISTING IMAGES
-    networkImages.addAll(widget.existingImageUrls);
-  }
+  controller.text = widget.initialText;
+  networkImages.addAll(widget.existingImageUrls);
+  existingIds.addAll(widget.existingImageIds);
+}
 
   @override
   void dispose() {
@@ -1569,14 +1587,36 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                           scrollDirection: Axis.horizontal,
                           children: [
                             // EXISTING (NETWORK) IMAGES
-                            ...networkImages.map(
-                              (url) => _imagePreview(
-                                Image.network(url, fit: BoxFit.cover),
-                                onRemove: () {
-                                  setState(() => networkImages.remove(url));
-                                },
-                              ),
-                            ),
+                            ...networkImages.asMap().entries.map(
+  (entry) {
+    final index = entry.key;
+    final url = entry.value;
+
+    return _imagePreview(
+      Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) {
+          return Container(
+            color: Colors.white10,
+            child: const Icon(
+              Icons.broken_image,
+              color: Colors.white54,
+            ),
+          );
+        },
+      ),
+      onRemove: () {
+        setState(() {
+          networkImages.removeAt(index);
+          if (index < existingIds.length) {
+            existingIds.removeAt(index);
+          }
+        });
+      },
+    );
+  },
+),
 
                             // NEW (LOCAL FILE) IMAGES
                             ...images.map(
@@ -1679,13 +1719,24 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   }
 
   ///  ONLY CHANGE: Provider-based submit
-  Future<void> _submit() async {
-    setState(() => posting = true);
+Future<void> _submit() async {
+  setState(() => posting = true);
 
+  if (widget.isEdit && widget.feedId != null) {
+    await widget.feedProvider.updateFeed(
+      widget.feedId!,
+  controller.text,
+  images,
+  existingIds,
+    );
+  } else {
     await widget.feedProvider.postFeed(controller.text, images);
+  }
 
+  if (mounted) {
     Navigator.pop(context);
   }
+}
 }
 
 class _SportyHandle extends StatelessWidget {

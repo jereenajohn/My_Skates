@@ -451,7 +451,7 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
         return;
       }
       final response = await http.put(
-        Uri.parse('$api/api/myskates/platform/fee/update/${_currentFeeId}/'),
+        Uri.parse('$api/api/myskates/platform/fee/update/$_currentFeeId/'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -513,7 +513,7 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
       }
       final response = await http.put(
         Uri.parse(
-          '$api/api/myskates/product/percentage/update/${_currentPercentageId}/',
+          '$api/api/myskates/product/percentage/update/$_currentPercentageId/',
         ),
         headers: {
           'Content-Type': 'application/json',
@@ -576,7 +576,7 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
       }
       final response = await http.put(
         Uri.parse(
-          '$api/api/myskates/used/product/percentage/detail/view/${_currentUsedProductPercentageId}/',
+          '$api/api/myskates/used/product/percentage/detail/view/$_currentUsedProductPercentageId/',
         ),
         headers: {
           'Content-Type': 'application/json',
@@ -635,7 +635,7 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
       }
       final response = await http.put(
         Uri.parse(
-          '$api/api/myskates/convenience/fee/update/${_currentConvenienceFeeId}/',
+          '$api/api/myskates/convenience/fee/update/$_currentConvenienceFeeId/',
         ),
         headers: {
           'Content-Type': 'application/json',
@@ -729,7 +729,7 @@ class _AdminPlatformFeePageState extends State<AdminPlatformFeePage>
       }
       final response = await http.put(
         Uri.parse(
-          '$api/api/myskates/shipment/charge/update/${_currentShipmentId}/',
+          '$api/api/myskates/shipment/charge/update/$_currentShipmentId/',
         ),
         headers: {
           'Content-Type': 'application/json',

@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:my_skates/ADMIN/add_attributes.dart';
 import 'package:my_skates/ADMIN/add_chat_support_questions.dart';
@@ -6,9 +5,7 @@ import 'package:my_skates/ADMIN/add_product_banner.dart';
 import 'package:my_skates/ADMIN/add_skaters_type.dart';
 import 'package:my_skates/ADMIN/add_values.dart';
 import 'package:my_skates/ADMIN/admin_change_phone_number.dart';
-import 'package:my_skates/ADMIN/admin_orders_page.dart';
-import 'package:my_skates/ADMIN/dashboard.dart';
-import 'package:my_skates/COACH/add_club.dart';
+import 'package:my_skates/ADMIN/payable_products.dart';
 import 'package:my_skates/COACH/coach_return_products.dart';
 import 'package:my_skates/COACH/product_review_approval_page.dart';
 import 'package:my_skates/loginpage.dart';
@@ -57,7 +54,8 @@ class _MenuPageState extends State<MenuPage> {
         matchesSearch("Attributes") ||
         matchesSearch("Return/Refund Requests") ||
         matchesSearch("Values") ||
-        matchesSearch("Product Banners");
+        matchesSearch("Product Banners") ||
+        matchesSearch("Payable Products");
 
     final bool showUserSettings =
         matchesSearch("Skaters Type") || matchesSearch("Change Phone Number");
@@ -136,6 +134,12 @@ class _MenuPageState extends State<MenuPage> {
                                 showViewDropdown: true,
                                 allowStatusUpdate: true,
                               ),
+                            ),
+                          if (matchesSearch("Payable Products"))
+                            sectionTile(
+                              icon: Icons.tune,
+                              title: "Payable Products",
+                              page: const ExpiredReturnPolicyProductsPage(),
                             ),
                           if (matchesSearch("Values"))
                             sectionTile(

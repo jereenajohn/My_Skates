@@ -1160,7 +1160,7 @@ class _UsedProductOrderDetailPageState
         imageUrl,
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const Icon(
+        errorBuilder: (_, _, _) => const Icon(
           Icons.image_not_supported,
           color: Colors.white38,
           size: 30,
@@ -1488,7 +1488,7 @@ class _UsedProductOrderDetailPageState
             ),
           ),
           const SizedBox(height: 4),
-          ...orderData.items.map(_buildItemCard).toList(),
+          ...orderData.items.map(_buildItemCard),
         ],
       ),
     );

@@ -1522,7 +1522,7 @@ class _ReturnRefundProductsScreenState
                           width: 70,
                           height: 70,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+                          errorBuilder: (_, _, _) => Container(
                             width: 70,
                             height: 70,
                             color: Colors.white10,
@@ -2394,7 +2394,7 @@ class _RefundRequestDetailScreenState extends State<RefundRequestDetailScreen> {
                               width: 82,
                               height: 82,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
+                              errorBuilder: (_, _, _) => Container(
                                 width: 82,
                                 height: 82,
                                 color: Colors.white10,

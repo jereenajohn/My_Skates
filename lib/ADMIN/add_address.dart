@@ -480,7 +480,7 @@ class _AddAddressState extends State<AddAddress> {
                   border: Border.all(color: Colors.white24),
                 ),
                 child: DropdownButtonFormField<int>(
-                  value: selectedCountryId,
+                  initialValue: selectedCountryId,
                   dropdownColor: const Color(0xFF1A1A1A),
                   decoration: const InputDecoration(
                     labelText: 'Country',
@@ -530,7 +530,7 @@ class _AddAddressState extends State<AddAddress> {
                     border: Border.all(color: Colors.white24),
                   ),
                   child: DropdownButtonFormField<int>(
-                    value: selectedStateId,
+                    initialValue: selectedStateId,
                     dropdownColor: const Color(0xFF1A1A1A),
                     decoration: const InputDecoration(
                       labelText: 'State',
@@ -582,7 +582,7 @@ class _AddAddressState extends State<AddAddress> {
                     border: Border.all(color: Colors.white24),
                   ),
                   child: DropdownButtonFormField<int>(
-                    value: selectedDistrictId,
+                    initialValue: selectedDistrictId,
                     dropdownColor: const Color(0xFF1A1A1A),
                     decoration: const InputDecoration(
                       labelText: 'District',
@@ -644,7 +644,7 @@ class _AddAddressState extends State<AddAddress> {
                     ),
                     Switch(
                       value: isDefault,
-                      activeColor: Colors.tealAccent,
+                      activeThumbColor: Colors.tealAccent,
                       onChanged: (v) => setState(() => isDefault = v),
                     ),
                   ],

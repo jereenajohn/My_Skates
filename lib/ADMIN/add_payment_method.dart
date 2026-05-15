@@ -906,7 +906,7 @@ class _AdminPaymentMethodsPageState extends State<AdminPaymentMethodsPage>
                   onChanged: _isSaving || _isDeleting
                       ? null
                       : (_) => _togglePaymentMethodStatus(method),
-                  activeColor: Colors.tealAccent,
+                  activeThumbColor: Colors.tealAccent,
                   inactiveThumbColor: Colors.grey,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),

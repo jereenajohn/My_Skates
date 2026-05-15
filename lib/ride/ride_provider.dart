@@ -44,7 +44,7 @@ class RideProvider extends ChangeNotifier {
       final next = route[i];
 
       final dt =
-          (next.timestamp?.difference(prev.timestamp ?? DateTime.now()).inSeconds ??
+          (next.timestamp.difference(prev.timestamp ?? DateTime.now()).inSeconds ??
               1);
       if (dt <= 0) continue;
 
@@ -187,10 +187,10 @@ class RideProvider extends ChangeNotifier {
       "current_speed_kmh": double.parse(currentSpeedKmh.toStringAsFixed(2)),
       "max_speed_kmh": double.parse(maxSpeedKmh.toStringAsFixed(2)),
       "is_auto_paused": isAutoPaused,
-      "start_latitude": first != null ? first.latitude.toString() : null,
-      "start_longitude": first != null ? first.longitude.toString() : null,
-      "end_latitude": last != null ? last.latitude.toString() : null,
-      "end_longitude": last != null ? last.longitude.toString() : null,
+      "start_latitude": first?.latitude.toString(),
+      "start_longitude": first?.longitude.toString(),
+      "end_latitude": last?.latitude.toString(),
+      "end_longitude": last?.longitude.toString(),
       "route_points": route
           .map(
             (p) => {
@@ -200,7 +200,7 @@ class RideProvider extends ChangeNotifier {
               "altitude": p.altitude,
               "speed": p.speed,
               "heading": p.heading,
-              "timestamp": p.timestamp?.toIso8601String(),
+              "timestamp": p.timestamp.toIso8601String(),
             },
           )
           .toList(),
@@ -252,7 +252,7 @@ class RideProvider extends ChangeNotifier {
     );
 
     final dt =
-        (p.timestamp?.difference(_lastPos!.timestamp ?? DateTime.now()).inSeconds ??
+        (p.timestamp.difference(_lastPos!.timestamp ?? DateTime.now()).inSeconds ??
             1);
 
     if (dt <= 0) return;

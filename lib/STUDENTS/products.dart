@@ -799,7 +799,7 @@ class _UserProductssState extends State<UserProducts> {
                             : Image.network(
                                 p['image'],
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) {
+                                errorBuilder: (_, _, _) {
                                   return const Center(
                                     child: Icon(
                                       Icons.broken_image,
@@ -1038,8 +1038,8 @@ class _UserProductssState extends State<UserProducts> {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: 5,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, __) {
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (_, _) {
           return Shimmer.fromColors(
             baseColor: Colors.grey.shade900,
             highlightColor: Colors.grey.shade800,
@@ -1067,7 +1067,7 @@ class _UserProductssState extends State<UserProducts> {
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemBuilder: (_, __) {
+      itemBuilder: (_, _) {
         return Shimmer.fromColors(
           baseColor: Colors.grey.shade900,
           highlightColor: Colors.grey.shade800,

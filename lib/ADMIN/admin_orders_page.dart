@@ -586,7 +586,6 @@ class _Admin_order_pageState extends State<Admin_order_page> {
 
       String endpoint;
 
-
       if (_selectedView == OrderViewType.allOrders) {
         endpoint = '$api/api/myskates/all/orders/';
       } else if (_selectedView == OrderViewType.coachProductOrders) {
@@ -1003,7 +1002,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),
@@ -1757,11 +1756,11 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                           if (_selectedView == OrderViewType.myOrders)
                             ...boughtProducts
                                 .map((item) => _buildBoughtProductCard(item))
-                                .toList()
+                                
                           else
                             ...orders
                                 .map((order) => _buildOrderCard(order))
-                                .toList(),
+                                ,
 
                           _buildAllOrdersPagination(),
 
@@ -2162,46 +2161,46 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                 const SizedBox(width: 8),
 
                 // Status badge — tappable in My Sold Orders only, read-only in All Orders & My Orders
-                // GestureDetector(
-                //   onTap: _selectedView == OrderViewType.mySoldOrders
-                //       ? () => _showStatusBottomSheet(order)
-                //       : null,
-                //   child: Container(
-                //     padding: const EdgeInsets.symmetric(
-                //       horizontal: 10,
-                //       vertical: 5,
-                //     ),
-                //     decoration: BoxDecoration(
-                //       color: _getStatusColor(order.status).withOpacity(0.2),
-                //       borderRadius: BorderRadius.circular(16),
-                //       border: Border.all(
-                //         color: _getStatusColor(order.status).withOpacity(0.5),
-                //         width: 0.5,
-                //       ),
-                //     ),
-                //     child: Row(
-                //       mainAxisSize: MainAxisSize.min,
-                //       children: [
-                //         Text(
-                //           order.status,
-                //           style: TextStyle(
-                //             color: _getStatusColor(order.status),
-                //             fontSize: 11,
-                //             fontWeight: FontWeight.w500,
-                //           ),
-                //         ),
-                //         if (_selectedView == OrderViewType.mySoldOrders) ...[
-                //           const SizedBox(width: 4),
-                //           Icon(
-                //             Icons.expand_more_rounded,
-                //             color: _getStatusColor(order.status),
-                //             size: 14,
-                //           ),
-                //         ],
-                //       ],
-                //     ),
-                //   ),
-                // ),
+                GestureDetector(
+                  onTap: _selectedView == OrderViewType.mySoldOrders
+                      ? () => _showStatusBottomSheet(order)
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(order.status).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _getStatusColor(order.status).withOpacity(0.5),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          order.status,
+                          style: TextStyle(
+                            color: _getStatusColor(order.status),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (_selectedView == OrderViewType.mySoldOrders) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.expand_more_rounded,
+                            color: _getStatusColor(order.status),
+                            size: 14,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
 
@@ -2316,7 +2315,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                     ),
                   ),
                 )
-                .toList(),
+                ,
 
             if (order.items.length > 2)
               GestureDetector(
@@ -2707,7 +2706,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
               '$api${item.productImage}',
               fit: BoxFit.cover,
               gaplessPlayback: true,
-              errorBuilder: (_, __, ___) => const Icon(
+              errorBuilder: (_, _, _) => const Icon(
                 Icons.image_not_supported,
                 color: Colors.white38,
                 size: 20,
@@ -2726,7 +2725,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
         '$api${item.productImage}',
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const Icon(
+        errorBuilder: (_, _, _) => const Icon(
           Icons.image_not_supported,
           color: Colors.white38,
           size: 20,
@@ -2749,7 +2748,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
         '$api$imagePath',
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const Icon(
+        errorBuilder: (_, _, _) => const Icon(
           Icons.image_not_supported,
           color: Colors.white38,
           size: 24,
@@ -2892,8 +2891,8 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   bool _isRefreshing = false;
   String? _fetchError;
   bool _hasTriggeredReviewPopup = false;
-  Map<int, bool> _reviewCheckedStatus = {};
-  Map<int, ReviewModel?> _existingReviews = {};
+  final Map<int, bool> _reviewCheckedStatus = {};
+  final Map<int, ReviewModel?> _existingReviews = {};
 
   final TextEditingController _customReasonController = TextEditingController();
 
@@ -3163,118 +3162,111 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     }
   }
 
-Future<void> _updateSellerPaymentStatus({
-  required int sellerId,
-  required String status,
-}) async {
-  if (_updatingSellerPaymentIds.contains(sellerId)) return;
+  Future<void> _updateSellerPaymentStatus({
+    required int sellerId,
+    required String status,
+  }) async {
+    if (_updatingSellerPaymentIds.contains(sellerId)) return;
 
-  final cleanStatus = status.trim().toUpperCase();
+    final cleanStatus = status.trim().toUpperCase();
 
-  if (!['PENDING', 'PROCESSING', 'PAID'].contains(cleanStatus)) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Invalid seller payment status'),
-        backgroundColor: Colors.redAccent,
-      ),
-    );
-    return;
-  }
-
-  setState(() => _updatingSellerPaymentIds.add(sellerId));
-
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('access');
-
-    if (token == null) {
-      if (!mounted) return;
+    if (!['PENDING', 'PROCESSING', 'PAID'].contains(cleanStatus)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Authentication token missing'),
+          content: Text('Invalid seller payment status'),
           backgroundColor: Colors.redAccent,
         ),
       );
       return;
     }
 
-    final uri = Uri.parse(
-      '$api/api/myskates/coach/payment/status/${_order.id}/$sellerId/',
-    );
+    setState(() => _updatingSellerPaymentIds.add(sellerId));
 
-    final requestBody = {
-      'coach_payment_status': cleanStatus,
-    };
-
-    final response = await http.patch(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode(requestBody),
-    );
-
-    print("SELLER PAYMENT STATUS API: $uri");
-    print("SELLER PAYMENT STATUS BODY: ${jsonEncode(requestBody)}");
-    print("SELLER PAYMENT STATUS CODE: ${response.statusCode}");
-    print("SELLER PAYMENT STATUS RESPONSE: ${response.body}");
-
-    Map<String, dynamic>? decoded;
     try {
-      final parsed = jsonDecode(response.body);
-      if (parsed is Map<String, dynamic>) decoded = parsed;
-    } catch (_) {}
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access');
 
-    final msg =
-        decoded?['message']?.toString() ??
-        decoded?['error']?.toString() ??
-        decoded?['detail']?.toString() ??
-        decoded?['non_field_errors']?.toString() ??
-        decoded?['coach_payment_status']?.toString() ??
-        '';
-
-    if (!mounted) return;
-
-    if (response.statusCode == 200 || response.statusCode == 202) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            msg.isNotEmpty
-                ? msg
-                : 'Seller payment status updated successfully',
+      if (token == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Authentication token missing'),
+            backgroundColor: Colors.redAccent,
           ),
-          backgroundColor: Colors.green,
-        ),
+        );
+        return;
+      }
+
+      final uri = Uri.parse(
+        '$api/api/myskates/coach/payment/status/${_order.id}/$sellerId/',
       );
 
-      await _fetchOrderDetail();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            msg.isNotEmpty
-                ? msg
-                : 'Failed to update seller payment status',
-          ),
-          backgroundColor: Colors.redAccent,
-        ),
+      final requestBody = {'coach_payment_status': cleanStatus};
+
+      final response = await http.patch(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
       );
-    }
-  } catch (e) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Error: $e'),
-        backgroundColor: Colors.redAccent,
-      ),
-    );
-  } finally {
-    if (mounted) {
-      setState(() => _updatingSellerPaymentIds.remove(sellerId));
+
+      print("SELLER PAYMENT STATUS API: $uri");
+      print("SELLER PAYMENT STATUS BODY: ${jsonEncode(requestBody)}");
+      print("SELLER PAYMENT STATUS CODE: ${response.statusCode}");
+      print("SELLER PAYMENT STATUS RESPONSE: ${response.body}");
+
+      Map<String, dynamic>? decoded;
+      try {
+        final parsed = jsonDecode(response.body);
+        if (parsed is Map<String, dynamic>) decoded = parsed;
+      } catch (_) {}
+
+      final msg =
+          decoded?['message']?.toString() ??
+          decoded?['error']?.toString() ??
+          decoded?['detail']?.toString() ??
+          decoded?['non_field_errors']?.toString() ??
+          decoded?['coach_payment_status']?.toString() ??
+          '';
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200 || response.statusCode == 202) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              msg.isNotEmpty
+                  ? msg
+                  : 'Seller payment status updated successfully',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        await _fetchOrderDetail();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              msg.isNotEmpty ? msg : 'Failed to update seller payment status',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _updatingSellerPaymentIds.remove(sellerId));
+      }
     }
   }
-}
 
   Future<void> _fetchExchangeVariants({
     required OrderItem item,
@@ -4456,7 +4448,7 @@ Future<void> _updateSellerPaymentStatus({
               '$api${item.productImage}',
               fit: BoxFit.cover,
               gaplessPlayback: true,
-              errorBuilder: (_, __, ___) => const Icon(
+              errorBuilder: (_, _, _) => const Icon(
                 Icons.image_not_supported,
                 color: Colors.white38,
                 size: 30,
@@ -4475,7 +4467,7 @@ Future<void> _updateSellerPaymentStatus({
         '$api${item.productImage}',
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const Icon(
+        errorBuilder: (_, _, _) => const Icon(
           Icons.image_not_supported,
           color: Colors.white38,
           size: 30,
@@ -4504,7 +4496,7 @@ Future<void> _updateSellerPaymentStatus({
     return Image.network(
       imageUrl,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) =>
+      errorBuilder: (_, _, _) =>
           const Icon(Icons.image_not_supported_outlined, color: Colors.white38),
     );
   }
@@ -5413,8 +5405,7 @@ Future<void> _updateSellerPaymentStatus({
                           ),
                         ),
                         if (_order.status.toLowerCase() == 'delivered' &&
-                            hasReview &&
-                            reviewedProduct != null)
+                            hasReview)
                           Container(
                             margin: const EdgeInsets.only(right: 8),
                             child: GestureDetector(
@@ -6014,7 +6005,7 @@ Future<void> _updateSellerPaymentStatus({
                                                   ),
                                               ],
                                             );
-                                          }).toList(),
+                                          }),
                                         ],
                                       ),
                                     ),
@@ -6129,7 +6120,7 @@ Future<void> _updateSellerPaymentStatus({
                                   ],
                                 ),
                               );
-                            }).toList(),
+                            }),
 
                             // Order totals summary
                             if (_order.summary != null) ...[
@@ -6394,7 +6385,7 @@ Future<void> _updateSellerPaymentStatus({
                                               ),
                                             ),
                                           )
-                                          .toList(),
+                                          ,
                                       const SizedBox(height: 8),
                                       const Divider(
                                         color: Colors.white10,
@@ -6484,7 +6475,7 @@ class ReviewDialog extends StatelessWidget {
   final bool hasReview;
 
   const ReviewDialog({
-    Key? key,
+    super.key,
     required this.productId,
     required this.productTitle,
     required this.variantId,
@@ -6492,7 +6483,7 @@ class ReviewDialog extends StatelessWidget {
     this.productImage,
     this.variantImage,
     this.hasReview = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

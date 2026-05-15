@@ -451,8 +451,8 @@ class _UsedProductsState extends State<UsedProducts> {
                                                       errorBuilder:
                                                           (
                                                             _,
-                                                            __,
-                                                            ___,
+                                                            _,
+                                                            _,
                                                           ) => Container(
                                                             color: Colors.black,
                                                             alignment: Alignment
@@ -631,7 +631,7 @@ class _UsedProductsState extends State<UsedProducts> {
                         child: Image.network(
                           p['image'],
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const ColoredBox(
+                          errorBuilder: (_, _, _) => const ColoredBox(
                             color: Colors.white10,
                             child: Center(
                               child: Icon(
@@ -794,7 +794,7 @@ class _UsedProductsState extends State<UsedProducts> {
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemBuilder: (_, __) {
+      itemBuilder: (_, _) {
         return Shimmer.fromColors(
           baseColor: const Color(0xFF001A18),
           highlightColor: const Color(0xFF00AFA5).withOpacity(0.25),
@@ -1301,8 +1301,9 @@ Future<void> checkoutUsedProduct() async {
       String message = "Checkout failed. Please try again.";
       try {
         final decoded = jsonDecode(response.body);
-        if (decoded is Map && decoded["message"] != null) message = decoded["message"].toString();
-        else if (decoded is Map && decoded["error"] != null) message = decoded["error"].toString();
+        if (decoded is Map && decoded["message"] != null) {
+          message = decoded["message"].toString();
+        } else if (decoded is Map && decoded["error"] != null) message = decoded["error"].toString();
         else if (decoded is Map && decoded["detail"] != null) message = decoded["detail"].toString();
       } catch (_) {}
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.redAccent));
@@ -1371,8 +1372,9 @@ Future<void> createUsedProductRazorpayOrder() async {
       String message = "Unable to create Razorpay order.";
       try {
         final decoded = jsonDecode(response.body);
-        if (decoded is Map && decoded["message"] != null) message = decoded["message"].toString();
-        else if (decoded is Map && decoded["error"] != null) message = decoded["error"].toString();
+        if (decoded is Map && decoded["message"] != null) {
+          message = decoded["message"].toString();
+        } else if (decoded is Map && decoded["error"] != null) message = decoded["error"].toString();
         else if (decoded is Map && decoded["detail"] != null) message = decoded["detail"].toString();
       } catch (_) {}
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.redAccent));
@@ -2267,7 +2269,7 @@ const SizedBox(height: 18),
                       ),
                     );
                   },
-                  errorBuilder: (_, __, ___) => Container(
+                  errorBuilder: (_, _, _) => Container(
                     color: Colors.grey.shade900,
                     child: const Center(
                       child: Icon(
@@ -2440,7 +2442,7 @@ const SizedBox(height: 18),
               sheetSetState: sheetSetState,
             ),
           );
-        }).toList(),
+        }),
     ],
   );
 }

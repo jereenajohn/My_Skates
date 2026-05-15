@@ -702,7 +702,7 @@ class _cartState extends State<cart> {
   }
 
   // ================= UPDATE CART =================
-  updatecart(int cartItemId, int quantity) async {
+  Future<void> updatecart(int cartItemId, int quantity) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
 
@@ -835,7 +835,7 @@ class _cartState extends State<cart> {
                     child: ListView.separated(
                       shrinkWrap: true,
                       itemCount: addresses.length,
-                      separatorBuilder: (_, __) =>
+                      separatorBuilder: (_, _) =>
                           Divider(color: Colors.white.withOpacity(0.08)),
                       itemBuilder: (context, index) {
                         final Map<String, dynamic> addr = addresses[index];
@@ -1673,7 +1673,7 @@ class _cartState extends State<cart> {
                   restrictedBy: restrictedBy,
                 ),
               );
-            }).toList(),
+            }),
           if (restrictedProducts.isNotEmpty)
             Container(
               width: double.infinity,
@@ -2162,12 +2162,12 @@ class _cartState extends State<cart> {
                           ),
                         ],
                       );
-                    }).toList(),
+                    }),
                   ],
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -2952,7 +2952,7 @@ Map<String, dynamic>? _getEligibleOfferForCartItem(dynamic item) {
               _cartInfoStrip(
                 icon: Icons.local_offer_rounded,
                 iconColor: Colors.tealAccent,
-                title: "${eligibleOffer?["title"] ?? "Offer product"} eligible",
+                title: "${eligibleOffer["title"] ?? "Offer product"} eligible",
                 subtitle: "Add required eligible items to unlock this deal",
                 borderColor: Colors.tealAccent.withOpacity(0.28),
                 backgroundColor: Colors.tealAccent.withOpacity(0.09),
@@ -3685,7 +3685,7 @@ class CartSkeleton extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
       itemCount: 5,
-      separatorBuilder: (_, __) => const SizedBox(height: 14),
+      separatorBuilder: (_, _) => const SizedBox(height: 14),
       itemBuilder: (_, index) {
         return Container(
           padding: const EdgeInsets.all(12),

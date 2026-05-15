@@ -1,17 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:my_skates/ADMIN/add_product.dart';
 import 'package:my_skates/ADMIN/cart_view.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/product_big%20_view.dart';
 // import 'package:my_skates/ADMIN/product_big%20_view.dart';
-import 'package:my_skates/ADMIN/products_by_user.dart';
 import 'package:my_skates/ADMIN/slideRightRoute.dart';
 import 'package:my_skates/ADMIN/update_product.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_skates/api.dart';
-import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 
 class Wishlist extends StatefulWidget {
   const Wishlist({super.key});
@@ -135,7 +132,7 @@ class _WishlistState extends State<Wishlist> {
     final token = prefs.getString("access");
 
     var response = await http.delete(
-      Uri.parse("$api/api/myskates/products/update/${id}/"),
+      Uri.parse("$api/api/myskates/products/update/$id/"),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
@@ -532,7 +529,7 @@ class _WishlistState extends State<Wishlist> {
                     child: Image.network(
                       p['image'],
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
+                      errorBuilder: (_, _, _) =>
                           const Icon(Icons.broken_image, color: Colors.grey),
                     ),
                   ),
@@ -757,7 +754,7 @@ class _WishlistState extends State<Wishlist> {
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemBuilder: (_, __) {
+      itemBuilder: (_, _) {
         return Container(
           decoration: BoxDecoration(
             color: Colors.black.withOpacity(0.25),
@@ -832,7 +829,7 @@ class _WishlistState extends State<Wishlist> {
     BuildContext context,
     Map<String, dynamic> product,
   ) {
-    print("Showing variants for product ID: ${product}");
+    print("Showing variants for product ID: $product");
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -883,7 +880,7 @@ class _WishlistState extends State<Wishlist> {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: variants.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 14),
+                  separatorBuilder: (_, _) => const SizedBox(width: 14),
                   itemBuilder: (context, index) {
                     final v = variants[index];
                     final images = v['images'] as List? ?? [];

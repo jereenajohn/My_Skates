@@ -16,7 +16,7 @@ class Userfeedcommentsheet extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => FeedCommentsProvider(feedId),
       child: Consumer<FeedCommentsProvider>(
-        builder: (_, p, __) {
+        builder: (_, p, _) {
           return Container(
             height: MediaQuery.of(context).size.height * 0.85,
             decoration: const BoxDecoration(
@@ -70,7 +70,7 @@ class Userfeedcommentsheet extends StatelessWidget {
                       : ListView.separated(
                           padding: const EdgeInsets.all(12),
                           itemCount: p.comments.length,
-                          separatorBuilder: (_, __) =>
+                          separatorBuilder: (_, _) =>
                               const Divider(color: Colors.white10),
                           itemBuilder: (_, i) {
                             final c = p.comments[i];

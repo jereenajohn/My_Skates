@@ -175,7 +175,7 @@ class _ViewAddressState extends State<ViewAddress> {
                           child: _addressCard(addr),
                         ),
                       )
-                      .toList(),
+                      ,
                 ],
               ),
             ),

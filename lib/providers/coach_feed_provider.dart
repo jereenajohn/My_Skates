@@ -538,7 +538,7 @@ class CoachFeedProvider extends ChangeNotifier {
         );
 
         return {
-          "id": "repost_${item["id"]}", 
+          "id": "repost_${item["id"]}",
           "is_repost": true,
           "repost_id": item["id"],
           "created_at": item["created_at"],
@@ -688,26 +688,65 @@ class CoachFeedProvider extends ChangeNotifier {
     await fetchFeeds();
   }
 
-  Future<void> updateFeed(int id, String text, List<File> images) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("access");
-    if (token == null) return;
+Future<void> updateFeed(
+  int id,
+  String text,
+  List<File> newImages,
+  List<int> existingImageIds,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString("access");
 
-    final req = http.MultipartRequest(
-      "PUT",
-      Uri.parse("$api/api/myskates/feeds/$id/"),
-    );
+  if (token == null) return;
 
-    req.headers["Authorization"] = "Bearer $token";
-    req.fields["description"] = text;
+  final req = http.MultipartRequest(
+    "PUT",
+    Uri.parse("$api/api/myskates/feeds/$id/"),
+  );
 
-    for (final img in images) {
-      req.files.add(await http.MultipartFile.fromPath("images", img.path));
-    }
+  req.headers["Authorization"] = "Bearer $token";
+  req.fields["description"] = text;
 
-    await req.send();
-    await fetchFeeds();
+  // Existing images that should remain after update
+  if (existingImageIds.isNotEmpty) {
+    req.fields["existing_images"] = jsonEncode(existingImageIds);
   }
+
+  // Newly selected images
+  for (final img in newImages) {
+    req.files.add(
+      await http.MultipartFile.fromPath("images", img.path),
+    );
+  }
+
+  final response = await req.send();
+  final responseBody = await response.stream.bytesToString();
+
+  print("UPDATE FEED STATUS: ${response.statusCode}");
+  print("UPDATE FEED BODY: $responseBody");
+
+  await fetchFeeds();
+}
+  // Future<void> updateFeed(int id, String text, List<File> images) async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final token = prefs.getString("access");
+  //   if (token == null) return;
+
+  //   final req = http.MultipartRequest(
+  //     "PUT",
+  //     Uri.parse("$api/api/myskates/feeds/$id/"),
+  //   );
+
+  //   req.headers["Authorization"] = "Bearer $token";
+  //   req.fields["description"] = text;
+
+  //   for (final img in images) {
+  //     req.files.add(await http.MultipartFile.fromPath("images", img.path));
+  //   }
+
+  //   await req.send();
+  //   await fetchFeeds();
+  // }
 
   Future<void> deleteFeed(int id) async {
     final prefs = await SharedPreferences.getInstance();

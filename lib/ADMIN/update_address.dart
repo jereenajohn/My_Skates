@@ -577,7 +577,7 @@ class _UpdateAddressState extends State<UpdateAddress> {
                     ),
                     Switch(
                       value: isDefault,
-                      activeColor: Colors.tealAccent,
+                      activeThumbColor: Colors.tealAccent,
                       onChanged: (v) => setState(() => isDefault = v),
                     ),
                   ],
