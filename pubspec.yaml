@@ -36,29 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   swipeable_card_stack: ^0.0.5
   flutter_dotenv: ^6.0.0
-
-  flutter_map: any
-  geolocator: any
-  latlong2: any
-  http: any
-  shared_preferences: any
-  custom_refresh_indicator: any
-  intl: any
-  google_maps_flutter: any
-  provider: any
-  image_picker: any
-  shimmer: any
-  geocoding: any
-  flutter_carousel_widget: any
-  razorpay_flutter: any
-  animations: any
-  webview_flutter: any
-  fl_chart: any
-  app_links: any
-  share_plus: any
-  flutter_svg: any
-  url_launcher: any
-  file_picker: any
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -83,6 +61,9 @@ dev_dependencies:
   shimmer: ^3.0.0
   video_player: ^2.8.2
   chewie: ^1.7.4
+  flutter_carousel_widget: any
+  razorpay_flutter: any
+  animations: any
   provider: ^6.0.5
   share_plus: ^7.2.1
   app_links: ^3.5.0  
@@ -93,7 +74,7 @@ dev_dependencies:
   google_maps_flutter: ^2.6.0
   liquid_pull_to_refresh: ^3.0.1
   custom_refresh_indicator: ^4.0.1
-  # dropdown_search: ^6.0.2
+  dropdown_search: ^6.0.2
   dropdown_button2: ^3.0.0
   webview_flutter: ^4.7.0
   

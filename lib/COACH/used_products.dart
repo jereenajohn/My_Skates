@@ -430,7 +430,7 @@ class _UsedProductsState extends State<UsedProducts> {
                                             14,
                                           ),
                                           child: FlutterCarousel(
-                                            options: CarouselOptions(
+                                            options: FlutterCarouselOptions(
                                               height: 160,
                                               autoPlay: true,
                                               autoPlayInterval: const Duration(
@@ -439,7 +439,7 @@ class _UsedProductsState extends State<UsedProducts> {
                                               viewportFraction: 1,
                                               showIndicator: true,
                                               slideIndicator:
-                                                  const CircularSlideIndicator(),
+                                                   CircularSlideIndicator(),
                                             ),
                                             items: banner.map((item) {
                                               return Stack(

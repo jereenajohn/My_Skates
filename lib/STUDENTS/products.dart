@@ -1822,7 +1822,7 @@ class _UserProductssState extends State<UserProducts> {
                                             14,
                                           ),
                                           child: FlutterCarousel(
-                                            options: CarouselOptions(
+                                            options: FlutterCarouselOptions(
                                               height: 160,
                                               autoPlay: true,
                                               autoPlayInterval: const Duration(
@@ -1831,7 +1831,7 @@ class _UserProductssState extends State<UserProducts> {
                                               viewportFraction: 1,
                                               showIndicator: true,
                                               slideIndicator:
-                                                  const CircularSlideIndicator(),
+                                                   CircularSlideIndicator(),
                                             ),
                                             items: banner.map((item) {
                                               return Stack(

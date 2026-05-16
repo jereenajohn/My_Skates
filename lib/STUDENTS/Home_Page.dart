@@ -2408,7 +2408,7 @@ class _HomePageState extends State<HomePage> {
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(14),
                                 child: FlutterCarousel(
-                                  options: CarouselOptions(
+                                  options: FlutterCarouselOptions(
                                     height: 160,
                                     autoPlay: true,
                                     autoPlayInterval: const Duration(
