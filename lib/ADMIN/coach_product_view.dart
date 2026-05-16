@@ -1141,16 +1141,16 @@ child: SingleChildScrollView(
                                             14,
                                           ),
                                           child: FlutterCarousel(
-                                            options: CarouselOptions(
+                                            options: FlutterCarouselOptions(
                                               height: 160,
                                               autoPlay: true,
-                                              autoPlayInterval: const Duration(
+                                              autoPlayInterval: Duration(
                                                 seconds: 3,
                                               ),
                                               viewportFraction: 1,
                                               showIndicator: true,
                                               slideIndicator:
-                                                  const CircularSlideIndicator(),
+                                                  CircularSlideIndicator(),
                                             ),
                                             items: banner.map((item) {
                                               return Stack(

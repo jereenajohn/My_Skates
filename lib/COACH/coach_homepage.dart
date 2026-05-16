@@ -2213,7 +2213,7 @@ class _CoachHomepageState extends State<CoachHomepage> {
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(14),
                               child: FlutterCarousel(
-                                options: CarouselOptions(
+                                options: FlutterCarouselOptions(
                                   height: 160,
                                   autoPlay: true,
                                   autoPlayInterval: Duration(seconds: 3),
