@@ -832,18 +832,15 @@ class _DashboardPageState extends State<DashboardPage> {
                                     ),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(14),
-                                      child: FlutterCarousel(
-                                        options: CarouselOptions(
-                                          height: 160,
-                                          autoPlay: true,
-                                          autoPlayInterval: const Duration(
-                                            seconds: 3,
-                                          ),
-                                          viewportFraction: 1,
-                                          showIndicator: true,
-                                          slideIndicator:
-                                               CircularSlideIndicator(),
-                                        ),
+                                      child:  FlutterCarousel(
+  options: FlutterCarouselOptions(
+    height: 160,
+    autoPlay: true,
+    autoPlayInterval: const Duration(seconds: 3),
+    viewportFraction: 1,
+    showIndicator: true,
+    slideIndicator: CircularSlideIndicator(),
+  ),
                                         items: banner.map((item) {
                                           return Stack(
                                             children: [

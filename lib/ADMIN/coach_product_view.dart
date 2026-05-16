@@ -40,13 +40,13 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
   String _userType = "";
 
   bool _animatePage = false;
-final ScrollController _scrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
 
-bool isAllCategorySelected = true;
-String? allProductsNextUrl;
-bool paginationLoading = false;
-Timer? _searchDebounce;
-String currentSearchQuery = "";
+  bool isAllCategorySelected = true;
+  String? allProductsNextUrl;
+  bool paginationLoading = false;
+  Timer? _searchDebounce;
+  String currentSearchQuery = "";
   final List<Map<String, String>> statusTabs = [
     {"label": "Approved", "value": "approved"},
     {"label": "Pending", "value": "pending"},
@@ -63,41 +63,42 @@ String currentSearchQuery = "";
     {'label': 'Rs. 2999 and above', 'min': 2999, 'max': double.infinity},
   ];
 
-@override
-void initState() {
-  super.initState();
+  @override
+  void initState() {
+    super.initState();
 
-  _getUserType();
-  loadInitialData();
-  CartCountNotifier.refreshCartCount();
+    _getUserType();
+    loadInitialData();
+    CartCountNotifier.refreshCartCount();
 
-  _scrollController.addListener(() {
-    if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 300 &&
-        isAllCategorySelected &&
-        allProductsNextUrl != null &&
-        !paginationLoading &&
-        !productsLoading) {
-      getAllApprovedProducts(loadMore: true);
-    }
-  });
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent - 300 &&
+          isAllCategorySelected &&
+          allProductsNextUrl != null &&
+          !paginationLoading &&
+          !productsLoading) {
+        getAllApprovedProducts(loadMore: true);
+      }
+    });
 
-  Future.delayed(const Duration(milliseconds: 200), () {
-    if (mounted) {
-      setState(() {
-        _animatePage = true;
-      });
-    }
-  });
-}
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) {
+        setState(() {
+          _animatePage = true;
+        });
+      }
+    });
+  }
 
-@override
-void dispose() {
-  searchController.dispose();
-  _scrollController.dispose();
-  _searchDebounce?.cancel();
-  super.dispose();
-}
+  @override
+  void dispose() {
+    searchController.dispose();
+    _scrollController.dispose();
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
+
   Future<void> _getUserType() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -105,31 +106,29 @@ void dispose() {
     });
   }
 
-Future<void> loadInitialData() async {
-  await Future.wait([
-    getbanner(),
-    getProductCategories(),
-  ]);
+  Future<void> loadInitialData() async {
+    await Future.wait([getbanner(), getProductCategories()]);
 
-  await getAllApprovedProducts();
-
-  if (mounted) {
-    setState(() {
-      pageLoading = false;
-    });
-  }
-}
-
-Future<void> refreshAllData() async {
-  await getbanner();
-  await getProductCategories();
-
-  if (isAllCategorySelected) {
     await getAllApprovedProducts();
-  } else if (selectedCategoryId != null) {
-    await getProductsByCategory(selectedCategoryId!);
+
+    if (mounted) {
+      setState(() {
+        pageLoading = false;
+      });
+    }
   }
-}
+
+  Future<void> refreshAllData() async {
+    await getbanner();
+    await getProductCategories();
+
+    if (isAllCategorySelected) {
+      await getAllApprovedProducts();
+    } else if (selectedCategoryId != null) {
+      await getProductsByCategory(selectedCategoryId!);
+    }
+  }
+
   Future<void> delete(int id) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("access");
@@ -330,190 +329,183 @@ Future<void> refreshAllData() async {
 
   List<Map<String, dynamic>> categories = [];
 
-Future<void> getProductCategories() async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
+  Future<void> getProductCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
 
-  try {
-    var response = await http.get(
-      Uri.parse("$api/api/myskates/products/category/"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
-    );
+    try {
+      var response = await http.get(
+        Uri.parse("$api/api/myskates/products/category/"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
 
-    print("Categories status: ${response.statusCode}");
-    print("Categories response: ${response.body}");
+      print("Categories status: ${response.statusCode}");
+      print("Categories response: ${response.body}");
 
-    if (response.statusCode == 200) {
-      final parsed = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final parsed = jsonDecode(response.body);
 
-      List<Map<String, dynamic>> list = [];
+        List<Map<String, dynamic>> list = [];
 
-      list.add({
-        "id": null,
-        "name": "All",
+        list.add({"id": null, "name": "All"});
+
+        for (var item in parsed) {
+          list.add({"id": item["id"], "name": item["name"]});
+        }
+
+        if (mounted) {
+          setState(() {
+            categories = list;
+            selectedCategoryId = null;
+            selectedCategoryName = "All";
+            isAllCategorySelected = true;
+          });
+        }
+      }
+    } catch (e) {
+      print("Error fetching categories: $e");
+    }
+  }
+
+  Map<String, dynamic> _mapProductData(dynamic c) {
+    var price = c['base_price'];
+    String priceString = "0";
+
+    if (price != null) {
+      if (price is int) {
+        priceString = price.toString();
+      } else if (price is double) {
+        priceString = price.toString();
+      } else if (price is String) {
+        priceString = price;
+      }
+    }
+
+    String imageUrl = "";
+    final rawImage = c['image'];
+
+    if (rawImage != null && rawImage.toString().isNotEmpty) {
+      final img = rawImage.toString();
+
+      if (img.startsWith("http://") || img.startsWith("https://")) {
+        imageUrl = img;
+      } else {
+        imageUrl = "$api$img";
+      }
+    }
+
+    return {
+      'id': c['id'],
+      'title': c['title'] ?? "",
+      'image': imageUrl,
+      'category_name': c['category_name'] ?? "",
+      'base_price': c['base_price']?.toString() ?? priceString,
+      'price': c['price']?.toString() ?? priceString,
+      'discounted_price':
+          c['discounted_price']?.toString() ??
+          c['price']?.toString() ??
+          priceString,
+      'discount': c['discount']?.toString() ?? "0",
+      'is_wishlisted': c['is_in_wishlist'] ?? false,
+      'offer_details': c['offer_details'],
+    };
+  }
+
+  void _searchProducts(String query) {
+    currentSearchQuery = query.trim();
+
+    if (isAllCategorySelected) {
+      _searchDebounce?.cancel();
+
+      _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+        getAllApprovedProducts();
       });
 
-      for (var item in parsed) {
-        list.add({
-          "id": item["id"],
-          "name": item["name"],
-        });
-      }
-
-      if (mounted) {
-        setState(() {
-          categories = list;
-          selectedCategoryId = null;
-          selectedCategoryName = "All";
-          isAllCategorySelected = true;
-        });
-      }
+      return;
     }
-  } catch (e) {
-    print("Error fetching categories: $e");
-  }
-}
 
- Map<String, dynamic> _mapProductData(dynamic c) {
-  var price = c['base_price'];
-  String priceString = "0";
-
-  if (price != null) {
-    if (price is int) {
-      priceString = price.toString();
-    } else if (price is double) {
-      priceString = price.toString();
-    } else if (price is String) {
-      priceString = price;
+    if (query.isEmpty) {
+      setState(() {
+        products = List.from(_allProducts);
+      });
+      return;
     }
+
+    final results = _allProducts.where((product) {
+      final title = product['title'].toString().toLowerCase();
+      final category = product['category_name'].toString().toLowerCase();
+
+      return title.contains(query.toLowerCase()) ||
+          category.contains(query.toLowerCase());
+    }).toList();
+
+    setState(() {
+      products = results;
+    });
   }
 
-  String imageUrl = "";
-  final rawImage = c['image'];
+  Future<void> getAllApprovedProducts({bool loadMore = false}) async {
+    if (loadMore) {
+      if (allProductsNextUrl == null || paginationLoading) return;
 
-  if (rawImage != null && rawImage.toString().isNotEmpty) {
-    final img = rawImage.toString();
-
-    if (img.startsWith("http://") || img.startsWith("https://")) {
-      imageUrl = img;
+      setState(() {
+        paginationLoading = true;
+      });
     } else {
-      imageUrl = "$api$img";
-    }
-  }
-
-  return {
-    'id': c['id'],
-    'title': c['title'] ?? "",
-    'image': imageUrl,
-    'category_name': c['category_name'] ?? "",
-    'base_price': c['base_price']?.toString() ?? priceString,
-    'price': c['price']?.toString() ?? priceString,
-    'discounted_price':
-        c['discounted_price']?.toString() ??
-        c['price']?.toString() ??
-        priceString,
-    'discount': c['discount']?.toString() ?? "0",
-    'is_wishlisted': c['is_in_wishlist'] ?? false,
-    'offer_details': c['offer_details'],
-  };
-}
-
-
- void _searchProducts(String query) {
-  currentSearchQuery = query.trim();
-
-  if (isAllCategorySelected) {
-    _searchDebounce?.cancel();
-
-    _searchDebounce = Timer(const Duration(milliseconds: 500), () {
-      getAllApprovedProducts();
-    });
-
-    return;
-  }
-
-  if (query.isEmpty) {
-    setState(() {
-      products = List.from(_allProducts);
-    });
-    return;
-  }
-
-  final results = _allProducts.where((product) {
-    final title = product['title'].toString().toLowerCase();
-    final category = product['category_name'].toString().toLowerCase();
-
-    return title.contains(query.toLowerCase()) ||
-        category.contains(query.toLowerCase());
-  }).toList();
-
-  setState(() {
-    products = results;
-  });
-}
-
- Future<void> getAllApprovedProducts({bool loadMore = false}) async {
-  if (loadMore) {
-    if (allProductsNextUrl == null || paginationLoading) return;
-
-    setState(() {
-      paginationLoading = true;
-    });
-  } else {
-    setState(() {
-      productsLoading = true;
-      paginationLoading = false;
-      allProductsNextUrl = null;
-      _selectedPriceRange = null;
-      _isPriceFilterActive = false;
-    });
-  }
-
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
-
-  try {
-    Uri uri;
-
-    if (loadMore && allProductsNextUrl != null) {
-      uri = Uri.parse(allProductsNextUrl!);
-    } else {
-      uri = Uri.parse('$api/api/myskates/all/approved/products/view/');
-
-      final Map<String, String> params = {};
-
-      if (currentSearchQuery.trim().isNotEmpty) {
-        params["search"] = currentSearchQuery.trim();
-      }
-
-      if (params.isNotEmpty) {
-        uri = uri.replace(queryParameters: params);
-      }
+      setState(() {
+        productsLoading = true;
+        paginationLoading = false;
+        allProductsNextUrl = null;
+        _selectedPriceRange = null;
+        _isPriceFilterActive = false;
+      });
     }
 
-    print("ALL PRODUCTS API: $uri");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
 
-    final response = await http.get(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
+    try {
+      Uri uri;
 
-    print("ALL PRODUCTS STATUS: ${response.statusCode}");
-    print("ALL PRODUCTS BODY: ${response.body}");
+      if (loadMore && allProductsNextUrl != null) {
+        uri = Uri.parse(allProductsNextUrl!);
+      } else {
+        uri = Uri.parse('$api/api/myskates/all/approved/products/view/');
 
-    if (response.statusCode == 200) {
-      final decoded = jsonDecode(response.body);
+        final Map<String, String> params = {};
 
-      String? nextUrl;
-      List<dynamic> dataList = [];
+        if (currentSearchQuery.trim().isNotEmpty) {
+          params["search"] = currentSearchQuery.trim();
+        }
 
-      /*
+        if (params.isNotEmpty) {
+          uri = uri.replace(queryParameters: params);
+        }
+      }
+
+      print("ALL PRODUCTS API: $uri");
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print("ALL PRODUCTS STATUS: ${response.statusCode}");
+      print("ALL PRODUCTS BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+
+        String? nextUrl;
+        List<dynamic> dataList = [];
+
+        /*
         Supports both API formats:
 
         Format 1:
@@ -535,45 +527,45 @@ Future<void> getProductCategories() async {
         }
       */
 
-      if (decoded is Map && decoded["results"] is Map) {
-        nextUrl = decoded["next"]?.toString();
+        if (decoded is Map && decoded["results"] is Map) {
+          nextUrl = decoded["next"]?.toString();
 
-        final results = decoded["results"];
-        if (results["data"] is List) {
-          dataList = results["data"];
+          final results = decoded["results"];
+          if (results["data"] is List) {
+            dataList = results["data"];
+          }
+        } else if (decoded is Map && decoded["data"] is List) {
+          nextUrl = decoded["next"]?.toString();
+          dataList = decoded["data"];
         }
-      } else if (decoded is Map && decoded["data"] is List) {
-        nextUrl = decoded["next"]?.toString();
-        dataList = decoded["data"];
+
+        final mappedProducts = dataList
+            .map<Map<String, dynamic>>((c) => _mapProductData(c))
+            .toList();
+
+        setState(() {
+          allProductsNextUrl = nextUrl;
+
+          if (loadMore) {
+            products.addAll(mappedProducts);
+            _allProducts.addAll(mappedProducts);
+          } else {
+            products = mappedProducts;
+            _allProducts = List.from(mappedProducts);
+          }
+        });
       }
+    } catch (e) {
+      print("All approved products fetch error: $e");
+    }
 
-      final mappedProducts = dataList
-          .map<Map<String, dynamic>>((c) => _mapProductData(c))
-          .toList();
-
+    if (mounted) {
       setState(() {
-        allProductsNextUrl = nextUrl;
-
-        if (loadMore) {
-          products.addAll(mappedProducts);
-          _allProducts.addAll(mappedProducts);
-        } else {
-          products = mappedProducts;
-          _allProducts = List.from(mappedProducts);
-        }
+        productsLoading = false;
+        paginationLoading = false;
       });
     }
-  } catch (e) {
-    print("All approved products fetch error: $e");
   }
-
-  if (mounted) {
-    setState(() {
-      productsLoading = false;
-      paginationLoading = false;
-    });
-  }
-}
 
   void _showPriceFilter() {
     showModalBottomSheet(
@@ -739,71 +731,71 @@ Future<void> getProductCategories() async {
     Navigator.pop(context);
   }
 
- void _clearPriceFilter() {
-  setState(() {
-    _selectedPriceRange = null;
-    _isPriceFilterActive = false;
-  });
+  void _clearPriceFilter() {
+    setState(() {
+      _selectedPriceRange = null;
+      _isPriceFilterActive = false;
+    });
 
-  if (isAllCategorySelected) {
-    getAllApprovedProducts();
-  } else if (selectedCategoryId != null) {
-    getProductsByCategory(selectedCategoryId!);
-  }
-}
-
-void _filterProductsByPrice() {
-  if (_selectedPriceRange == null) return;
-
-  setState(() {
-    productsLoading = true;
-  });
-
-  final selectedRange = priceRanges.firstWhere(
-    (range) => range['label'] == _selectedPriceRange,
-  );
-
-  double minPrice = 0.0;
-  double maxPrice = double.infinity;
-
-  var minValue = selectedRange['min'];
-  if (minValue is int) {
-    minPrice = minValue.toDouble();
-  } else if (minValue is double) {
-    minPrice = minValue;
+    if (isAllCategorySelected) {
+      getAllApprovedProducts();
+    } else if (selectedCategoryId != null) {
+      getProductsByCategory(selectedCategoryId!);
+    }
   }
 
-  var maxValue = selectedRange['max'];
-  if (maxValue is int) {
-    maxPrice = maxValue.toDouble();
-  } else if (maxValue is double) {
-    maxPrice = maxValue;
-  }
+  void _filterProductsByPrice() {
+    if (_selectedPriceRange == null) return;
 
-  List<Map<String, dynamic>> filteredProducts = _allProducts.where((product) {
-    double price = 0.0;
-    var priceValue = product['discounted_price'] ?? product['price'];
+    setState(() {
+      productsLoading = true;
+    });
 
-    if (priceValue is String) {
-      price = double.tryParse(priceValue) ?? 0.0;
-    } else if (priceValue is int) {
-      price = priceValue.toDouble();
-    } else if (priceValue is double) {
-      price = priceValue;
+    final selectedRange = priceRanges.firstWhere(
+      (range) => range['label'] == _selectedPriceRange,
+    );
+
+    double minPrice = 0.0;
+    double maxPrice = double.infinity;
+
+    var minValue = selectedRange['min'];
+    if (minValue is int) {
+      minPrice = minValue.toDouble();
+    } else if (minValue is double) {
+      minPrice = minValue;
     }
 
-    if (maxPrice == double.infinity) {
-      return price >= minPrice;
-    } else {
-      return price >= minPrice && price <= maxPrice;
+    var maxValue = selectedRange['max'];
+    if (maxValue is int) {
+      maxPrice = maxValue.toDouble();
+    } else if (maxValue is double) {
+      maxPrice = maxValue;
     }
-  }).toList();
 
-  setState(() {
-    products = filteredProducts;
-    productsLoading = false;
-  });
-}
+    List<Map<String, dynamic>> filteredProducts = _allProducts.where((product) {
+      double price = 0.0;
+      var priceValue = product['discounted_price'] ?? product['price'];
+
+      if (priceValue is String) {
+        price = double.tryParse(priceValue) ?? 0.0;
+      } else if (priceValue is int) {
+        price = priceValue.toDouble();
+      } else if (priceValue is double) {
+        price = priceValue;
+      }
+
+      if (maxPrice == double.infinity) {
+        return price >= minPrice;
+      } else {
+        return price >= minPrice && price <= maxPrice;
+      }
+    }).toList();
+
+    setState(() {
+      products = filteredProducts;
+      productsLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -851,9 +843,9 @@ void _filterProductsByPrice() {
                     displacement: 40,
                     edgeOffset: 10,
                     strokeWidth: 3,
-child: SingleChildScrollView(
-  controller: _scrollController,
-  physics: const AlwaysScrollableScrollPhysics(),                   
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
                       child: AnimatedOpacity(
                         duration: const Duration(milliseconds: 600),
                         opacity: _animatePage ? 1 : 0,
@@ -1141,7 +1133,7 @@ child: SingleChildScrollView(
                                             14,
                                           ),
                                           child: FlutterCarousel(
-                                            options: CarouselOptions(
+                                            options: FlutterCarouselOptions(
                                               height: 160,
                                               autoPlay: true,
                                               autoPlayInterval: Duration(
@@ -1240,64 +1232,82 @@ child: SingleChildScrollView(
                                 ),
 
                                 const SizedBox(height: 18),
-categories.isEmpty
-    ? _categorySkeleton()
-    : SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: categories.map((cat) {
-            final bool isSelected =
-                isAllCategorySelected
-                    ? cat['id'] == null
-                    : selectedCategoryId == cat['id'];
+                                categories.isEmpty
+                                    ? _categorySkeleton()
+                                    : SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        child: Row(
+                                          children: categories.map((cat) {
+                                            final bool isSelected =
+                                                isAllCategorySelected
+                                                ? cat['id'] == null
+                                                : selectedCategoryId ==
+                                                      cat['id'];
 
-            return GestureDetector(
-              onTap: () {
-                final bool selectedAll = cat['id'] == null;
+                                            return GestureDetector(
+                                              onTap: () {
+                                                final bool selectedAll =
+                                                    cat['id'] == null;
 
-                setState(() {
-                  selectedCategoryId = cat['id'];
-                  selectedCategoryName = cat['name'];
-                  isAllCategorySelected = selectedAll;
-                  searchController.clear();
-                  currentSearchQuery = "";
-                });
+                                                setState(() {
+                                                  selectedCategoryId =
+                                                      cat['id'];
+                                                  selectedCategoryName =
+                                                      cat['name'];
+                                                  isAllCategorySelected =
+                                                      selectedAll;
+                                                  searchController.clear();
+                                                  currentSearchQuery = "";
+                                                });
 
-                if (selectedAll) {
-                  getAllApprovedProducts();
-                } else {
-                  getProductsByCategory(cat['id']);
-                }
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-                margin: const EdgeInsets.only(right: 10),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Colors.tealAccent
-                      : Colors.black.withOpacity(0.25),
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.white24),
-                ),
-                child: Text(
-                  cat['name'],
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: isSelected ? Colors.black : Colors.white,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ),
+                                                if (selectedAll) {
+                                                  getAllApprovedProducts();
+                                                } else {
+                                                  getProductsByCategory(
+                                                    cat['id'],
+                                                  );
+                                                }
+                                              },
+                                              child: AnimatedContainer(
+                                                duration: const Duration(
+                                                  milliseconds: 300,
+                                                ),
+                                                curve: Curves.easeInOut,
+                                                margin: const EdgeInsets.only(
+                                                  right: 10,
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 20,
+                                                      vertical: 10,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: isSelected
+                                                      ? Colors.tealAccent
+                                                      : Colors.black
+                                                            .withOpacity(0.25),
+                                                  borderRadius:
+                                                      BorderRadius.circular(30),
+                                                  border: Border.all(
+                                                    color: Colors.white24,
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  cat['name'],
+                                                  style: TextStyle(
+                                                    fontFamily: 'Poppins',
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: isSelected
+                                                        ? Colors.black
+                                                        : Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }).toList(),
+                                        ),
+                                      ),
 
                                 const SizedBox(height: 20),
 
@@ -1391,46 +1401,57 @@ categories.isEmpty
                                       ),
                                     ),
                                   )
-                             else ...[
-  GridView.builder(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    itemCount: products.length,
-    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 2,
-      mainAxisExtent: 295,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-    ),
-    itemBuilder: (context, index) {
-      final p = products[index];
+                                else ...[
+                                  GridView.builder(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    itemCount: products.length,
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 2,
+                                          mainAxisExtent: 295,
+                                          crossAxisSpacing: 12,
+                                          mainAxisSpacing: 12,
+                                        ),
+                                    itemBuilder: (context, index) {
+                                      final p = products[index];
 
-      return TweenAnimationBuilder<double>(
-        duration: Duration(milliseconds: 400 + (index * 80)),
-        tween: Tween<double>(begin: 0, end: 1),
-        curve: Curves.easeOut,
-        builder: (context, value, child) {
-          return Opacity(
-            opacity: value,
-            child: Transform.translate(
-              offset: Offset(0, 30 * (1 - value)),
-              child: child,
-            ),
-          );
-        },
-        child: _productCard(p),
-      );
-    },
-  ),
+                                      return TweenAnimationBuilder<double>(
+                                        duration: Duration(
+                                          milliseconds: 400 + (index * 80),
+                                        ),
+                                        tween: Tween<double>(begin: 0, end: 1),
+                                        curve: Curves.easeOut,
+                                        builder: (context, value, child) {
+                                          return Opacity(
+                                            opacity: value,
+                                            child: Transform.translate(
+                                              offset: Offset(
+                                                0,
+                                                30 * (1 - value),
+                                              ),
+                                              child: child,
+                                            ),
+                                          );
+                                        },
+                                        child: _productCard(p),
+                                      );
+                                    },
+                                  ),
 
-  if (paginationLoading)
-    const Padding(
-      padding: EdgeInsets.symmetric(vertical: 18),
-      child: Center(
-        child: CircularProgressIndicator(color: Colors.tealAccent),
-      ),
-    ),
-],
+                                  if (paginationLoading)
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 18,
+                                      ),
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          color: Colors.tealAccent,
+                                        ),
+                                      ),
+                                    ),
+                                ],
 
                                 const SizedBox(height: 40),
                               ],
@@ -1637,16 +1658,15 @@ categories.isEmpty
                               ? Image.network(
                                   p['image'],
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) =>
-                                      const ColoredBox(
-                                        color: Colors.white10,
-                                        child: Center(
-                                          child: Icon(
-                                            Icons.broken_image,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
+                                  errorBuilder: (_, _, _) => const ColoredBox(
+                                    color: Colors.white10,
+                                    child: Center(
+                                      child: Icon(
+                                        Icons.broken_image,
+                                        color: Colors.grey,
                                       ),
+                                    ),
+                                  ),
                                 )
                               : const ColoredBox(
                                   color: Colors.white10,
@@ -1801,7 +1821,6 @@ categories.isEmpty
                   // ),
 
                   // const SizedBox(height: 6),
-
                   Padding(
                     padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
                     child: _productPriceSection(p),
@@ -1815,54 +1834,54 @@ categories.isEmpty
     );
   }
 
-Future<void> _handleUpdateProduct() async {
-  await Navigator.push(context, slideRightToLeftRoute(const Wishlist()));
+  Future<void> _handleUpdateProduct() async {
+    await Navigator.push(context, slideRightToLeftRoute(const Wishlist()));
 
-  if (isAllCategorySelected) {
-    await getAllApprovedProducts();
-  } else if (selectedCategoryId != null) {
-    await getProductsByCategory(selectedCategoryId!);
+    if (isAllCategorySelected) {
+      await getAllApprovedProducts();
+    } else if (selectedCategoryId != null) {
+      await getProductsByCategory(selectedCategoryId!);
+    }
   }
-}
 
   Future<void> getProductsByCategory(int categoryId) async {
-  setState(() {
-    productsLoading = true;
-    _selectedPriceRange = null;
-    _isPriceFilterActive = false;
-  });
+    setState(() {
+      productsLoading = true;
+      _selectedPriceRange = null;
+      _isPriceFilterActive = false;
+    });
 
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString("access");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
 
-  try {
-    final response = await http.get(
-      Uri.parse('$api/api/myskates/products/by/category/$categoryId/'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
+    try {
+      final response = await http.get(
+        Uri.parse('$api/api/myskates/products/by/category/$categoryId/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
 
-    print("resssss ${response.body}");
+      print("resssss ${response.body}");
 
-    if (response.statusCode == 200) {
-      final List<dynamic> dataList = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final List<dynamic> dataList = jsonDecode(response.body);
 
-      products = dataList.map<Map<String, dynamic>>((c) {
-        return _mapProductData(c);
-      }).toList();
+        products = dataList.map<Map<String, dynamic>>((c) {
+          return _mapProductData(c);
+        }).toList();
 
-      _allProducts = List.from(products);
+        _allProducts = List.from(products);
+      }
+    } catch (e) {
+      print("Category fetch error: $e");
     }
-  } catch (e) {
-    print("Category fetch error: $e");
-  }
 
-  setState(() {
-    productsLoading = false;
-  });
-}
+    setState(() {
+      productsLoading = false;
+    });
+  }
 
   Widget _productGridSkeleton() {
     return GridView.builder(

@@ -2213,15 +2213,15 @@ class _CoachHomepageState extends State<CoachHomepage> {
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(14),
                               child: FlutterCarousel(
-                                options: CarouselOptions(
-                                  height: 160,
-                                  autoPlay: true,
-                                  autoPlayInterval: Duration(seconds: 3),
-                                  viewportFraction: 1,
-                                  showIndicator: true,
-                                  slideIndicator: CircularSlideIndicator(),
-                                ),
-                                items: banner.map((item) {
+  options: FlutterCarouselOptions(
+    height: 160,
+    autoPlay: true,
+    autoPlayInterval: const Duration(seconds: 3),
+    viewportFraction: 1,
+    showIndicator: true,
+    slideIndicator:  CircularSlideIndicator(),
+  ),
+  items: banner.map((item) {
                                   return Stack(
                                     children: [
                                       // Background Image
