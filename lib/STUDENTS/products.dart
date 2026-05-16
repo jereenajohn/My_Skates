@@ -1822,16 +1822,19 @@ class _UserProductssState extends State<UserProducts> {
                                           borderRadius: BorderRadius.circular(
                                             14,
                                           ),
-                                          child:FlutterCarousel(
-  options: FlutterCarouselOptions(
-    height: 160,
-    autoPlay: true,
-    autoPlayInterval: const Duration(seconds: 3),
-    viewportFraction: 1,
-    showIndicator: true,
-    slideIndicator:  CircularSlideIndicator(),
-  ),
-  items: banner.map((item) {
+                                          child: FlutterCarousel(
+                                            options: FlutterCarouselOptions(
+                                              height: 160,
+                                              autoPlay: true,
+                                              autoPlayInterval: const Duration(
+                                                seconds: 3,
+                                              ),
+                                              viewportFraction: 1,
+                                              showIndicator: true,
+                                              slideIndicator:
+                                                  CircularSlideIndicator(),
+                                            ),
+                                            items: banner.map((item) {
                                               return Stack(
                                                 children: [
                                                   Positioned.fill(
@@ -1924,7 +1927,6 @@ class _UserProductssState extends State<UserProducts> {
                                 //     fontWeight: FontWeight.w500,
                                 //   ),
                                 // ),
-
                                 const SizedBox(height: 18),
 
                                 categories.isEmpty

@@ -2273,77 +2273,81 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
 
-                    titleSpacing: 16,
+                    titleSpacing: 12,
                     title: Row(
                       children: [
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const UserMenuPage(),
-                              ),
-                            );
-                          },
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              CircleAvatar(
-                                radius: 24,
-                                backgroundImage:
-                                    studentImage != null &&
-                                        studentImage!.isNotEmpty
-                                    ? NetworkImage("$api$studentImage")
-                                    : const AssetImage("lib/assets/img.jpg")
-                                          as ImageProvider,
-                              ),
-                              const SizedBox(width: 12),
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const UserMenuPage(),
-                                    ),
-                                  );
-                                },
-
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      studentName.isNotEmpty
-                                          ? studentName
-                                          : "User",
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    Text(
-                                      studentRole.isNotEmpty ? studentRole : "",
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.white70,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const UserMenuPage(),
                                 ),
-                              ),
-                            ],
+                              );
+                            },
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 24,
+                                  backgroundImage:
+                                      studentImage != null &&
+                                          studentImage!.isNotEmpty
+                                      ? NetworkImage("$api$studentImage")
+                                      : const AssetImage("lib/assets/img.jpg")
+                                            as ImageProvider,
+                                ),
+
+                                const SizedBox(width: 10),
+
+                                Expanded(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        studentName.isNotEmpty
+                                            ? studentName
+                                            : "User",
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      if (studentRole.isNotEmpty)
+                                        Text(
+                                          studentRole,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.white70,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        SizedBox(width: 120),
+
+                        const SizedBox(width: 8),
+
                         Stack(
+                          clipBehavior: Clip.none,
                           children: [
                             IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 40,
+                                minHeight: 40,
+                              ),
                               onPressed: () async {
                                 await Navigator.push(
                                   context,
@@ -2356,10 +2360,11 @@ class _HomePageState extends State<HomePage> {
                                 color: Colors.tealAccent,
                               ),
                             ),
+
                             if (notificationUnreadCount > 0)
                               Positioned(
-                                right: 6,
-                                top: 6,
+                                right: 2,
+                                top: 2,
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
@@ -2371,10 +2376,12 @@ class _HomePageState extends State<HomePage> {
                                     minHeight: 18,
                                   ),
                                   child: Text(
-                                    notificationUnreadCount.toString(),
+                                    notificationUnreadCount > 99
+                                        ? "99+"
+                                        : notificationUnreadCount.toString(),
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 11,
+                                      fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                     ),
                                     textAlign: TextAlign.center,
@@ -2408,15 +2415,17 @@ class _HomePageState extends State<HomePage> {
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(14),
                                 child: FlutterCarousel(
-  options: FlutterCarouselOptions(
-    height: 160,
-    autoPlay: true,
-    autoPlayInterval: const Duration(seconds: 3),
-    viewportFraction: 1,
-    showIndicator: true,
-    slideIndicator: CircularSlideIndicator(),
-  ),
-  items: banner.map((item) {
+                                  options: FlutterCarouselOptions(
+                                    height: 160,
+                                    autoPlay: true,
+                                    autoPlayInterval: const Duration(
+                                      seconds: 3,
+                                    ),
+                                    viewportFraction: 1,
+                                    showIndicator: true,
+                                    slideIndicator: CircularSlideIndicator(),
+                                  ),
+                                  items: banner.map((item) {
                                     return Stack(
                                       children: [
                                         Positioned.fill(

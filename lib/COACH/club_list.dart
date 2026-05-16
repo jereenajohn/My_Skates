@@ -17,7 +17,9 @@ class _ClubGridPageState extends State<ClubGridPage> {
   String userType = "";
   List clubs = [];
   List filteredClubs = [];
+
   final TextEditingController searchController = TextEditingController();
+
   bool loading = true;
   bool noData = false;
 
@@ -26,6 +28,12 @@ class _ClubGridPageState extends State<ClubGridPage> {
     super.initState();
     fetchUserType();
     fetchClubs();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   Future<void> fetchUserType() async {
@@ -38,13 +46,15 @@ class _ClubGridPageState extends State<ClubGridPage> {
     final selectedType = active.isNotEmpty
         ? active
         : userTypeValue.isNotEmpty
-        ? userTypeValue
-        : roleValue;
+            ? userTypeValue
+            : roleValue;
 
-    print("ACTIVE VALUE: $active");
-    print("USER TYPE VALUE: $userTypeValue");
-    print("ROLE VALUE: $roleValue");
-    print("SELECTED USER TYPE: $selectedType");
+    debugPrint("ACTIVE VALUE: $active");
+    debugPrint("USER TYPE VALUE: $userTypeValue");
+    debugPrint("ROLE VALUE: $roleValue");
+    debugPrint("SELECTED USER TYPE: $selectedType");
+
+    if (!mounted) return;
 
     setState(() {
       userType = selectedType.trim().toLowerCase();
@@ -58,17 +68,35 @@ class _ClubGridPageState extends State<ClubGridPage> {
 
       final response = await http.get(
         Uri.parse("$api/api/myskates/club/"),
-        headers: {"Authorization": "Bearer $token"},
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
       );
+
+      debugPrint("CLUB STATUS: ${response.statusCode}");
+      debugPrint("CLUB BODY: ${response.body}");
+
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        setState(() {
-          clubs = decoded;
-          filteredClubs = decoded;
-          loading = false;
-          noData = clubs.isEmpty;
-        });
+
+        if (decoded is List) {
+          setState(() {
+            clubs = decoded;
+            filteredClubs = decoded;
+            loading = false;
+            noData = decoded.isEmpty;
+          });
+        } else {
+          setState(() {
+            clubs = [];
+            filteredClubs = [];
+            loading = false;
+            noData = true;
+          });
+        }
       } else {
         setState(() {
           loading = false;
@@ -76,6 +104,10 @@ class _ClubGridPageState extends State<ClubGridPage> {
         });
       }
     } catch (e) {
+      debugPrint("FETCH CLUBS ERROR: $e");
+
+      if (!mounted) return;
+
       setState(() {
         loading = false;
         noData = true;
@@ -84,34 +116,48 @@ class _ClubGridPageState extends State<ClubGridPage> {
   }
 
   void filterClubs(String query) {
+    final searchText = query.trim().toLowerCase();
+
     final results = clubs.where((club) {
       final clubName = (club["club_name"] ?? "").toString().toLowerCase();
-
-      return clubName.contains(query.toLowerCase());
+      return clubName.contains(searchText);
     }).toList();
 
     setState(() {
       filteredClubs = results;
+      noData = filteredClubs.isEmpty;
     });
+  }
+
+  Future<void> refreshPage() async {
+    await fetchClubs();
+
+    if (searchController.text.trim().isNotEmpty) {
+      filterClubs(searchController.text);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final screen = MediaQuery.of(context).size;
+    final String currentUserType = userType.trim().toLowerCase();
 
     return Scaffold(
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
 
-      /// 🌌 PREMIUM APPBAR
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text("Clubs", style: TextStyle(color: Colors.white)),
+        title: const Text(
+          "Clubs",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
 
-      /// 🌈 FULL GRADIENT BACKGROUND
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -125,25 +171,26 @@ class _ClubGridPageState extends State<ClubGridPage> {
             end: Alignment.bottomCenter,
           ),
         ),
-
         child: SafeArea(
           child: loading
               ? const Center(
-                  child: CircularProgressIndicator(color: Colors.tealAccent),
+                  child: CircularProgressIndicator(
+                    color: Colors.tealAccent,
+                  ),
                 )
               : RefreshIndicator(
-                  onRefresh: fetchClubs,
+                  onRefresh: refreshPage,
                   color: Colors.tealAccent,
                   backgroundColor: Colors.black,
                   child: Column(
                     children: [
-                      /// 🔍 SEARCH BAR (GLASS STYLE)
                       Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                         child: TextField(
                           controller: searchController,
                           onChanged: filterClubs,
                           style: const TextStyle(color: Colors.white),
+                          cursorColor: Colors.tealAccent,
                           decoration: InputDecoration(
                             hintText: "Search clubs",
                             hintStyle: const TextStyle(color: Colors.white54),
@@ -151,8 +198,24 @@ class _ClubGridPageState extends State<ClubGridPage> {
                               Icons.search,
                               color: Colors.white54,
                             ),
+                            suffixIcon: searchController.text.isNotEmpty
+                                ? IconButton(
+                                    onPressed: () {
+                                      searchController.clear();
+                                      filterClubs("");
+                                    },
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: Colors.white54,
+                                    ),
+                                  )
+                                : null,
                             filled: true,
                             fillColor: Colors.black.withOpacity(0.4),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(35),
                               borderSide: const BorderSide(
@@ -165,19 +228,31 @@ class _ClubGridPageState extends State<ClubGridPage> {
                                 color: Colors.white12,
                               ),
                             ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(35),
+                              borderSide: const BorderSide(
+                                color: Colors.tealAccent,
+                                width: 1.2,
+                              ),
+                            ),
                           ),
                         ),
                       ),
 
                       Expanded(
-                        child: noData
+                        child: filteredClubs.isEmpty
                             ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
                                 children: const [
                                   SizedBox(height: 150),
                                   Center(
                                     child: Text(
                                       "No clubs found",
-                                      style: TextStyle(color: Colors.white70),
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -187,18 +262,31 @@ class _ClubGridPageState extends State<ClubGridPage> {
                                   horizontal: 12,
                                 ),
                                 child: GridView.builder(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  padding: const EdgeInsets.only(
+                                    top: 8,
+                                    bottom: 24,
+                                  ),
                                   itemCount: filteredClubs.length,
                                   gridDelegate:
                                       SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 2,
-                                        crossAxisSpacing: 12,
-                                        mainAxisSpacing: 12,
-                                        childAspectRatio:
-                                            userType.trim().toLowerCase() ==
-                                                "student"
-                                            ? 1.05
-      : 0.82,
-                                      ),
+                                    crossAxisCount: 2,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
+
+                                    /*
+                                      IMPORTANT:
+                                      Higher childAspectRatio = shorter card.
+                                      Your old student ratio 1.05 made the card height too small.
+                                      That caused:
+                                      RenderFlex overflowed by 15 pixels on the bottom.
+                                    */
+                                    childAspectRatio:
+                                        currentUserType == "student"
+                                            ? 0.82
+                                            : 0.72,
+                                  ),
                                   itemBuilder: (context, index) {
                                     return ClubGridCard(
                                       club: filteredClubs[index],
@@ -213,6 +301,7 @@ class _ClubGridPageState extends State<ClubGridPage> {
                 ),
         ),
       ),
+
       bottomNavigationBar: const AppBottomNav(currentIndex: 0),
     );
   }
