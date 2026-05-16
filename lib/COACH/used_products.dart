@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_skates/ADMIN/add_address.dart';
 import 'package:my_skates/ADMIN/dashboard.dart';
@@ -17,6 +16,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:my_skates/ADMIN/order_failure_page.dart';
 import 'package:my_skates/ADMIN/order_success_page.dart';
+import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 
 class UsedProducts extends StatefulWidget {
   const UsedProducts({super.key});
@@ -430,7 +430,7 @@ class _UsedProductsState extends State<UsedProducts> {
                                             14,
                                           ),
                                           child: FlutterCarousel(
-                                            options: FlutterCarouselOptions(
+                                            options: CarouselOptions(
                                               height: 160,
                                               autoPlay: true,
                                               autoPlayInterval: const Duration(
