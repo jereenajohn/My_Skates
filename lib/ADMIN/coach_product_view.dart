@@ -1136,7 +1136,7 @@ class _UserApprovedProductsState extends State<UserApprovedProducts> {
                                             options: FlutterCarouselOptions(
                                               height: 160,
                                               autoPlay: true,
-                                              autoPlayInterval: const Duration(
+                                              autoPlayInterval: Duration(
                                                 seconds: 3,
                                               ),
                                               viewportFraction: 1,

@@ -727,6 +727,8 @@ class _HomePageState extends State<HomePage> {
 
   Widget buildHomeFeedCard(Map<String, dynamic> feed) {
     final bool isRepostFeed = feed["feed"] != null && feed["feed"] is Map;
+    final PageController feedPageController = PageController();
+    final ValueNotifier<int> currentImageIndex = ValueNotifier<int>(0);
 
     final Map<String, dynamic> displayFeed = isRepostFeed
         ? Map<String, dynamic>.from(feed["feed"])
@@ -953,72 +955,151 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 14),
                   SizedBox(
                     height: 235,
-                    child: PageView.builder(
-                      itemCount: images.length,
-                      itemBuilder: (context, imgIndex) {
-                        final imgData = images[imgIndex];
+                    child: Stack(
+                      children: [
+                        PageView.builder(
+                          controller: feedPageController,
+                          itemCount: images.length,
+                          onPageChanged: (index) {
+                            currentImageIndex.value = index;
+                          },
+                          itemBuilder: (context, imgIndex) {
+                            final imgData = images[imgIndex];
 
-                        final String img = imgData is Map
-                            ? (imgData["image"] ?? "").toString()
-                            : imgData.toString();
+                            final String img = imgData is Map
+                                ? (imgData["image"] ?? "").toString()
+                                : imgData.toString();
 
-                        final String imageUrl = img.startsWith("http")
-                            ? img
-                            : "$api$img";
+                            final String imageUrl = img.startsWith("http")
+                                ? img
+                                : "$api$img";
 
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(18),
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () {
-                                debugPrint("POST IMAGE CLICKED: $imageUrl");
-                                showHomeFeedImagePopup(context, imageUrl);
-                              },
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  Image.network(
-                                    imageUrl,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, _, _) {
-                                      return Container(
-                                        color: Colors.white10,
-                                        child: const Center(
-                                          child: Icon(
-                                            Icons.broken_image,
-                                            color: Colors.white54,
-                                            size: 34,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(18),
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () {
+                                    debugPrint("POST IMAGE CLICKED: $imageUrl");
+                                    showHomeFeedImagePopup(context, imageUrl);
+                                  },
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      Image.network(
+                                        imageUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, _, _) {
+                                          return Container(
+                                            color: Colors.white10,
+                                            child: const Center(
+                                              child: Icon(
+                                                Icons.broken_image,
+                                                color: Colors.white54,
+                                                size: 34,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
 
-                                  Positioned.fill(
-                                    child: IgnorePointer(
-                                      ignoring: true,
-                                      child: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topCenter,
-                                            end: Alignment.bottomCenter,
-                                            colors: [
-                                              Colors.transparent,
-                                              Colors.black.withOpacity(0.18),
-                                            ],
+                                      Positioned.fill(
+                                        child: IgnorePointer(
+                                          ignoring: true,
+                                          child: DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  Colors.transparent,
+                                                  Colors.black.withOpacity(
+                                                    0.18,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                ],
+                                ),
                               ),
+                            );
+                          },
+                        ),
+
+                        // ✅ Dot indicator — only show if multiple images
+                        if (images.length > 1)
+                          Positioned(
+                            bottom: 10,
+                            left: 0,
+                            right: 0,
+                            child: ValueListenableBuilder<int>(
+                              valueListenable: currentImageIndex,
+                              builder: (context, currentIndex, _) {
+                                return Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: List.generate(images.length, (
+                                    index,
+                                  ) {
+                                    final bool isActive = index == currentIndex;
+                                    return AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 250,
+                                      ),
+                                      margin: const EdgeInsets.symmetric(
+                                        horizontal: 3,
+                                      ),
+                                      width: isActive ? 18 : 6,
+                                      height: 6,
+                                      decoration: BoxDecoration(
+                                        color: isActive
+                                            ? const Color(0xFF2EE6A6)
+                                            : Colors.white.withOpacity(0.5),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    );
+                                  }),
+                                );
+                              },
                             ),
                           ),
-                        );
-                      },
+
+                        // ✅ Image count badge (top right)
+                        if (images.length > 1)
+                          Positioned(
+                            top: 10,
+                            right: 20,
+                            child: ValueListenableBuilder<int>(
+                              valueListenable: currentImageIndex,
+                              builder: (context, currentIndex, _) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.55),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    "${currentIndex + 1}/${images.length}",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -1628,11 +1709,18 @@ class _HomePageState extends State<HomePage> {
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         if (decoded is List) {
+          final filteredClubs = decoded.where((club) {
+            final status = club["approval_status"];
+            return status != "approved";
+          }).toList();
+
           setState(() {
-            clubs = decoded;
-            noData = decoded.isEmpty;
+            clubs = filteredClubs;
+            noData = filteredClubs.isEmpty;
           });
-          print("CLUBS FETCHED: $clubs");
+
+          print("Total clubs: ${decoded.length}");
+          print("Filtered clubs (excluding joined): ${filteredClubs.length}");
         }
       } else {
         setState(() {
@@ -2197,56 +2285,62 @@ class _HomePageState extends State<HomePage> {
                               ),
                             );
                           },
-                          child: CircleAvatar(
-                            radius: 24,
-                            backgroundImage:
-                                studentImage != null && studentImage!.isNotEmpty
-                                ? NetworkImage("$api$studentImage")
-                                : const AssetImage("lib/assets/img.jpg")
-                                      as ImageProvider,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircleAvatar(
+                                radius: 24,
+                                backgroundImage:
+                                    studentImage != null &&
+                                        studentImage!.isNotEmpty
+                                    ? NetworkImage("$api$studentImage")
+                                    : const AssetImage("lib/assets/img.jpg")
+                                          as ImageProvider,
+                              ),
+                              const SizedBox(width: 12),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const UserMenuPage(),
+                                    ),
+                                  );
+                                },
+
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      studentName.isNotEmpty
+                                          ? studentName
+                                          : "User",
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    Text(
+                                      studentRole.isNotEmpty ? studentRole : "",
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.white70,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 12),
-
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const UserMenuPage(),
-                                ),
-                              );
-                            },
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  studentName.isNotEmpty ? studentName : "User",
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                Text(
-                                  studentRole.isNotEmpty ? studentRole : "",
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.white70,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
+                        SizedBox(width: 120),
                         Stack(
                           children: [
                             IconButton(

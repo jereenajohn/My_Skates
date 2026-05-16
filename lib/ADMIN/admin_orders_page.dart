@@ -9,6 +9,7 @@ import 'dart:ui';
 import 'package:my_skates/api.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // Order Model Classes with images
 class OrderItem {
@@ -102,7 +103,7 @@ class BoughtProductItem {
   final int id;
   final int orderId;
   final String orderNo;
-  final String orderStatus;
+  final String productStatus;
   final DateTime orderCreatedAt;
   final int product;
   final String productTitle;
@@ -119,7 +120,7 @@ class BoughtProductItem {
     required this.id,
     required this.orderId,
     required this.orderNo,
-    required this.orderStatus,
+    required this.productStatus,
     required this.orderCreatedAt,
     required this.product,
     required this.productTitle,
@@ -138,7 +139,7 @@ class BoughtProductItem {
       id: json['id'] ?? 0,
       orderId: json['order_id'] ?? 0,
       orderNo: json['order_no'] ?? '',
-      orderStatus: json['order_status'] ?? '',
+      productStatus: json['product_status'] ?? '',
       orderCreatedAt:
           DateTime.tryParse(json['order_created_at'] ?? '') ?? DateTime.now(),
       product: json['product'] ?? 0,
@@ -648,6 +649,8 @@ class _Admin_order_pageState extends State<Admin_order_page> {
     );
   }
 
+  
+
   /// Returns the correct API URL based on selected view
   String get _apiUrl {
     switch (_selectedView) {
@@ -798,7 +801,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
 
   final List<Map<String, String>> statusOptions = [
     {"value": "PLACED", "label": "Placed"},
-    {"value": "PAID", "label": "Paid"},
+    // {"value": "PAID", "label": "Paid"},
     {"value": "SHIPPED", "label": "Shipped"},
     {"value": "DELIVERED", "label": "Delivered"},
     {"value": "CANCELLED", "label": "Cancelled"},
@@ -1754,13 +1757,11 @@ class _Admin_order_pageState extends State<Admin_order_page> {
 
                           // Order cards
                           if (_selectedView == OrderViewType.myOrders)
-                            ...boughtProducts
-                                .map((item) => _buildBoughtProductCard(item))
-                                
+                            ...boughtProducts.map(
+                              (item) => _buildBoughtProductCard(item),
+                            )
                           else
-                            ...orders
-                                .map((order) => _buildOrderCard(order))
-                                ,
+                            ...orders.map((order) => _buildOrderCard(order)),
 
                           _buildAllOrdersPagination(),
 
@@ -2314,8 +2315,7 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                       ),
                     ),
                   ),
-                )
-                ,
+                ),
 
             if (order.items.length > 2)
               GestureDetector(
@@ -2589,18 +2589,18 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(item.orderStatus).withOpacity(0.16),
+                    color: _getStatusColor(item.productStatus).withOpacity(0.16),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: _getStatusColor(
-                        item.orderStatus,
+                        item.productStatus,
                       ).withOpacity(0.35),
                     ),
                   ),
                   child: Text(
-                    item.orderStatus,
+                    item.productStatus,
                     style: TextStyle(
-                      color: _getStatusColor(item.orderStatus),
+                      color: _getStatusColor(item.productStatus),
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.4,
@@ -2684,6 +2684,63 @@ class _Admin_order_pageState extends State<Admin_order_page> {
                         ),
                       ],
                     ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            Divider(color: Colors.white.withOpacity(0.12), height: 1),
+
+            const SizedBox(height: 12),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Tap to view details',
+                  style: TextStyle(
+                    color: Colors.white38,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+
+                GestureDetector(
+                  onTap: () {
+                    _openInvoice(item.orderId);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.tealAccent.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.tealAccent.withOpacity(0.45),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.receipt_long_rounded,
+                          color: Colors.tealAccent,
+                          size: 16,
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          'Invoice',
+                          style: TextStyle(
+                            color: Colors.tealAccent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -6295,97 +6352,89 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                                         ),
                                       ),
                                       const SizedBox(height: 10),
-                                      ..._order.summary!.sellerPayableBreakdown
-                                          .map(
-                                            (seller) => Padding(
-                                              padding: const EdgeInsets.only(
-                                                bottom: 8,
-                                              ),
-                                              child: Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
+                                      ..._order.summary!.sellerPayableBreakdown.map(
+                                        (seller) => Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 8,
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Row(
                                                 children: [
-                                                  Row(
-                                                    children: [
-                                                      Container(
-                                                        width: 6,
-                                                        height: 6,
-                                                        decoration: BoxDecoration(
-                                                          color:
-                                                              seller.userType ==
-                                                                  'admin'
-                                                              ? Colors.orange
-                                                              : Colors
-                                                                    .tealAccent,
-                                                          shape:
-                                                              BoxShape.circle,
-                                                        ),
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      Text(
-                                                        seller.name,
-                                                        style: const TextStyle(
-                                                          color: Colors.white70,
-                                                          fontSize: 12,
-                                                        ),
-                                                      ),
-                                                      const SizedBox(width: 6),
-                                                      Container(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 6,
-                                                              vertical: 2,
-                                                            ),
-                                                        decoration: BoxDecoration(
-                                                          color:
-                                                              seller.userType ==
-                                                                  'admin'
-                                                              ? Colors.orange
-                                                                    .withOpacity(
-                                                                      0.2,
-                                                                    )
-                                                              : Colors
-                                                                    .tealAccent
-                                                                    .withOpacity(
-                                                                      0.2,
-                                                                    ),
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                4,
-                                                              ),
-                                                        ),
-                                                        child: Text(
-                                                          seller.userType,
-                                                          style: TextStyle(
-                                                            color:
-                                                                seller.userType ==
-                                                                    'admin'
-                                                                ? Colors.orange
-                                                                : Colors
-                                                                      .tealAccent,
-                                                            fontSize: 9,
-                                                            fontWeight:
-                                                                FontWeight.w500,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
+                                                  Container(
+                                                    width: 6,
+                                                    height: 6,
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          seller.userType ==
+                                                              'admin'
+                                                          ? Colors.orange
+                                                          : Colors.tealAccent,
+                                                      shape: BoxShape.circle,
+                                                    ),
                                                   ),
+                                                  const SizedBox(width: 8),
                                                   Text(
-                                                    '₹${_amount(seller.sellerPayableTotal).toStringAsFixed(2)}',
+                                                    seller.name,
                                                     style: const TextStyle(
                                                       color: Colors.white70,
                                                       fontSize: 12,
-                                                      fontWeight:
-                                                          FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 6,
+                                                          vertical: 2,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          seller.userType ==
+                                                              'admin'
+                                                          ? Colors.orange
+                                                                .withOpacity(
+                                                                  0.2,
+                                                                )
+                                                          : Colors.tealAccent
+                                                                .withOpacity(
+                                                                  0.2,
+                                                                ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            4,
+                                                          ),
+                                                    ),
+                                                    child: Text(
+                                                      seller.userType,
+                                                      style: TextStyle(
+                                                        color:
+                                                            seller.userType ==
+                                                                'admin'
+                                                            ? Colors.orange
+                                                            : Colors.tealAccent,
+                                                        fontSize: 9,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
                                                     ),
                                                   ),
                                                 ],
                                               ),
-                                            ),
-                                          )
-                                          ,
+                                              Text(
+                                                '₹${_amount(seller.sellerPayableTotal).toStringAsFixed(2)}',
+                                                style: const TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
                                       const SizedBox(height: 8),
                                       const Divider(
                                         color: Colors.white10,
