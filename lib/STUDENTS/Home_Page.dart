@@ -2298,23 +2298,24 @@ class _HomePageState extends State<HomePage> {
                                           as ImageProvider,
                               ),
                               const SizedBox(width: 12),
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const UserMenuPage(),
-                                ),
-                              );
-                            },
-                                Column(
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const UserMenuPage(),
+                                    ),
+                                  );
+                                },
+
+                                child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       studentName.isNotEmpty
-                                        ? studentName
-                                        : "User",
+                                          ? studentName
+                                          : "User",
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
@@ -2334,7 +2335,7 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                     ),
                                   ],
-                            ),
+                                ),
                               ),
                             ],
                           ),
