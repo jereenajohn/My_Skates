@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_skates/ADMIN/cart_count_notifier.dart';
 import 'package:my_skates/ADMIN/cart_view.dart';
 import 'package:my_skates/ADMIN/coach_product_view.dart';
 import 'package:my_skates/ADMIN/product_big%20_view.dart';
@@ -23,11 +24,13 @@ class _WishlistState extends State<Wishlist> {
   bool productsLoading = false; // status switch loading
   int? selectedCategoryId;
   String selectedCategoryName = "";
+  int cartCount = 0;
 
   @override
   void initState() {
     super.initState();
     loadInitialData();
+    CartCountNotifier.refreshCartCount();
   }
 
   Future<void> addToCart(int variantId) async {
@@ -52,6 +55,8 @@ class _WishlistState extends State<Wishlist> {
 
       // ✅ SUCCESS
       if (response.statusCode == 200 || response.statusCode == 201) {
+        await CartCountNotifier.refreshCartCount();
+
         _showSnackBar(
           icon: Icons.shopping_cart,
           color: Colors.tealAccent,
@@ -122,9 +127,65 @@ class _WishlistState extends State<Wishlist> {
 
   Future<void> loadInitialData() async {
     await getProducts();
+    await fetchCartCount();
+
     setState(() {
       pageLoading = false;
     });
+  }
+
+  Future<void> fetchCartCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("access");
+
+    if (token == null) return;
+
+    try {
+      final response = await http.get(
+        Uri.parse('$api/api/myskates/cart/view/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      debugPrint("CART COUNT STATUS: ${response.statusCode}");
+      debugPrint("CART COUNT BODY: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+
+        List items = [];
+
+        if (decoded['data'] is List) {
+          items = decoded['data'];
+        } else if (decoded['data'] is Map && decoded['data']['items'] is List) {
+          items = decoded['data']['items'];
+        } else if (decoded['items'] is List) {
+          items = decoded['items'];
+        } else if (decoded['results'] is List) {
+          items = decoded['results'];
+        } else if (decoded['results'] is Map &&
+            decoded['results']['data'] is List) {
+          items = decoded['results']['data'];
+        }
+
+        int count = 0;
+
+        for (final item in items) {
+          final qty = int.tryParse(item['quantity']?.toString() ?? '1') ?? 1;
+          count += qty;
+        }
+
+        if (mounted) {
+          setState(() {
+            cartCount = count;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Cart count error: $e");
+    }
   }
 
   Future<void> delete(int id) async {
@@ -402,40 +463,63 @@ class _WishlistState extends State<Wishlist> {
                                   const SizedBox(width: 4),
 
                                   IconButton(
-                                    onPressed: () {
-                                      Navigator.push(
+                                    onPressed: () async {
+                                      await Navigator.push(
                                         context,
-                                        slideRightToLeftRoute(cart()),
+                                        slideRightToLeftRoute(const cart()),
                                       );
+
+                                      CartCountNotifier.refreshCartCount();
                                     },
-                                    icon: Stack(
-                                      clipBehavior: Clip.none,
-                                      children: [
-                                        const Icon(
-                                          Icons.shopping_cart_outlined,
-                                          color: Colors.white,
-                                          size: 26,
-                                        ),
-                                        Positioned(
-                                          right: -2,
-                                          top: -2,
-                                          child: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            decoration: const BoxDecoration(
-                                              color: Colors.redAccent,
-                                              shape: BoxShape.circle,
+                                    icon: ValueListenableBuilder<int>(
+                                      valueListenable:
+                                          CartCountNotifier.cartCount,
+                                      builder: (context, count, _) {
+                                        return Stack(
+                                          clipBehavior: Clip.none,
+                                          children: [
+                                            const Icon(
+                                              Icons.shopping_cart_outlined,
+                                              color: Colors.white,
+                                              size: 26,
                                             ),
-                                            child: const Text(
-                                              "2",
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
+
+                                            if (count > 0)
+                                              Positioned(
+                                                right: -2,
+                                                top: -2,
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(
+                                                    4,
+                                                  ),
+                                                  constraints:
+                                                      const BoxConstraints(
+                                                        minWidth: 18,
+                                                        minHeight: 18,
+                                                      ),
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                        color: Colors.redAccent,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                  child: Center(
+                                                    child: Text(
+                                                      count > 99
+                                                          ? '99+'
+                                                          : '$count',
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
                                               ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                          ],
+                                        );
+                                      },
                                     ),
                                   ),
                                 ],
@@ -712,7 +796,10 @@ class _WishlistState extends State<Wishlist> {
           // OUTLINED BUTTON
           GestureDetector(
             onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => UserApprovedProducts()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => UserApprovedProducts()),
+              );
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 13),
