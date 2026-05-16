@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:animations/animations.dart';
+import 'package:carousel_slider/carousel_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import 'package:http/http.dart' as http;
@@ -430,17 +431,14 @@ class _UsedProductsState extends State<UsedProducts> {
                                             14,
                                           ),
                                           child: FlutterCarousel(
-                                            options: CarouselOptions(
-                                              height: 160,
-                                              autoPlay: true,
-                                              autoPlayInterval: const Duration(
-                                                seconds: 3,
-                                              ),
-                                              viewportFraction: 1,
-                                              showIndicator: true,
-                                              slideIndicator:
-                                                  const CircularSlideIndicator(),
-                                            ),
+  options: FlutterCarouselOptions(
+    height: 160,
+    autoPlay: true,
+    autoPlayInterval: const Duration(seconds: 3),
+    viewportFraction: 1,
+    showIndicator: true,
+    slideIndicator:  CircularSlideIndicator(),
+  ),
                                             items: banner.map((item) {
                                               return Stack(
                                                 children: [
