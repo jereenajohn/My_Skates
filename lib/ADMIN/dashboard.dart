@@ -833,7 +833,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(14),
                                       child: FlutterCarousel(
-                                        options: FlutterCarouselOptions(
+                                        options: CarouselOptions(
                                           height: 160,
                                           autoPlay: true,
                                           autoPlayInterval: const Duration(
